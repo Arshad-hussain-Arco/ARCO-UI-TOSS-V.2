@@ -1,0 +1,140 @@
+/* CSS Variables - Light Theme (Default) */
+:root {
+  --font-family: Helvetica, Arial, sans-serif;
+  --c-primary: #006633;
+  --c-primary-dark: #004d26;
+  --c-primary-light: #e6f4ed;
+  --c-primary-hover: #005028;
+
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-hover: #f9fafb;
+  --bg-active: #f3f4f6;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text Colors */
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #ffffff;
+  --text-muted: #6b7280;
+
+  /* Border Colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --border-tertiary: #f3f4f6;
+  --border-focus: #006633;
+
+  /* Card & Surface Colors */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f9fafb;
+  --surface-elevated: #ffffff;
+
+  /* Gray Scale */
+  /* Removed --gray-* variables to avoid Tailwind v4 namespace conflict */
+
+  /* Status Colors */
+  --c-success: #10b981;
+  --c-success-light: #d1fae5;
+  --c-info: #2563eb;
+  --c-info-light: #dbeafe;
+  --c-warning: #f97316;
+  --c-warning-light: #fef3c7;
+  --c-danger: #dc2626;
+  --c-danger-light: #fee2e2;
+
+  /* Scrollbar Colors */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Brand aliases */
+  --brand-primary: var(--c-primary);
+  --brand-secondary: var(--c-primary-dark);
+
+  /* Status Colors (semantic aliases) */
+  --status-success: #10b981;
+  --status-warning: #f97316;
+  --status-critical: #dc2626;
+  --status-info: #2563eb;
+
+  /* Surface Tertiary */
+  --surface-tertiary: #f3f4f6;
+}
+
+/* Dark Theme */
+[data-theme='dark'] {
+  --c-primary: #10b981;
+  --c-primary-dark: #059669;
+  --c-primary-light: #064e3b;
+  --c-primary-hover: #059669;
+
+  /* Background Colors */
+  --bg-primary: #1f2937;
+  --bg-secondary: #111827;
+  --bg-tertiary: #374151;
+  --bg-hover: #374151;
+  --bg-active: #4b5563;
+  --bg-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Text Colors */
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-inverse: #111827;
+  --text-muted: #9ca3af;
+
+  /* Border Colors */
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+  --border-tertiary: #374151;
+  --border-focus: #10b981;
+
+  /* Card & Surface Colors */
+  --surface-primary: #1f2937;
+  --surface-secondary: #111827;
+  --surface-elevated: #374151;
+
+  /* Gray Scale - Inverted for dark mode */
+  /* Removed --gray-* variables to avoid Tailwind v4 namespace conflict */
+
+  /* Status Colors - Adjusted for dark mode */
+  --c-success: #10b981;
+  --c-success-light: #064e3b;
+  --c-info: #3b82f6;
+  --c-info-light: #1e3a8a;
+  --c-warning: #f59e0b;
+  --c-warning-light: #78350f;
+  --c-danger: #ef4444;
+  --c-danger-light: #7f1d1d;
+
+  /* Scrollbar Colors */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #4b5563;
+  --scrollbar-thumb-hover: #6b7280;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  /* Brand aliases */
+  --brand-primary: var(--c-primary);
+  --brand-secondary: var(--c-primary-dark);
+
+  /* Status Colors (semantic aliases) */
+  --status-success: #10b981;
+  --status-warning: #f59e0b;
+  --status-critical: #ef4444;
+  --status-info: #3b82f6;
+
+  /* Surface Tertiary */
+  --surface-tertiary: #374151;
+}

@@ -1,0 +1,21 @@
+export const normalizeConsultant = (c, isActive) => ({
+  id: c.id || c.emp_id || c.employee_id || Math.random().toString(),
+  name: c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+  userId: c.userId || c.user_name || c.username || c.emp_id || '',
+  designation: c.designation_name || c.designation || c.role?.name || 'Consultant',
+  team: c.team_name || c.team?.name || c.team || c.department || 'Unassigned',
+  phone: c.mobile || c.phone || '',
+  email: c.email || '',
+  isActive,
+  gender: c.gender || 'Not Specified',
+  manager: c.manager_name || c.manager?.name || c.manager || 'No Manager',
+  joiningDate: c.joining_date || c.joiningDate || c.date_joined || '',
+  role: c.role_name || c.role?.name || c.role || 'Consultant',
+  location: c.location || 'On Site',
+  accountStatus: isActive ? 'active' : 'inactive',
+  avatar: c.photo || c.avatar || c.profile_image || '',
+  roleId: c.role_id || (typeof c.role === 'object' ? c.role?.id : c.role) || '',
+  teamId: c.team_id || (typeof c.team === 'object' ? c.team?.id : c.team) || '',
+  managerId: c.manager_id || c.manager_emp_id || (typeof c.manager === 'object' ? c.manager?.emp_id || c.manager?.id : c.manager) || '',
+  ...c
+});

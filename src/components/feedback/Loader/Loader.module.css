@@ -1,0 +1,21 @@
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  min-height: 200px;
+  width: 100%;
+}
+
+.fullScreen {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+.message {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}

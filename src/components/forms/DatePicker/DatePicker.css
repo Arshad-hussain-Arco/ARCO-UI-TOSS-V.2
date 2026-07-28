@@ -1,0 +1,331 @@
+.dp-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  outline: none;
+}
+
+.dp-trigger:hover:not(:disabled) {
+  border-color: var(--text-tertiary);
+  background-color: var(--bg-secondary);
+}
+
+.dp-trigger:focus-visible,
+.dp-trigger[data-state='open'] {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.12);
+}
+
+.dp-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dp-trigger-empty .dp-value {
+  color: var(--text-tertiary);
+}
+
+.dp-icon-left {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.dp-value {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dp-clear {
+  color: var(--text-tertiary);
+  border-radius: 4px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.dp-clear:hover {
+  background-color: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* ── Popover Content ──────────────────────────────────────────────────────── */
+.dp-content {
+  z-index: 10000;
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-md);
+  animation: dp-slide-up 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dp-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+/* ── Custom Enterprise Header ───────────────────────────────────────────── */
+.dp-custom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.dp-header-selectors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dp-header-btn {
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dp-header-btn:hover,
+.dp-header-btn.is-active {
+  background-color: var(--surface-secondary);
+  border-color: var(--border-primary);
+  color: var(--c-primary);
+}
+
+.dp-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dp-nav-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
+/* ── Month & Year Grid Selector Views ────────────────────────────────────── */
+.dp-grid-selector {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+  width: 252px;
+  height: 216px;
+  box-sizing: border-box;
+}
+
+.month-grid {
+  grid-template-columns: repeat(3, 1fr);
+  align-content: center;
+}
+
+.year-grid {
+  grid-template-columns: repeat(4, 1fr);
+  overflow-y: auto;
+  max-height: 216px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.dp-grid-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dp-grid-option:hover {
+  background-color: var(--c-primary-light);
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+
+.dp-grid-option.is-selected {
+  background-color: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Hide default rdp caption & nav */
+.dp-caption-hidden,
+.dp-nav-hidden {
+  display: none !important;
+}
+
+/* ── Calendar Grid (react-day-picker overrides) ─────────────────────────── */
+.dp-root {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: var(--c-primary);
+  --rdp-background-color: var(--c-primary-light);
+  --rdp-accent-color-dark: var(--c-primary-dark);
+  --rdp-background-color-dark: var(--c-primary-light);
+  --rdp-outline: 2px solid var(--c-primary);
+  margin: 0;
+}
+
+.dp-months {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dp-month {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Grid & Table */
+.dp-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.dp-head-row {
+  display: grid;
+  grid-template-columns: repeat(7, var(--rdp-cell-size));
+  margin-bottom: 2px;
+}
+
+.dp-head-cell {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+}
+
+.dp-row {
+  display: grid;
+  grid-template-columns: repeat(7, var(--rdp-cell-size));
+  margin-top: 2px;
+}
+
+.dp-cell {
+  text-align: center;
+  padding: 0;
+  position: relative;
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dp-day {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.dp-day:hover:not(.dp-day-disabled):not(.dp-day-selected) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dp-day-today {
+  font-weight: 700;
+  color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+}
+
+.dp-day-selected {
+  background-color: var(--c-primary) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border: none !important;
+}
+
+.dp-day-selected:hover {
+  background-color: var(--c-primary-hover) !important;
+}
+
+.dp-day-outside {
+  color: var(--text-tertiary);
+  opacity: 0.35;
+}
+
+.dp-day-disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.dp-day-range-middle {
+  background-color: var(--c-primary-light) !important;
+  color: var(--text-primary) !important;
+  border-radius: 0;
+}
+
+.dp-day-range-start {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dp-day-range-end {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}

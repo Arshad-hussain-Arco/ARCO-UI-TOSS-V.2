@@ -1,0 +1,21 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Global stylesheet entry point — the only stylesheet imported by main.jsx.
+
+   Order matters:
+     1. Tailwind engine + animation helpers
+     2. Design tokens (shadcn primitives, then the TOSS light/dark token set)
+     3. Base element styles
+     4. Shared utilities
+
+   Feature stylesheets are imported by the component that owns them.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,jsx}';
+@import 'tw-animate-css';
+
+@import '../theme/shadcn-tokens.css';
+@import '../theme/tokens.css';
+
+@import './base.css';
+@import './utilities.css';

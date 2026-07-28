@@ -1,0 +1,233 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CustomSelect — single reusable dropdown component
+   All tokens reference design-system CSS variables (globals.css / theme.css)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Trigger (the visible "button" that mimics a select) ─────────────────── */
+.cs-trigger {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  box-sizing: border-box;
+
+  /* Appearance */
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+
+  /* Typography */
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.cs-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
+/* Placeholder text colour (when no value selected) */
+.cs-trigger [data-placeholder] {
+  color: var(--text-tertiary);
+}
+
+.cs-trigger:hover:not([data-disabled]) {
+  border-color: var(--text-tertiary);
+  background: var(--bg-secondary);
+}
+
+.cs-trigger:focus,
+.cs-trigger[data-state='open'] {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.12);
+}
+
+.cs-trigger[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Chevron icon rotates when open */
+.cs-chevron {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition:
+    transform 0.2s ease,
+    color 0.15s ease;
+}
+
+.cs-trigger[data-state='open'] .cs-chevron {
+  transform: rotate(180deg);
+  color: var(--c-primary);
+}
+
+/* ── Dropdown Panel ───────────────────────────────────────────────────────── */
+.cs-content {
+  /* Positioning */
+  z-index: 9999;
+  min-width: var(--radix-select-trigger-width);
+  width: var(--radix-select-trigger-width);
+  max-height: 260px;
+  overflow: hidden;
+
+  /* Appearance */
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.07),
+    0 10px 20px rgba(0, 0, 0, 0.06);
+
+  /* Open/close animation */
+  transform-origin: top center;
+  animation-duration: 140ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cs-content[data-state='open'][data-side='bottom'] {
+  animation-name: cs-slide-down;
+}
+
+.cs-content[data-state='open'][data-side='top'] {
+  animation-name: cs-slide-up;
+}
+
+.cs-content[data-state='closed'] {
+  animation-duration: 100ms;
+  animation-name: cs-fade-out;
+}
+
+@keyframes cs-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes cs-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes cs-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Viewport (scrollable inner container) ───────────────────────────────── */
+.cs-viewport {
+  padding: 4px;
+  overflow-y: auto;
+  max-height: 252px;
+  overscroll-behavior: contain;
+
+  /* Thin scrollbar in dropdown */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.cs-viewport::-webkit-scrollbar {
+  width: 4px;
+}
+.cs-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cs-viewport::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+.cs-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── Individual Option Items ──────────────────────────────────────────────── */
+.cs-item {
+  /* Layout */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+
+  /* Typography */
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
+}
+
+/* Keyboard-focused / mouse-hovered item */
+.cs-item[data-highlighted] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Currently selected item */
+.cs-item[data-state='checked'] {
+  color: var(--c-primary);
+  font-weight: 500;
+  background: var(--c-primary-light);
+}
+
+.cs-item[data-state='checked'][data-highlighted] {
+  background: var(--c-primary-light);
+}
+
+/* Disabled item */
+.cs-item[data-disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Check icon (only visible when item is selected) */
+.cs-check {
+  flex-shrink: 0;
+  color: var(--c-primary);
+}

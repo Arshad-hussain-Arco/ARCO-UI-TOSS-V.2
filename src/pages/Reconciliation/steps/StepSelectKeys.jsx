@@ -1,0 +1,157 @@
+import { useCallback, useMemo } from 'react';
+
+import { useToast } from '@hooks/useToast';
+import { generatePreviewRows } from '@mocks/data/reconciliation';
+
+function ColumnList({ title, columns, selected, onToggle }) {
+  return (
+    <div className="rsk-column-panel">
+      <div className="rsk-column-panel-header">
+        <span className="rsk-column-panel-title">{title}</span>
+        <span className="rsk-column-panel-count">Selected: {selected.length}</span>
+      </div>
+      <div className="rsk-column-list">
+        {columns.map((col) => {
+          const checked = selected.includes(col);
+          return (
+            <label key={col} className={`rsk-column-item${checked ? ' rsk-column-item--checked' : ''}`}>
+              <input
+                type="checkbox"
+                className="rsk-column-checkbox"
+                checked={checked}
+                onChange={() => onToggle(col)}
+              />
+              <span className="rsk-column-name">{col}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PreviewTable({ columns, rows, title }) {
+  if (!columns.length) return null;
+  return (
+    <div className="rsk-preview">
+      <div className="rsk-preview-title">{title} — Data Preview (first 5 rows)</div>
+      <div className="rsk-preview-scroll">
+        <table className="rsk-preview-table">
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col} className="rsk-preview-th">{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri} className="rsk-preview-row">
+                {columns.map((col) => (
+                  <td key={col} className="rsk-preview-td">{row[col]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function StepSelectKeys({ files, keyColumns, onKeyColumnsChange, onBack, onNext }) {
+  const toast = useToast();
+
+  const file1Cols = useMemo(() => files[0]?.columns ?? [], [files]);
+  const file2Cols = useMemo(() => files[1]?.columns ?? [], [files]);
+
+  const preview1Rows = useMemo(
+    () => files[0]?.rows ?? generatePreviewRows(file1Cols, 5),
+    [files, file1Cols],
+  );
+
+  const toggleKey = useCallback((fileIndex, col) => {
+    const key = fileIndex === 0 ? 'file1' : 'file2';
+    const current = keyColumns[key];
+    const updated = current.includes(col)
+      ? current.filter((c) => c !== col)
+      : [...current, col];
+    onKeyColumnsChange({ ...keyColumns, [key]: updated });
+  }, [keyColumns, onKeyColumnsChange]);
+
+  const sel1 = keyColumns.file1;
+  const sel2 = keyColumns.file2;
+  const countsMatch = sel1.length > 0 && sel1.length === sel2.length;
+
+  const handleNext = useCallback(() => {
+    if (sel1.length === 0 && sel2.length === 0) {
+      toast.warning('⚠️ Please select an equal number of key columns in both Source and Destination files before proceeding.');
+      return;
+    }
+    if (!countsMatch) {
+      toast.warning('⚠️ Please select an equal number of key columns in both Source and Destination files before proceeding.');
+      return;
+    }
+    onNext();
+  }, [sel1.length, sel2.length, countsMatch, onNext, toast]);
+
+  // Live count-mismatch inline hint (shown while selecting, not blocking)
+  const showCountHint = sel1.length > 0 && sel2.length > 0 && sel1.length !== sel2.length;
+
+  return (
+    <>
+      <div className="rwiz-step-header">
+        <div className="rwiz-step-header-left">
+          <h2 className="rwiz-step-title">Step 2: Select Keys</h2>
+          <p className="rwiz-step-subtitle">Select unique identifier key columns from both files to match records.</p>
+        </div>
+      </div>
+
+      <div className="rwiz-step-body">
+        {/* Live count mismatch hint */}
+        {showCountHint && (
+          <div className="rwiz-warning-banner">
+            File 1 has <strong>{sel1.length}</strong> key(s) selected, File 2 has <strong>{sel2.length}</strong>. Counts must match.
+          </div>
+        )}
+
+        <div className="rsk-columns-row">
+          <ColumnList
+            title={`Source — ${files[0]?.name ?? 'File 1'}`}
+            columns={file1Cols}
+            selected={sel1}
+            onToggle={(col) => toggleKey(0, col)}
+          />
+          <div className="rsk-columns-divider" />
+          <ColumnList
+            title={`Target — ${files[1]?.name ?? 'File 2'}`}
+            columns={file2Cols}
+            selected={sel2}
+            onToggle={(col) => toggleKey(1, col)}
+          />
+        </div>
+
+        <PreviewTable
+          title={`Source — ${files[0]?.name ?? 'File 1'}`}
+          columns={file1Cols}
+          rows={preview1Rows}
+        />
+
+        <div className="rwiz-step-footer">
+          <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={onBack}>
+            ← Back
+          </button>
+          <button
+            type="button"
+            className="rwiz-btn rwiz-btn-primary"
+            onClick={handleNext}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default StepSelectKeys;

@@ -1,0 +1,322 @@
+.leave-card {
+  background: linear-gradient(135deg, #f6f6f6 0%, #f9fafb 100%);
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+/* Dark theme for default cards */
+[data-theme='dark'] .leave-card {
+  background: linear-gradient(135deg, #374151 0%, #2d3748 100%);
+}
+
+[data-theme='dark'] .leave-card-title,
+[data-theme='dark'] .leave-card-stat-value,
+[data-theme='dark'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .leave-card-stat-label {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .leave-card-icon {
+  color: #10b981;
+}
+
+/* Annual Leave - Bright Blue/Cyan Gradient */
+.leave-card[data-leave-type='annual-leave'] {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='annual-leave'] .leave-card-title,
+.leave-card[data-leave-type='annual-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='annual-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='annual-leave'] .leave-card-stat-label {
+  color: #e0f2fe;
+}
+
+.leave-card[data-leave-type='annual-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Sick Leave - Bright Red/Rose Gradient */
+.leave-card[data-leave-type='sick-leave'] {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='sick-leave'] .leave-card-title,
+.leave-card[data-leave-type='sick-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='sick-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='sick-leave'] .leave-card-stat-label {
+  color: #fee2e2;
+}
+
+.leave-card[data-leave-type='sick-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Casual Leave - Bright Purple Gradient */
+.leave-card[data-leave-type='casual-leave'] {
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='casual-leave'] .leave-card-title,
+.leave-card[data-leave-type='casual-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='casual-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='casual-leave'] .leave-card-stat-label {
+  color: #f3e8ff;
+}
+
+.leave-card[data-leave-type='casual-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Emergency Leave - Bright Orange Gradient */
+.leave-card[data-leave-type='emergency-leave'] {
+  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='emergency-leave'] .leave-card-title,
+.leave-card[data-leave-type='emergency-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='emergency-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='emergency-leave'] .leave-card-stat-label {
+  color: #ffedd5;
+}
+
+.leave-card[data-leave-type='emergency-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Maternity Leave - Bright Pink Gradient */
+.leave-card[data-leave-type='maternity-leave'] {
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='maternity-leave'] .leave-card-title,
+.leave-card[data-leave-type='maternity-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='maternity-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='maternity-leave'] .leave-card-stat-label {
+  color: #fce7f3;
+}
+
+.leave-card[data-leave-type='maternity-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Paternity Leave - Bright Cyan/Sky Gradient */
+.leave-card[data-leave-type='paternity-leave'] {
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='paternity-leave'] .leave-card-title,
+.leave-card[data-leave-type='paternity-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='paternity-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='paternity-leave'] .leave-card-stat-label {
+  color: #e0f2fe;
+}
+
+.leave-card[data-leave-type='paternity-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Unpaid Leave - Bright Gray/Slate Gradient */
+.leave-card[data-leave-type='unpaid-leave'] {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='unpaid-leave'] .leave-card-title,
+.leave-card[data-leave-type='unpaid-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='unpaid-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='unpaid-leave'] .leave-card-stat-label {
+  color: #e2e8f0;
+}
+
+.leave-card[data-leave-type='unpaid-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Compensatory Off - Bright Green/Emerald Gradient */
+.leave-card[data-leave-type='compensatory-off'] {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='compensatory-off'] .leave-card-title,
+.leave-card[data-leave-type='compensatory-off'] .leave-card-stat-value,
+.leave-card[data-leave-type='compensatory-off'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='compensatory-off'] .leave-card-stat-label {
+  color: #d1fae5;
+}
+
+.leave-card[data-leave-type='compensatory-off'] .leave-card-icon {
+  color: #ffffff;
+}
+
+/* Study Leave - Bright Indigo Gradient */
+.leave-card[data-leave-type='study-leave'] {
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  border: none;
+}
+
+.leave-card[data-leave-type='study-leave'] .leave-card-title,
+.leave-card[data-leave-type='study-leave'] .leave-card-stat-value,
+.leave-card[data-leave-type='study-leave'] .leave-card-center-value {
+  color: #ffffff;
+}
+
+.leave-card[data-leave-type='study-leave'] .leave-card-stat-label {
+  color: #e0e7ff;
+}
+
+.leave-card[data-leave-type='study-leave'] .leave-card-icon {
+  color: #ffffff;
+}
+
+@media (max-width: 1439px) {
+  .leave-card {
+    width: fit-content;
+    flex-shrink: 0;
+  }
+}
+
+.leave-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.leave-card-header {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.leave-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.leave-card-icon {
+  width: 18px;
+  height: 18px;
+  color: #006633;
+  flex-shrink: 0;
+}
+
+.leave-card-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.leave-card-chart {
+  position: relative;
+  width: 55px;
+  height: 55px;
+}
+
+.leave-card-center-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+  pointer-events: none;
+}
+
+.leave-card-stats {
+  display: flex;
+  justify-content: space-around;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.leave-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.leave-card-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.leave-card-stat-label {
+  font-size: 9px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .leave-card {
+    padding: 8px;
+  }
+
+  .leave-card-title {
+    font-size: 10px;
+  }
+
+  .leave-card-chart {
+    width: 50px;
+    height: 50px;
+  }
+
+  .leave-card-center-value {
+    font-size: 14px;
+  }
+
+  .leave-card-stat-value {
+    font-size: 12px;
+  }
+
+  .leave-card-stat-label {
+    font-size: 8px;
+  }
+}

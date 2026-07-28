@@ -1,0 +1,351 @@
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  background-color: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  z-index: 40;
+  border-right: 1px solid var(--border-primary);
+  width: 280px;
+  overflow: visible;
+}
+
+.sidebar[data-collapsed='true'] {
+  width: 80px;
+}
+
+/* Header */
+.sidebar-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.sidebar-logo-collapsed {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-logo-text {
+  color: var(--text-inverse);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.sidebar-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: inherit;
+}
+
+.sidebar-logo-img-collapsed {
+  padding: 4px;
+}
+
+/* Menu Container */
+.sidebar-menu-container {
+  padding: 12px;
+  overflow-y: auto;
+  overflow-x: visible;
+  height: calc(100vh - 64px);
+}
+
+.sidebar-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-glider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background-color: var(--c-primary-light);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 1;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Menu Group */
+.sidebar-menu-group {
+  position: relative;
+  isolation: isolate;
+  z-index: 2;
+}
+
+/* Menu Item */
+.sidebar-menu-item {
+  box-sizing: border-box;
+  height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: 8px;
+  transition: color 0.2s ease;
+  position: relative;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 2;
+}
+
+.sidebar-menu-item[data-collapsed='true'] {
+  justify-content: center;
+}
+
+.sidebar-menu-item[data-active='true'] {
+  color: var(--c-primary);
+}
+
+.sidebar-menu-item:not([data-active='true']):hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.sidebar-menu-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar-menu-label {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-menu-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-menu-chevron[data-expanded='true'] {
+  transform: rotate(180deg);
+}
+
+/* Tooltip - Modern Floating Panel */
+.sidebar-tooltip {
+  position: fixed;
+  left: 72px;
+  padding: 16px 20px;
+  background: var(--surface-elevated);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 16px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 0.25s ease,
+    visibility 0.25s ease,
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  z-index: 99999;
+  border: 1px solid var(--border-primary);
+}
+
+.sidebar-tooltip[data-has-submenu='true'] {
+  padding: 20px;
+  min-width: 220px;
+}
+
+.sidebar-tooltip[data-has-submenu='false'] {
+  padding: 12px 20px;
+}
+
+.sidebar-tooltip-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-tooltip-title {
+  padding: 0 0 12px 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+
+.sidebar-tooltip-item {
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.sidebar-tooltip-item:hover {
+  background-color: var(--c-primary-light);
+  color: var(--c-primary);
+}
+
+/* Submenu */
+.sidebar-submenu {
+  margin-top: 4px;
+  margin-left: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-submenu-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-submenu-item:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-hover);
+}
+
+.sidebar-submenu-item[data-active='true'] {
+  color: var(--c-primary);
+  background-color: var(--c-primary-light);
+  font-weight: 500;
+}
+
+/* Toggle Button */
+.sidebar-toggle {
+  position: absolute;
+  right: -12px;
+  top: 80px;
+  width: 24px;
+  height: 24px;
+  z-index: 100;
+  border-radius: 50%;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+}
+
+.sidebar-toggle-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ============================================ */
+/* RESPONSIVE STYLES - TABLET/MOBILE */
+/* ============================================ */
+
+@media (max-width: 1024px) {
+  .sidebar {
+    /* Always display on mobile but control visibility with transform */
+    display: block;
+    z-index: 50;
+  }
+
+  .sidebar[data-collapsed='true'] {
+    /* Hidden off-screen on mobile when collapsed */
+    transform: translateX(-100%);
+    width: 280px;
+  }
+
+  .sidebar[data-collapsed='false'] {
+    /* Visible on mobile when not collapsed */
+    transform: translateX(0);
+    width: 280px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Router migration: navigation entries are anchors (<NavLink>) instead of
+   buttons, so the global `a` colour and hover underline have to be neutralised.
+   Every declaration below restores the original button rendering exactly.
+   ──────────────────────────────────────────────────────────────────────────── */
+a.sidebar-menu-item,
+a.sidebar-submenu-item,
+a.sidebar-tooltip-item {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+a.sidebar-menu-item[data-active='true'] {
+  color: var(--c-primary);
+}
+
+a.sidebar-menu-item:not([data-active='true']):hover {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a.sidebar-submenu-item:hover,
+a.sidebar-tooltip-item:hover {
+  color: var(--c-primary);
+  text-decoration: none;
+}
+
+a.sidebar-submenu-item[data-active='true'] {
+  color: var(--c-primary);
+}

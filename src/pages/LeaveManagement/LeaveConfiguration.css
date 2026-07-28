@@ -1,0 +1,310 @@
+/* ─── Leave Configuration Tab Styles (Minimal Inline Editable Table) ─── */
+
+.lc-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-secondary);
+  font-family: var(--font-family);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+/* ── Top Filters Panel ────────────────────────────────────────────────── */
+.lc-filter-panel {
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 10px 16px;
+  flex-shrink: 0;
+}
+
+.lc-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lc-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.lc-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.lc-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 32px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-family: var(--font-family);
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lc-search-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--c-primary-light);
+}
+
+.lc-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ── Main Data Table ─────────────────────────────────────────────────── */
+.lc-table-container {
+  margin: 0 16px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-xs);
+}
+
+.lc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.lc-table th {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-primary);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.lc-table th.sortable {
+  cursor: pointer;
+}
+
+.lc-table th.sortable:hover {
+  color: var(--text-primary);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.th-content.center {
+  justify-content: center;
+}
+
+.lc-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-tertiary, #f3f4f6);
+  color: var(--text-primary);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.lc-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.lc-table tr.lc-row-editing td {
+  background: var(--c-primary-light);
+}
+
+.lc-emp-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lc-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.lc-emp-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-emp-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+
+.lc-emp-role {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.lc-team-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.lc-team-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.lc-manager-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* Plain Text Leave Values (No pill/badge backgrounds) */
+.lc-plain-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Inline Edit Controls */
+.lc-inline-inputs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.lc-inline-num-input {
+  width: 44px;
+  height: 28px;
+  text-align: center;
+  padding: 0 4px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--surface-primary);
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.lc-inline-num-input.single {
+  width: 52px;
+}
+
+.lc-inline-num-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 2px var(--c-primary-light);
+}
+
+.lc-inline-slash {
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.lc-inline-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: 1px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.lc-action-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.lc-act-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-secondary);
+}
+
+.lc-act-btn.edit:hover {
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+}
+
+.lc-act-btn.save {
+  background: var(--c-primary);
+  color: #ffffff;
+  border-color: var(--c-primary);
+}
+
+.lc-act-btn.save:hover {
+  filter: brightness(0.95);
+}
+
+.lc-act-btn.cancel {
+  background: var(--surface-primary);
+  color: #ef4444;
+  border-color: var(--border-primary);
+}
+
+.lc-act-btn.cancel:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.lc-empty-td {
+  padding: 40px 16px;
+}
+
+.lc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  gap: 8px;
+}

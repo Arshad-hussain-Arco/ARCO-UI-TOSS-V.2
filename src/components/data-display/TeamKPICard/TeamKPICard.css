@@ -1,0 +1,87 @@
+/* Team KPI Card */
+.team-kpi-card {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.team-kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  border-color: var(--border-secondary);
+}
+
+/* Chart Container */
+.team-kpi-chart-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 3px 0;
+}
+
+.team-kpi-chart {
+  position: relative;
+  width: 70px;
+  height: 70px;
+}
+
+.team-kpi-center-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Footer */
+.team-kpi-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.team-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .team-kpi-card {
+    padding: 10px;
+  }
+
+  .team-kpi-chart {
+    width: 60px;
+    height: 60px;
+  }
+
+  .team-kpi-center-value {
+    font-size: 18px;
+  }
+
+  .team-kpi-label {
+    font-size: 10px;
+  }
+}

@@ -1,0 +1,402 @@
+.header {
+  position: sticky;
+  top: 0;
+  height: 64px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 30;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* Left Group - Toggle + Logo + Title */
+.header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Right Group - Nav Links + Actions */
+.header-right-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+/* Mobile Elements - Hidden on Desktop */
+.header-mobile-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  border: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-mobile-toggle:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.header-mobile-logo {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(to bottom right, var(--c-primary), var(--c-primary-dark));
+  align-items: center;
+  justify-content: center;
+}
+
+.header-mobile-logo-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--text-inverse);
+}
+
+.header-mobile-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: inherit;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.header-mobile-nav-wrapper {
+  display: none;
+  position: relative;
+}
+
+.header-mobile-nav-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  width: 160px;
+  background-color: var(--surface-elevated);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-primary);
+  padding: 4px;
+  z-index: 99999;
+}
+
+.header-mobile-nav-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.header-mobile-nav-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--c-primary);
+}
+
+/* Title */
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.header-title {
+  color: var(--c-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Navigation Links */
+.header-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-nav-link {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-nav-link:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-hover);
+}
+
+/* Divider */
+.header-divider {
+  height: 24px;
+  width: 1px;
+  background-color: var(--border-primary);
+}
+
+/* Icon Buttons */
+.header-icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.header-icon-button:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.header-icon-button[data-active='true'] {
+  color: var(--c-primary);
+  background-color: var(--c-primary-light);
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Notification Badge */
+.header-notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--c-danger);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+}
+
+/* Profile */
+.header-profile-wrapper {
+  position: relative;
+}
+
+.header-profile-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-profile-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.header-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(to bottom right, var(--c-primary), var(--c-primary-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-profile-avatar-text {
+  color: var(--text-inverse);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.header-profile-info {
+  text-align: left;
+}
+
+.header-profile-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.header-profile-role {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.header-profile-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+}
+
+/* Profile Menu */
+.header-profile-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  width: 192px;
+  background-color: var(--surface-elevated);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-primary);
+  padding: 4px;
+  z-index: 99999;
+}
+
+.header-profile-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.header-profile-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.header-profile-menu-item[data-danger='true'] {
+  color: var(--c-danger);
+}
+
+.header-profile-menu-item[data-danger='true']:hover {
+  background-color: var(--c-danger-light);
+}
+
+.header-profile-menu-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.header-profile-menu-text {
+  flex: 1;
+  text-align: left;
+}
+
+.header-profile-menu-divider {
+  height: 1px;
+  background-color: var(--border-primary);
+  margin: 4px 0;
+}
+
+/* ============================================ */
+/* RESPONSIVE STYLES - TABLET/MOBILE */
+/* ============================================ */
+
+@media (max-width: 1024px) {
+  .header {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  /* Show mobile elements */
+  .header-mobile-toggle {
+    display: flex;
+  }
+
+  .header-mobile-logo {
+    display: flex;
+  }
+
+  .header-mobile-nav-wrapper {
+    display: block;
+  }
+
+  /* Hide desktop nav links */
+  .header-nav-links {
+    display: none;
+  }
+
+  /* Adjust title - hide or shorten */
+  .header-title {
+    font-size: 0.875rem;
+  }
+
+  /* Hide profile text info on mobile */
+  .header-profile-info {
+    display: none;
+  }
+
+  .header-profile-chevron {
+    display: none;
+  }
+
+  .header-profile-button {
+    padding: 0;
+  }
+
+  /* Adjust dividers */
+  .header-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-title-wrapper {
+    display: none;
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Router migration: header navigation entries are anchors (<Link>) instead of
+   buttons. These overrides restore the original button rendering exactly.
+   ──────────────────────────────────────────────────────────────────────────── */
+a.header-nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+a.header-mobile-nav-item {
+  display: block;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+a.header-nav-link:hover,
+a.header-mobile-nav-item:hover {
+  color: var(--c-primary);
+  text-decoration: none;
+}

@@ -1,0 +1,98 @@
+.breadcrumb-nav {
+  padding: 6px 16px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-primary);
+  top: 0;
+  /* z-index: 50; */
+  flex-shrink: 0;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-hover);
+}
+
+.breadcrumb-home-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.breadcrumb-separator {
+  width: 16px;
+  height: 16px;
+  color: var(--border-secondary);
+  flex-shrink: 0;
+}
+
+.breadcrumb-current {
+  padding: 4px 8px;
+  font-size: 14px;
+  color: var(--c-primary);
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .breadcrumb-nav {
+    padding: 12px 16px;
+  }
+
+  .breadcrumb-link span:not(.breadcrumb-home-icon) {
+    display: none;
+  }
+
+  .breadcrumb-home-icon {
+    margin-right: 0;
+  }
+
+  .breadcrumb-current {
+    font-size: 13px;
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Router migration: breadcrumb links are now real anchors (<Link>) instead of
+   buttons. These overrides neutralise the global `a` styles so the rendered
+   result is byte-for-byte the same as the original button markup.
+   ──────────────────────────────────────────────────────────────────────────── */
+a.breadcrumb-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+a.breadcrumb-link:hover {
+  color: var(--c-primary);
+  background-color: var(--bg-hover);
+  text-decoration: none;
+}

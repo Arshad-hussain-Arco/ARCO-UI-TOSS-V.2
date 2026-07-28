@@ -1,0 +1,1175 @@
+/* ============================================================
+   EOD Management — Compact Enterprise Redesign
+   Uses ONLY tokens from globals.css
+   ============================================================ */
+
+.eod-page {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  font-family: var(--font-family);
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.eod-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.eod-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.eod-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.eod-subtitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.eod-header-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.eod-header-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.eod-header-pill.running {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eod-header-pill.alert {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+.eod-header-pill.info {
+  background: var(--c-info-light);
+  color: var(--c-info);
+}
+.eod-pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: eod-pulse 2s ease-in-out infinite;
+}
+@keyframes eod-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.eod-header-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  background: var(--c-primary);
+  color: var(--text-inverse);
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: var(--font-family);
+}
+.eod-header-add-btn:hover {
+  background: var(--c-primary-hover);
+  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+}
+
+/* ── Tab Navigation ──────────────────────────────────────────── */
+.eod-tabs {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.eod-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.eod-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 18px;
+  height: 38px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  white-space: nowrap;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: none !important;
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
+}
+
+.eod-tab:hover:not(.active) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.eod-tab.active {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--surface-primary) !important;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.eod-tab-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.eod-tab.active .eod-tab-icon {
+  color: var(--c-primary);
+}
+
+/* ── Body ────────────────────────────────────────────────────── */
+.eod-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* ── Section layout ──────────────────────────────────────────── */
+.eod-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eod-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eod-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+/* ── Stat strip ──────────────────────────────────────────────── */
+.eod-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.eod-stat-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.eod-stat-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.eod-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+.eod-stat-card.s-blue::before {
+  background: var(--c-info);
+}
+.eod-stat-card.s-green::before {
+  background: var(--c-success);
+}
+.eod-stat-card.s-purple::before {
+  background: #7c3aed;
+}
+.eod-stat-card.s-red::before {
+  background: var(--c-danger);
+}
+
+.eod-stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.eod-stat-icon.s-blue {
+  background: var(--c-info-light);
+  color: var(--c-info);
+}
+.eod-stat-icon.s-green {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eod-stat-icon.s-purple {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+.eod-stat-icon.s-red {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+
+.eod-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.eod-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.eod-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+
+.eod-live-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--c-success-light);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--c-success);
+  letter-spacing: 0.5px;
+}
+
+/* ── Environment status table ─────────────────────────────────── */
+.eod-env-table {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.eod-env-thead {
+  display: grid;
+  grid-template-columns: 110px 90px 1fr 130px 130px 80px;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+.eod-env-thead-cell {
+  padding: 6px 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.eod-env-row {
+  display: grid;
+  grid-template-columns: 110px 90px 1fr 130px 130px 80px;
+  padding: 0 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: background 0.1s;
+  min-height: 40px;
+}
+.eod-env-row:last-child {
+  border-bottom: none;
+}
+.eod-env-row:hover {
+  background: var(--bg-hover);
+}
+
+.eod-env-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+.eod-env-color-bar {
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.eod-env-row-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.eod-env-row-cell {
+  padding: 6px 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.eod-env-row-cell code {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  background: var(--bg-tertiary);
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+
+/* Progress inline */
+.eod-inline-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+.eod-inline-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.eod-inline-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--c-success-light), var(--c-success));
+  transition: width 0.4s ease;
+  animation: eod-shimmer 2s ease-in-out infinite;
+}
+@keyframes eod-shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+.eod-inline-pct {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c-success);
+  white-space: nowrap;
+}
+
+/* Status badge */
+.eod-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.eod-badge.running {
+  background: var(--c-success);
+  color: var(--text-inverse);
+}
+.eod-badge.completed {
+  background: var(--c-success-light);
+  color: var(--c-success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.eod-badge.failed {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+.eod-badge.idle {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+.eod-badge.paused {
+  background: var(--c-warning-light);
+  color: var(--c-warning);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+.eod-badge.scheduled {
+  background: var(--c-info-light);
+  color: var(--c-info);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+/* ── Configuration grid ──────────────────────────────────────── */
+.eod-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.eod-config-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.eod-config-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-secondary);
+}
+
+.eod-config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  gap: 8px;
+}
+
+.eod-config-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eod-config-env-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.eod-config-head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Compact toggle */
+.eod-toggle {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  display: inline-block;
+}
+.eod-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.eod-toggle-track {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-tertiary);
+  border: 1.5px solid var(--border-secondary);
+  border-radius: 18px;
+  transition: 0.2s;
+}
+.eod-toggle-track::before {
+  position: absolute;
+  content: '';
+  height: 12px;
+  width: 12px;
+  left: 1px;
+  bottom: 1px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.eod-toggle input:checked + .eod-toggle-track {
+  background: var(--c-success);
+  border-color: var(--c-success);
+}
+.eod-toggle input:checked + .eod-toggle-track::before {
+  transform: translateX(16px);
+}
+.eod-toggle-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Icon buttons */
+.eod-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.eod-icon-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+.eod-icon-btn.danger:hover {
+  background: var(--c-danger-light);
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}
+
+/* Config body */
+.eod-config-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eod-config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.eod-config-group-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.eod-config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.eod-config-row-label {
+  color: var(--text-secondary);
+  min-width: 70px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.eod-config-row-val {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eod-script-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.eod-script-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-tertiary);
+  border-radius: 4px;
+}
+.eod-script-row code {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eod-cred-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.eod-cred-row.ok {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eod-cred-row.err {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+
+.eod-val-badge {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.eod-val-badge.ok {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eod-val-badge.err {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+
+.eod-config-foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+.eod-test-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--c-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-family);
+}
+.eod-test-btn:hover {
+  background: var(--c-primary-hover);
+  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+}
+
+/* ── Schedules ───────────────────────────────────────────────── */
+.eod-schedule-wrap {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.eod-schedule-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.eod-timeline {
+  position: relative;
+}
+.eod-timeline::before {
+  content: '';
+  position: absolute;
+  left: 56px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-primary);
+}
+
+.eod-tl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+  position: relative;
+  transition: background 0.1s;
+}
+.eod-tl-item:last-child {
+  border-bottom: none;
+}
+.eod-tl-item:hover {
+  background: var(--bg-hover);
+}
+
+.eod-tl-time {
+  width: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.eod-tl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  border: 2px solid var(--surface-primary);
+  box-shadow: 0 0 0 1.5px var(--c-primary);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.eod-tl-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.eod-tl-env {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.eod-tl-owner {
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.eod-tl-recur {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.eod-tl-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Control Panel ───────────────────────────────────────────── */
+.eod-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 10px;
+}
+
+.eod-ctrl-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s;
+}
+.eod-ctrl-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+.eod-ctrl-card.running {
+  border-color: var(--c-success);
+}
+.eod-ctrl-card.failed {
+  border-color: var(--c-danger);
+}
+
+/* Card top strip */
+.eod-ctrl-strip {
+  height: 3px;
+  width: 100%;
+}
+.eod-ctrl-strip.running {
+  background: var(--c-success);
+}
+.eod-ctrl-strip.completed {
+  background: var(--c-success);
+}
+.eod-ctrl-strip.failed {
+  background: var(--c-danger);
+}
+.eod-ctrl-strip.idle {
+  background: var(--border-secondary);
+}
+
+.eod-ctrl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-primary);
+}
+.eod-ctrl-env-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.eod-ctrl-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.eod-ctrl-status.running {
+  background: var(--c-success);
+  color: var(--text-inverse);
+}
+.eod-ctrl-status.completed {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eod-ctrl-status.failed {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+.eod-ctrl-status.idle {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+/* Control action row */
+.eod-ctrl-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+.eod-ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1.5px solid transparent;
+  font-family: var(--font-family);
+}
+.eod-ctrl-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.eod-ctrl-btn-start {
+  background: var(--c-success-light);
+  border-color: var(--c-success);
+  color: var(--c-success);
+}
+.eod-ctrl-btn-start:hover:not(:disabled) {
+  background: var(--c-success);
+  color: var(--text-inverse);
+}
+
+.eod-ctrl-btn-pause {
+  background: var(--c-warning-light);
+  border-color: var(--c-warning);
+  color: var(--c-warning);
+}
+.eod-ctrl-btn-pause:hover:not(:disabled) {
+  background: var(--c-warning);
+  color: var(--text-inverse);
+}
+
+.eod-ctrl-btn-stop {
+  background: var(--c-danger-light);
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}
+.eod-ctrl-btn-stop:hover:not(:disabled) {
+  background: var(--c-danger);
+  color: var(--text-inverse);
+}
+
+/* Execution block */
+.eod-ctrl-exec {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.eod-ctrl-exec-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.eod-ctrl-exec-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.eod-ctrl-exec-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.eod-ctrl-exec-bar {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.eod-ctrl-exec-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--c-success-light), var(--c-success));
+  transition: width 0.4s ease;
+  animation: eod-shimmer 2s ease-in-out infinite;
+}
+.eod-ctrl-exec-step {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.eod-ctrl-exec-time {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* Log preview */
+.eod-log {
+  background: #161616;
+  border-bottom: 1px solid var(--border-primary);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.eod-log-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #222;
+  color: #aaa;
+  font-size: 10px;
+  font-weight: 600;
+  border-bottom: 1px solid #333;
+}
+.eod-log-expand-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+}
+.eod-log-expand-btn:hover {
+  background: #333;
+  color: #fff;
+}
+
+.eod-log-lines {
+  padding: 8px 10px;
+  max-height: 90px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eod-log-line {
+  color: #888;
+}
+.eod-log-line.ok {
+  color: #4ade80;
+}
+.eod-log-line.blink {
+  color: #aaa;
+  animation: eod-pulse 1s ease-in-out infinite;
+}
+
+/* Monitor footer */
+.eod-ctrl-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+}
+.eod-ctrl-foot-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ── Shared add btn ──────────────────────────────────────────── */
+.eod-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  background: var(--c-primary);
+  color: var(--text-inverse);
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: var(--font-family);
+}
+.eod-add-btn:hover {
+  background: var(--c-primary-hover);
+  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+}
+
+/* ── Pulse icon (radio) ──────────────────────────────────────── */
+.eod-pulse-icon {
+  animation: eod-pulse 2s ease-in-out infinite;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .eod-stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .eod-config-grid {
+    grid-template-columns: 1fr;
+  }
+  .eod-env-thead,
+  .eod-env-row {
+    grid-template-columns: 100px 80px 1fr 110px 90px;
+  }
+  .eod-env-thead-cell:last-child,
+  .eod-env-row > *:last-child {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  .eod-body {
+    padding: 10px 12px;
+  }
+  .eod-stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .eod-control-grid {
+    grid-template-columns: 1fr;
+  }
+  .eod-env-thead {
+    display: none;
+  }
+  .eod-env-row {
+    grid-template-columns: auto 1fr auto auto;
+    gap: 8px;
+  }
+  .eod-env-row > *:nth-child(3),
+  .eod-env-row > *:nth-child(4) {
+    display: none;
+  }
+}
