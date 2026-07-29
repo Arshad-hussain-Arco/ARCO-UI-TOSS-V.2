@@ -1,0 +1,134 @@
+/* ============================================================
+   FileUpload — Reusable Enterprise File Upload
+   ============================================================ */
+
+.ui-file-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ui-file-upload-zone {
+  border: 1px dashed var(--border-secondary);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ui-file-upload-zone:hover,
+.ui-file-upload-zone[data-drag='true'] {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.ui-file-upload-zone[data-error='true'] {
+  border-color: var(--c-danger);
+  background: var(--c-danger-light);
+}
+
+.ui-file-upload-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.ui-file-upload-zone:hover .ui-file-upload-icon,
+.ui-file-upload-zone[data-drag='true'] .ui-file-upload-icon {
+  color: var(--c-primary);
+}
+
+.ui-file-upload-text-wrap {
+  text-align: left;
+}
+
+.ui-file-upload-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.ui-file-upload-text strong {
+  color: var(--c-primary);
+}
+
+.ui-file-upload-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin: 2px 0 0 0;
+}
+
+.ui-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ui-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+
+.ui-file-row-icon {
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+.ui-file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-file-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-file-meta {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ui-file-status {
+  font-weight: 600;
+  color: var(--c-success);
+}
+
+.ui-file-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-file-action:hover {
+  background: var(--bg-hover);
+  color: var(--c-danger);
+}

@@ -5,37 +5,34 @@
   width: 100%;
   background-color: var(--bg-secondary);
   overflow: hidden;
+  font-family: var(--font-family);
 }
 
-.ss-header {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 24px 32px 16px;
-  background-color: var(--surface-primary);
-  flex-shrink: 0;
-}
-
-.ss-header-titles h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.ss-header-titles p {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-}
-
-.ss-tabs-container {
-  display: flex;
-  padding: 0 32px;
+/* ── Main Page Header ── */
+.ss-page-header {
+  padding: 16px 24px 12px 24px;
   background-color: var(--surface-primary);
   border-bottom: 1px solid var(--border-primary);
-  gap: 24px;
+}
+
+.ss-page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ── Sticky Tab Navigation ──────────────────────────────────────────────── */
+.ss-tabs-container {
+  display: flex;
+  background-color: var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
   overflow-x: auto;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 /* Hide scrollbar for tabs */
@@ -50,117 +47,125 @@
 .ss-tab {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 0;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  flex: 1; /* Equal spacing */
+  min-width: 160px;
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-secondary);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .ss-tab:hover {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .ss-tab.active {
   color: var(--c-primary);
   border-bottom-color: var(--c-primary);
+  background: var(--c-primary-light);
 }
 
 .ss-tab-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
+/* ── Main Content Area ────────────────────────────────────────────────── */
 .ss-main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
+  padding: 24px;
 }
 
+/* ── Form Card & Shared Panel Styles ────────────────────────────────────── */
 .ss-form-card {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
-  max-width: 900px;
+  max-width: 100%;
   margin: 0 auto;
   overflow: hidden;
 }
 
+/* Common form rows for forms */
 .ss-form-row {
   display: flex;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-primary);
   gap: 32px;
+  align-items: flex-start;
 }
-
 .ss-form-row:last-child {
   border-bottom: none;
 }
-
 .ss-form-label-col {
   flex: 0 0 280px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .ss-form-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 }
-
 .ss-form-helper {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.4;
 }
-
 .ss-form-input-col {
   flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* Common Input Wrapper */
 .ss-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 400px;
 }
-
 .ss-input-wrapper .input-icon {
   position: absolute;
   color: var(--text-tertiary);
   width: 14px;
   height: 14px;
 }
-
 .ss-input-wrapper .input-icon-left {
-  left: 10px;
+  left: 12px;
 }
-
 .ss-input-wrapper .input-icon-right {
-  right: 10px;
+  right: 12px;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
 .ss-input-wrapper .input-icon-right:hover {
   color: var(--text-primary);
 }
 
 .ss-input {
   width: 100%;
-  height: 32px;
-  font-size: 0.8125rem;
+  height: 36px;
+  font-size: 13px;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   background-color: var(--surface-primary);
@@ -169,116 +174,119 @@
   transition: all 0.2s;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
-
 .ss-input:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px var(--c-primary-light);
 }
+.ss-input.with-left-icon { padding: 0 12px 0 36px; }
+.ss-input.with-right-icon { padding: 0 36px 0 12px; }
+.ss-input:not(.with-left-icon):not(.with-right-icon) { padding: 0 12px; }
 
-.ss-input.with-left-icon {
-  padding: 0 12px 0 32px;
-}
-
-.ss-input.with-right-icon {
-  padding: 0 32px 0 12px;
-}
-
-.ss-input:not(.with-left-icon):not(.with-right-icon) {
-  padding: 0 12px;
-}
-
-.ss-footer {
+/* ── Panel specific: Toolbar ──────────────────────────────────────────────── */
+.ss-panel-toolbar {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 16px;
-  background-color: var(--surface-primary);
-  border-top: 1px solid var(--border-primary);
-  flex-shrink: 0;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+.ss-panel-toolbar .ss-search-wrapper {
+  position: relative;
+  width: 260px;
+}
+.ss-panel-toolbar .ss-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+}
+.ss-panel-toolbar .ss-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px 0 32px;
+  font-size: 13px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  outline: none;
+}
+.ss-panel-toolbar .ss-search-input:focus {
+  border-color: var(--border-focus);
+}
+.ss-toolbar-spacer {
+  flex: 1;
 }
 
+/* ── Panel Header (within card) ────────────────────────────────────────────── */
+.ss-panel-header {
+  padding: 14px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ss-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Button Update / Actions ── */
 .ss-btn-update {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   height: 36px;
-  padding: 0 32px;
-  font-size: 0.8125rem;
+  padding: 0 24px;
+  font-size: 13px;
   font-weight: 600;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark));
+  background: var(--c-primary);
   border: none;
-  border-radius: 18px; /* Pill style */
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 102, 51, 0.2);
+}
+.ss-btn-update:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+}
+.ss-btn-update:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.ss-btn-update:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 102, 51, 0.3);
-  background: linear-gradient(135deg, var(--c-primary-hover), var(--c-primary-dark));
-}
-
-.ss-btn-update:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 102, 51, 0.2);
-}
-
-/* Placeholder styles for other tabs */
-.ss-placeholder-card {
+/* Modal form helpers */
+.ss-modal-form-group {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 64px 24px;
-  background-color: var(--surface-primary);
-  border: 1px dashed var(--border-secondary);
-  border-radius: 8px;
-  color: var(--text-tertiary);
-  gap: 12px;
+  gap: 6px;
+}
+.ss-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.ss-modal-label-required::after {
+  content: ' *';
+  color: var(--c-danger);
 }
 
-.ss-placeholder-card .icon {
-  width: 32px;
-  height: 32px;
-  color: var(--text-tertiary);
+/* Responsive Grid */
+.ss-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
 }
 
-@media (max-width: 768px) {
-  .ss-form-row {
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px;
+@media (max-width: 900px) {
+  .ss-grid-2col {
+    grid-template-columns: 1fr;
   }
-
-  .ss-form-label-col {
-    flex: none;
-  }
-
-  .ss-input-wrapper {
-    max-width: 100%;
-  }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   The password reveal control is a <button> so it is keyboard-operable. It keeps
-   the .input-icon .input-icon-right classes, so only the UA button chrome needs
-   resetting; the inner svg fills the 14×14 box the class already establishes.
-   ──────────────────────────────────────────────────────────────────────────── */
-.ss-input-wrapper button.input-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  appearance: none;
-}
-
-.ss-input-wrapper button.input-icon svg {
-  width: 100%;
-  height: 100%;
 }

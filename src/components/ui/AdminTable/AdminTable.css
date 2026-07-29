@@ -1,0 +1,65 @@
+/* ============================================================
+   AdminTable — Reusable Enterprise Table Component
+   ============================================================ */
+
+.ui-admin-table-container {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+
+.ui-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.ui-admin-table thead {
+  background: var(--bg-secondary);
+}
+
+.ui-admin-table th {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+/* Make headers sticky if we are in a scrolling container */
+.ui-admin-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-secondary);
+}
+
+.ui-admin-table td {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
+  vertical-align: middle;
+}
+
+.ui-admin-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.ui-admin-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.ui-admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ui-admin-table-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
