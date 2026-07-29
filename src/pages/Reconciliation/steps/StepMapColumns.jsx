@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { RefreshCw, Wand2 } from 'lucide-react';
+import { RefreshCw, Wand2, Loader2, AlertTriangle, X } from 'lucide-react';
 
 import { useToast } from '@hooks/useToast';
 
@@ -94,7 +94,7 @@ function MappingRow({ mapping, dstOptions, onUpdate }) {
   );
 }
 
-export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack, onRun }) {
+export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack, onRun, isReconciling, reconcileError, onClearError }) {
   const toast = useToast();
 
   const srcCols = useMemo(() => files[0]?.columns ?? [], [files]);
@@ -105,6 +105,9 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   const autoMap = useCallback(() => {
     const updated = colMappings.map((m) => {
       const match = dstCols.find((d) => d.toLowerCase() === m.src.toLowerCase());
+      if (match) {
+        return { ...m, dst: match, exclude: false };
+      }
       return { ...m, dst: match ?? m.dst };
     });
     onColMappingsChange(updated);
@@ -123,7 +126,35 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   }, [colMappings, onColMappingsChange]);
 
   const updateRow = useCallback((index, patch) => {
-    const updated = colMappings.map((m, i) => i === index ? { ...m, ...patch } : m);
+    const updated = colMappings.map((m, i) => {
+      if (i === index) {
+        if (patch.exclude === true) {
+          return {
+            ...m,
+            ...patch,
+            _prevDst: m.dst,
+            _prevDataType: m.dataType,
+            _prevTolerance: m.tolerance,
+            _prevRoundOff: m.roundOff,
+            dst: '__skip__',
+            dataType: 'Categorical',
+            tolerance: '0.00',
+            roundOff: 'None',
+          };
+        } else if (patch.exclude === false) {
+          return {
+            ...m,
+            ...patch,
+            dst: m._prevDst ?? m.dst,
+            dataType: m._prevDataType ?? m.dataType,
+            tolerance: m._prevTolerance ?? m.tolerance,
+            roundOff: m._prevRoundOff ?? m.roundOff,
+          };
+        }
+        return { ...m, ...patch };
+      }
+      return m;
+    });
     onColMappingsChange(updated);
   }, [colMappings, onColMappingsChange]);
 
@@ -215,16 +246,41 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           </table>
         </div>
 
+        {/* Inline reconcile error banner */}
+        {reconcileError && (
+          <div className="rwiz-reconcile-error-banner">
+            <AlertTriangle size={14} className="rwiz-reconcile-error-icon" />
+            <span className="rwiz-reconcile-error-msg">{reconcileError}</span>
+            <button
+              type="button"
+              className="rwiz-reconcile-error-close"
+              onClick={onClearError}
+              aria-label="Dismiss error"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
         <div className="rwiz-step-footer">
-          <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={onBack}>
+          <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={onBack} disabled={isReconciling}>
             ← Back
           </button>
           <button
             type="button"
             className="rwiz-btn rwiz-btn-primary"
             onClick={handleRun}
+            disabled={isReconciling}
+            style={{ minWidth: 180 }}
           >
-            Run Reconciliation →
+            {isReconciling ? (
+              <>
+                <Loader2 size={14} className="rwiz-btn-spinner" />
+                Running…
+              </>
+            ) : (
+              'Run Reconciliation →'
+            )}
           </button>
         </div>
       </div>

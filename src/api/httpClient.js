@@ -5,7 +5,7 @@ import endpoints from './endpoints';
 
 // Create base instance
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.179:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
   timeout: parseInt(import.meta.env.VITE_API_TIMEOUT, 10) || 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ httpClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response Interceptor: Handle 401s and token refresh
@@ -80,9 +80,12 @@ httpClient.interceptors.response.use(
 
       try {
         // Request a new access token
-        const response = await axios.post(`${httpClient.defaults.baseURL}${endpoints.auth.refresh}`, {
-          refresh: refreshToken
-        });
+        const response = await axios.post(
+          `${httpClient.defaults.baseURL}${endpoints.auth.refresh}`,
+          {
+            refresh: refreshToken,
+          },
+        );
 
         const newAccessToken = response.data.access;
         // Optionally update refresh token if the backend rotates it
@@ -107,7 +110,7 @@ httpClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default httpClient;

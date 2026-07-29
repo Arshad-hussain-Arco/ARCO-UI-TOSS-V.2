@@ -5,6 +5,16 @@ const endpoints = {
     verify: '/auth/verify/',
     logout: '/auth/logout/',
   },
+  reconciliation: {
+    preprocess: '/core/reconciliation/preprocess/',
+    reconcile: '/core/reconciliation/reconcile/',
+  },
+  roles: {
+    list: '/core/role-permissions/',
+    create: '/core/role-permissions/create/',
+    update: (id) => `/core/role-permissions/${id}/update/`,
+    delete: (id) => `/core/role-permissions/${id}/delete/`,
+  },
   // Add other endpoints here as they get integrated
   consultants: {
     roles: '/employees/roles/',
