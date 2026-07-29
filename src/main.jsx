@@ -11,7 +11,5 @@ if (!container) {
 }
 
 createRoot(container).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <App />,
 );

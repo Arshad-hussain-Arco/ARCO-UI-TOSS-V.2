@@ -37,33 +37,56 @@ export const authService = {
       }
       throw new Error('An unexpected error occurred during login.');
     }
-    
+
     // Most JWT implementations return { access, refresh }
     const token = response.data.access;
     const refreshToken = response.data.refresh;
-    
+
     let user = response.data.user;
 
     // If the backend doesn't return user info directly, decode the JWT
     if (!user && token) {
       const decoded = jwtDecode(token);
-      
+
       const username = decoded.username || credentials.username;
-      
-      user = {
-        id: decoded.user_id || decoded.sub || 'unknown',
-        username: username,
-        name: decoded.name || decoded.full_name || username,
-        email: decoded.email || '',
-        role: decoded.role || 'User',
-        initials: username.substring(0, 2).toUpperCase(),
-        permissions: decoded.permissions || [],
-      };
+
+      // Attempt to fetch full user info from backend
+      try {
+        const userInfoRes = await httpClient.get(endpoints.auth.userInfo, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const fullInfo = userInfoRes.data;
+        const info = fullInfo.userInformation || fullInfo; // Fallback in case backend changes
+        
+        user = {
+          id: info.id || decoded.user_id || decoded.sub || 'unknown',
+          emp_id: info.empId || info.emp_id || info.employee_id || decoded.emp_id || decoded.employee_id || 1,
+          username: info.userName || info.username || username,
+          name: info.empName || info.name || info.full_name || decoded.name || decoded.full_name || username,
+          email: info.email || decoded.email || '',
+          role: info.roleName || info.role || decoded.role || 'User',
+          initials: (info.userName || info.username || username).substring(0, 2).toUpperCase(),
+          permissions: info.permissions || decoded.permissions || [],
+          mySubordinates: info.mySubordinates || [],
+        };
+      } catch (err) {
+        console.warn('Failed to fetch user-info, falling back to token data', err);
+        user = {
+          id: decoded.user_id || decoded.sub || 'unknown',
+          emp_id: decoded.emp_id || decoded.employee_id || 1,
+          username: username,
+          name: decoded.name || decoded.full_name || username,
+          email: decoded.email || '',
+          role: decoded.role || 'User',
+          initials: username.substring(0, 2).toUpperCase(),
+          permissions: decoded.permissions || [],
+        };
+      }
     }
 
     return { token, refreshToken, user };
   },
-  
+
   logout: async () => {
     try {
       const refreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN);
@@ -80,12 +103,12 @@ export const authService = {
       storage.remove(STORAGE_KEYS.AUTH_USER);
     }
   },
-  
+
   getSession: async () => {
     // Depending on the backend, verify the token or fetch user profile
     const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
     const persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
-    
+
     if (token && persistedUser) {
       try {
         // Verify token if verify endpoint exists
@@ -97,7 +120,7 @@ export const authService = {
         throw new Error('Session invalid');
       }
     }
-    
+
     throw new Error('No session found');
   },
 };

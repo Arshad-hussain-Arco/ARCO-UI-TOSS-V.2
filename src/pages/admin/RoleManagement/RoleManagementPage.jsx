@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -16,6 +16,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
+import { roleService } from '@services/roleService';
+import { Loader } from '@components/feedback/Loader/Loader';
 import './RoleManagementPage.css';
 
 // Application Modules List
@@ -66,78 +68,54 @@ const countPermissions = (matrix) => {
   return count;
 };
 
-// Initial Default Roles
-const INITIAL_ROLES = [
-  {
-    id: 'role-1',
-    name: 'Super Admin',
-    description: 'Full system access across all modules and global enterprise settings.',
-    isAdmin: true,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Attendance: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Consultants: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Reports: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-    },
-  },
-  {
-    id: 'role-2',
-    name: 'HR Manager',
-    description: 'Manages employee leave configurations, attendance records, and team summaries.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Attendance: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Consultants: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-    },
-  },
-  {
-    id: 'role-3',
-    name: 'Project Lead',
-    description: 'Oversees team EOD submissions, consultant tasks, and project breaches.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Attendance: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Consultants: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-    },
-  },
-  {
-    id: 'role-4',
-    name: 'Employee Standard',
-    description: 'Standard access for applying leaves, viewing own attendance, and submitting EODs.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Attendance: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Consultants: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      'EOD Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      Teams: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Documents: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-    },
-  },
-];
-
 export function RoleManagementPage() {
-  const [roles, setRoles] = useState(INITIAL_ROLES);
+  const [roles, setRoles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRoleId, setExpandedRoleId] = useState(null);
+
+  const fetchRoles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await roleService.getRoles();
+      const mappedRoles = data.map((r) => {
+        const funcs = r.access_functions ? r.access_functions.split(',') : [];
+        const matrix = createEmptyMatrix();
+        
+        const hasAdd = funcs.includes('add');
+        const hasEdit = funcs.includes('edit');
+        const hasDelete = funcs.includes('delete');
+        
+        MODULES.forEach((mod) => {
+          matrix[mod] = {
+            add: hasAdd ? 'Allow' : 'Deny',
+            edit: hasEdit ? 'Allow' : 'Deny',
+            delete: hasDelete ? 'Allow' : 'Deny',
+            read: 'Allow', 
+            export: 'Deny',
+          };
+        });
+
+        return {
+          id: r.id,
+          name: r.role_name,
+          description: `Role ID: ${r.id}, modified by ${r.last_modified_by || 'system'}`,
+          isAdmin: r.is_admin === 1,
+          permissions: matrix,
+          originalFunctions: funcs,
+        };
+      });
+      setRoles(mappedRoles);
+    } catch (error) {
+      console.error('Failed to fetch roles', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
 
   // Modal State for "Add Role"
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -349,7 +327,15 @@ export function RoleManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRoles.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="rm-empty-td">
+                    <div className="rm-empty-state">
+                      <Loader message="Loading roles..." />
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredRoles.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
                     <div className="rm-empty-state">

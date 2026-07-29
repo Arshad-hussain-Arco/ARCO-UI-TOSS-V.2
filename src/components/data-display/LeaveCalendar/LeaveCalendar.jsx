@@ -21,21 +21,35 @@ function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth }) {
   // Sync calendar date with parent state
   const currentDate = new Date(year, month, 1);
 
-  // Map our internal event structure to react-big-calendar's expected shape
   const mappedEvents = useMemo(() => {
     return events.map((ev) => {
-      // The current system uses string dates like '2026-03-22'
-      // We parse them into Date objects for start and end
-      const eventDate = new Date(ev.date);
+      let start, end;
+      if (ev.start_date && ev.end_date) {
+        start = new Date(ev.start_date);
+        end = new Date(ev.end_date);
+        // React Big Calendar considers the end date as exclusive for multi-day events if they are allDay
+        // But since we might just want it to span inclusive, we can add 1 day to end for visual correctness in month view
+        if (start.getTime() !== end.getTime()) {
+           end.setDate(end.getDate() + 1);
+        }
+      } else {
+        if (typeof ev.date === 'number') {
+          start = new Date(year, month, ev.date);
+        } else {
+          start = new Date(ev.date);
+        }
+        end = start;
+      }
+
       return {
-        title: ev.employeeName ? `${ev.type} - ${ev.employeeName}` : ev.type,
-        start: eventDate,
-        end: eventDate,
+        title: ev.employeeName ? `${ev.leave_type || ev.type} - ${ev.employeeName}` : (ev.title || ev.leave_type || ev.type),
+        start,
+        end,
         allDay: true,
         resource: ev,
       };
     });
-  }, [events]);
+  }, [events, year, month]);
 
   const handleNavigate = (newDate, view, action) => {
     if (action === 'PREV' && onPrevMonth) onPrevMonth();

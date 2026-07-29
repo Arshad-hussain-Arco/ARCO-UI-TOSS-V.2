@@ -1,8 +1,18 @@
+import { useState, useEffect } from 'react';
 import { Phone, Mail, Users, Lock, Trash2, Edit, Power, Copy } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
+import { consultantService } from '@services/consultantService';
 import './ConsultantCard.css';
+
 function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInactive, onActivate, onAvatarClick }) {
   const toast = useToast();
+  const [photoUrl, setPhotoUrl] = useState(consultant.avatar);
+  const [isFetchingPhoto, setIsFetchingPhoto] = useState(false);
+
+  useEffect(() => {
+    setPhotoUrl(consultant.avatar);
+  }, [consultant.avatar]);
+
   const getInitials = (name) => {
     return name
       .split(' ')
@@ -17,6 +27,7 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
     navigator.clipboard.writeText(text);
     toast.success('Employee ID copied');
   };
+  
   return (
     <div className="consultant-card">
       {/* Card Header */}
@@ -32,9 +43,11 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
             tabIndex={0}
             title="View Profile"
           >
-            {consultant.avatar ? (
+            {isFetchingPhoto ? (
+              <div className="consultant-avatar-skeleton"></div>
+            ) : photoUrl ? (
               <img
-                src={consultant.avatar}
+                src={photoUrl}
                 alt={consultant.name}
                 className="consultant-avatar-img"
               />
@@ -125,5 +138,31 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
     </div>
   );
 }
+export function ConsultantCardSkeleton() {
+  return (
+    <div className="consultant-card">
+      <div className="consultant-card-header">
+        <div className="consultant-header-left">
+          <div className="consultant-avatar consultant-avatar-skeleton" style={{ width: 44, height: 44 }}></div>
+          <div className="consultant-info" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="consultant-skeleton-block" style={{ width: '120px', height: '16px' }}></div>
+            <div className="consultant-skeleton-block" style={{ width: '80px', height: '12px' }}></div>
+          </div>
+        </div>
+      </div>
+      <div className="consultant-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 20px' }}>
+        <div className="consultant-skeleton-block" style={{ width: '90%', height: '14px' }}></div>
+        <div className="consultant-skeleton-block" style={{ width: '70%', height: '14px' }}></div>
+        <div className="consultant-skeleton-block" style={{ width: '80%', height: '14px' }}></div>
+      </div>
+      <div className="consultant-card-footer" style={{ padding: '12px 20px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+      </div>
+    </div>
+  );
+}
+
 export { ConsultantCard };
 export default ConsultantCard;

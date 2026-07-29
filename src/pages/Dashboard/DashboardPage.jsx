@@ -8,6 +8,7 @@ import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { DASHBOARD_DATE_FILTERS } from '@mocks/data/dashboard';
 import { dashboardService } from '@services/dashboardService';
+import { consultantService } from '@services/consultantService';
 
 import { AlertsPanel } from './sections/AlertsPanel';
 import { CapacitySection } from './sections/CapacitySection';
@@ -16,6 +17,7 @@ import { KpiStrip } from './sections/KpiStrip';
 import { LeaveSnapshotSection } from './sections/LeaveSnapshotSection';
 import { ProjectRiskSection } from './sections/ProjectRiskSection';
 import { SystemHealthSection } from './sections/SystemHealthSection';
+import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import './DashboardPage.css';
 
 /**
@@ -31,6 +33,9 @@ export function DashboardPage() {
 
   const fetchSummary = useCallback(() => dashboardService.getSummary({ dateFilter }), [dateFilter]);
   const { data: summary, isLoading, error, refetch } = useAsync(fetchSummary);
+
+  const fetchHeadcount = useCallback(() => consultantService.getTeamHeadcount(), []);
+  const { data: teamHeadcount } = useAsync(fetchHeadcount);
 
   return (
     <div className="dc-root">
@@ -79,6 +84,10 @@ export function DashboardPage() {
               />
 
               <CapacitySection capacityByTeam={summary.capacityByTeam} />
+
+              {teamHeadcount && teamHeadcount.length > 0 && (
+                <TeamHeadcountSection teams={teamHeadcount} />
+              )}
 
               <ProjectRiskSection
                 projectRisk={summary.projectRisk}

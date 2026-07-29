@@ -1,0 +1,289 @@
+import httpClient from '@api/httpClient';
+import endpoints from '@api/endpoints';
+
+export const leaveService = {
+  getLeaveBalance: async (empId) => {
+    try {
+      const response = await httpClient.get(endpoints.me.balance(empId));
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leave balance:', error);
+      throw error;
+    }
+  },
+  getMyLeaves: async (empId) => {
+    try {
+      const response = await httpClient.get(endpoints.me.leaves(empId));
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+      throw error;
+    }
+  },
+  getTeamLeaves: async (managerId) => {
+    try {
+      const response = await httpClient.get(endpoints.me.teamLeaves(managerId));
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching team leaves:', error);
+      throw error;
+    }
+  },
+  applyLeave: async (payload) => {
+    try {
+      const response = await httpClient.post(endpoints.me.applyLeave, payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error applying leave:', error);
+      throw error;
+    }
+  },
+  getEmployeeLeaveByYear: async (empId) => {
+    const response = await httpClient.get(endpoints.me.employeeLeaveByYear(empId));
+    return response.data;
+  },
+  getCalendar: async (empId, params) => {
+    const response = await httpClient.get(endpoints.me.calendar(empId), { params });
+    return response.data;
+  },
+  modifyLeave: async (leaveId, payload) => {
+    const response = await httpClient.put(endpoints.me.modifyLeave(leaveId), payload);
+    return response.data;
+  },
+  cancelLeave: async (leaveId, payload) => {
+    const response = await httpClient.post(endpoints.me.cancelLeave(leaveId), payload);
+    return response.data;
+  },
+  getLeaveHistory: async (leaveId) => {
+    const response = await httpClient.get(endpoints.me.leaveHistory(leaveId));
+    return response.data;
+  },
+  claimWeekend: async (payload) => {
+    const response = await httpClient.post(endpoints.me.claimWeekend, payload);
+    return response.data;
+  },
+  claimCompOff: async (payload) => {
+    const response = await httpClient.post(endpoints.me.claimCompOff, payload);
+    return response.data;
+  },
+  requestWfh: async (payload) => {
+    const response = await httpClient.post(endpoints.me.wfh, payload);
+    return response.data;
+  },
+  partialCancelLeave: async (leaveId, payload) => {
+    const response = await httpClient.post(endpoints.me.partialCancel(leaveId), payload);
+    return response.data;
+  },
+  applyOwLeave: async (payload) => {
+    const response = await httpClient.post(endpoints.me.owApply, payload);
+    return response.data;
+  },
+  modifyOwLeave: async (leaveId, payload) => {
+    const response = await httpClient.patch(endpoints.me.owModify(leaveId), payload);
+    return response.data;
+  },
+  remindManager: async (leaveId, payload) => {
+    const response = await httpClient.post(endpoints.me.remindManager(leaveId), payload);
+    return response.data;
+  },
+  exportLeaves: async (empId, params) => {
+    const response = await httpClient.get(endpoints.me.exportLeaves(empId), { params, responseType: 'blob' });
+    return response.data;
+  },
+  importLeaves: async (empId, formData) => {
+    const response = await httpClient.post(endpoints.me.importLeaves(empId), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  getNotifications: async (params) => {
+    const response = await httpClient.get(endpoints.me.notifications, { params });
+    return response.data;
+  },
+  getNotificationsUnreadCount: async (params) => {
+    const response = await httpClient.get(endpoints.me.notificationsUnreadCount, { params });
+    return response.data;
+  },
+  markAllNotificationsRead: async (payload) => {
+    const response = await httpClient.post(endpoints.me.notificationsMarkAllRead, payload);
+    return response.data;
+  },
+  markNotificationRead: async (notificationId, payload) => {
+    const response = await httpClient.patch(endpoints.me.notificationMarkRead(notificationId), payload);
+    return response.data;
+  },
+
+  // --- Manager Endpoints ---
+  getManagerPendingLeaves: async (managerId) => {
+    const response = await httpClient.get(endpoints.manager.pending(managerId));
+    return response.data;
+  },
+  getTeamBalances: async (managerId, params) => {
+    const response = await httpClient.get(endpoints.manager.teamBalances(managerId), { params });
+    return response.data;
+  },
+  getTeamHeadcount: async (managerId, params) => {
+    const response = await httpClient.get(endpoints.manager.headcount(managerId), { params });
+    return response.data;
+  },
+  getPendingModRequests: async (managerId) => {
+    const response = await httpClient.get(endpoints.manager.modRequests(managerId));
+    return response.data;
+  },
+  getLeaveConflicts: async (params) => {
+    const response = await httpClient.get(endpoints.manager.conflicts, { params });
+    return response.data;
+  },
+  applyLeaveOnBehalf: async (payload) => {
+    const response = await httpClient.post(endpoints.manager.applyOnBehalf, payload);
+    return response.data;
+  },
+  editLeaveOnBehalf: async (leaveId, payload) => {
+    const response = await httpClient.patch(endpoints.manager.editOnBehalf(leaveId), payload);
+    return response.data;
+  },
+  approveLeave: async (leaveId, payload) => {
+    const response = await httpClient.post(endpoints.manager.approveLeave(leaveId), payload);
+    return response.data;
+  },
+  rejectLeave: async (leaveId, payload) => {
+    const response = await httpClient.post(endpoints.manager.rejectLeave(leaveId), payload);
+    return response.data;
+  },
+  approveModRequest: async (modId, payload) => {
+    const response = await httpClient.post(endpoints.manager.approveModRequest(modId), payload);
+    return response.data;
+  },
+  rejectModRequest: async (modId, payload) => {
+    const response = await httpClient.post(endpoints.manager.rejectModRequest(modId), payload);
+    return response.data;
+  },
+  getOwExcessList: async (params) => {
+    const response = await httpClient.get(endpoints.manager.owExcess, { params });
+    return response.data;
+  },
+  approveOwExcess: async (excessId, payload) => {
+    const response = await httpClient.post(endpoints.manager.approveOwExcess(excessId), payload);
+    return response.data;
+  },
+  rejectOwExcess: async (excessId, payload) => {
+    const response = await httpClient.post(endpoints.manager.rejectOwExcess(excessId), payload);
+    return response.data;
+  },
+  modApproveOwExcess: async (excessId, payload) => {
+    const response = await httpClient.post(endpoints.manager.modApproveOwExcess(excessId), payload);
+    return response.data;
+  },
+  modRejectOwExcess: async (excessId, payload) => {
+    const response = await httpClient.post(endpoints.manager.modRejectOwExcess(excessId), payload);
+    return response.data;
+  },
+  exportTeamLeaves: async (managerId, params) => {
+    const response = await httpClient.get(endpoints.manager.exportLeaves(managerId), { params, responseType: 'blob' });
+    return response.data;
+  },
+  importTeamLeaves: async (managerId, formData) => {
+    const response = await httpClient.post(endpoints.manager.importLeaves(managerId), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  getTeamCalendar: async (managerId, params) => {
+    const response = await httpClient.get(endpoints.manager.teamCalendar(managerId), { params });
+    return response.data;
+  },
+
+  // --- HR / Policy / Reports Endpoints ---
+  getActiveLeaveTypes: async () => {
+    const response = await httpClient.get(endpoints.hr.leaveTypes);
+    return response.data;
+  },
+  getAllLeaveTypes: async () => {
+    const response = await httpClient.get(endpoints.hr.allLeaveTypes);
+    return response.data;
+  },
+  getGradePolicies: async () => {
+    const response = await httpClient.get(endpoints.hr.gradePolicies);
+    return response.data;
+  },
+  createGradePolicy: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.gradePolicies, payload);
+    return response.data;
+  },
+  updateGradePolicy: async (pk, payload) => {
+    const response = await httpClient.patch(endpoints.hr.gradePolicyDetail(pk), payload);
+    return response.data;
+  },
+  deleteGradePolicy: async (pk) => {
+    const response = await httpClient.delete(endpoints.hr.gradePolicyDetail(pk));
+    return response.data;
+  },
+  getEmployeeProfile: async (empId) => {
+    const response = await httpClient.get(endpoints.hr.employeeProfile(empId));
+    return response.data;
+  },
+  updateEmployeeProfile: async (empId, payload) => {
+    const response = await httpClient.post(endpoints.hr.employeeProfile(empId), payload);
+    return response.data;
+  },
+  bulkUpdateEmployeeProfiles: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.bulkUpdateProfile, payload);
+    return response.data;
+  },
+  adjustLeaveBalance: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.balanceAdjust, payload);
+    return response.data;
+  },
+  getBlackoutPeriods: async () => {
+    const response = await httpClient.get(endpoints.hr.blackout);
+    return response.data;
+  },
+  createBlackoutPeriod: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.blackout, payload);
+    return response.data;
+  },
+  getBlackoutPeriodDetail: async (pk) => {
+    const response = await httpClient.get(endpoints.hr.blackoutDetail(pk));
+    return response.data;
+  },
+  updateBlackoutPeriod: async (pk, payload) => {
+    const response = await httpClient.patch(endpoints.hr.blackoutDetail(pk), payload);
+    return response.data;
+  },
+  deleteBlackoutPeriod: async (pk) => {
+    const response = await httpClient.delete(endpoints.hr.blackoutDetail(pk));
+    return response.data;
+  },
+  getAuditTrail: async (params) => {
+    const response = await httpClient.get(endpoints.hr.audit, { params });
+    return response.data;
+  },
+  getStalePendingLeaves: async (params) => {
+    const response = await httpClient.get(endpoints.hr.stalePending, { params });
+    return response.data;
+  },
+  getDepartmentLeaveReport: async (params) => {
+    const response = await httpClient.get(endpoints.hr.departmentReport, { params });
+    return response.data;
+  },
+  getLeaveUtilizationReport: async (params) => {
+    const response = await httpClient.get(endpoints.hr.utilizationReport, { params });
+    return response.data;
+  },
+  getHolidays: async () => {
+    const response = await httpClient.get(endpoints.hr.holidays);
+    return response.data;
+  },
+  exportHrLeaves: async (params) => {
+    const response = await httpClient.get(endpoints.hr.exportLeaves, { params, responseType: 'blob' });
+    return response.data;
+  },
+  importHrLeaves: async (formData) => {
+    const response = await httpClient.post(endpoints.hr.importLeaves, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
+export default leaveService;
