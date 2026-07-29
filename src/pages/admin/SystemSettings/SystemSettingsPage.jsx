@@ -152,19 +152,11 @@ export function SystemSettingsPage() {
       {/* ── Main Content ── */}
       <div className="ss-main-content">
         {activeTab === 'env-config' ? (
-          <EnvironmentConfigPanel
-            values={draft.environment}
-            onChange={updateEnvironmentField}
-            onSave={handleUpdate}
-            isSaving={isSaving}
-          />
+          <EnvironmentConfigPanel />
         ) : null}
 
         {activeTab === 'import-config' ? (
-          <ImportConfigPanel
-            onSave={handleUpdate}
-            isSaving={isSaving}
-          />
+          <ImportConfigPanel />
         ) : null}
 
         {activeTab === 'cr-columns' ? (
@@ -182,21 +174,11 @@ export function SystemSettingsPage() {
         ) : null}
 
         {activeTab === 'weekend-config' ? (
-          <WeekendConfigPanel
-            weekend={draft.weekend}
-            onToggleDay={toggleWeekendDay}
-            onToggleWeekendEod={toggleWeekendEod}
-            onSave={handleUpdate}
-            isSaving={isSaving}
-          />
+          <WeekendConfigPanel />
         ) : null}
 
         {activeTab === 'home-management' ? (
-          <HomeManagementPanel
-            widgets={draft.dashboardWidgets}
-            onToggleWidget={toggleWidget}
-            onReset={resetWidgets}
-          />
+          <HomeManagementPanel />
         ) : null}
       </div>
     </div>

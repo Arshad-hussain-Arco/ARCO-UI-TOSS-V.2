@@ -1,5 +1,7 @@
-import { memo, useState } from 'react';
-import { Save } from 'lucide-react';
+import { memo, useState, useEffect } from 'react';
+import { Save, Loader2 } from 'lucide-react';
+import { useToast } from '@hooks/useToast';
+import { settingsService } from '@services/settingsService';
 
 const DAYS_OF_WEEK = [
   'Sunday',
@@ -15,19 +17,61 @@ const DAYS_OF_WEEK = [
  * TAB 5: Weekend Configuration
  * Checklist for days of the week, with Friday & Saturday checked by default.
  */
-function WeekendConfigPanelComponent({ weekend, onToggleDay, onSave, isSaving }) {
-  // Local state initialized with Friday and Saturday checked by default
-  const [selectedDays, setSelectedDays] = useState(
-    weekend?.selectedDays || ['Friday', 'Saturday'],
-  );
+function WeekendConfigPanelComponent() {
+  const toast = useToast();
+  const [selectedDays, setSelectedDays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await settingsService.getWeekendConfig();
+      if (res && res.weekendDays) {
+        const days = res.weekendDays.map(index => DAYS_OF_WEEK[index]);
+        setSelectedDays(days);
+      }
+    } catch (error) {
+      console.error('Failed to fetch weekend config:', error);
+      toast.error('Failed to load weekend configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCheckboxChange = (day) => {
     const next = selectedDays.includes(day)
       ? selectedDays.filter((d) => d !== day)
       : [...selectedDays, day];
     setSelectedDays(next);
-    if (onToggleDay) onToggleDay(day);
   };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const indices = selectedDays.map(day => DAYS_OF_WEEK.indexOf(day));
+      await settingsService.updateWeekendConfig({ weekendDays: indices });
+      toast.success('Weekend configuration updated successfully');
+    } catch (error) {
+      console.error('Failed to update weekend config:', error);
+      toast.error('Failed to update weekend configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="ss-form-card">
@@ -36,10 +80,7 @@ function WeekendConfigPanelComponent({ weekend, onToggleDay, onSave, isSaving })
       </div>
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (onSave) onSave();
-        }}
+        onSubmit={handleSave}
         style={{ padding: '24px' }}
       >
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
@@ -85,9 +126,9 @@ function WeekendConfigPanelComponent({ weekend, onToggleDay, onSave, isSaving })
 
         {/* Form Action: Primary Update Button */}
         <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
-          <button type="submit" className="ss-btn-update" disabled={isSaving}>
-            <Save size={16} />
-            {isSaving ? 'Updating...' : 'Update'}
+          <button type="submit" className="ss-btn-update" disabled={saving}>
+            {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
+            {saving ? 'Updating...' : 'Update'}
           </button>
         </div>
       </form>

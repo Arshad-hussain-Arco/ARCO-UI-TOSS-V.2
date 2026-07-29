@@ -1,24 +1,7 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useRef, useState, useEffect } from 'react';
 import { Edit2, LayoutGrid, Loader2, Plus, Trash2, Upload, User, X } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
-
-const PREPOPULATED_CARDS = [
-  {
-    id: '1',
-    photoUrl: 'https://images.unsplash.com/photo-1578895210405-907db486c111?w=600&auto=format&fit=crop&q=80',
-    content: '<div class="m-paragraph...">Located in the temperate northwest of Saudi Arabia, NEOM represents a revolutionary vision for sustainable living, economic diversification, and technology innovation.</div>',
-  },
-  {
-    id: '2',
-    photoUrl: null, // Placeholder
-    content: '<div class="m-paragraph...">Located in the temperate northwest of Saudi Arabia, the Diriyah Gate development blends rich cultural heritage with modern luxury hospitality and financial services.</div>',
-  },
-  {
-    id: '3',
-    photoUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', // AI/Robot abstract
-    content: 'arcofintech is an AI and robotics company focused on developing intelligent financial software systems, automated reporting tools, and enterprise treasury management systems.',
-  },
-];
+import { settingsService } from '@services/settingsService';
 
 /**
  * Helper to strip HTML tags for clean plain text display in cards.
@@ -38,9 +21,27 @@ function stripHtml(htmlStr) {
  */
 function HomeManagementPanelComponent() {
   const toast = useToast();
-  const [cards, setCards] = useState(PREPOPULATED_CARDS);
+  const [cards, setCards] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await settingsService.getHomeData();
+      setCards(res || []);
+    } catch (error) {
+      console.error('Failed to fetch home data:', error);
+      toast.error('Failed to load home cards');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Form states
   const [selectedFile, setSelectedFile] = useState(null);
@@ -61,15 +62,21 @@ function HomeManagementPanelComponent() {
   const handleOpenEditModal = (card) => {
     setEditId(card.id);
     setSelectedFile(null);
-    setPreviewUrl(card.photoUrl);
-    setContentInput(stripHtml(card.content));
+    setPreviewUrl(card.photo ? `data:image/jpeg;base64,${card.photo}` : null);
+    setContentInput(stripHtml(card.description));
     setIsUploading(false);
     setIsModalOpen(true);
   };
 
-  const handleDeleteCard = (id) => {
-    setCards((prev) => prev.filter((c) => c.id !== id));
-    toast.success('Home card deleted successfully');
+  const handleDeleteCard = async (id) => {
+    try {
+      await settingsService.deleteHomeData(id);
+      setCards((prev) => prev.filter((c) => c.id !== id));
+      toast.success('Home card deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete home card:', error);
+      toast.error('Failed to delete home card');
+    }
   };
 
   const processFileSelection = (file) => {
@@ -77,13 +84,11 @@ function HomeManagementPanelComponent() {
     setIsUploading(true);
     setSelectedFile(file);
 
-    // Simulate async image upload / processing
-    setTimeout(() => {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      setIsUploading(false);
-      toast.success(`Image uploaded: ${file.name}`);
-    }, 600);
+    // Just set preview url synchronously for the UI
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setIsUploading(false);
+    toast.success(`Image selected: ${file.name}`);
   };
 
   const handleFileChange = (e) => {
@@ -108,35 +113,45 @@ function HomeManagementPanelComponent() {
     }
   };
 
-  const handleSaveCard = () => {
-    if (!contentInput.trim() && !previewUrl) {
+  const handleSaveCard = async () => {
+    if (!contentInput.trim() && !selectedFile && !previewUrl) {
       toast.error('Please enter content or upload a photo');
       return;
     }
 
-    if (editId) {
-      setCards((prev) =>
-        prev.map((c) =>
-          c.id === editId
-            ? { ...c, photoUrl: previewUrl, content: contentInput }
-            : c,
-        ),
-      );
-      toast.success('Home card updated');
-    } else {
-      const newCard = {
-        id: `card-${Date.now()}`,
-        photoUrl: previewUrl,
-        content: contentInput || 'New home card content',
-      };
-      setCards((prev) => [...prev, newCard]);
-      toast.success('Home card added successfully');
-    }
+    try {
+      setIsUploading(true);
+      const payload = new FormData();
+      if (contentInput.trim()) payload.append('description', contentInput.trim());
+      if (selectedFile) payload.append('photo', selectedFile);
 
-    setIsModalOpen(false);
+      if (editId) {
+        await settingsService.updateHomeData(editId, payload);
+        toast.success('Home card updated');
+      } else {
+        await settingsService.createHomeData(payload);
+        toast.success('Home card added successfully');
+      }
+
+      await fetchData();
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save home card:', error);
+      toast.error('Failed to save home card');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const isSaveDisabled = isUploading || (!contentInput.trim() && !previewUrl);
+  const isSaveDisabled = isUploading || (!contentInput.trim() && !selectedFile && !previewUrl);
+
+  if (loading && cards.length === 0) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -183,7 +198,8 @@ function HomeManagementPanelComponent() {
         }}
       >
         {cards.map((card) => {
-          const plainText = stripHtml(card.content);
+          const plainText = stripHtml(card.description);
+          const displayPhotoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
 
           return (
             <div
@@ -212,9 +228,9 @@ function HomeManagementPanelComponent() {
                   justifyContent: 'center',
                 }}
               >
-                {card.photoUrl ? (
+                {displayPhotoUrl ? (
                   <img
-                    src={card.photoUrl}
+                    src={displayPhotoUrl}
                     alt="Card media"
                     style={{ width: '100%', height: '160px', objectFit: 'cover' }}
                   />
