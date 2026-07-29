@@ -17,7 +17,7 @@ import { authService } from '@services/authService';
  * @property {() => void} clearError
  */
 
-export const AuthContext = createContext(/** @type {AuthContextValue | null} */ (null));
+export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -28,14 +28,55 @@ export function AuthProvider({ children }) {
   // Restore a persisted session on first mount so a refresh does not sign the
   // user out. Mock auth stores the user alongside the token.
   useEffect(() => {
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-    const persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
+    let isMounted = true;
+    
+    const initAuth = async () => {
+      const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
+      let persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
 
-    if (token && persistedUser) {
-      setUser(persistedUser);
-    }
+      if (token) {
+        try {
+          // Attempt to fetch fresh user info from the backend
+          const { default: httpClient } = await import('@api/httpClient');
+          const { default: endpoints } = await import('@api/endpoints');
+          const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
+          const fullInfo = userInfoRes.data;
+          const info = fullInfo.userInformation || fullInfo;
+          
+          persistedUser = {
+            ...persistedUser,
+            id: info.id || persistedUser?.id,
+            emp_id: info.empId || info.emp_id || info.employee_id || persistedUser?.emp_id,
+            username: info.userName || info.username || persistedUser?.username,
+            name: info.empName || info.name || info.full_name || persistedUser?.name,
+            email: info.email || persistedUser?.email,
+            role: info.roleName || info.role || persistedUser?.role,
+            roleName: info.roleName || persistedUser?.roleName,
+            isAdmin: info.isAdmin !== undefined ? info.isAdmin : persistedUser?.isAdmin,
+            permissions: info.permissions || persistedUser?.permissions || [],
+            mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
+          };
+          if (info.userName || info.username) {
+            persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
+          }
+          storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
+        } catch (error) {
+          console.warn('Failed to fetch user-info on load', error);
+        }
+        
+        if (isMounted && persistedUser) {
+          setUser(persistedUser);
+        }
+      }
 
-    setIsInitialising(false);
+      if (isMounted) {
+        setIsInitialising(false);
+      }
+    };
+    
+    initAuth();
+    
+    return () => { isMounted = false; };
   }, []);
 
   const clearSession = useCallback(() => {
@@ -109,3 +150,4 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+

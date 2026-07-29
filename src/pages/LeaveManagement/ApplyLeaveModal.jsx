@@ -1,4 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
+import { leaveService } from '@services/leaveService';
 import {
   X,
   Upload,
@@ -287,6 +290,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const showClaimType = type === 'compoff';
   const reasonLabel =
     type === 'compoff' ? 'Claim Reason' : type === 'wfh' ? 'Reason for WFH' : 'Reason';
+  const { user } = useAuth();
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [applyFor, setApplyFor] = useState('self');
   const [behalfEmp, setBehalfEmp] = useState(null);
   const [leaveType, setLeaveType] = useState(null);
@@ -296,6 +302,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [claimType, setClaimType] = useState('compoff');
   const [reason, setReason] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [empItems, setEmpItems] = useState([]);
   const fileInputRef = useRef(null);
   const today = useMemo(() => {
     const d = /* @__PURE__ */ new Date();
@@ -337,6 +344,19 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   useEffect(() => {
     if (isMultiDay) setDuration('full');
   }, [isMultiDay]);
+  useEffect(() => {
+    if (user?.mySubordinates?.length > 0) {
+      import('@services/consultantService').then(({ default: consultantService }) => {
+        consultantService.getEmployeesList().then((data) => {
+          const arr = Array.isArray(data) ? data : (data?.results || []);
+          const subordinates = arr.filter((emp) => user.mySubordinates.includes(emp.emp_id || emp.id));
+          setEmpItems(subordinates.map((e) => ({ ...e, id: e.emp_id || e.id, name: e.name || e.emp_name, label: e.name || e.emp_name })));
+        }).catch(err => {
+          console.error("Failed to fetch subordinates", err);
+        });
+      });
+    }
+  }, [user]);
   function prevMonth() {
     if (calMonth === 0) {
       setCalMonth(11);
@@ -380,16 +400,15 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     return '';
   }
   const ltItems = LEAVE_TYPES.map((lt) => ({ ...lt }));
-  const empItems = EMPLOYEES.map((e) => ({ ...e, label: e.name }));
   if (submitted)
     return (
-      <div className="al-overlay" {...dismissBackdrop(onClose)}>
+      <div className="al-overlay" {...dismissBackdrop(() => onClose(true))}>
         <div className="al-modal" role="dialog" aria-modal="true">
           <div className="al-header">
             <div className="al-header-left">
               <h2 className="al-title">Leave Application</h2>
             </div>
-            <button type="button" className="al-close-btn" onClick={onClose}>
+            <button type="button" className="al-close-btn" onClick={() => onClose(true)}>
               <X size={15} />
             </button>
           </div>
@@ -413,7 +432,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
               Pending Approval
             </div>
             <div className="al-success-actions">
-              <button type="button" className="al-btn al-btn-outline" onClick={onClose}>
+              <button type="button" className="al-btn al-btn-outline" onClick={() => onClose(true)}>
                 View My Leaves
               </button>
               <button
@@ -432,7 +451,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
       </div>
     );
   return (
-    <div className="al-overlay" {...dismissBackdrop(onClose)}>
+    <div className="al-overlay" {...dismissBackdrop(() => onClose(false))}>
       <div className="al-modal" role="dialog" aria-modal="true">
         {/* Confirmation overlay */}
         {showConfirm && (
@@ -500,12 +519,42 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 <button
                   type="button"
                   className="al-btn al-btn-primary"
-                  onClick={() => {
-                    setShowConfirm(false);
-                    setSubmitted(true);
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    try {
+                      setIsSubmitting(true);
+                      
+                      let backendLeaveType = '';
+                      if (type === 'wfh') backendLeaveType = 'WFH';
+                      else if (type === 'offshore') backendLeaveType = 'OW';
+                      else if (type === 'compoff') backendLeaveType = claimType === 'compoff' ? 'CompOff' : 'WW';
+                      else if (showLeaveType && leaveType) {
+                        const m = { annual: 'AL', sick: 'SL', compoff: 'CompOff', emergency: 'AL', maternity: 'ML' };
+                        backendLeaveType = m[leaveType.id] || 'AL';
+                      }
+
+                      const payload = {
+                        emp_id: applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id,
+                        leave_type: backendLeaveType,
+                        start_date: dateStr(startDate),
+                        end_date: end ? dateStr(end) : dateStr(startDate),
+                        reason: reason || (type === 'compoff' ? 'Comp-off / Weekend Work' : (type === 'offshore' ? 'Offshore Work' : '')),
+                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
+                      };
+                      
+                      await leaveService.applyLeave(payload);
+                      setShowConfirm(false);
+                      setSubmitted(true);
+                      toast.success(SUCCESS_TITLES[type]);
+                    } catch (error) {
+                      const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to apply leave. Please try again.';
+                      toast.error(msg);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
                 >
-                  <Check className="al-btn-icon" /> Confirm & Submit
+                  <Check className="al-btn-icon" /> {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
                 </button>
               </div>
             </div>
@@ -517,7 +566,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
           <div className="al-header-left">
             <h2 className="al-title">{MODAL_TITLES[type]}</h2>
           </div>
-          <button type="button" className="al-close-btn" onClick={onClose}>
+          <button type="button" className="al-close-btn" onClick={() => onClose(false)}>
             <X size={15} />
           </button>
         </div>
@@ -568,10 +617,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                           <Select
                             value={behalfEmp ? behalfEmp.id : ''}
                             onChange={(val) =>
-                              setBehalfEmp(EMPLOYEES.find((e) => e.id === val) ?? null)
+                              setBehalfEmp(empItems.find((e) => e.id === val) ?? null)
                             }
                             placeholder="Select employee…"
-                            options={EMPLOYEES.map((e) => ({ value: e.id, label: e.name }))}
+                            options={empItems.map((e) => ({ value: e.id, label: e.name }))}
                             width="manager"
                           />
                         </div>

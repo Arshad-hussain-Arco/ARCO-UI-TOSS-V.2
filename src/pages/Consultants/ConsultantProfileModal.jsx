@@ -18,7 +18,25 @@ function formatDate(dateString) {
 }
 
 export function ConsultantProfileModal({ consultantId, onClose }) {
-  const fetchInfo = useCallback(() => consultantService.getConsultantInfo(consultantId), [consultantId]);
+  const fetchInfo = useCallback(async () => {
+    const info = await consultantService.getConsultantInfo(consultantId);
+    let photoUrl = info.photo || info.avatar || '';
+    
+    // Decode base64 if needed just like in utils.js
+    if (photoUrl.startsWith('ZGF0Y')) {
+      try {
+        photoUrl = atob(photoUrl);
+      } catch (e) {
+        console.warn('Failed to decode base64 avatar');
+      }
+    }
+    if (photoUrl && !photoUrl.startsWith('data:image')) {
+      photoUrl = `data:image/jpeg;base64,${photoUrl}`;
+    }
+    
+    return { ...info, avatar: photoUrl };
+  }, [consultantId]);
+  
   const { data, isLoading, error, refetch } = useAsync(fetchInfo);
 
   if (error) {
@@ -56,7 +74,27 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
 
   // The backend might return data differently, assuming standard flat object or nested leave summary
   const info = data;
-  const leaveSummary = info.leave_summary || info.leaveSummary || [];
+  let leaveSummary = [];
+  if (info.leave_summary && info.leave_summary.balances) {
+    leaveSummary = Object.entries(info.leave_summary.balances).map(([type, stats]) => ({
+      leave_type: type,
+      ...stats
+    }));
+  } else if (Array.isArray(info.leave_summary)) {
+    leaveSummary = info.leave_summary;
+  } else if (Array.isArray(info.leaveSummary)) {
+    leaveSummary = info.leaveSummary;
+  }
+
+  const isActive = 
+    info.active === true ||
+    info.account_status?.toLowerCase() === 'active' || 
+    Number(info.status_id) === 1 || 
+    info.status?.toLowerCase() === 'active' || 
+    info.is_active || 
+    info.status_name?.toLowerCase() === 'active' ||
+    info.account_status === 1 ||
+    info.status === 1;
 
   return (
     <div className="cp-modal-overlay" {...dismissBackdrop(onClose)}>
@@ -73,11 +111,14 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
             <div className="cp-title-wrap">
               <h2 className="cp-name">{info.name || 'Unknown Consultant'}</h2>
               <div className="cp-badges">
-                {info.user_id && <span className="cp-badge">{info.user_id}</span>}
-                {info.designation && <span className="cp-badge" style={{ background: 'var(--c-info-light)', color: 'var(--c-info)' }}>{info.designation}</span>}
-                {info.team && <span className="cp-badge" style={{ background: 'var(--c-warning-light)', color: 'var(--c-warning)' }}>{info.team}</span>}
-                <span className="cp-badge" style={{ background: info.account_status === 'active' ? 'var(--c-success-light)' : 'var(--c-danger-light)', color: info.account_status === 'active' ? 'var(--c-success)' : 'var(--c-danger)' }}>
-                  {info.account_status === 'active' ? 'Active' : 'Inactive'}
+                {(info.user_id || info.user_name) && <span className="cp-badge">{info.user_id || info.user_name}</span>}
+                {(info.designation_name || info.designation) && <span className="cp-badge" style={{ background: 'var(--c-info-light)', color: 'var(--c-info)' }}>{info.designation_name || info.designation}</span>}
+                {(info.team_name || info.team) && <span className="cp-badge" style={{ background: 'var(--c-warning-light)', color: 'var(--c-warning)' }}>{info.team_name || info.team}</span>}
+                <span className="cp-badge" style={{ 
+                  background: isActive ? 'var(--c-success-light)' : 'var(--c-danger-light)', 
+                  color: isActive ? 'var(--c-success)' : 'var(--c-danger)' 
+                }}>
+                  {isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
             </div>
@@ -107,7 +148,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
               </div>
               <div className="cp-field">
                 <span className="cp-label"><User size={12} /> Reporting Manager</span>
-                <span className="cp-value">{info.reporting_manager || info.manager || '—'}</span>
+                <span className="cp-value">{info.manager_name || info.reporting_manager || info.manager || '—'}</span>
               </div>
               <div className="cp-field">
                 <span className="cp-label"><Building2 size={12} /> Location</span>
@@ -129,7 +170,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
             <div className="cp-grid">
               <div className="cp-field">
                 <span className="cp-label">Physical PC Available</span>
-                <span className="cp-value">{info.physical_pc_available ? 'Yes' : 'No'}</span>
+                <span className="cp-value">{(info.physical_pc_available === 1 || info.physical_pc_available === true) ? 'Yes' : 'No'}</span>
               </div>
               <div className="cp-field">
                 <span className="cp-label">Computer Name</span>
@@ -141,7 +182,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
               </div>
               <div className="cp-field">
                 <span className="cp-label"><MapPin size={12} /> Location Reference</span>
-                <span className="cp-value">{info.computer_location_reference || '—'}</span>
+                <span className="cp-value">{info.computer_location_ref || info.computer_location_reference || '—'}</span>
               </div>
             </div>
           </div>

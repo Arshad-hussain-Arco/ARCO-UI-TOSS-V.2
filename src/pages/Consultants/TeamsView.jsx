@@ -13,10 +13,8 @@ const MOCK_AVATAR = (name) => `https://ui-avatars.com/api/?name=${encodeURICompo
 
 function EmployeeCard({ consultant, onClick }) {
   const toast = useToast();
-  // Infer availability status - mock for demonstration as API may not provide this directly yet
-  // In a real app, this might come from a `status` field like 'WFH', 'Leave', 'Active'
   const isWfh = consultant.location?.toLowerCase().includes('home') || consultant.location?.toLowerCase().includes('wfh');
-  const isLeave = consultant.accountStatus === 'leave'; // Example
+  const isLeave = consultant.accountStatus === 'leave';
   const statusClass = isLeave ? 'leave' : isWfh ? 'wfh' : 'active';
 
   const handleCopy = (e, text) => {
@@ -52,14 +50,11 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap }) {
   const fetchMembers = useCallback(async () => {
     if (cache[team.id]) return cache[team.id];
-    // Attempt to fetch specific team members
     const res = await consultantService.getConsultants({ teamId: team.id });
     const list = Array.isArray(res) ? res : res?.results || [];
-    
-    // Normalize and filter client-side just in case the backend returns all
     const normalized = list.map(c => normalizeConsultant(c, true));
     const teamName = team.name || team.team_name || 'Unknown';
     const filtered = normalized.filter(c => 
@@ -67,7 +62,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
       c.team?.toLowerCase() === teamName?.toLowerCase() ||
       c.team_name?.toLowerCase() === teamName?.toLowerCase()
     );
-    return filtered.length > 0 ? filtered : normalized; // Fallback if filter is too strict
+    return filtered.length > 0 ? filtered : normalized;
   }, [team, cache]);
 
   const { data: members, isLoading, error } = useAsync(fetchMembers, isExpanded && !cache[team.id]);
@@ -80,24 +75,17 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 
   const activeMembers = useMemo(() => cache[team.id] || [], [cache, team.id]);
 
-  const { manager, employees, metrics } = useMemo(() => {
+  const { manager, employees } = useMemo(() => {
     const mems = activeMembers;
     let mgr = mems.find(m => m.designation?.toLowerCase().includes('manager') || m.designation?.toLowerCase().includes('lead') || m.role?.toLowerCase().includes('manager'));
-    if (!mgr && mems.length > 0) mgr = mems[0]; // fallback
+    if (!mgr && mems.length > 0) mgr = mems[0];
     const emps = mgr ? mems.filter(m => m.id !== mgr.id) : mems;
-    
-    const activeCount = mems.length; // Simplified
-    const leaveCount = 0; // Mocked until API supports it
-    const wfhCount = mems.filter(m => m.location?.toLowerCase().includes('home')).length;
-
-    return {
-      manager: mgr,
-      employees: emps,
-      metrics: {
-        active: activeCount, leave: leaveCount, wfh: wfhCount, total: mems.length
-      }
-    };
+    return { manager: mgr, employees: emps };
   }, [activeMembers]);
+
+  // Use live headcount data if available, otherwise fall back to member list count
+  const hc = headcountMap[team.id];
+  const displayTotal = hc ? hc.total : activeMembers.length;
 
   const priDev = parseFloat(team.pri_dev_contr_per || 0).toFixed(1);
   const addDev = parseFloat(team.add_dev_contr_per || 0).toFixed(1);
@@ -111,7 +99,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
           </div>
           <div className="tv-ah-title">
             <h3>{team.name || team.team_name}</h3>
-            <span>{metrics.total} Members</span>
+            <span>{displayTotal} Members</span>
           </div>
         </div>
         <div className="tv-ah-right">
@@ -145,7 +133,6 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
              <div className="tv-body-error"><span className="text-red-500">Failed to load members.</span></div>
           ) : (
             <div className="tv-body-content">
-              {/* Manager Section */}
               {manager && (
                 <div className="tv-manager-section">
                   <h4 className="tv-section-title">TEAM MANAGER</h4>
@@ -164,7 +151,6 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
                 </div>
               )}
 
-              {/* Members Section */}
               {employees.length > 0 && (
                 <div className="tv-members-section">
                   <h4 className="tv-section-title">TEAM MEMBERS</h4>
@@ -175,7 +161,6 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
                   </div>
                 </div>
               )}
-
             </div>
           )}
         </div>
@@ -190,7 +175,20 @@ export function TeamsView({ onProfileView }) {
     return Array.isArray(res) ? res : res?.results || [];
   }, []);
 
+  const fetchHeadcount = useCallback(() => consultantService.getTeamHeadcount(), []);
+
   const { data: teams, isLoading, error, refetch } = useAsync(fetchTeams);
+  const { data: headcountData } = useAsync(fetchHeadcount);
+
+  // Build a fast lookup: team_id -> headcount object
+  const headcountMap = useMemo(() => {
+    if (!headcountData) return {};
+    return headcountData.reduce((acc, hc) => {
+      acc[hc.team_id] = hc;
+      return acc;
+    }, {});
+  }, [headcountData]);
+
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamMembersCache, setTeamMembersCache] = useState({});
 
@@ -206,8 +204,6 @@ export function TeamsView({ onProfileView }) {
 
   const handleCardClick = (teamId) => {
     setExpandedTeamId(teamId === expandedTeamId ? null : teamId);
-    
-    // Smooth scroll to the accordion slightly after state update
     setTimeout(() => {
       const el = document.getElementById(`team-acc-${teamId}`);
       if (el) {
@@ -222,6 +218,7 @@ export function TeamsView({ onProfileView }) {
       <div className="tv-summary-strip">
         {teamsData.map((team) => {
           const isActive = expandedTeamId === team.id;
+          const hc = headcountMap[team.id];
           return (
             <div 
               key={team.id} 
@@ -234,19 +231,19 @@ export function TeamsView({ onProfileView }) {
               </div>
               <div className="tv-sc-stats">
                 <div className="tv-sc-stat">
-                  <span className="tv-sc-val">--</span>
+                  <span className="tv-sc-val">{hc ? hc.active : '--'}</span>
                   <span className="tv-sc-lbl">Active</span>
                 </div>
                 <div className="tv-sc-stat">
-                  <span className="tv-sc-val leave">--</span>
+                  <span className="tv-sc-val leave">{hc ? hc.on_leave : '--'}</span>
                   <span className="tv-sc-lbl">On Leave</span>
                 </div>
                 <div className="tv-sc-stat">
-                  <span className="tv-sc-val wfh">--</span>
+                  <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
                   <span className="tv-sc-lbl">WFH</span>
                 </div>
                 <div className="tv-sc-stat total">
-                  <span className="tv-sc-val">{team.members_count || '--'}</span>
+                  <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
                   <span className="tv-sc-lbl">Total</span>
                 </div>
               </div>
@@ -266,6 +263,7 @@ export function TeamsView({ onProfileView }) {
               onProfileView={onProfileView}
               cache={teamMembersCache}
               setCache={setTeamMembersCache}
+              headcountMap={headcountMap}
             />
           </div>
         ))}
@@ -273,3 +271,4 @@ export function TeamsView({ onProfileView }) {
     </div>
   );
 }
+

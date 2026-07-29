@@ -83,19 +83,22 @@ export function ConsultantsPage() {
   useDocumentTitle('Consultants');
   const toast = useToast();
   
-  // Fetch dropdown data on demand
-  const fetchRoles = useCallback(() => consultantService.getRoles(), []);
-  const fetchTeams = useCallback(() => consultantService.getTeams(), []);
   const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
 
-  const { data: rolesData, refetch: loadRoles } = useAsync(fetchRoles, { immediate: false });
-  const { data: teamsData, refetch: loadTeams } = useAsync(fetchTeams, { immediate: false });
-  const { data: employeesData, refetch: loadEmployees } = useAsync(fetchEmployees, { immediate: false });
+  const { data: employeesData, refetch: loadEmployees, isLoading: isEmployeesLoading, error: employeesError, setData: setEmployeesData } = useAsync(fetchEmployees, { immediate: true });
 
-  const dynamicRoles = rolesData?.results || rolesData || [];
-  const dynamicTeams = teamsData?.results || teamsData || [];
   const dynamicEmployees = employeesData?.results || employeesData || [];
   
+  // Extract unique roles and teams from the full employees list
+  const dynamicRoles = Array.from(new Set(dynamicEmployees.map(e => e.role_id || e.role).filter(Boolean))).map(id => {
+    const emp = dynamicEmployees.find(e => e.role_id === id || e.role === id);
+    return { id, name: emp.role_name || emp.role || String(id) };
+  });
+  const fetchRefData = useCallback(() => consultantService.getDesignationsAndTeams(), []);
+  const { data: refData } = useAsync(fetchRefData, { immediate: true });
+
+  const dynamicTeams = refData?.teams || [];
+  const dynamicDesignations = refData?.designations || [];
   const [activeTab, setActiveTab] = useState('consultants');
   const [drawerMode, setDrawerMode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -110,11 +113,16 @@ export function ConsultantsPage() {
 
   const patch = (delta) => setFormData((p) => ({ ...p, ...delta }));
 
+  // Refetch the main list whenever we switch back to the consultants tab
+  useEffect(() => {
+    if (activeTab === 'consultants') {
+      loadEmployees();
+    }
+  }, [activeTab, loadEmployees]);
+
   const openDrawer = (mode) => {
     setDrawerMode(mode);
     if (mode === 'add-edit') {
-      if (!rolesData) loadRoles();
-      if (!teamsData) loadTeams();
       if (!employeesData) loadEmployees();
     }
     requestAnimationFrame(() => setDrawerOpen(true));
@@ -161,12 +169,62 @@ export function ConsultantsPage() {
     else patch({ password: pw });
   };
 
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result;
+      const rawBase64 = base64String.split(',')[1];
+      patch({ avatar: base64String, photoUploadBase64: rawBase64, photo: rawBase64, photoDeleteFlag: false });
+      
+      // If we are editing an existing consultant, upload immediately
+      if (editingTarget?.id) {
+        try {
+          await consultantService.uploadPhoto(editingTarget.id, rawBase64);
+          toast.success('Photo uploaded successfully');
+          // Update locally to guarantee UI reflects the change even if fetch is cached
+          setEmployeesData(prev => {
+            const list = prev?.results || prev || [];
+            const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: rawBase64, avatar: rawBase64 } : c);
+            return prev?.results ? { ...prev, results: mapped } : mapped;
+          });
+          loadEmployees(); // Background refresh
+        } catch (err) {
+          toast.error('Failed to upload photo instantly');
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoRemove = async () => {
+    patch({ avatar: null, photoUploadBase64: null, photo: null, photoDeleteFlag: true });
+    
+    // If we are editing an existing consultant, delete immediately
+    if (editingTarget?.id) {
+      try {
+        await consultantService.deletePhoto(editingTarget.id);
+        toast.success('Photo removed successfully');
+        // Update locally to guarantee UI reflects the change
+        setEmployeesData(prev => {
+          const list = prev?.results || prev || [];
+          const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: null, avatar: null } : c);
+          return prev?.results ? { ...prev, results: mapped } : mapped;
+        });
+        loadEmployees(); // Background refresh
+      } catch (err) {
+        toast.error('Failed to remove photo instantly');
+      }
+    }
+  };
+
   const handleSave = async () => {
     // Form Validation
     if (!formData.name?.trim()) return toast.error('Full Name is required');
     if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)) return toast.error('Valid Email Address is required');
     if (!formData.role || !formData.roleId) return toast.error('Role selection is required');
-    if (!formData.designation?.trim()) return toast.error('Designation is required');
+    if (!formData.designation && formData.designation !== 0) return toast.error('Designation is required');
     if (!formData.username?.trim() && !formData.userId?.trim()) return toast.error('Username / Employee ID is required');
     if (!isEditing && !formData.password?.trim()) return toast.error('Initial Password is required');
 
@@ -174,14 +232,24 @@ export function ConsultantsPage() {
       if (isEditing) {
         await consultantService.updateConsultant({ ...formData, id: editingTarget.id });
         toast.success('Consultant updated successfully');
+        setEmployeesData(prev => {
+          const list = prev?.results || prev || [];
+          const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, ...formData } : c);
+          return prev?.results ? { ...prev, results: mapped } : mapped;
+        });
       } else {
-        await consultantService.createConsultant(formData);
+        const newConsultant = await consultantService.createConsultant(formData);
+        
+        // If they uploaded a photo during creation, we still need this here!
+        const newId = newConsultant?.id || newConsultant?.emp_id;
+        if (newId && formData.photoUploadBase64) {
+          await consultantService.uploadPhoto(newId, formData.photoUploadBase64);
+        }
+        
         toast.success('Consultant added successfully');
       }
       closeDrawer();
-      // Since the API Manager automatically invalidates mutations, 
-      // the list will refresh automatically via useAsync polling or focus events,
-      // but to force it we could pass refetch up or rely on the cache bust.
+      loadEmployees(); // Force a refresh of the list
     } catch (e) {
       toast.error(e.message || 'Failed to save consultant');
     }
@@ -190,9 +258,14 @@ export function ConsultantsPage() {
   const handleConfirmDelete = async () => {
     try {
       // Prompt asked for "api/employees/delete/". Assuming ID is passed.
-      await consultantService.deleteConsultant({ id: editingTarget.id, userId: editingTarget.userId });
+      await consultantService.deleteConsultant({ 
+        id: editingTarget.id, 
+        userId: editingTarget.userId,
+        name: editingTarget.name
+      });
       toast.success('Consultant deactivated successfully');
       closeDrawer();
+      loadEmployees();
     } catch (e) {
       toast.error(e.message || 'Failed to deactivate consultant');
     }
@@ -233,12 +306,24 @@ export function ConsultantsPage() {
             onPassword={handlePw}
             onDelete={handleDelete}
             onProfileView={setViewProfileId}
+            employeesData={employeesData}
+            designationsData={dynamicDesignations}
+            teamsData={dynamicTeams}
+            isLoading={isEmployeesLoading}
+            error={employeesError}
+            refetch={loadEmployees}
           />
         )}
         {activeTab === 'inactive' && (
-          <InactiveConsultants onProfileView={setViewProfileId} />
-        )}
-        {activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} />}
+          <InactiveConsultants 
+            onEdit={handleEdit}
+            onPassword={handlePw}
+            onDelete={handleDelete}
+            onProfileView={setViewProfileId}
+            designationsData={dynamicDesignations}
+            teamsData={dynamicTeams}
+          />
+        )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} />}
       </div>
 
       {viewProfileId && (
@@ -294,7 +379,7 @@ export function ConsultantsPage() {
                   <div className="ef-form">
                     <div className="ef-avatar-upload">
                       <div className="ef-avatar-circle">
-                        <Image
+                        <img
                           src={
                             formData.avatar ||
                             'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100'
@@ -309,9 +394,20 @@ export function ConsultantsPage() {
                       <div className="ef-avatar-actions">
                         <span className="ef-avatar-name">{formData.name || 'New Consultant'}</span>
                         <div className="ef-avatar-btns">
-                          <button type="button" className="ef-avatar-btn-sm">
+                          <label className="ef-avatar-btn-sm" style={{ cursor: 'pointer' }}>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              style={{ display: 'none' }} 
+                              onChange={handlePhotoUpload} 
+                            />
                             <Upload size={10} /> Upload
-                          </button>
+                          </label>
+                          {formData.avatar && (
+                            <button type="button" className="ef-avatar-btn-sm ef-avatar-btn-danger" onClick={handlePhotoRemove}>
+                              <Trash2 size={10} /> Remove
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -396,24 +492,31 @@ export function ConsultantsPage() {
                       <EfField label="Role" required>
                         <Select
                           value={String(formData.roleId || formData.role_id || formData.role || '')}
-                          onChange={(v) => patch({ roleId: v, role_id: v, role: v })}
-                          options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: String(r.id), label: r.role_name || r.name || String(r.id) }))]}
+                          onChange={(v) => {
+                            const selectedRole = dynamicRoles.find(r => String(r.id) === String(v));
+                            patch({ roleId: v, role_id: v, role_name: selectedRole?.name || '', role: selectedRole?.name || '' });
+                          }}
+                          options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: String(r.id), label: r.name || String(r.id) }))]}
                         />
                       </EfField>
                       <EfField label="Designation" required>
-                        <input
-                           type="text"
-                           className="ef-input"
-                           value={formData.designation || ''}
-                           onChange={(e) => patch({ designation: e.target.value })}
-                           placeholder="e.g. Senior Consultant"
+                        <Select
+                          value={String(formData.designationId || formData.designation_id || formData.designation || '')}
+                          onChange={(v) => {
+                            const selectedDesig = dynamicDesignations.find(d => String(d.id) === String(v));
+                            patch({ designationId: Number(v), designation_id: Number(v), designation: Number(v), designation_name: selectedDesig?.name || '' });
+                          }}
+                          options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: String(d.id), label: d.name }))]}
                         />
                       </EfField>
                       <EfField label="Team">
                         <Select
                           value={String(formData.teamId || formData.team_id || formData.team || '')}
-                          onChange={(v) => patch({ teamId: v, team_id: v, team: v })}
-                          options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: String(t.id), label: t.team_name || t.name || String(t.id) }))]}
+                          onChange={(v) => {
+                            const selectedTeam = dynamicTeams.find(t => String(t.id) === String(v));
+                            patch({ teamId: v, team_id: v, team_name: selectedTeam?.name || '', team: selectedTeam?.name || '' });
+                          }}
+                          options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: String(t.id), label: t.name || String(t.id) }))]}
                         />
                       </EfField>
                       <EfField label="Reporting Manager">

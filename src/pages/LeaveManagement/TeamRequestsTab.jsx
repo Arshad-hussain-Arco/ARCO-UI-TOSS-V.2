@@ -27,6 +27,7 @@ import {
 import { Select } from '@components/forms/Select/Select';
 import { TimelineCalendar } from '@components/data-display/TimelineCalendar/TimelineCalendar';
 import { useToast } from '@hooks/useToast';
+import { useAuth } from '@hooks/useAuth';
 import { LEAVE_REQUESTS as INITIAL_REQUESTS } from '@mocks/data/leaveRequests';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import './TeamRequests.css';
@@ -140,10 +141,62 @@ const TYPE_CONFIG = {
   compoff: { label: 'Comp-off', css: 'tr-type-compoff', Icon: Gift },
 };
 
+import { leaveService } from '@services/leaveService';
+import { Loader } from '@components/feedback/Loader/Loader';
 
 function TeamRequestsTab() {
   const toast = useToast();
-  const [requests, setRequests] = useState(INITIAL_REQUESTS);
+  const { user } = useAuth();
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchTeamLeaves = async () => {
+      try {
+        setIsLoading(true);
+        const managerId = user?.emp_id || user?.id || 1; // Dynamically fetch logged in user
+        const response = await leaveService.getTeamLeaves(managerId);
+        const results = Array.isArray(response) ? response : (response?.results || []);
+        
+        // Map the API payload to the frontend format
+        const mappedRequests = results.map(req => {
+          let type = 'leave';
+          const reasonLower = (req.leave_reason || '').toLowerCase();
+          const typeLower = (req.leave_type || '').toLowerCase();
+          
+          if (typeLower.includes('wfh') || reasonLower.includes('wfh')) type = 'wfh';
+          else if (typeLower.includes('offshore') || reasonLower.includes('offshore')) type = 'offshore';
+          else if (typeLower.includes('comp') || reasonLower.includes('comp')) type = 'compoff';
+
+          return {
+            id: req.id.toString(),
+            employeeId: `EMP${req.emp_id}`,
+            employeeName: req.emp_name,
+            team: req.team_name,
+            type: type,
+            leaveType: req.leave_reason || req.leave_type, // Using reason as it's more descriptive in the payload (e.g., "Annual Leave")
+            startDate: req.start_date,
+            endDate: req.end_date,
+            duration: req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
+            inDays: req.in_days,
+            bizDays: req.business_days,
+            requestedOn: req.requested_date ? req.requested_date.split('T')[0] : '',
+            status: req.status ? req.status.toLowerCase() : 'pending',
+            priority: 'normal',
+          };
+        });
+        
+        setRequests(mappedRequests);
+      } catch (error) {
+        console.error("Failed to fetch team leaves:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchTeamLeaves();
+  }, []);
+
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState('all');
@@ -182,7 +235,7 @@ function TeamRequestsTab() {
       all: requests.length,
       pending: requests.filter((r) => r.status === 'pending').length,
       approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected').length,
+      rejected: requests.filter((r) => r.status === 'rejected' || r.status === 'self_rejected').length,
       leave: requests.filter((r) => r.type === 'leave').length,
       wfh: requests.filter((r) => r.type === 'wfh').length,
       offshore: requests.filter((r) => r.type === 'offshore').length,
@@ -245,7 +298,10 @@ function TeamRequestsTab() {
           r.employeeId.toLowerCase().includes(q) ||
           r.id.toLowerCase().includes(q),
       );
-    if (statusF !== 'all') list = list.filter((r) => r.status === statusF);
+    if (statusF !== 'all') {
+      if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
+      else list = list.filter((r) => r.status === statusF);
+    }
     if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
     if (leaveTypeF !== 'all')
       list = list.filter(
@@ -356,7 +412,7 @@ function TeamRequestsTab() {
           data-active={innerTab === 'sameday'}
           onClick={() => setInnerTab('sameday')}
         >
-          Same Day Leave<span className="tr-subtab-badge">{sdlDayCount} Days</span>
+          Same Day Leave<span className="tr-subtab-badge">{sdlEmployees.length} Employees</span>
         </button>
         <div className="tr-subtab-indicator" data-tab={innerTab} />
       </div>
@@ -520,8 +576,14 @@ function TeamRequestsTab() {
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
       <div className="tr-content">
-        {/* ── All Requests ─────────────────────────────────────────────────── */}
-        {innerTab === 'all' &&
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
+            <Loader message="Loading team requests..." />
+          </div>
+        ) : (
+          <>
+            {/* ── All Requests ─────────────────────────────────────────────────── */}
+            {innerTab === 'all' &&
           (viewMode === 'list' ? (
             <div className="tr-table-wrap">
               <table className="tr-table">
@@ -611,7 +673,7 @@ function TeamRequestsTab() {
                                           ? 'First Half'
                                           : 'Second Half'
                                     })`
-                                  : `(${req.bizDays} ${req.bizDays === 1 ? 'day' : 'days'})`}
+                                  : `(${req.inDays} ${req.inDays === 1 ? 'day' : 'days'})`}
                               </span>
                             </div>
                           </td>
@@ -927,6 +989,8 @@ function TeamRequestsTab() {
               )}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 
