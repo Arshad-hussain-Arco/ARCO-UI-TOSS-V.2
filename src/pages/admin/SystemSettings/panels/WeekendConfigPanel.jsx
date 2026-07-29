@@ -1,75 +1,96 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import { Save } from 'lucide-react';
 
-const DAY_SELECTED_CLASS =
-  'bg-[var(--c-primary-light)] text-[var(--c-primary)] border-[var(--c-primary)]';
-const DAY_IDLE_CLASS =
-  'bg-[var(--surface-primary)] text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--border-secondary)]';
+const DAYS_OF_WEEK = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 
 /**
- * Weekend day selection and the weekend EOD switch.
- *
- * @param {Object} props
- * @param {{ days: string[], selectedDays: string[], runEodOnWeekends: boolean }} props.weekend
- * @param {(day: string) => void} props.onToggleDay
- * @param {() => void} props.onToggleWeekendEod
+ * TAB 5: Weekend Configuration
+ * Checklist for days of the week, with Friday & Saturday checked by default.
  */
-function WeekendConfigPanelComponent({ weekend, onToggleDay, onToggleWeekendEod }) {
+function WeekendConfigPanelComponent({ weekend, onToggleDay, onSave, isSaving }) {
+  // Local state initialized with Friday and Saturday checked by default
+  const [selectedDays, setSelectedDays] = useState(
+    weekend?.selectedDays || ['Friday', 'Saturday'],
+  );
+
+  const handleCheckboxChange = (day) => {
+    const next = selectedDays.includes(day)
+      ? selectedDays.filter((d) => d !== day)
+      : [...selectedDays, day];
+    setSelectedDays(next);
+    if (onToggleDay) onToggleDay(day);
+  };
+
   return (
     <div className="ss-form-card">
-      <div className="p-6 flex flex-col gap-6">
-        <fieldset className="flex flex-col gap-2 border-0 p-0 m-0">
-          <legend className="text-[0.8125rem] font-semibold text-[var(--text-primary)] p-0">
-            Weekend Days
-          </legend>
-          <span className="text-[0.75rem] text-[var(--text-secondary)]">
-            Select the days that are considered weekends for batch processing.
-          </span>
+      <div className="ss-panel-header">
+        <h2 className="ss-panel-title">📅 Weekend Configuration</h2>
+      </div>
 
-          <div className="flex gap-2 mt-2">
-            {weekend.days.map((day) => {
-              const isSelected = weekend.selectedDays.includes(day);
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (onSave) onSave();
+        }}
+        style={{ padding: '24px' }}
+      >
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+          Select the days of the week that should be designated as weekends in the system.
+        </p>
 
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => onToggleDay(day)}
-                  aria-pressed={isSelected}
-                  className={`w-10 h-10 rounded text-[0.75rem] font-medium flex items-center justify-center border transition-colors ${isSelected ? DAY_SELECTED_CLASS : DAY_IDLE_CLASS}`}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        {/* Checkbox Group */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {DAYS_OF_WEEK.map((day) => {
+            const isChecked = selectedDays.includes(day);
+            return (
+              <label
+                key={day}
+                htmlFor={`weekend-day-${day}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  userSelect: 'none',
+                }}
+              >
+                <input
+                  id={`weekend-day-${day}`}
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => handleCheckboxChange(day)}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    accentColor: 'var(--c-primary)',
+                    cursor: 'pointer',
+                  }}
+                />
+                <span>{day}</span>
+              </label>
+            );
+          })}
+        </div>
 
-        <div className="h-px bg-[var(--border-primary)] w-full" />
-
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-[0.8125rem] font-semibold text-[var(--text-primary)]">
-              Run EOD on Weekends
-            </span>
-            <span className="text-[0.75rem] text-[var(--text-secondary)]">
-              Enable if end of day processing should run on selected weekend days.
-            </span>
-          </div>
-
-          <button
-            type="button"
-            role="switch"
-            aria-checked={weekend.runEodOnWeekends}
-            aria-label="Run EOD on weekends"
-            onClick={onToggleWeekendEod}
-            className={`w-8 h-4 rounded-full relative cursor-pointer border-0 p-0 ${weekend.runEodOnWeekends ? 'bg-[var(--c-primary)]' : 'bg-[var(--switch-background)]'}`}
-          >
-            <span
-              className={`w-3 h-3 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${weekend.runEodOnWeekends ? 'right-0.5' : 'left-0.5'}`}
-            />
+        {/* Form Action: Primary Update Button */}
+        <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
+          <button type="submit" className="ss-btn-update" disabled={isSaving}>
+            <Save size={16} />
+            {isSaving ? 'Updating...' : 'Update'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

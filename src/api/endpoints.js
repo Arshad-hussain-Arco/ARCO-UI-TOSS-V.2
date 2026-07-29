@@ -6,14 +6,27 @@ const endpoints = {
     logout: '/auth/logout/',
   },
   reconciliation: {
-    preprocess: '/core/reconciliation/preprocess/',
-    reconcile: '/core/reconciliation/reconcile/',
+    preprocess: '/reconciliation/reconciliation/preprocess/',
+    reconcile: '/reconciliation/reconciliation/reconcile/',
   },
   roles: {
-    list: '/core/role-permissions/',
-    create: '/core/role-permissions/create/',
-    update: (id) => `/core/role-permissions/${id}/update/`,
-    delete: (id) => `/core/role-permissions/${id}/delete/`,
+    list: '/auth/role-permissions/',
+    create: '/auth/role-permissions/create/',
+    update: (id) => `/auth/role-permissions/${id}/update/`,
+    delete: (id) => `/auth/role-permissions/${id}/delete/`,
+  },
+  importantLinks: {
+    groups: {
+      listCreate: '/important-links/groups/',
+      detailUpdateDelete: (id) => `/important-links/groups/${id}/`,
+    },
+    links: {
+      list: '/important-links/link-data/',
+      detail: (id) => `/important-links/link-data/${id}/`,
+      create: '/important-links/link-data/create/',
+      update: (id) => `/important-links/link-data/${id}/update/`,
+      delete: (id) => `/important-links/link-data/${id}/delete/`,
+    }
   },
   // Add other endpoints here as they get integrated
   consultants: {
