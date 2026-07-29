@@ -1,10 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Menu, Moon, MoreVertical, Sun } from 'lucide-react';
+import { Bell, ExternalLink, Menu, Moon, MoreVertical, Pin, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/logo.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
 import { HEADER_NAVIGATION } from '@constants/navigation';
+import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useSidebar } from '@hooks/useSidebar';
 import { useTheme } from '@hooks/useTheme';
@@ -23,6 +24,7 @@ import './Header.css';
 export function Header({ user, onLogout }) {
   const { toggle: toggleSidebar } = useSidebar();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { pinnedLinks } = usePinnedLinks();
 
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const navMenuRef = useRef(null);
@@ -61,6 +63,33 @@ export function Header({ user, onLogout }) {
             </Link>
           ))}
         </nav>
+
+        {/* Pinned quick-access links */}
+        {pinnedLinks.length > 0 && (
+          <>
+            <div className="header-divider" />
+            <div className="header-pinned-links" aria-label="Pinned resources">
+              <span className="header-pinned-label">
+                <Pin size={11} aria-hidden="true" />
+                Quick Links
+              </span>
+              {pinnedLinks.map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
+                  className="header-pinned-item"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${link.group} · ${link.label}`}
+                >
+                  {link.label}
+                  <ExternalLink size={10} aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+            <div className="header-divider" />
+          </>
+        )}
 
         <div className="header-mobile-nav-wrapper" ref={navMenuRef}>
           <button
