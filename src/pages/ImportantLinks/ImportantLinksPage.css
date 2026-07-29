@@ -1,137 +1,1016 @@
-.links-page {
+/* ============================================================
+   Important Links Page — Prefix: il-
+   Uses design-system CSS variables (tokens.css) only.
+   ============================================================ */
+
+/* ── Page Shell ─────────────────────────────────────────────── */
+.il-page {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  padding: 20px 24px;
   background: var(--bg-primary);
   overflow-y: auto;
-  gap: 24px;
+  gap: 20px;
   box-sizing: border-box;
 }
 
-.links-header {
-  border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 16px;
-}
-
-.links-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.links-subtitle {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-.links-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
-}
-
-.links-category {
+/* ── Filter / Action Toolbar ─────────────────────────────────── */
+.il-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.category-header {
+/* Push Add Link button to the right */
+.il-toolbar-spacer {
+  flex: 1;
+}
+
+/* Search bar wrapper */
+.il-search-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--c-primary);
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-tertiary);
-}
-
-.category-header h2 {
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0;
-  color: var(--text-secondary);
-}
-
-.links-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.link-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
+  flex: 1;
+  min-width: 180px;
+  max-width: 340px;
+  height: 32px;
+  padding: 0 10px;
   background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 5px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.il-search-wrapper:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.09);
+}
+
+.il-search-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.il-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.il-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ── Custom Group Filter Trigger (matching app Select component) ─ */
+.il-group-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  min-width: 150px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+  position: relative;
+}
+
+.il-group-trigger:hover {
+  border-color: var(--text-tertiary);
+  background: var(--bg-secondary);
+}
+
+.il-group-trigger[data-open='true'] {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.09);
+}
+
+.il-group-trigger-chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.il-group-trigger[data-open='true'] .il-group-trigger-chevron {
+  transform: rotate(180deg);
+  color: var(--c-primary);
+}
+
+/* Group Filter Dropdown Panel */
+.il-group-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.il-group-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--surface-elevated);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
-  text-decoration: none;
-  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.06);
+  z-index: 999;
+  overflow: hidden;
+  transform-origin: top center;
+  animation: il-dropdown-open 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.link-item:hover {
-  border-color: var(--c-primary);
+@keyframes il-dropdown-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.il-group-dropdown-viewport {
+  padding: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.il-group-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-primary);
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
+}
+
+.il-group-dropdown-item:hover {
   background: var(--bg-hover);
-  text-decoration: none;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
 }
 
-.link-content {
+.il-group-dropdown-item[data-selected='true'] {
+  color: var(--c-primary);
+  font-weight: 500;
+  background: var(--c-primary-light);
+}
+
+.il-group-dropdown-item-check {
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+/* Divider before "Create New Group" action */
+.il-group-dropdown-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 4px 0;
+}
+
+/* "+ Create New Group" special action item */
+.il-group-dropdown-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary);
+  cursor: pointer;
+  outline: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.il-group-dropdown-action:hover {
+  background: var(--c-primary-light);
+}
+
+.il-group-dropdown-action-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Group Cards Grid ────────────────────────────────────────── */
+.il-groups-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Individual Group Card ───────────────────────────────────── */
+.il-group-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.il-group-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-secondary);
+}
+
+/* Card Header */
+.il-group-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.il-group-card-icon {
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+.il-group-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.il-group-card-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
+/* Card Body — scrollable list of link items */
+.il-group-card-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 224px; /* ~5-6 links */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.il-group-card-body::-webkit-scrollbar {
+  width: 3px;
+}
+
+.il-group-card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.il-group-card-body::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 2px;
+}
+
+/* ── Link Item (inside group card) ──────────────────────────── */
+.il-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-tertiary);
+  transition: background 0.15s ease;
+  min-height: 38px;
+}
+
+.il-link-item:last-child {
+  border-bottom: none;
+}
+
+.il-link-item:hover {
+  background: var(--bg-hover);
+}
+
+.il-link-item-body {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.il-link-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badge variants */
+.il-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.il-badge-internal {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.il-badge-mandatory {
+  background: var(--c-warning-light);
+  color: var(--c-warning);
+}
+
+.il-badge-critical {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+
+.il-badge-docs {
+  background: var(--c-info-light);
+  color: var(--c-info);
+}
+
+.il-badge-default {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* Link item actions (right side) */
+.il-link-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.il-link-item:hover .il-link-item-actions {
+  opacity: 1;
+}
+
+.il-link-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.il-link-action-btn:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.il-link-action-btn.il-link-action-open:hover {
+  color: var(--c-primary);
+}
+
+.il-link-action-btn.il-link-action-edit:hover {
+  color: var(--c-info);
+}
+
+/* ── Empty State (inside a card) ─────────────────────────────── */
+.il-group-card-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* ── Page Empty State ────────────────────────────────────────── */
+.il-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 48px 24px;
+  width: 100%;
+}
+
+/* ── Modal Overlay ───────────────────────────────────────────── */
+.il-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: il-fade-in 0.15s ease;
+}
+
+@keyframes il-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal shell */
+.il-modal {
+  background: var(--surface-primary);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: il-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
+}
+
+@keyframes il-slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Modal Header */
+.il-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
+}
+
+.il-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.il-modal-close {
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  padding: 5px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.il-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+/* Modal Body */
+.il-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+/* Form group */
+.il-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.il-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.il-label-required::after {
+  content: ' *';
+  color: var(--c-danger);
+}
+
+.il-label-optional {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+}
+
+/* Inputs */
+.il-input,
+.il-textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font-family: var(--font-family);
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+  box-sizing: border-box;
+}
+
+.il-input:focus,
+.il-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.09);
+}
+
+.il-input::placeholder,
+.il-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.il-textarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.5;
+}
+
+.il-input-error {
+  border-color: var(--c-danger) !important;
+}
+
+.il-error-msg {
+  font-size: 10px;
+  color: var(--c-danger);
+  margin-top: 2px;
+}
+
+/* ── In-modal Group Dropdown ─────────────────────────────────── */
+.il-modal-group-dropdown {
+  position: relative;
+}
+
+.il-modal-group-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+  box-sizing: border-box;
+}
+
+.il-modal-group-trigger:focus,
+.il-modal-group-trigger[data-open='true'] {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.09);
+}
+
+.il-modal-group-trigger[data-placeholder='true'] {
+  color: var(--text-tertiary);
+}
+
+.il-modal-group-trigger-chevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.il-modal-group-trigger[data-open='true'] .il-modal-group-trigger-chevron {
+  transform: rotate(180deg);
+  color: var(--c-primary);
+}
+
+.il-modal-group-panel {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  box-shadow: var(--shadow-md);
+  z-index: 400;
+  overflow: hidden;
+  animation: il-dropdown-open 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.il-modal-group-viewport {
+  padding: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.il-modal-group-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
+}
+
+.il-modal-group-item:hover {
+  background: var(--bg-hover);
+}
+
+.il-modal-group-item[data-selected='true'] {
+  color: var(--c-primary);
+  font-weight: 500;
+  background: var(--c-primary-light);
+}
+
+.il-modal-group-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 4px 0;
+}
+
+.il-modal-group-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.il-modal-group-action:hover {
+  background: var(--c-primary-light);
+}
+
+/* New group name field — animated slide-in */
+.il-new-group-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: il-slide-down 0.15s ease;
+}
+
+@keyframes il-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Pin to Header Toggle ────────────────────────────────────── */
+.il-pin-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--c-primary-light);
+  border: 1px solid rgba(0, 102, 51, 0.18);
+  border-radius: 7px;
+}
+
+.il-pin-row-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
 }
 
-.link-label-row {
+.il-pin-row-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.link-label {
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.link-tag {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: 10px;
+.il-pin-row-icon {
+  color: var(--c-primary);
+  flex-shrink: 0;
 }
 
-.link-description {
+.il-pin-row-desc {
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
+  line-height: 1.4;
   margin: 0;
 }
 
-.link-external-icon {
-  color: var(--text-tertiary);
-  opacity: 0;
-  transition: opacity 0.2s;
+/* Toggle Switch */
+.il-toggle {
+  position: relative;
+  display: inline-flex;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
-.link-item:hover .link-external-icon {
-  opacity: 1;
+.il-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.il-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border-secondary);
+  border-radius: 20px;
+  transition: background 0.2s ease;
+}
+
+.il-toggle input:checked + .il-toggle-track {
+  background: var(--c-primary);
+}
+
+.il-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.il-toggle input:checked ~ .il-toggle-thumb {
+  transform: translateX(16px);
+}
+
+.il-toggle input:focus-visible + .il-toggle-track {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ── File Upload Zone ────────────────────────────────────────── */
+.il-upload-zone {
+  border: 1px dashed var(--border-secondary);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.il-upload-zone:hover {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.il-upload-zone-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.il-upload-zone-text-wrap {
+  text-align: left;
+}
+
+.il-upload-zone-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.il-upload-zone-text strong {
   color: var(--c-primary);
 }
 
-@media (max-width: 640px) {
-  .links-grid {
+.il-upload-zone-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin: 2px 0 0 0;
+}
+
+.il-upload-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.il-upload-file-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.il-upload-file-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+
+.il-upload-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.il-upload-file-size {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.il-upload-file-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+  transition: color 0.12s;
+  flex-shrink: 0;
+}
+
+.il-upload-file-remove:hover {
+  color: var(--c-danger);
+}
+
+/* Modal Footer */
+.il-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .il-groups-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .il-page {
+    padding: 16px;
+  }
+
+  .il-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .il-search-wrapper {
+    max-width: 100%;
+    flex: 1 1 200px;
+  }
+
+  .il-groups-grid {
     grid-template-columns: 1fr;
+  }
+
+  .il-modal {
+    max-height: 95vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .il-toolbar-spacer {
+    display: none;
   }
 }

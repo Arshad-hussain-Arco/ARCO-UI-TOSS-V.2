@@ -164,6 +164,50 @@
   background-color: var(--border-primary);
 }
 
+/* ── Pinned Quick Links (from Important Links module) ─────── */
+.header-pinned-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.header-pinned-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.header-pinned-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-primary);
+  background: var(--c-primary-light);
+  border-radius: 20px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.header-pinned-item:hover {
+  background: color-mix(in srgb, var(--c-primary-light) 70%, var(--c-primary) 30%);
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+}
+
 /* Icon Buttons */
 .header-icon-button {
   width: 36px;
