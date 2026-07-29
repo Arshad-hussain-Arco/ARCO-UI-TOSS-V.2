@@ -1,4 +1,5 @@
 import { AuthProvider } from '@context/AuthContext';
+import { PinnedLinksProvider } from '@context/PinnedLinksContext';
 import { SidebarProvider } from '@context/SidebarContext';
 import { ThemeProvider } from '@context/ThemeContext';
 import { ToastProvider } from '@context/ToastContext';
@@ -15,7 +16,9 @@ export function AppProviders({ children }) {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <SidebarProvider>{children}</SidebarProvider>
+          <SidebarProvider>
+            <PinnedLinksProvider>{children}</PinnedLinksProvider>
+          </SidebarProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>
