@@ -26,9 +26,8 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
   const wrapRef = useRef(null);
   useOnClickOutside(wrapRef, () => setOpen(false), open);
 
-  const selectedLabel = value === '__new__'
-    ? '+ Create New Group'
-    : (groups.find((g) => g === value) ?? '');
+  const selectedLabel =
+    value === '__new__' ? '+ Create New Group' : (groups.find((g) => g === value) ?? '');
 
   return (
     <div className="il-modal-group-dropdown" ref={wrapRef}>
@@ -41,8 +40,10 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {value ? selectedLabel : 'Select group…'}
+        <span
+          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {value ? selectedLabel : 'Select group (Optional)'}
         </span>
         <ChevronDown size={13} strokeWidth={2} className="il-modal-group-trigger-chevron" />
       </button>
@@ -107,7 +108,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     if (editLink) {
       return {
         groupMode: 'existing',
-        selectedGroup: editLink.group || existingGroups[0] || '',
+        selectedGroup: '',
         newGroupName: '',
         linkName: editLink.label || '',
         url: editLink.url || '',
@@ -149,13 +150,11 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
   function validate() {
     const errs = {};
-    const finalGroup = state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup;
-    if (!finalGroup) {
-      errs.group = state.groupMode === 'new'
-        ? 'New group name is required.'
-        : 'Please select a group.';
+
+    if (!state.linkName.trim()) {
+      errs.linkName = 'Link name is required.';
     }
-    if (!state.linkName.trim()) errs.linkName = 'Link name is required.';
+
     if (!state.url.trim()) {
       errs.url = 'URL is required.';
     } else {
@@ -165,32 +164,33 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
         errs.url = 'Please enter a valid URL.';
       }
     }
+
     return errs;
   }
 
   function handleSubmit() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
-    const finalGroup = state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup;
+    const finalGroup =
+      state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup?.trim() || '';
     const payload = {
       id: editLink?.id ?? createId('link'),
-      group: finalGroup,
-      isNewGroup: state.groupMode === 'new',
       label: state.linkName.trim(),
       url: state.url.trim(),
-      sharedFolder: state.sharedFolder.trim() || null,
-      comments: state.comments.trim() || null,
+      sharedFolder: state.sharedFolder.trim() || '',
+      comments: state.comments.trim() || '',
       pinToHeader: state.pinToHeader,
       files: state.files,
     };
 
-    if (isEditMode) {
-      onUpdate(payload);
-    } else {
-      onAdd(payload);
+    if (finalGroup) {
+      payload.group = finalGroup;
+      payload.isNewGroup = state.groupMode === 'new';
     }
-    onClose();
   }
 
   function handleFileChange(e) {
@@ -201,34 +201,43 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
   }
 
   function removeFile(idx) {
-    set('files', state.files.filter((_, i) => i !== idx));
+    set(
+      'files',
+      state.files.filter((_, i) => i !== idx),
+    );
   }
 
   return (
     <div className="il-overlay" {...dismissBackdrop(onClose)}>
       <div className="il-modal" role="dialog" aria-modal="true" aria-labelledby="il-modal-title">
-
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="il-modal-header">
           <h2 className="il-modal-title" id="il-modal-title">
             {isEditMode ? 'Edit Link' : 'Add Link'}
           </h2>
-          <button type="button" className="il-modal-close" onClick={onClose} aria-label="Close modal">
+          <button
+            type="button"
+            className="il-modal-close"
+            onClick={onClose}
+            aria-label="Close modal"
+          >
             <X size={15} />
           </button>
         </div>
 
         {/* ── Body ────────────────────────────────────────────────── */}
         <div className="il-modal-body">
-
           {/* Group */}
           <div className="il-form-group">
-            <span className="il-label il-label-required">Group</span>
+            <span className="il-label">
+              Group
+              <span className="il-label-optional">(optional)</span>
+            </span>
 
             <GroupDropdown
               groups={existingGroups}
               value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
-              hasError={!!errors.group}
+              hasError={false}
               onSelect={(g) => {
                 set('selectedGroup', g);
                 set('groupMode', 'existing');
@@ -240,13 +249,15 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                 setErrors((prev) => ({ ...prev, group: undefined }));
               }}
             />
-            {errors.group && <span className="il-error-msg">{errors.group}</span>}
           </div>
 
           {/* New Group Name */}
           {state.groupMode === 'new' && (
             <div className="il-new-group-row">
-              <span className="il-label il-label-required">New Group Name</span>
+              <span className="il-label">
+                New Group Name
+                <span className="il-label-optional">(optional)</span>
+              </span>
               <input
                 type="text"
                 className={`il-input${errors.group ? ' il-input-error' : ''}`}
@@ -356,9 +367,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                   <div key={i} className="il-upload-file-row">
                     <FileText className="il-upload-file-icon" aria-hidden="true" />
                     <span className="il-upload-file-name">{f.name}</span>
-                    <span className="il-upload-file-size">
-                      {(f.size / 1024).toFixed(0)} KB
-                    </span>
+                    <span className="il-upload-file-size">{(f.size / 1024).toFixed(0)} KB</span>
                     <button
                       type="button"
                       className="il-upload-file-remove"
@@ -409,7 +418,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               <span className="il-toggle-thumb" />
             </label>
           </div>
-
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────── */}
@@ -417,12 +425,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            leadingIcon={RotateCcw}
-            onClick={handleReset}
-          >
+          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleReset}>
             Reset
           </Button>
           <Button
@@ -434,7 +437,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             {isEditMode ? 'Update Link' : 'Add Link'}
           </Button>
         </div>
-
       </div>
     </div>
   );

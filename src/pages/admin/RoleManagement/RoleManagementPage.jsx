@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -14,8 +14,12 @@ import {
   RotateCcw,
   Check,
   Lock,
+  Loader2,
+  Save,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
+import { useToast } from '@hooks/useToast';
+import roleService from '@services/roleService';
 import './RoleManagementPage.css';
 
 // Application Modules List
@@ -66,78 +70,61 @@ const countPermissions = (matrix) => {
   return count;
 };
 
-// Initial Default Roles
-const INITIAL_ROLES = [
-  {
-    id: 'role-1',
-    name: 'Super Admin',
-    description: 'Full system access across all modules and global enterprise settings.',
-    isAdmin: true,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Attendance: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Consultants: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-      Reports: { add: 'Allow', edit: 'Allow', delete: 'Allow', read: 'Allow', export: 'Allow' },
-    },
-  },
-  {
-    id: 'role-2',
-    name: 'HR Manager',
-    description: 'Manages employee leave configurations, attendance records, and team summaries.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Attendance: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Consultants: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Allow' },
-    },
-  },
-  {
-    id: 'role-3',
-    name: 'Project Lead',
-    description: 'Oversees team EOD submissions, consultant tasks, and project breaches.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Attendance: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Consultants: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      'EOD Management': { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      Teams: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Allow' },
-      Documents: { add: 'Allow', edit: 'Allow', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-    },
-  },
-  {
-    id: 'role-4',
-    name: 'Employee Standard',
-    description: 'Standard access for applying leaves, viewing own attendance, and submitting EODs.',
-    isAdmin: false,
-    permissions: {
-      'Leave Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Attendance: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Consultants: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      'EOD Management': { add: 'Allow', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Settings: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-      Teams: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Documents: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Allow', export: 'Deny' },
-      Reports: { add: 'Deny', edit: 'Deny', delete: 'Deny', read: 'Deny', export: 'Deny' },
-    },
-  },
-];
+// Map backend role structure to frontend structure
+const mapRole = (r) => {
+  let perms = createEmptyMatrix();
+  try {
+    let parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
+    
+    // If backend returned a list (because the serializer forced it to), unwrap the first element
+    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+      parsed = parsed[0];
+    }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      // Merge parsed with the empty matrix to ensure all fields exist
+      Object.keys(perms).forEach((mod) => {
+        if (parsed[mod]) {
+          perms[mod] = { ...perms[mod], ...parsed[mod] };
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to parse permissions", e);
+  }
+  return {
+    id: r.id,
+    name: r.role_name,
+    description: 'System Role',
+    isAdmin: r.isadmin === 1 || r.isadmin === true,
+    permissions: perms,
+  };
+};
 
 export function RoleManagementPage() {
-  const [roles, setRoles] = useState(INITIAL_ROLES);
+  const toast = useToast();
+  const [roles, setRoles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRoleId, setExpandedRoleId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchRoles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await roleService.getRoles();
+      setRoles(data.map(mapRole));
+    } catch (err) {
+      toast.error('Failed to load roles.');
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
 
   // Modal State for "Add Role"
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -198,29 +185,60 @@ export function RoleManagementPage() {
   };
 
   // Create Role Submit
-  const handleCreateRole = (e) => {
+  const handleCreateRole = async (e) => {
     e.preventDefault();
     if (!newRoleName.trim()) {
       setNameError(true);
       return;
     }
 
-    const newRole = {
-      id: `role-${Date.now()}`,
-      name: newRoleName.trim(),
-      description: newRoleDesc.trim() || 'No description provided.',
-      isAdmin: newRoleIsAdmin,
-      permissions: newRoleMatrix,
-    };
-
-    setRoles((prev) => [newRole, ...prev]);
-    handleCloseAddModal();
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: newRoleName.trim(),
+        isAdmin: newRoleIsAdmin,
+        permissions: newRoleMatrix,
+      };
+      await roleService.createRole(payload);
+      toast.success('Role permissions added successfully.');
+      handleCloseAddModal();
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to create role.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Delete Role
-  const handleDeleteRole = (id) => {
-    setRoles((prev) => prev.filter((r) => r.id !== id));
-    if (expandedRoleId === id) setExpandedRoleId(null);
+  const handleDeleteRole = async (id) => {
+    try {
+      await roleService.deleteRole(id);
+      toast.success('Role deleted successfully.');
+      if (expandedRoleId === id) setExpandedRoleId(null);
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to delete role.');
+    }
+  };
+
+  // Update Role (Inline Configuration)
+  const handleUpdateRole = async (role) => {
+    setIsSaving(true);
+    try {
+      await roleService.updateRole(role.id, {
+        name: role.name,
+        isAdmin: role.isAdmin,
+        permissions: role.permissions,
+      });
+      toast.success('Role permissions updated successfully.');
+      setExpandedRoleId(null);
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update role permissions.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Toggle Inline Accordion for Row
@@ -349,7 +367,16 @@ export function RoleManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRoles.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="rm-empty-td">
+                    <div className="rm-empty-state">
+                      <Loader2 size={32} className="spin" style={{ opacity: 0.5 }} />
+                      <p>Loading roles...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredRoles.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
                     <div className="rm-empty-state">
@@ -434,15 +461,30 @@ export function RoleManagementPage() {
                                 <h3>Functions & Permission Matrix — {role.name}</h3>
                                 <p>Click any toggle button to switch between Allow and Deny.</p>
                               </div>
-                              <button
-                                type="button"
-                                className="rm-btn-sm-close"
-                                {...activatable(() => setExpandedRoleId(null), {
-                                  label: 'Close permissions matrix panel',
-                                })}
-                              >
-                                Done
-                              </button>
+                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  className="rm-btn-sm-close"
+                                  disabled={isSaving}
+                                  {...activatable(() => setExpandedRoleId(null), {
+                                    label: 'Cancel permission changes',
+                                  })}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rm-btn-primary"
+                                  disabled={isSaving}
+                                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                                  {...activatable(() => handleUpdateRole(role), {
+                                    label: 'Save permission changes',
+                                  })}
+                                >
+                                  {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                                  <span style={{ marginLeft: '4px' }}>Save Changes</span>
+                                </button>
+                              </div>
                             </div>
 
                             <table className="rm-matrix-table">
