@@ -34,6 +34,7 @@ import { ROUTES } from './routes';
 export const SIDEBAR_NAVIGATION = [
   { id: 'home', label: 'Home', icon: Home, to: ROUTES.HOME },
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: ROUTES.DASHBOARD },
+  { id: 'project', label: 'Project Monitoring', icon: Monitor, to: ROUTES.PROJECT_MONITORING },
   {
     id: 'environment',
     label: 'Environment Dashboard',
@@ -47,7 +48,6 @@ export const SIDEBAR_NAVIGATION = [
   { id: 'attendance', label: 'Attendance', icon: Clock, to: ROUTES.ATTENDANCE },
   { id: 'capacity', label: 'Capacity Planning', icon: PieChart, to: ROUTES.CAPACITY_PLANNING },
   { id: 'reconciliation', label: 'Reconciliation', icon: GitCompare, to: ROUTES.RECONCILIATION },
-  { id: 'project', label: 'Project Monitoring', icon: Monitor, to: ROUTES.PROJECT_MONITORING },
   { id: 'links', label: 'Important Links', icon: LinkIcon, to: ROUTES.IMPORTANT_LINKS },
   { id: 'documents', label: 'Documents', icon: FileText, to: ROUTES.DOCUMENTS },
   {
