@@ -80,10 +80,13 @@ const endpoints = {
     activate: '/employees/activate/',
     roles: '/employees/roles/',
     teams: '/employees/teams/',
-    designationsTeams: '/employees/designations-teams/',
+    designationsTeams: '/employees/designation-teams/',
     photoUpload: (id) => `/employees/emp-photo/${id}/upload/`,
     photoDelete: (id) => `/employees/emp-photo/${id}/delete/`,
     teamHeadcount: '/employees/team-headcount/',
+    designations: '/employees/designations/',
+    locations: '/employees/locations/',
+    computerLocations: '/employees/computer-locations/',
   },
 };
 

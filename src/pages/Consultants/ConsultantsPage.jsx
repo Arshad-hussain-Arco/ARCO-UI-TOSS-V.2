@@ -96,9 +96,16 @@ export function ConsultantsPage() {
   });
   const fetchRefData = useCallback(() => consultantService.getDesignationsAndTeams(), []);
   const { data: refData } = useAsync(fetchRefData, { immediate: true });
+  const fetchLocations = useCallback(() => consultantService.getLocations(), []);
+  const { data: locationsData } = useAsync(fetchLocations, { immediate: true });
+  const fetchCompLocations = useCallback(() => consultantService.getComputerLocations(), []);
+  const { data: compLocationsData } = useAsync(fetchCompLocations, { immediate: true });
 
   const dynamicTeams = refData?.teams || [];
   const dynamicDesignations = refData?.designations || [];
+  const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
+  const dynamicCompLocations = Array.isArray(compLocationsData) ? compLocationsData : (compLocationsData?.results || []);
+
   const [activeTab, setActiveTab] = useState('consultants');
   const [drawerMode, setDrawerMode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -501,12 +508,9 @@ export function ConsultantsPage() {
                       </EfField>
                       <EfField label="Designation" required>
                         <Select
-                          value={String(formData.designationId || formData.designation_id || formData.designation || '')}
-                          onChange={(v) => {
-                            const selectedDesig = dynamicDesignations.find(d => String(d.id) === String(v));
-                            patch({ designationId: Number(v), designation_id: Number(v), designation: Number(v), designation_name: selectedDesig?.name || '' });
-                          }}
-                          options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: String(d.id), label: d.name }))]}
+                          value={String(formData.designation_name || formData.designation || '')}
+                          onChange={(v) => patch({ designation: v, designation_name: v })}
+                          options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: d.name || d.designation || '', label: d.name || d.designation || '' }))]}
                         />
                       </EfField>
                       <EfField label="Team">
@@ -533,11 +537,10 @@ export function ConsultantsPage() {
                         />
                       </EfField>
                       <EfField label="Location">
-                        <input
-                           type="text"
-                           className="ef-input"
+                        <Select
                            value={formData.location || ''}
-                           onChange={(e) => patch({ location: e.target.value })}
+                           onChange={(v) => patch({ location: v })}
+                           options={[{ value: '', label: 'Select location' }, ...dynamicLocations.map(l => ({ value: l.name, label: l.name }))]}
                         />
                       </EfField>
                     </div>
@@ -649,11 +652,10 @@ export function ConsultantsPage() {
                         />
                       </EfField>
                       <EfField label="Computer Location">
-                        <input
-                          type="text"
-                          className="ef-input"
+                        <Select
                           value={formData.computerLocation || ''}
-                          onChange={(e) => patch({ computerLocation: e.target.value })}
+                          onChange={(v) => patch({ computerLocation: v })}
+                          options={[{ value: '', label: 'Select computer location' }, ...dynamicCompLocations.map(cl => ({ value: cl.name, label: cl.name }))]}
                         />
                       </EfField>
                       <EfField label="Computer Location Reference">
