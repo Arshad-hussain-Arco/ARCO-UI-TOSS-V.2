@@ -1,0 +1,105 @@
+/* ============================================================
+   ImageUpload — Reusable Visual Image Upload
+   ============================================================ */
+
+.ui-image-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ui-image-upload-zone {
+  border: 1px dashed var(--border-secondary);
+  border-radius: 8px;
+  height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.ui-image-upload-zone:hover,
+.ui-image-upload-zone[data-drag='true'] {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.ui-image-upload-icon {
+  color: var(--text-tertiary);
+  transition: color 0.15s ease;
+}
+
+.ui-image-upload-zone:hover .ui-image-upload-icon,
+.ui-image-upload-zone[data-drag='true'] .ui-image-upload-icon {
+  color: var(--c-primary);
+}
+
+.ui-image-upload-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  text-align: center;
+}
+
+.ui-image-upload-text strong {
+  color: var(--c-primary);
+}
+
+.ui-image-upload-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin: 0;
+  text-align: center;
+}
+
+.ui-image-upload-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ui-image-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ui-image-upload-zone:hover .ui-image-upload-overlay {
+  opacity: 1;
+}
+
+.ui-image-action-btn {
+  background: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.ui-image-action-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.ui-image-action-btn.danger {
+  color: var(--c-danger);
+}

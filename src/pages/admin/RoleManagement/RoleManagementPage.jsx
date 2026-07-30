@@ -14,10 +14,12 @@ import {
   RotateCcw,
   Check,
   Lock,
+  Loader2,
+  Save,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
-import { roleService } from '@services/roleService';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { useToast } from '@hooks/useToast';
+import roleService from '@services/roleService';
 import './RoleManagementPage.css';
 
 // Application Modules List
@@ -68,11 +70,61 @@ const countPermissions = (matrix) => {
   return count;
 };
 
+// Map backend role structure to frontend structure
+const mapRole = (r) => {
+  let perms = createEmptyMatrix();
+  try {
+    let parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
+    
+    // If backend returned a list (because the serializer forced it to), unwrap the first element
+    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+      parsed = parsed[0];
+    }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      // Merge parsed with the empty matrix to ensure all fields exist
+      Object.keys(perms).forEach((mod) => {
+        if (parsed[mod]) {
+          perms[mod] = { ...perms[mod], ...parsed[mod] };
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to parse permissions", e);
+  }
+  return {
+    id: r.id,
+    name: r.role_name,
+    description: 'System Role',
+    isAdmin: r.isadmin === 1 || r.isadmin === true,
+    permissions: perms,
+  };
+};
+
 export function RoleManagementPage() {
+  const toast = useToast();
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRoleId, setExpandedRoleId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchRoles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await roleService.getRoles();
+      setRoles(data.map(mapRole));
+    } catch (err) {
+      toast.error('Failed to load roles.');
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -176,29 +228,60 @@ export function RoleManagementPage() {
   };
 
   // Create Role Submit
-  const handleCreateRole = (e) => {
+  const handleCreateRole = async (e) => {
     e.preventDefault();
     if (!newRoleName.trim()) {
       setNameError(true);
       return;
     }
 
-    const newRole = {
-      id: `role-${Date.now()}`,
-      name: newRoleName.trim(),
-      description: newRoleDesc.trim() || 'No description provided.',
-      isAdmin: newRoleIsAdmin,
-      permissions: newRoleMatrix,
-    };
-
-    setRoles((prev) => [newRole, ...prev]);
-    handleCloseAddModal();
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: newRoleName.trim(),
+        isAdmin: newRoleIsAdmin,
+        permissions: newRoleMatrix,
+      };
+      await roleService.createRole(payload);
+      toast.success('Role permissions added successfully.');
+      handleCloseAddModal();
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to create role.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Delete Role
-  const handleDeleteRole = (id) => {
-    setRoles((prev) => prev.filter((r) => r.id !== id));
-    if (expandedRoleId === id) setExpandedRoleId(null);
+  const handleDeleteRole = async (id) => {
+    try {
+      await roleService.deleteRole(id);
+      toast.success('Role deleted successfully.');
+      if (expandedRoleId === id) setExpandedRoleId(null);
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to delete role.');
+    }
+  };
+
+  // Update Role (Inline Configuration)
+  const handleUpdateRole = async (role) => {
+    setIsSaving(true);
+    try {
+      await roleService.updateRole(role.id, {
+        name: role.name,
+        isAdmin: role.isAdmin,
+        permissions: role.permissions,
+      });
+      toast.success('Role permissions updated successfully.');
+      setExpandedRoleId(null);
+      fetchRoles();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to update role permissions.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Toggle Inline Accordion for Row
@@ -331,7 +414,8 @@ export function RoleManagementPage() {
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
                     <div className="rm-empty-state">
-                      <Loader message="Loading roles..." />
+                      <Loader2 size={32} className="spin" style={{ opacity: 0.5 }} />
+                      <p>Loading roles...</p>
                     </div>
                   </td>
                 </tr>
@@ -420,15 +504,30 @@ export function RoleManagementPage() {
                                 <h3>Functions & Permission Matrix — {role.name}</h3>
                                 <p>Click any toggle button to switch between Allow and Deny.</p>
                               </div>
-                              <button
-                                type="button"
-                                className="rm-btn-sm-close"
-                                {...activatable(() => setExpandedRoleId(null), {
-                                  label: 'Close permissions matrix panel',
-                                })}
-                              >
-                                Done
-                              </button>
+                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  className="rm-btn-sm-close"
+                                  disabled={isSaving}
+                                  {...activatable(() => setExpandedRoleId(null), {
+                                    label: 'Cancel permission changes',
+                                  })}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rm-btn-primary"
+                                  disabled={isSaving}
+                                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                                  {...activatable(() => handleUpdateRole(role), {
+                                    label: 'Save permission changes',
+                                  })}
+                                >
+                                  {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                                  <span style={{ marginLeft: '4px' }}>Save Changes</span>
+                                </button>
+                              </div>
                             </div>
 
                             <table className="rm-matrix-table">

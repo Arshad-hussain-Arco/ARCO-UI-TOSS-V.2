@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X } from 'lucide-react';
+import { useToast } from '@hooks/useToast';
 
 // ─── KPI Stat Card ────────────────────────────────────────────────────────────
 
@@ -20,8 +21,14 @@ function ExportModal({ onClose, onDownload }) {
   const [dstPrefix, setDstPrefix] = useState('_DST');
 
   return (
-    <div className="rrs-modal-overlay" role="dialog" aria-modal="true" aria-label="Customize export prefixes">
-      <div className="rrs-modal">
+    <div
+      className="rrs-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Customize export prefixes"
+      onClick={onClose}
+    >
+      <div className="rrs-modal" onClick={(e) => e.stopPropagation()}>
         <div className="rrs-modal-header">
           <h3 className="rrs-modal-title">Customize Column Prefixes</h3>
           <button type="button" className="rrs-modal-close" onClick={onClose} aria-label="Close">
@@ -195,7 +202,8 @@ function DuplicateTable({ rows }) {
 
 const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
-export function StepResults({ results, onReset }) {
+export function StepResults({ results, file1Name, file2Name, onReset }) {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('dst');
   const [dupSubTab, setDupSubTab] = useState('src');
@@ -203,19 +211,260 @@ export function StepResults({ results, onReset }) {
 
   const { stats, matched, mismatched, missingInDst, missingInSrc, dupSrc, dupDst, activeMappings } = results;
 
-  const handleDownload = useCallback(({ srcPrefix, dstPrefix }) => {
-    const blob = new Blob(
-      [`Reconciliation Report\nSource Prefix: ${srcPrefix}\nTarget Prefix: ${dstPrefix}\n\nMatched: ${stats.matched}\nMismatched: ${stats.mismatched}\nMissing: ${stats.missing}\nDuplicates: ${stats.duplicates}`],
-      { type: 'application/octet-stream' },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'reconciliation_report.xlsx';
-    a.click();
-    URL.revokeObjectURL(url);
-    setShowExportModal(false);
-  }, [stats]);
+  const handleDownload = useCallback(
+    async ({ srcPrefix, dstPrefix }) => {
+      toast.info('Preparing export…');
+
+      try {
+        const XLSX = await import('xlsx');
+        const wb = XLSX.utils.book_new();
+
+        const raw = results.rawResults;
+        if (!raw) {
+          toast.error('No raw results available for export.');
+          return;
+        }
+
+        // --------- Determine Suffixes ----------
+        const formatPrefix = (p) => {
+          const trimmed = p.trim().toUpperCase();
+          if (!trimmed) return '';
+          return trimmed.startsWith('_') ? trimmed : `_${trimmed}`;
+        };
+
+        const srcSuffix = formatPrefix(srcPrefix) || '_SRC';
+        const dstSuffix = formatPrefix(dstPrefix) || '_DST';
+        const separatorHeader = '||';
+
+        const getSourceCols = () => {
+          if (raw.matched?.length && raw.matched[0].row1) {
+            return Object.keys(raw.matched[0].row1);
+          }
+          if (raw.onlyInFile1?.length && raw.onlyInFile1[0].row) {
+            return Object.keys(raw.onlyInFile1[0].row);
+          }
+          if (raw.duplicatesInFile1?.length && raw.duplicatesInFile1[0].row) {
+            return Object.keys(raw.duplicatesInFile1[0].row);
+          }
+          return [];
+        };
+
+        const getDestinationCols = () => {
+          if (raw.matched?.length && raw.matched[0].row2) {
+            return Object.keys(raw.matched[0].row2);
+          }
+          if (raw.onlyInFile2?.length && raw.onlyInFile2[0].row) {
+            return Object.keys(raw.onlyInFile2[0].row);
+          }
+          if (raw.duplicatesInFile2?.length && raw.duplicatesInFile2[0].row) {
+            return Object.keys(raw.duplicatesInFile2[0].row);
+          }
+          return [];
+        };
+
+        const srcCols = getSourceCols();
+        const dstCols = getDestinationCols();
+
+        const duplicatesInFile1Count = raw.duplicatesInFile1?.length ?? 0;
+        const duplicatesInFile2Count = raw.duplicatesInFile2?.length ?? 0;
+        const totalDuplicateRecords = duplicatesInFile1Count + duplicatesInFile2Count;
+
+        // SUMMARY SHEET
+        const summaryData = [
+          ['File Reconciliation Report', ''],
+          ['', ''],
+          ['File 1', file1Name || ''],
+          ['File 2', file2Name || ''],
+          ['Total Records in File 1', raw.totalFile1 ?? 0],
+          ['Total Records in File 2', raw.totalFile2 ?? 0],
+          ['', ''],
+          ['Matched Records', raw.matched?.length ?? 0],
+          ['Mismatched Records', raw.mismatched?.length ?? 0],
+          ['Only in source', raw.onlyInFile1?.length ?? 0],
+          ['Only in destination', raw.onlyInFile2?.length ?? 0],
+          ['Duplicate Records (in File 1)', duplicatesInFile1Count],
+          ['Duplicate Records (in File 2)', duplicatesInFile2Count],
+          ['Total Duplicate Records', totalDuplicateRecords],
+          ['', ''],
+          ['Match Rate', `${raw.matchRate ?? 0}%`],
+          ['Exact Match Rate', `${raw.exactMatchRate ?? 0}%`],
+        ];
+
+        const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+
+        const buildCombinedHeaders = () => {
+          const headers = [];
+          srcCols.forEach((c) => headers.push(`${c}${srcSuffix}`));
+          headers.push(separatorHeader);
+          dstCols.forEach((c) => headers.push(`${c}${dstSuffix}`));
+          return headers;
+        };
+
+        const combinedHeaders = buildCombinedHeaders();
+
+        const buildCombinedRow = ({ srcRow, dstRow, includeSource, includeTarget }) => {
+          const row = {};
+
+          srcCols.forEach((c) => {
+            const header = `${c}${srcSuffix}`;
+            row[header] =
+              includeSource && srcRow
+                ? srcRow[c] !== null && srcRow[c] !== undefined
+                  ? String(srcRow[c])
+                  : ''
+                : '';
+          });
+
+          row[separatorHeader] = '';
+
+          dstCols.forEach((c) => {
+            const header = `${c}${dstSuffix}`;
+            row[header] =
+              includeTarget && dstRow
+                ? dstRow[c] !== null && dstRow[c] !== undefined
+                  ? String(dstRow[c])
+                  : ''
+                : '';
+          });
+
+          return row;
+        };
+
+        // MATCHED RECORDS
+        if (raw.matched && raw.matched.length > 0) {
+          const matchedRows = raw.matched.map((m) =>
+            buildCombinedRow({
+              srcRow: m.row1,
+              dstRow: m.row2,
+              includeSource: true,
+              includeTarget: true,
+            })
+          );
+
+          const matchedSheet = XLSX.utils.json_to_sheet(matchedRows, {
+            header: combinedHeaders,
+            skipHeader: false,
+          });
+          XLSX.utils.book_append_sheet(wb, matchedSheet, 'Matched_Records');
+        } else {
+          XLSX.utils.book_append_sheet(
+            wb,
+            XLSX.utils.aoa_to_sheet([combinedHeaders]),
+            'Matched_Records'
+          );
+        }
+
+        // MISMATCHED RECORDS
+        const mismatchedHeaders = [...combinedHeaders, 'Differences'];
+
+        const mismatchedRows = (raw.mismatched || []).map((m) => {
+          const baseRow = buildCombinedRow({
+            srcRow: m.row1,
+            dstRow: m.row2,
+            includeSource: true,
+            includeTarget: true,
+          });
+
+          const diffSummary = (m.differences || [])
+            .map((d) => `${d.column}: "${d.file1Value}" → "${d.file2Value}"`)
+            .join(' | ');
+
+          return { ...baseRow, Differences: diffSummary };
+        });
+
+        const mismatchedSheet =
+          mismatchedRows.length > 0
+            ? XLSX.utils.json_to_sheet(mismatchedRows, {
+                header: mismatchedHeaders,
+                skipHeader: false,
+              })
+            : XLSX.utils.aoa_to_sheet([mismatchedHeaders]);
+
+        XLSX.utils.book_append_sheet(wb, mismatchedSheet, 'Mismatched_Records');
+
+        // MISSING RECORDS
+        const missingAoA = [];
+
+        missingAoA.push(['Missing in Destination (Records only in Source)']);
+        missingAoA.push(srcCols.map((c) => `${c}${srcSuffix}`));
+
+        (raw.onlyInFile1 || []).forEach((item) => {
+          const row = item.row || {};
+          missingAoA.push(srcCols.map((col) => (row[col] != null ? String(row[col]) : '')));
+        });
+
+        missingAoA.push([]);
+        missingAoA.push([]);
+
+        missingAoA.push(['Missing in Source (Records only in Destination)']);
+        missingAoA.push(dstCols.map((c) => `${c}${dstSuffix}`));
+
+        (raw.onlyInFile2 || []).forEach((item) => {
+          const row = item.row || {};
+          missingAoA.push(dstCols.map((col) => (row[col] != null ? String(row[col]) : '')));
+        });
+
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(missingAoA), 'Missing_Records');
+
+        // DUPLICATE RECORDS
+        const srcDupCountMap = {};
+        (raw.duplicatesInFile1 || []).forEach((d) => {
+          const k = d.key != null ? String(d.key) : '';
+          if (!k) return;
+          srcDupCountMap[k] = (srcDupCountMap[k] || 0) + 1;
+        });
+
+        const dstDupCountMap = {};
+        (raw.duplicatesInFile2 || []).forEach((d) => {
+          const k = d.key != null ? String(d.key) : '';
+          if (!k) return;
+          dstDupCountMap[k] = (dstDupCountMap[k] || 0) + 1;
+        });
+
+        const dupAoA = [];
+
+        dupAoA.push([`Duplicates in Source (${file1Name || 'File1'})`]);
+        dupAoA.push([...srcCols.map((c) => `${c}${srcSuffix}`), `DuplicateCount${srcSuffix}`]);
+
+        (raw.duplicatesInFile1 || []).forEach((item) => {
+          const row = item.row || {};
+          const keyStr = item.key != null ? String(item.key) : '';
+          const count = keyStr ? srcDupCountMap[keyStr] ?? '' : '';
+
+          dupAoA.push([...srcCols.map((col) => (row[col] != null ? String(row[col]) : '')), count]);
+        });
+
+        dupAoA.push([]);
+        dupAoA.push([]);
+
+        dupAoA.push([`Duplicates in Destination (${file2Name || 'File2'})`]);
+        dupAoA.push([...dstCols.map((c) => `${c}${dstSuffix}`), `DuplicateCount${dstSuffix}`]);
+
+        (raw.duplicatesInFile2 || []).forEach((item) => {
+          const row = item.row || {};
+          const keyStr = item.key != null ? String(item.key) : '';
+          const count = keyStr ? dstDupCountMap[keyStr] ?? '' : '';
+
+          dupAoA.push([...dstCols.map((col) => (row[col] != null ? String(row[col]) : '')), count]);
+        });
+
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dupAoA), 'Duplicate_Records');
+
+        XLSX.writeFile(
+          wb,
+          `reconciliation_report_${new Date().toISOString().split('T')[0]}.xlsx`
+        );
+
+        setShowExportModal(false);
+        toast.success('Report exported successfully!');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to export report.');
+      }
+    },
+    [results, file1Name, file2Name, toast]
+  );
 
   return (
     <>
@@ -267,33 +516,33 @@ export function StepResults({ results, onReset }) {
           />
         </div>
 
-        {/* Action Bar (Export) */}
-        <div className="rrs-top-bar" style={{ marginTop: '4px' }}>
-          <div className="rrs-tabs">
-            {MAIN_TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`rrs-tab${activeTab === tab ? ' rrs-tab--active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab === 'Matched' && <CheckCircle2 size={13} />}
-                {tab === 'Mismatched' && <XCircle size={13} />}
-                {tab === 'Missing' && <Minus size={13} />}
-                {tab === 'Duplicates' && <Copy size={13} />}
-                {tab}
-                <span className="rrs-tab-badge">
-                  {tab === 'Matched' && stats.matched}
-                  {tab === 'Mismatched' && stats.mismatched}
-                  {tab === 'Missing' && stats.missing}
-                  {tab === 'Duplicates' && stats.duplicates}
-                </span>
-              </button>
-            ))}
-          </div>
+        {/* Tabs + Export Button (right-aligned inside tabs row) */}
+        <div className="rrs-tabs" style={{ marginTop: '4px' }}>
+          {MAIN_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`rrs-tab${activeTab === tab ? ' rrs-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'Matched' && <CheckCircle2 size={13} />}
+              {tab === 'Mismatched' && <XCircle size={13} />}
+              {tab === 'Missing' && <Minus size={13} />}
+              {tab === 'Duplicates' && <Copy size={13} />}
+              {tab}
+              <span className="rrs-tab-badge">
+                {tab === 'Matched' && stats.matched}
+                {tab === 'Mismatched' && stats.mismatched}
+                {tab === 'Missing' && stats.missing}
+                {tab === 'Duplicates' && stats.duplicates}
+              </span>
+            </button>
+          ))}
+          {/* Spacer pushes Export button to the right */}
+          <span style={{ flex: 1 }} />
           <button
             type="button"
-            className="rwiz-btn rwiz-btn-outline"
+            className="rwiz-btn rwiz-btn-outline rrs-export-btn"
             onClick={() => setShowExportModal(true)}
           >
             <Download size={13} />

@@ -1,120 +1,203 @@
 import { memo, useMemo, useState } from 'react';
-import { Plus, Search, X } from 'lucide-react';
+import { ArrowUpDown, Edit2 } from 'lucide-react';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { useToast } from '@hooks/useToast';
 
-import { COLUMN_DATA_TYPES } from '@mocks/data/systemSettings';
-import { Select } from '@components/forms/Select/Select';
+const SAMPLE_CR_DATA = [
+  { id: '1', code: 'Additional_Developers', excel: 'Additional Developers' },
+  { id: '2', code: 'Assigned_Developer', excel: 'Assigned Programmer' },
+  { id: '3', code: 'Effort_in_MDs', excel: 'Proposed Effort in MDs' },
+  { id: '4', code: 'End_Date', excel: 'End Date' },
+  { id: '5', code: 'Id', excel: 'Id' },
+  { id: '6', code: 'Priority', excel: 'Priority' },
+  { id: '7', code: 'Project', excel: 'Project' },
+  { id: '8', code: 'Start_Date', excel: 'Start Date' },
+  { id: '9', code: 'Status', excel: 'Status Information' },
+];
 
-const HEADER_CELL_CLASS =
-  'p-3 text-[0.75rem] font-semibold text-[var(--text-secondary)] border-b border-[var(--border-primary)]';
-
-const MappingRow = memo(function MappingRow({ mapping }) {
-  const [dataType, setDataType] = useState(mapping.dataType);
-  return (
-    <tr className="hover:bg-[var(--bg-hover)]">
-      <td className="p-3 text-[0.8125rem] text-[var(--text-primary)] font-medium">
-        {mapping.source}
-      </td>
-      <td className="p-3 text-[0.8125rem] text-[var(--text-secondary)]">
-        {mapping.destination}
-      </td>
-      <td className="p-3">
-        <Select
-          value={dataType}
-          onChange={setDataType}
-          width="dataType"
-          options={COLUMN_DATA_TYPES.map((type) => ({ value: type, label: type }))}
-        />
-      </td>
-      <td className="p-3 text-[var(--text-tertiary)]">
-        <button
-          type="button"
-          className="hover:text-[var(--c-danger)]"
-          aria-label={`Remove mapping for ${mapping.source}`}
-        >
-          <X size={14} aria-hidden="true" />
-        </button>
-      </td>
-    </tr>
-  );
-});
+const SAMPLE_WO_DATA = [
+  { id: '1', code: 'Attachments', excel: 'Attachment' },
+  { id: '2', code: 'Backup_IT_Delivery_Lead', excel: 'Backup IT Delivery Lead' },
+  { id: '3', code: 'Clarity_Planned_Finish_Date', excel: 'Clarity Planned Finish Date' },
+  { id: '4', code: 'Created_By', excel: 'Created By' },
+  { id: '5', code: 'Creation_Date', excel: 'Creation Date' },
+  { id: '6', code: 'Depends_On', excel: 'Depends On' },
+  { id: '7', code: 'Description', excel: 'Description' },
+  { id: '8', code: 'Due_Date', excel: 'Due Date' },
+  { id: '9', code: 'Estimation', excel: 'Estimation' },
+];
 
 /**
- * Source-to-destination column mapping table, shared by the CR and WO tabs.
- *
- * @param {Object} props
- * @param {{ id: string, source: string, destination: string, dataType: string }[]} props.mappings
- * @param {string} props.title  Names the table for assistive technology.
+ * TAB 3 & TAB 4: CR and WO File Matching Columns Table
  */
-function ColumnMappingPanelComponent({ mappings, title }) {
-  const [query, setQuery] = useState('');
+function ColumnMappingPanelComponent({ type = 'CR', title }) {
+  const toast = useToast();
+  const initialData = type === 'CR' ? SAMPLE_CR_DATA : SAMPLE_WO_DATA;
+  const [data, setData] = useState(initialData);
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (needle === '') return mappings;
+  // Sorting state
+  const [sortField, setSortField] = useState('code');
+  const [sortAsc, setSortAsc] = useState(true);
 
-    return mappings.filter(
-      (mapping) =>
-        mapping.source.toLowerCase().includes(needle) ||
-        mapping.destination.toLowerCase().includes(needle),
-    );
-  }, [mappings, query]);
+  // Editing state
+  const [editRow, setEditRow] = useState(null);
+  const [editCode, setEditCode] = useState('');
+  const [editExcel, setEditExcel] = useState('');
+
+  const sortedData = useMemo(() => {
+    return [...data].sort((a, b) => {
+      const valA = (a[sortField] || '').toLowerCase();
+      const valB = (b[sortField] || '').toLowerCase();
+      if (valA < valB) return sortAsc ? -1 : 1;
+      if (valA > valB) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }, [data, sortField, sortAsc]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
+
+  const handleOpenEdit = (row) => {
+    setEditRow(row);
+    setEditCode(row.code);
+    setEditExcel(row.excel);
+  };
+
+  const handleSaveEdit = () => {
+    if (editRow) {
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === editRow.id ? { ...item, code: editCode, excel: editExcel } : item,
+        ),
+      );
+      toast.success(`Updated column mapping for ${editCode}`);
+      setEditRow(null);
+    }
+  };
 
   return (
     <div className="ss-form-card">
-      <div className="flex flex-col h-[400px]">
-        <div className="p-3 border-b border-[var(--border-primary)] flex justify-between items-center bg-[var(--bg-secondary)]">
-          <div className="relative w-64">
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"
-              aria-hidden="true"
-            />
+      <div className="ss-panel-header">
+        <h2 className="ss-panel-title">{title}</h2>
+      </div>
+
+      <div style={{ padding: '0', overflowX: 'auto' }}>
+        <table className="ui-admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' }}>
+              <th
+                style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
+                onClick={() => handleSort('code')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Code Column</span>
+                  <ArrowUpDown size={14} style={{ opacity: sortField === 'code' ? 1 : 0.4 }} />
+                </div>
+              </th>
+              <th
+                style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
+                onClick={() => handleSort('excel')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Excel Column</span>
+                  <ArrowUpDown size={14} style={{ opacity: sortField === 'excel' ? 1 : 0.4 }} />
+                </div>
+              </th>
+              <th style={{ padding: '12px 20px', textAlign: 'right', width: '10%' }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedData.map((row, idx) => (
+              <tr
+                key={row.id}
+                style={{
+                  background: idx % 2 === 0 ? 'var(--surface-primary)' : 'var(--bg-secondary)',
+                  borderBottom: '1px solid var(--border-primary)',
+                  transition: 'background 0.15s ease',
+                }}
+              >
+                <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                  {row.code}
+                </td>
+                <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  {row.excel}
+                </td>
+                <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                  <button
+                    type="button"
+                    className="ui-file-action"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--c-primary)',
+                      padding: '4px',
+                      borderRadius: '4px',
+                    }}
+                    onClick={() => handleOpenEdit(row)}
+                    title="Edit Column Mapping"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Edit Modal */}
+      <AdminModal
+        isOpen={Boolean(editRow)}
+        onClose={() => setEditRow(null)}
+        title={`Edit ${type} Column Mapping`}
+        footer={
+          <>
+            <button
+              type="button"
+              className="ss-btn-update"
+              style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+              onClick={() => setEditRow(null)}
+            >
+              Cancel
+            </button>
+            <button type="button" className="ss-btn-update" onClick={handleSaveEdit}>
+              Save Changes
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="col-edit-code">
+              Code Column
+            </label>
             <input
-              type="text"
-              placeholder="Search columns..."
-              aria-label="Search columns"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="w-full h-7 pl-8 pr-3 text-[0.8125rem] border border-[var(--border-primary)] rounded bg-[var(--surface-primary)] focus:border-[var(--c-primary)] outline-none"
+              id="col-edit-code"
+              className="ss-input"
+              value={editCode}
+              onChange={(e) => setEditCode(e.target.value)}
             />
           </div>
-
-          <button
-            type="button"
-            className="flex items-center gap-1 text-[0.75rem] font-medium text-[var(--text-inverse)] bg-[var(--text-primary)] hover:bg-[var(--text-secondary)] px-3 py-1.5 rounded transition-colors"
-          >
-            <Plus size={12} aria-hidden="true" /> Add Rule
-          </button>
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="col-edit-excel">
+              Excel Column
+            </label>
+            <input
+              id="col-edit-excel"
+              className="ss-input"
+              value={editExcel}
+              onChange={(e) => setEditExcel(e.target.value)}
+            />
+          </div>
         </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-left border-collapse">
-            <caption className="sr-only">{title}</caption>
-            <thead className="bg-[var(--bg-secondary)] sticky top-0">
-              <tr>
-                <th scope="col" className={HEADER_CELL_CLASS}>
-                  Source Column
-                </th>
-                <th scope="col" className={HEADER_CELL_CLASS}>
-                  Destination Column
-                </th>
-                <th scope="col" className={HEADER_CELL_CLASS}>
-                  Data Type
-                </th>
-                <th scope="col" className={`${HEADER_CELL_CLASS} w-16`}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-[var(--border-primary)]">
-              {visible.map((mapping) => (
-                <MappingRow key={mapping.id} mapping={mapping} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </AdminModal>
     </div>
   );
 }

@@ -2,22 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
 
 import { useToast } from '@hooks/useToast';
-import {
-  MOCK_FILE1_COLUMNS,
-  MOCK_FILE2_COLUMNS,
-  generatePreviewRows,
-} from '@mocks/data/reconciliation';
+import { reconciliationService } from '@services/reconciliationService';
 
-const ACCEPTED_FORMATS = ['csv', 'xlsx', 'xls', 'xml', 'json'];
+const ACCEPTED_FORMATS = new Set(['csv', 'xlsx', 'xls', 'xml', 'json']);
 const FORMAT_LABELS = 'CSV, Excel (.xlsx, .xls), XML, JSON';
-
-function mockParseFile(file, fileIndex) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  const columns = fileIndex === 0 ? MOCK_FILE1_COLUMNS : MOCK_FILE2_COLUMNS;
-  const rows = generatePreviewRows(columns, 5);
-  const records = Math.floor(Math.random() * 2000) + 500;
-  return { name: file.name, ext, size: file.size, records, columns, rows };
-}
 
 function formatSize(bytes) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -25,36 +13,58 @@ function formatSize(bytes) {
   return `${bytes} B`;
 }
 
-function DropZone({ index, fileInfo, onFile, onRemove }) {
+function DropZone({ index, fileInfo, onFile, onRemove, isProcessing, onProcessingChange }) {
   const inputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const toast = useToast();
 
-  const label = index === 0
-    ? 'File 1 — Source / Primary Reference'
-    : 'File 2 — Target / Destination';
+  const label =
+    index === 0 ? 'File 1 — Source / Primary Reference' : 'File 2 — Target / Destination';
 
-  const processFile = useCallback((file) => {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!ACCEPTED_FORMATS.includes(ext)) {
-      toast.warning(`Unsupported format ".${ext}". Use: ${FORMAT_LABELS}.`);
-      return;
-    }
-    onFile(mockParseFile(file, index));
-  }, [index, onFile, toast]);
+  const processFile = useCallback(
+    async (file) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!ACCEPTED_FORMATS.has(ext)) {
+        toast.warning(`Unsupported format ".${ext}". Use: ${FORMAT_LABELS}.`);
+        return;
+      }
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+      onProcessingChange(index, true);
 
-  const handleChange = useCallback((e) => {
-    const file = e.target.files[0];
-    if (file) processFile(file);
-    e.target.value = '';
-  }, [processFile]);
+      try {
+        const parsed = await reconciliationService.preprocessFile(file);
+        onFile(parsed);
+      } catch (error) {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          'Unable to preprocess the selected file.';
+        toast.error(message);
+      } finally {
+        onProcessingChange(index, false);
+      }
+    },
+    [index, onFile, onProcessingChange, toast],
+  );
+
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file && !isProcessing) processFile(file);
+    },
+    [isProcessing, processFile],
+  );
+
+  const handleChange = useCallback(
+    (e) => {
+      const file = e.target.files[0];
+      if (file && !isProcessing) processFile(file);
+      e.target.value = '';
+    },
+    [isProcessing, processFile],
+  );
 
   return (
     <div className="rfz-panel">
@@ -67,9 +77,9 @@ function DropZone({ index, fileInfo, onFile, onRemove }) {
             <span className="rfz-file-name">{fileInfo.name}</span>
             <span className="rfz-file-meta">
               Records: <strong>{fileInfo.records.toLocaleString()}</strong>
-              &nbsp;·&nbsp;
+              {' · '}
               Size: <strong>{formatSize(fileInfo.size)}</strong>
-              &nbsp;·&nbsp;
+              {' · '}
               {fileInfo.columns.length} columns
             </span>
           </div>
@@ -78,36 +88,49 @@ function DropZone({ index, fileInfo, onFile, onRemove }) {
               type="button"
               className="rfz-replace-btn"
               onClick={() => inputRef.current?.click()}
+              disabled={isProcessing}
             >
-              Replace File
+              {isProcessing ? 'Processing…' : 'Replace File'}
             </button>
             <button
               type="button"
               className="rfz-remove-btn"
               onClick={onRemove}
               aria-label="Remove file"
+              disabled={isProcessing}
             >
               <X size={12} />
             </button>
           </div>
         </div>
       ) : (
-        <div
+        <button
+          type="button"
           className={`rfz-dropzone${isDragging ? ' rfz-dropzone--active' : ''}`}
-          onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            if (!isProcessing) setIsDragging(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!isProcessing) setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          role="button"
-          tabIndex={0}
+          onClick={() => {
+            if (!isProcessing) inputRef.current?.click();
+          }}
           aria-label={`Upload ${label}`}
-          onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (!isProcessing && e.key === 'Enter') inputRef.current?.click();
+          }}
         >
           <Upload size={20} className="rfz-dropzone-icon" />
-          <p className="rfz-dropzone-text">Choose a file or drag &amp; drop it here</p>
+          <p className="rfz-dropzone-text">
+            {isProcessing ? 'Processing upload…' : 'Choose a file or drag &amp; drop it here'}
+          </p>
           <p className="rfz-dropzone-hint">{FORMAT_LABELS}</p>
-        </div>
+        </button>
       )}
 
       <input
@@ -125,18 +148,33 @@ function DropZone({ index, fileInfo, onFile, onRemove }) {
 
 export function StepUpload({ files, onFilesChange, onNext }) {
   const toast = useToast();
+  const [processingFiles, setProcessingFiles] = useState([false, false]);
 
-  const setFile = useCallback((index, fileInfo) => {
-    const updated = [...files];
-    updated[index] = fileInfo;
-    onFilesChange(updated);
-  }, [files, onFilesChange]);
+  const setFile = useCallback(
+    (index, fileInfo) => {
+      const updated = [...files];
+      updated[index] = fileInfo;
+      onFilesChange(updated);
+    },
+    [files, onFilesChange],
+  );
 
-  const removeFile = useCallback((index) => {
-    const updated = [...files];
-    updated[index] = null;
-    onFilesChange(updated);
-  }, [files, onFilesChange]);
+  const removeFile = useCallback(
+    (index) => {
+      const updated = [...files];
+      updated[index] = null;
+      onFilesChange(updated);
+    },
+    [files, onFilesChange],
+  );
+
+  const updateProcessing = useCallback((index, value) => {
+    setProcessingFiles((current) => {
+      const next = [...current];
+      next[index] = value;
+      return next;
+    });
+  }, []);
 
   const bothLoaded = files[0] !== null && files[1] !== null;
   const formatMismatch = bothLoaded && files[0].ext !== files[1].ext;
@@ -147,7 +185,9 @@ export function StepUpload({ files, onFilesChange, onNext }) {
       return;
     }
     if (formatMismatch) {
-      toast.warning(`⚠️ Both files must be the same format. File 1 is .${files[0].ext}, File 2 is .${files[1].ext}.`);
+      toast.warning(
+        `⚠️ Both files must be the same format. File 1 is .${files[0].ext}, File 2 is .${files[1].ext}.`,
+      );
       return;
     }
     onNext();
@@ -158,7 +198,7 @@ export function StepUpload({ files, onFilesChange, onNext }) {
       <div className="rwiz-step-header">
         <div className="rwiz-step-header-left">
           <h2 className="rwiz-step-title">Step 1: Upload Files</h2>
-          <p className="rwiz-step-subtitle">Upload, configure, and reconcile two data files.</p>
+          <p className="rwiz-step-subtitle">Upload, preprocess, and reconcile two data files.</p>
         </div>
       </div>
 
@@ -167,7 +207,8 @@ export function StepUpload({ files, onFilesChange, onNext }) {
         <div className="rwiz-step-intro">
           <AlertCircle size={13} className="rwiz-intro-icon" />
           <span>
-            Supported formats: <strong>{FORMAT_LABELS}</strong>. Both uploaded files must be of the same format.
+            Supported formats: <strong>{FORMAT_LABELS}</strong>. Both uploaded files must be of the
+            same format.
           </span>
         </div>
 
@@ -178,6 +219,8 @@ export function StepUpload({ files, onFilesChange, onNext }) {
             fileInfo={files[0]}
             onFile={(info) => setFile(0, info)}
             onRemove={() => removeFile(0)}
+            isProcessing={processingFiles[0]}
+            onProcessingChange={updateProcessing}
           />
           <div className="rfz-zones-divider">
             <span>VS</span>
@@ -187,16 +230,14 @@ export function StepUpload({ files, onFilesChange, onNext }) {
             fileInfo={files[1]}
             onFile={(info) => setFile(1, info)}
             onRemove={() => removeFile(1)}
+            isProcessing={processingFiles[1]}
+            onProcessingChange={updateProcessing}
           />
         </div>
 
         <div className="rwiz-step-footer">
           <div />
-          <button
-            type="button"
-            className="rwiz-btn rwiz-btn-primary"
-            onClick={handleNext}
-          >
+          <button type="button" className="rwiz-btn rwiz-btn-primary" onClick={handleNext}>
             Next →
           </button>
         </div>
