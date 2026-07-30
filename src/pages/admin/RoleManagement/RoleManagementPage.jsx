@@ -75,7 +75,7 @@ const mapRole = (r) => {
   let perms = createEmptyMatrix();
   try {
     let parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
-    
+
     // If backend returned a list (because the serializer forced it to), unwrap the first element
     if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
       parsed = parsed[0];
@@ -108,12 +108,25 @@ export function RoleManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRoleId, setExpandedRoleId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [stats, setStats] = useState({
+    total_users: 0,
+    admin_roles: 0,
+    assigned_roles: 0,
+    unassigned_roles: 0,
+  });
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await roleService.getRoles();
-      setRoles(data.map(mapRole));
+      const response = await roleService.getRoles();
+      if (response && response.data && response.stats) {
+        setRoles(response.data.map(mapRole));
+        setStats(response.stats);
+      } else if (Array.isArray(response)) {
+        setRoles(response.map(mapRole));
+      } else if (response && response.data && Array.isArray(response.data)) {
+        setRoles(response.data.map(mapRole));
+      }
     } catch (err) {
       toast.error('Failed to load roles.');
     } finally {
@@ -143,10 +156,6 @@ export function RoleManagementPage() {
       (r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     );
   }, [roles, searchQuery]);
-
-  // KPI Calculations
-  const adminRolesCount = useMemo(() => roles.filter((r) => r.isAdmin).length, [roles]);
-  const assignedRolesCount = roles.length;
 
   // Toggle Modal Open/Close
   const handleOpenAddModal = () => {
@@ -298,7 +307,7 @@ export function RoleManagementPage() {
               <Users size={16} />
             </div>
             <div className="rm-kpi-info">
-              <div className="rm-kpi-val">128</div>
+              <div className="rm-kpi-val">{stats.total_users}</div>
               <div className="rm-kpi-lbl">Total Users</div>
             </div>
           </div>
@@ -308,7 +317,7 @@ export function RoleManagementPage() {
               <ShieldCheck size={16} />
             </div>
             <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{adminRolesCount}</div>
+              <div className="rm-kpi-val">{stats.admin_roles}</div>
               <div className="rm-kpi-lbl">Admin Roles</div>
             </div>
           </div>
@@ -318,7 +327,7 @@ export function RoleManagementPage() {
               <Lock size={16} />
             </div>
             <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{assignedRolesCount}</div>
+              <div className="rm-kpi-val">{stats.assigned_roles}</div>
               <div className="rm-kpi-lbl">Assigned Roles</div>
             </div>
           </div>
@@ -328,7 +337,7 @@ export function RoleManagementPage() {
               <ShieldAlert size={16} />
             </div>
             <div className="rm-kpi-info">
-              <div className="rm-kpi-val">2</div>
+              <div className="rm-kpi-val">{stats.unassigned_roles}</div>
               <div className="rm-kpi-lbl">Unassigned Roles</div>
             </div>
           </div>

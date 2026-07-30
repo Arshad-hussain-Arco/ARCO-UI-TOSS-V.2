@@ -38,8 +38,58 @@ export function CapacityPlanningPage() {
   const fetchPlan = useCallback(() => capacityService.getCapacityPlan({ timeRange: 90 }), []);
   const { data, isLoading, error, refetch } = useAsync(fetchPlan);
 
-  const sources = data?.sources;
-  const consultants = useMemo(() => data?.consultants ?? [], [data]);
+  const sources = data?.sources || { woFile: 'API', crFile: 'API' };
+
+  const consultants = useMemo(() => {
+    const apiResult = data?.result;
+    if (!apiResult || !Array.isArray(apiResult)) return [];
+
+    const devMap = new Map();
+
+    apiResult.forEach((item) => {
+      const devName = item.EmployeeName || item.Assigned_Developer || 'Unassigned';
+
+      if (!devMap.has(devName)) {
+        devMap.set(devName, {
+          id: devName,
+          name: devName,
+          team: item.TeamName || 'Development',
+          role: 'Developer',
+          utilization: 'optimal',
+          next7Days: { occupied: 0, available: 40 },
+          next30Days: { occupied: 0, available: 160 },
+          next90Days: { occupied: 0, available: 480 },
+          trendData: [40, 50, 60, 45, 70, 80, 50],
+          upcomingAllocations: [],
+        });
+      }
+
+      const dev = devMap.get(devName);
+      const effortMDs = item.Effort_in_MDs || 0;
+      const effortHours = effortMDs * 8;
+
+      dev.upcomingAllocations.push({
+        project: item.Project || 'N/A',
+        summary: item.Summary || 'N/A',
+        status: item.Status || 'N/A',
+        startDate: item.Start_Date || 'N/A',
+        endDate: item.End_Date || 'N/A',
+        effort: effortMDs,
+        hours: effortHours,
+        additionalDevs: item.Additional_Developers || 'None',
+      });
+
+      // Simple heuristic: distribute effort to Next 30 Days as a placeholder metric
+      dev.next30Days.occupied += effortHours;
+      if (dev.next30Days.occupied > dev.next30Days.available) {
+        dev.utilization = 'overbooked';
+      } else if (dev.next30Days.occupied < dev.next30Days.available * 0.5) {
+        dev.utilization = 'low';
+      }
+    });
+
+    return Array.from(devMap.values());
+  }, [data]);
 
   /** Names of the teams whose row group is collapsed. */
   const [collapsedTeams, setCollapsedTeams] = useState(() => new Set());

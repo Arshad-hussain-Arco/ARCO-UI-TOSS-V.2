@@ -2,6 +2,30 @@ import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 
 export const leaveService = {
+  // Shift Management APIs
+  listShifts: async () => {
+    const response = await httpClient.get(endpoints.hr.shifts.list);
+    return response.data;
+  },
+
+  // Holiday Management APIs
+  listHolidays: async (params) => {
+    const response = await httpClient.get(endpoints.hr.holidaysManagement.list, { params });
+    return response.data;
+  },
+  addHoliday: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.holidaysManagement.add, payload);
+    return response.data;
+  },
+  editHoliday: async (id, payload) => {
+    const response = await httpClient.patch(endpoints.hr.holidaysManagement.edit(id), payload);
+    return response.data;
+  },
+  deleteHoliday: async (id, payload) => {
+    const response = await httpClient.delete(endpoints.hr.holidaysManagement.delete(id), { data: payload });
+    return response.data;
+  },
+
   getLeaveBalance: async (empId) => {
     try {
       const response = await httpClient.get(endpoints.me.balance(empId));
