@@ -1,0 +1,144 @@
+/* ApprovalRow.css — Design Tokens Light Theme */
+
+.approval-row td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #E3E7E4; /* colors.border */
+  color: #16211D; /* colors.textPrimary */
+  vertical-align: middle;
+}
+
+.approval-employee-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.approval-actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.lms-btn-success {
+  background: #22935F; /* colors.green.icon */
+  color: #FFFFFF;
+}
+
+.lms-btn-danger {
+  background: #A32D2D; /* colors.red.icon */
+  color: #FFFFFF;
+}
+
+/* Modal Overlay & Card */
+.approval-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.approval-modal-content {
+  background: #FFFFFF; /* colors.surface */
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid #E3E7E4; /* colors.border */
+  overflow: hidden;
+}
+
+.approval-modal-header {
+  padding: 16px 20px;
+  background: #F6F7F5; /* colors.page */
+  border-bottom: 1px solid #E3E7E4; /* colors.border */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.approval-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #16211D; /* colors.textPrimary */
+}
+
+.approval-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #5B6B65; /* colors.textSecondary */
+  cursor: pointer;
+}
+
+.approval-modal-body {
+  padding: 20px;
+}
+
+.approval-modal-info {
+  margin-top: 0;
+  margin-bottom: 16px;
+  color: #5B6B65; /* colors.textSecondary */
+  font-size: 0.95rem;
+}
+
+.approval-modal-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #16211D; /* colors.textPrimary */
+  font-size: 0.9rem;
+}
+
+.required-star {
+  color: #A32D2D; /* colors.red.icon */
+  margin-left: 2px;
+}
+
+.optional-text {
+  color: #5B6B65;
+  font-weight: normal;
+  font-size: 0.8rem;
+}
+
+.approval-modal-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #E3E7E4; /* colors.border */
+  background: #FFFFFF;
+  color: #16211D;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.approval-modal-textarea:focus {
+  outline: none;
+  border-color: #1B4D3E; /* colors.brand */
+}
+
+.approval-modal-error {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #FDEDED; /* colors.red.bg */
+  color: #A32D2D; /* colors.red.icon */
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.approval-modal-footer {
+  padding: 14px 20px;
+  background: #F6F7F5; /* colors.page */
+  border-top: 1px solid #E3E7E4; /* colors.border */
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -10,10 +10,28 @@
 .page-content {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: auto !important;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth;
+}
+
+.page-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.page-content::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+.page-content::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+.page-content::-webkit-scrollbar-thumb:hover {
+  background: #1B4D3E;
 }
 
 @media (max-width: 768px) {

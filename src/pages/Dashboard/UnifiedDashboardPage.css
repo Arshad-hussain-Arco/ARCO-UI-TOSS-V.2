@@ -1,0 +1,907 @@
+/* src/pages/Dashboard/UnifiedDashboardPage.css */
+
+:root {
+  --ud-bg: #F4F6F8;
+  --ud-surface: #FFFFFF;
+  --ud-border: #E2E8F0;
+  --ud-text-primary: #0F172A;
+  --ud-text-secondary: #64748B;
+  --ud-brand: #1B4D3E;
+  --ud-brand-light: #E6F0EC;
+  --ud-brand-hover: #143A2F;
+  --ud-accent-blue: #2563EB;
+  --ud-accent-blue-light: #EFF6FF;
+  --ud-accent-amber: #D97706;
+  --ud-accent-amber-light: #FFFBEB;
+  --ud-accent-purple: #7C3AED;
+  --ud-accent-purple-light: #F5F3FF;
+  --ud-accent-red: #DC2626;
+  --ud-accent-red-light: #FEF2F2;
+  --ud-accent-green: #10B981;
+  --ud-accent-green-light: #D1FAE5;
+  --ud-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+}
+
+/* Custom Sleek Scrollbars Across Entire Dashboard & All Scroll Containers */
+.ud-dashboard,
+.ud-dashboard ::-webkit-scrollbar,
+.ud-table-wrap::-webkit-scrollbar,
+.ud-upcoming-list::-webkit-scrollbar,
+.ud-project-list::-webkit-scrollbar,
+.ud-alert-stack::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.ud-dashboard ::-webkit-scrollbar-track,
+.ud-table-wrap::-webkit-scrollbar-track,
+.ud-upcoming-list::-webkit-scrollbar-track,
+.ud-project-list::-webkit-scrollbar-track,
+.ud-alert-stack::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 3px;
+}
+.ud-dashboard ::-webkit-scrollbar-thumb,
+.ud-table-wrap::-webkit-scrollbar-thumb,
+.ud-upcoming-list::-webkit-scrollbar-thumb,
+.ud-project-list::-webkit-scrollbar-thumb,
+.ud-alert-stack::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+.ud-dashboard ::-webkit-scrollbar-thumb:hover,
+.ud-table-wrap::-webkit-scrollbar-thumb:hover,
+.ud-upcoming-list::-webkit-scrollbar-thumb:hover,
+.ud-project-list::-webkit-scrollbar-thumb:hover,
+.ud-alert-stack::-webkit-scrollbar-thumb:hover {
+  background: var(--ud-brand);
+}
+
+/* Main Dashboard Wrapper — scroll is handled by .page-outlet in DashboardLayout */
+.ud-dashboard {
+  background-color: var(--ud-bg);
+  color: var(--ud-text-primary);
+  min-height: 100%;
+  padding: 16px 16px 80px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Top 5 Responsive KPI Strip */
+.ud-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 1200px) {
+  .ud-kpi-strip { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .ud-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .ud-kpi-strip { grid-template-columns: 1fr; }
+}
+
+.ud-kpi-card {
+  background: var(--ud-surface);
+  border: 1px solid var(--ud-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: var(--ud-shadow);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.ud-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+}
+
+.ud-kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.ud-kpi-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ud-kpi-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ud-text-primary);
+  line-height: 1.1;
+}
+
+.ud-kpi-trend {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ud-accent-green);
+}
+
+.ud-kpi-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--ud-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.ud-kpi-sub {
+  font-size: 0.68rem;
+  color: var(--ud-text-secondary);
+  margin-top: 2px;
+}
+
+.ud-kpi-icon-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  background-color: #F1F5F9;
+  color: var(--ud-text-secondary);
+}
+
+/* Master Layout: 3/4 Main Area + 1/4 Right Sidebar */
+.ud-master-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 14px;
+  align-items: start;
+}
+
+/* Collapse to single column only on narrower viewports.
+   Note: the nav sidebar takes 280px so effective content width = 100vw-280px.
+   At 1280px viewport that's 1000px, so we collapse only below 900px content width. */
+@media (max-width: 900px) {
+  .ud-master-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ud-main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* Right Sidebar */
+.ud-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: start;
+}
+
+/* General Compact Card Container */
+.ud-card {
+  background: var(--ud-surface);
+  border: 1px solid var(--ud-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--ud-shadow);
+}
+
+.ud-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ud-card-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ud-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* System Health Responsive Section */
+.ud-health-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 850px) {
+  .ud-health-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ud-health-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ud-health-metric-box {
+  border-bottom: 1px solid var(--ud-border);
+  padding-bottom: 8px;
+}
+
+.ud-health-metric-box:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ud-health-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ud-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ud-health-dot-green {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ud-accent-green);
+}
+
+.ud-health-dot-orange {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ud-accent-amber);
+}
+
+.ud-health-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ud-health-val-large {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.ud-health-val-sub {
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* Runtime Pills Footer */
+.ud-runtime-pills-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.ud-pill-amber {
+  background: var(--ud-accent-amber-light);
+  border: 1px solid #FDE68A;
+  color: var(--ud-accent-amber);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ud-pill-red {
+  background: var(--ud-accent-red-light);
+  border: 1px solid #FCA5A5;
+  color: var(--ud-accent-red);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Responsive 2 and 3 Column Grids */
+.ud-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 850px) {
+  .ud-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ud-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  .ud-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .ud-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Projects Section Layout */
+.ud-projects-layout {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .ud-projects-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ud-project-kpi-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ud-project-kpi-box {
+  background: #F8FAFC;
+  border: 1px solid var(--ud-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ud-project-kpi-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.ud-project-kpi-lbl {
+  font-size: 0.7rem;
+  color: var(--ud-text-secondary);
+  font-weight: 600;
+}
+
+.ud-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.ud-project-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: #F8FAFC;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+/* Tables & Wrappers with Custom Scrollbars & Sticky Headers */
+.ud-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid var(--ud-border);
+}
+
+.ud-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.ud-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #F8FAFC;
+  color: var(--ud-text-secondary);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ud-border);
+}
+
+.ud-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ud-border);
+  color: var(--ud-text-primary);
+}
+
+.ud-table tr:hover td {
+  background-color: var(--ud-brand-light);
+}
+
+/* Upcoming Leaves List */
+.ud-upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.ud-upcoming-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #F8FAFC;
+}
+
+.ud-upcoming-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ud-avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ud-brand);
+  color: #FFFFFF;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ud-user-name {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ud-text-primary);
+}
+
+.ud-user-date {
+  font-size: 0.68rem;
+  color: var(--ud-text-secondary);
+}
+
+/* Compact Capacity Bars */
+.ud-capacity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ud-capacity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ud-capacity-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.ud-cap-bar-bg {
+  height: 6px;
+  background-color: #F1F5F9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ud-cap-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.ud-cap-healthy { background-color: var(--ud-accent-green); }
+.ud-cap-warning { background-color: var(--ud-accent-amber); }
+.ud-cap-critical { background-color: var(--ud-accent-red); }
+
+.ud-capacity-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 0.7rem;
+  color: var(--ud-text-secondary);
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.ud-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+/* Sidebar Alerts */
+.ud-badge-count {
+  background: var(--ud-accent-red);
+  color: #FFFFFF;
+  font-size: 0.68rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ud-alert-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.ud-alert-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+.ud-alert-red {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #991B1B;
+}
+
+.ud-alert-amber {
+  background-color: #FFFBEB;
+  border: 1px solid #FCD34D;
+  color: #92400E;
+}
+
+.ud-alert-blue {
+  background-color: #EFF6FF;
+  border: 1px solid #93C5FD;
+  color: #1E40AF;
+}
+
+.ud-sidebar-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ud-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ud-border);
+}
+
+.ud-stat-row:last-child {
+  border-bottom: none;
+}
+
+/* Environment Status Strip */
+.ud-env-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (max-width: 768px) {
+  .ud-env-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.ud-env-card {
+  background: var(--ud-surface);
+  border: 1px solid var(--ud-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: var(--ud-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ud-env-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ud-env-name {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--ud-text-primary);
+}
+.ud-env-rtbs {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.ud-rtbs-ok { color: var(--ud-accent-green); }
+.ud-rtbs-down { color: var(--ud-accent-red); }
+.ud-env-stats {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.ud-env-last-eod {
+  font-size: 0.66rem;
+  color: var(--ud-text-secondary);
+}
+
+/* Murex Script Health */
+.ud-murex-health-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ud-mh-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.ud-mh-green { background: var(--ud-accent-green-light); color: #065F46; }
+.ud-mh-amber { background: var(--ud-accent-amber-light); color: #92400E; }
+.ud-mh-red   { background: var(--ud-accent-red-light); color: #991B1B; }
+
+/* Reconciliation Summary */
+.ud-recon-status-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.ud-recon-rate-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0 10px 0;
+}
+.ud-recon-rate-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.ud-recon-rate-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ud-text-secondary);
+  text-transform: uppercase;
+}
+.ud-recon-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: #F8FAFC;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ud-border);
+}
+.ud-recon-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ud-recon-stat-val {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.ud-recon-stat-lbl {
+  font-size: 0.64rem;
+  color: var(--ud-text-secondary);
+  font-weight: 600;
+}
+.ud-recon-last-run {
+  font-size: 0.66rem;
+  color: var(--ud-text-secondary);
+  margin-top: 8px;
+  text-align: right;
+}
+
+/* Headcount by Team */
+.ud-headcount-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ud-headcount-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ud-headcount-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.ud-headcount-team { color: var(--ud-text-primary); }
+.ud-headcount-count { color: var(--ud-text-secondary); font-size: 0.7rem; }
+.ud-headcount-bar-bg {
+  height: 6px;
+  background: #F1F5F9;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ud-headcount-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* My Leave Balance */
+.ud-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.ud-balance-card {
+  background: #F8FAFC;
+  border: 1px solid var(--ud-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.ud-balance-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.ud-balance-type {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ud-text-primary);
+  margin-top: 2px;
+}
+.ud-balance-sub {
+  font-size: 0.64rem;
+  color: var(--ud-text-secondary);
+}
+
+/* Project Pipeline Funnel */
+.ud-pipeline-stages {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 6px;
+  height: 90px;
+  padding: 10px 0 4px 0;
+}
+.ud-pipeline-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.ud-pipeline-count {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--ud-text-primary);
+}
+.ud-pipeline-bar-wrap {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 58px;
+}
+.ud-pipeline-bar {
+  width: 100%;
+  max-width: 24px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+.ud-pipeline-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--ud-text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.ud-pipeline-sla-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.ud-pipeline-sla-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+.ud-sla-red { background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; }
+.ud-sla-amber { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+
+/* Pending Approvals */
+.ud-approval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ud-approval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: #F8FAFC;
+  border: 1px solid var(--ud-border);
+  border-radius: 6px;
+}
+.ud-approval-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ud-approval-details {
+  display: flex;
+  flex-direction: column;
+}
+.ud-approval-name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ud-text-primary);
+}
+.ud-approval-meta {
+  font-size: 0.66rem;
+  color: var(--ud-text-secondary);
+}
+.ud-approval-actions {
+  display: flex;
+  gap: 4px;
+}
+.ud-btn-approve, .ud-btn-reject {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+.ud-btn-approve { background: var(--ud-accent-green-light); color: #065F46; }
+.ud-btn-reject { background: var(--ud-accent-red-light); color: #991B1B; }
+.ud-btn-approve:hover, .ud-btn-reject:hover { opacity: 0.8; }

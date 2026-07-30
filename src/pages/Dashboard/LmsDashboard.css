@@ -1,0 +1,176 @@
+/* LmsDashboard.css — Design Tokens Clean Light Theme */
+
+.lms-dashboard-container {
+  padding: 24px;
+  background-color: #F6F7F5; /* colors.page */
+  color: #16211D; /* colors.textPrimary */
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.lms-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #E3E7E4; /* colors.border */
+  padding-bottom: 16px;
+}
+
+.lms-dashboard-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #16211D; /* colors.textPrimary */
+  background: none;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: initial;
+  margin: 0 0 6px 0;
+}
+
+.lms-dashboard-subtitle {
+  color: #5B6B65; /* colors.textSecondary */
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.lms-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+/* Nav Tabs */
+.lms-nav-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  border-bottom: 2px solid #E3E7E4; /* colors.border */
+  margin-bottom: 20px;
+  padding-bottom: 4px;
+}
+
+.lms-tab-btn {
+  background: transparent;
+  border: none;
+  color: #5B6B65; /* colors.textSecondary */
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.lms-tab-btn:hover {
+  background: #E3E7E4; /* colors.border */
+  color: #16211D; /* colors.textPrimary */
+}
+
+.lms-tab-btn.active {
+  background: #1B4D3E; /* colors.brand */
+  color: #FFFFFF; /* white text */
+}
+
+/* Table Container & Controls */
+.lms-panel-section {
+  background: #FFFFFF; /* colors.surface */
+  border: 1px solid #E3E7E4; /* colors.border */
+  border-radius: 10px; /* radius.card */
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.lms-filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.lms-input, .lms-select {
+  background: #FFFFFF; /* colors.surface */
+  border: 1px solid #E3E7E4; /* colors.border */
+  color: #16211D; /* colors.textPrimary */
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.lms-input:focus, .lms-select:focus {
+  outline: none;
+  border-color: #1B4D3E; /* colors.brand */
+}
+
+.lms-table-responsive {
+  overflow-x: auto;
+}
+
+.lms-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.lms-table th {
+  background: #F6F7F5; /* colors.page */
+  color: #5B6B65; /* colors.textSecondary */
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #E3E7E4; /* colors.border */
+}
+
+.lms-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #E3E7E4; /* colors.border */
+  color: #16211D; /* colors.textPrimary */
+  font-size: 0.9rem;
+}
+
+.lms-table tr:hover {
+  background: #F8FAF9;
+}
+
+/* Buttons */
+.lms-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s ease;
+}
+
+.lms-btn:hover {
+  opacity: 0.9;
+}
+
+.lms-btn-primary {
+  background: #1B4D3E; /* colors.brand */
+  color: #FFFFFF; /* white text */
+}
+
+.lms-btn-secondary {
+  background: #E3E7E4; /* colors.border */
+  color: #16211D; /* colors.textPrimary */
+}
+
+.lms-btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.lms-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #E3E7E4; /* colors.border */
+  color: #5B6B65; /* colors.textSecondary */
+  font-size: 0.85rem;
+}

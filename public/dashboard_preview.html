@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOSS — Executive Operations Dashboard (Full Page Scroll)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #F4F6F8;
+      --surface: #FFFFFF;
+      --border: #E2E8F0;
+      --text-primary: #0F172A;
+      --text-secondary: #64748B;
+      --brand: #1B4D3E;
+      --brand-light: #E6F0EC;
+      --accent-blue: #2563EB;
+      --accent-amber: #D97706;
+      --accent-purple: #7C3AED;
+      --accent-red: #DC2626;
+      --accent-green: #10B981;
+      --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      scroll-behavior: smooth;
+    }
+    /* Sleek Custom Scrollbars Across All Elements */
+    ::-webkit-scrollbar,
+    .table-wrap::-webkit-scrollbar,
+    .upcoming-list::-webkit-scrollbar,
+    .project-list::-webkit-scrollbar,
+    .alert-stack::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track,
+    .table-wrap::-webkit-scrollbar-track,
+    .upcoming-list::-webkit-scrollbar-track,
+    .project-list::-webkit-scrollbar-track,
+    .alert-stack::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb,
+    .table-wrap::-webkit-scrollbar-thumb,
+    .upcoming-list::-webkit-scrollbar-thumb,
+    .project-list::-webkit-scrollbar-thumb,
+    .alert-stack::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover,
+    .table-wrap::-webkit-scrollbar-thumb:hover,
+    .upcoming-list::-webkit-scrollbar-thumb:hover,
+    .project-list::-webkit-scrollbar-thumb:hover,
+    .alert-stack::-webkit-scrollbar-thumb:hover { background: var(--brand); }
+
+    .container { max-width: 1480px; margin: 0 auto; padding: 16px 16px 80px 16px; }
+
+    /* Top 5 Responsive KPI Strip */
+    .kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 1200px) { .kpi-strip { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .kpi-strip { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 10px 14px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: center;
+    }
+    .kpi-info { display: flex; flex-direction: column; }
+    .kpi-val-row { display: flex; align-items: baseline; gap: 6px; }
+    .kpi-val { font-size: 1.35rem; font-weight: 800; color: var(--text-primary); line-height: 1.1; }
+    .kpi-trend { font-size: 0.7rem; font-weight: 700; color: var(--accent-green); }
+    .kpi-label { font-size: 0.68rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 2px; }
+    .kpi-sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+    .kpi-icon-wrap {
+      width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; background-color: #F1F5F9; color: var(--text-secondary);
+    }
+
+    /* Master Layout */
+    .master-layout { display: grid; grid-template-columns: 1fr 280px; gap: 14px; align-items: start; }
+    @media (max-width: 1100px) { .master-layout { grid-template-columns: 1fr; } }
+    .main-content { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .sidebar { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 14px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .card-title { margin: 0; font-size: 0.78rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; }
+
+    /* Health Grid */
+    .health-grid { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+    @media (max-width: 850px) { .health-grid { grid-template-columns: 1fr; } }
+
+    .health-col { display: flex; flex-direction: column; gap: 10px; }
+    .health-metric-box { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .health-metric-box:last-child { border-bottom: none; padding-bottom: 0; }
+    .health-label { font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+    .health-dot-green { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); }
+    .health-dot-orange { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-amber); }
+    .health-val-row { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+    .health-val-large { font-size: 1.15rem; font-weight: 800; }
+    .health-val-sub { font-size: 0.74rem; font-weight: 700; }
+
+    /* Runtime Chart & Footer */
+    .chart-container { width: 100%; height: 130px; display: flex; align-items: flex-end; gap: 10px; padding-top: 10px; position: relative; }
+    .sla-line { position: absolute; top: 15px; left: 0; right: 0; border-top: 2px dashed var(--accent-red); }
+    .chart-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; position: relative; }
+    .chart-dot-red { width: 12px; height: 12px; border-radius: 50%; background: var(--accent-red); color: white; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: -3px; z-index: 2; }
+    .chart-bar { width: 4px; background: #CBD5E1; border-radius: 2px; }
+    .chart-label { font-size: 0.68rem; color: var(--text-secondary); font-weight: 600; }
+
+    .runtime-pills-footer { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .pill-amber { background: #FFFBEB; border: 1px solid #FDE68A; color: var(--accent-amber); font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 12px; }
+    .pill-red { background: #FEF2F2; border: 1px solid #FCA5A5; color: var(--accent-red); font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 12px; }
+
+    /* 2 & 3 Column Responsive Grids */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 850px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    @media (max-width: 1024px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } }
+
+    /* Projects Layout */
+    .projects-layout { display: grid; grid-template-columns: 140px 1fr; gap: 12px; }
+    @media (max-width: 540px) { .projects-layout { grid-template-columns: 1fr; } }
+
+    .project-kpi-col { display: flex; flex-direction: column; gap: 8px; }
+    .project-kpi-box { background: #F8FAFC; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+    .project-kpi-num { font-size: 1.15rem; font-weight: 800; }
+    .project-kpi-lbl { font-size: 0.7rem; color: var(--text-secondary); font-weight: 600; }
+
+    .project-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .project-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #F8FAFC; border-radius: 6px; font-size: 0.78rem; }
+
+    /* Table Sticky & Scroll */
+    .table-wrap { overflow-x: auto; overflow-y: auto; max-height: 185px; border-radius: 8px; border: 1px solid var(--border); }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left; }
+    .table th { position: sticky; top: 0; z-index: 2; background-color: #F8FAFC; color: var(--text-secondary); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .badge { display: inline-flex; padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 600; }
+    .badge-green { background: #D1FAE5; color: #065F46; }
+    .badge-blue { background: #EFF6FF; color: #1E40AF; }
+    .badge-amber { background: #FFFBEB; color: #92400E; }
+    .badge-red { background: #FEF2F2; color: #991B1B; }
+
+    /* Donut Mock */
+    .donut-wrap { width: 110px; height: 110px; border-radius: 50%; background: conic-gradient(var(--accent-blue) 0 166deg, var(--accent-amber) 166deg 290deg, var(--accent-purple) 290deg 360deg); display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+    .donut-inner { width: 70px; height: 70px; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem; }
+
+    /* Upcoming List */
+    .upcoming-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
+    .upcoming-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; background: #F8FAFC; }
+    .upcoming-user { display: flex; align-items: center; gap: 8px; }
+    .avatar-circle { width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: #FFFFFF; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+    /* Meters */
+    .meter-group { display: flex; flex-direction: column; gap: 10px; justify-content: center; height: 100%; }
+    .meter-item { display: flex; flex-direction: column; gap: 3px; }
+    .meter-header { display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 600; }
+    .meter-bar-bg { height: 6px; background-color: #E2E8F0; border-radius: 3px; overflow: hidden; }
+    .meter-bar-fill { height: 100%; border-radius: 3px; }
+
+    /* Capacity Bars */
+    .capacity-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .capacity-item { display: flex; flex-direction: column; gap: 3px; }
+    .capacity-meta { display: flex; justify-content: space-between; font-size: 0.76rem; font-weight: 600; }
+    .cap-bar-bg { height: 6px; background-color: #F1F5F9; border-radius: 3px; overflow: hidden; }
+    .cap-bar-fill { height: 100%; border-radius: 3px; }
+    .cap-healthy { background-color: var(--accent-green); }
+    .cap-warning { background-color: var(--accent-amber); }
+    .cap-critical { background-color: var(--accent-red); }
+
+    .capacity-legend { display: flex; gap: 14px; font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; flex-wrap: wrap; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    /* Sidebar */
+    .badge-count { background: var(--accent-red); color: #FFFFFF; font-size: 0.68rem; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .alert-stack { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .alert-item { padding: 8px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: flex; align-items: flex-start; gap: 8px; line-height: 1.35; }
+    .alert-red { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+    .alert-amber { background: #FFFBEB; border: 1px solid #FCD34D; color: #92400E; }
+    .alert-blue { background: #EFF6FF; border: 1px solid #93C5FD; color: #1E40AF; }
+    .sidebar-stats { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.76rem; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Top 5 KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-val">132</span>
+          <span class="kpi-label">Total Consultants</span>
+          <span class="kpi-sub">Updated 5 mins ago</span>
+        </div>
+        <div class="kpi-icon-wrap">👥</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-info">
+          <div class="kpi-val-row">
+            <span class="kpi-val">94</span>
+            <span class="kpi-trend">↗</span>
+          </div>
+          <span class="kpi-label">Present Today</span>
+          <span class="kpi-sub">Updated 5 mins ago</span>
+        </div>
+        <div class="kpi-icon-wrap">🏢</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-val">26</span>
+          <span class="kpi-label">On Leave</span>
+          <span class="kpi-sub">Updated 5 mins ago</span>
+        </div>
+        <div class="kpi-icon-wrap">🕒</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-val">12</span>
+          <span class="kpi-label">Work From Home</span>
+          <span class="kpi-sub">Updated 5 mins ago</span>
+        </div>
+        <div class="kpi-icon-wrap">🏠</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-info">
+          <span class="kpi-val">10</span>
+          <span class="kpi-label">Inactive</span>
+          <span class="kpi-sub">Updated 5 mins ago</span>
+        </div>
+        <div class="kpi-icon-wrap">👤</div>
+      </div>
+    </div>
+
+    <!-- Master Layout -->
+    <div class="master-layout">
+      <!-- Main Content -->
+      <div class="main-content">
+        <!-- Row 1: System Health + Runtime Trend -->
+        <div class="card">
+          <div class="health-grid">
+            <div class="health-col">
+              <h3 class="card-title" style="margin-bottom: 10px;">SYSTEM HEALTH</h3>
+
+              <div class="health-metric-box">
+                <div class="health-label"><span class="health-dot-orange"></span><span>Murex Jobs Today</span></div>
+                <div class="health-val-row">
+                  <span class="health-val-large">48</span>
+                  <span class="health-val-sub" style="color: var(--accent-red);">3 FAILED</span>
+                </div>
+              </div>
+
+              <div class="health-metric-box">
+                <div class="health-label"><span class="health-dot-green"></span><span>EOD Status</span></div>
+                <div class="health-val-row">
+                  <span class="health-val-large">19/21</span>
+                  <span class="health-val-sub" style="color: var(--accent-blue);">2 RUNNING</span>
+                </div>
+              </div>
+
+              <div class="health-metric-box">
+                <div class="health-label"><span>Avg Runtime (24h)</span></div>
+                <div class="health-val-row"><span class="health-val-large">1h 46m</span></div>
+                <div style="font-size: 0.68rem; color: var(--accent-amber); font-weight: 600;">+8% vs yesterday</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card-header"><h3 class="card-title">RUNTIME TREND — LAST 7 DAYS</h3></div>
+              <div class="chart-container">
+                <div class="sla-line"></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">1</div><div class="chart-bar" style="height: 60%;"></div><span class="chart-label">Mon</span></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">2</div><div class="chart-bar" style="height: 85%;"></div><span class="chart-label">Tue</span></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">1</div><div class="chart-bar" style="height: 50%;"></div><span class="chart-label">Wed</span></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">1</div><div class="chart-bar" style="height: 70%;"></div><span class="chart-label">Thu</span></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">1</div><div class="chart-bar" style="height: 90%;"></div><span class="chart-label">Fri</span></div>
+                <div class="chart-bar-group"><div class="chart-bar" style="height: 30%;"></div><span class="chart-label">Sat</span></div>
+                <div class="chart-bar-group"><div class="chart-dot-red">1</div><div class="chart-bar" style="height: 65%;"></div><span class="chart-label">Sun</span></div>
+              </div>
+
+              <div class="runtime-pills-footer">
+                <div class="pill-amber">⚠️ Longest: SETTLEMENT_BATCH_07 – 2h 12m</div>
+                <div class="pill-red">🛑 Most Failed: FX_RECON_03</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Leave Distribution + Upcoming Leaves + Attendance Status -->
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">LEAVE DISTRIBUTION</h3></div>
+            <div class="donut-wrap">
+              <div class="donut-inner">26 <span style="font-size:0.6rem; color:var(--text-secondary); font-weight:600">on leave</span></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px; font-size: 0.76rem; margin-top: 10px;">
+              <div style="display: flex; justify-content: space-between;"><span>🔵 Planned Leave</span><strong>12</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>🟠 Sick Leave</span><strong>9</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>🟣 Comp Off</span><strong>5</strong></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">UPCOMING LEAVES (7 DAYS)</h3></div>
+            <div class="upcoming-list">
+              <div class="upcoming-item">
+                <div class="upcoming-user">
+                  <div class="avatar-circle">SM</div>
+                  <div><div style="font-size:0.76rem; font-weight:700;">Sofia Martinez</div><div style="font-size:0.68rem; color:var(--text-secondary);">06 Feb</div></div>
+                </div>
+                <span class="badge badge-blue">Planned</span>
+              </div>
+              <div class="upcoming-item">
+                <div class="upcoming-user">
+                  <div class="avatar-circle" style="background:#143A2F;">AA</div>
+                  <div><div style="font-size:0.76rem; font-weight:700;">Ahmed Al-Rashid</div><div style="font-size:0.68rem; color:var(--text-secondary);">07 Feb</div></div>
+                </div>
+                <span class="badge badge-amber">Sick</span>
+              </div>
+              <div class="upcoming-item">
+                <div class="upcoming-user">
+                  <div class="avatar-circle">DW</div>
+                  <div><div style="font-size:0.76rem; font-weight:700;">Daniel Wong</div><div style="font-size:0.68rem; color:var(--text-secondary);">09-11 Feb</div></div>
+                </div>
+                <span class="badge badge-blue">Planned</span>
+              </div>
+              <div class="upcoming-item">
+                <div class="upcoming-user">
+                  <div class="avatar-circle" style="background:var(--accent-purple);">PS</div>
+                  <div><div style="font-size:0.76rem; font-weight:700;">Priya Sharma</div><div style="font-size:0.68rem; color:var(--text-secondary);">10 Feb</div></div>
+                </div>
+                <span class="badge" style="background:#F5F3FF; color:#7C3AED;">Comp Off</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">ATTENDANCE STATUS</h3></div>
+            <div class="meter-group">
+              <div class="meter-item">
+                <div class="meter-header"><span>Present</span><span>71%</span></div>
+                <div class="meter-bar-bg"><div class="meter-bar-fill" style="width: 71%; background: var(--accent-green);"></div></div>
+                <div style="font-size: 0.68rem; color: var(--text-secondary);">94 consultants</div>
+              </div>
+              <div class="meter-item">
+                <div class="meter-header"><span>Work From Home</span><span>9%</span></div>
+                <div class="meter-bar-bg"><div class="meter-bar-fill" style="width: 9%; background: var(--accent-blue);"></div></div>
+                <div style="font-size: 0.68rem; color: var(--text-secondary);">12 consultants</div>
+              </div>
+              <div class="meter-item">
+                <div class="meter-header"><span>On Leave</span><span>20%</span></div>
+                <div class="meter-bar-bg"><div class="meter-bar-fill" style="width: 20%; background: var(--accent-amber);"></div></div>
+                <div style="font-size: 0.68rem; color: var(--text-secondary);">26 consultants</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: 2-Column Grid (Projects by Status + Active EOD Batch Jobs) -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📁 PROJECTS BY STATUS</h3>
+              <span class="badge badge-blue">36 Active</span>
+            </div>
+
+            <div class="projects-layout">
+              <div class="project-kpi-col">
+                <div class="project-kpi-box">
+                  <span class="project-kpi-num" style="color: var(--brand);">28</span>
+                  <span class="project-kpi-lbl">Active</span>
+                </div>
+                <div class="project-kpi-box">
+                  <span class="project-kpi-num" style="color: var(--accent-amber);">6</span>
+                  <span class="project-kpi-lbl">At Risk</span>
+                </div>
+                <div class="project-kpi-box">
+                  <span class="project-kpi-num" style="color: var(--accent-red);">2</span>
+                  <span class="project-kpi-lbl">Breached</span>
+                </div>
+              </div>
+
+              <div class="project-list">
+                <div class="project-row"><span><strong>NEOM Core Banking</strong></span><span class="badge badge-green">On Track</span></div>
+                <div class="project-row"><span><strong>Digital FX Platform</strong></span><span class="badge badge-amber">At Risk</span></div>
+                <div class="project-row"><span><strong>Settlement Automation</strong></span><span class="badge badge-red">Breached SLA</span></div>
+                <div class="project-row"><span><strong>Payment Gateway</strong></span><span class="badge badge-green">On Track</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">⚙️ ACTIVE EOD BATCH JOBS</h3>
+              <span class="badge badge-green">19/21 Active</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Env</th>
+                    <th>Server IP</th>
+                    <th>Port</th>
+                    <th>Status File</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>PRODUCTION</strong></td>
+                    <td><code>192.168.1.100</code></td>
+                    <td>22</td>
+                    <td>prod_status.log</td>
+                    <td><span class="badge badge-green">Active</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>UAT</strong></td>
+                    <td><code>192.168.1.102</code></td>
+                    <td>22</td>
+                    <td>uat_status.log</td>
+                    <td><span class="badge badge-green">Active</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>SIT</strong></td>
+                    <td><code>192.168.1.105</code></td>
+                    <td>22</td>
+                    <td>sit_status.log</td>
+                    <td><span class="badge badge-amber">Running</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4: Capacity Utilization by Team -->
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">CAPACITY UTILIZATION BY TEAM</h3></div>
+          <div class="capacity-list">
+            <div class="capacity-item">
+              <div class="capacity-meta"><span>Backend</span><span style="color: var(--accent-red);">92%</span></div>
+              <div class="cap-bar-bg"><div class="cap-bar-fill cap-critical" style="width: 92%;"></div></div>
+            </div>
+            <div class="capacity-item">
+              <div class="capacity-meta"><span>Data Innovators</span><span style="color: var(--accent-green);">78%</span></div>
+              <div class="cap-bar-bg"><div class="cap-bar-fill cap-healthy" style="width: 78%;"></div></div>
+            </div>
+            <div class="capacity-item">
+              <div class="capacity-meta"><span>DevOps</span><span style="color: var(--accent-amber);">83%</span></div>
+              <div class="cap-bar-bg"><div class="cap-bar-fill cap-warning" style="width: 83%;"></div></div>
+            </div>
+            <div class="capacity-item">
+              <div class="capacity-meta"><span>Frontend</span><span style="color: var(--accent-green);">69%</span></div>
+              <div class="cap-bar-bg"><div class="cap-bar-fill cap-healthy" style="width: 69%;"></div></div>
+            </div>
+            <div class="capacity-item">
+              <div class="capacity-meta"><span>UI/UX</span><span style="color: var(--accent-amber);">81%</span></div>
+              <div class="cap-bar-bg"><div class="cap-bar-fill cap-warning" style="width: 81%;"></div></div>
+            </div>
+          </div>
+          <div class="capacity-legend">
+            <span><span class="legend-dot" style="background: var(--accent-green);"></span> &lt;80% Healthy</span>
+            <span><span class="legend-dot" style="background: var(--accent-amber);"></span> 80-90% Warning</span>
+            <span><span class="legend-dot" style="background: var(--accent-red);"></span> 90%+ Critical</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar Alerts Panel -->
+      <div class="sidebar">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">🔔 ALERTS & ACTIONS</h3>
+            <span class="badge-count">4</span>
+          </div>
+
+          <div class="alert-stack">
+            <div class="alert-item alert-red"><span>🛑</span><div><strong>Backend team over capacity</strong></div></div>
+            <div class="alert-item alert-red"><span>⚠️</span><div><strong>2 scripts breached SLA</strong></div></div>
+            <div class="alert-item alert-amber"><span>⚡</span><div><strong>3 consultants missing attendance</strong></div></div>
+            <div class="alert-item alert-blue"><span>📋</span><div><strong>1 leave request pending approval</strong></div></div>
+          </div>
+
+          <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border);">
+            <div class="sidebar-stats">
+              <div class="stat-row"><span style="color: var(--text-secondary);">Match Rate</span><span style="font-weight: 700; color: var(--brand);">42.9%</span></div>
+              <div class="stat-row"><span style="color: var(--text-secondary);">Pending Review</span><span style="font-weight: 700;">3 items</span></div>
+              <div class="stat-row"><span style="color: var(--text-secondary);">System Uptime</span><span style="font-weight: 700; color: var(--accent-green);">99.8%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

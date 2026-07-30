@@ -14,6 +14,34 @@
   flex-direction: column;
 }
 
+/* Scrollable outlet — fills remaining height under the header */
+.page-outlet {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+.page-outlet::-webkit-scrollbar {
+  width: 6px;
+}
+
+.page-outlet::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+.page-outlet::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+.page-outlet::-webkit-scrollbar-thumb:hover {
+  background: #1B4D3E;
+}
+
 .dashboard-main[data-sidebar-collapsed='true'] {
   margin-left: 80px;
 }
