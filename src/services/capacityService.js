@@ -3,8 +3,8 @@ import endpoints from '@api/endpoints';
 // import * as capacityMocks from '@mocks/handlers/capacityHandlers'; // legacy mock
 
 export const capacityService = {
-  getCapacityPlanning: async () => {
-    const response = await httpClient.get(endpoints.projectMonitoring.capacityPlanning);
+  getCapacityPlanning: async (params) => {
+    const response = await httpClient.get(endpoints.projectMonitoring.capacityPlanning, { params });
     return response.data;
   },
 };
