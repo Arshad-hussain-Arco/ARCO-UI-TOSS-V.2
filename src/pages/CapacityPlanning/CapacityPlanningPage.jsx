@@ -35,11 +35,61 @@ export function CapacityPlanningPage() {
   const [timeRange, setTimeRange] = useState(30);
   const [expandedConsultant, setExpandedConsultant] = useState(null);
   const [showUnderutilized, setShowUnderutilized] = useState(false);
-  const fetchPlan = useCallback(() => capacityService.getCapacityPlan({ timeRange }), [timeRange]);
+  const fetchPlan = useCallback(() => capacityService.getCapacityPlanning(), []);
   const { data, isLoading, error, refetch } = useAsync(fetchPlan);
 
-  const sources = data?.sources;
-  const consultants = useMemo(() => data?.consultants ?? [], [data]);
+  const sources = data?.sources || { woFile: 'API', crFile: 'API' };
+
+  const consultants = useMemo(() => {
+    const apiResult = data?.result;
+    if (!apiResult || !Array.isArray(apiResult)) return [];
+
+    const devMap = new Map();
+
+    apiResult.forEach((item) => {
+      const devName = item.EmployeeName || item.Assigned_Developer || 'Unassigned';
+
+      if (!devMap.has(devName)) {
+        devMap.set(devName, {
+          id: devName,
+          name: devName,
+          team: item.TeamName || 'Development',
+          role: 'Developer',
+          utilization: 'optimal',
+          next7Days: { occupied: 0, available: 40 },
+          next30Days: { occupied: 0, available: 160 },
+          next90Days: { occupied: 0, available: 480 },
+          trendData: [40, 50, 60, 45, 70, 80, 50],
+          upcomingAllocations: [],
+        });
+      }
+
+      const dev = devMap.get(devName);
+      const effortMDs = item.Effort_in_MDs || 0;
+      const effortHours = effortMDs * 8;
+
+      dev.upcomingAllocations.push({
+        project: item.Project || 'N/A',
+        summary: item.Summary || 'N/A',
+        status: item.Status || 'N/A',
+        startDate: item.Start_Date || 'N/A',
+        endDate: item.End_Date || 'N/A',
+        effort: effortMDs,
+        hours: effortHours,
+        additionalDevs: item.Additional_Developers || 'None',
+      });
+
+      // Simple heuristic: distribute effort to Next 30 Days as a placeholder metric
+      dev.next30Days.occupied += effortHours;
+      if (dev.next30Days.occupied > dev.next30Days.available) {
+        dev.utilization = 'overbooked';
+      } else if (dev.next30Days.occupied < dev.next30Days.available * 0.5) {
+        dev.utilization = 'low';
+      }
+    });
+
+    return Array.from(devMap.values());
+  }, [data]);
 
   /** Names of the teams whose row group is collapsed. */
   const [collapsedTeams, setCollapsedTeams] = useState(() => new Set());
@@ -498,24 +548,46 @@ export function CapacityPlanningPage() {
                             <div className="capacity-drill-section">
                               <h4 className="capacity-drill-title">
                                 <Clock size={14} />
-                                Upcoming Allocations
+                                Assigned Projects & CRs
                               </h4>
-                              <div className="capacity-allocations">
-                                {consultant.upcomingAllocations.map((allocation, i) => (
-                                  <div key={i} className="capacity-allocation-item">
-                                    <div className="capacity-allocation-header">
-                                      <span className="capacity-allocation-project">
-                                        {allocation.project}
-                                      </span>
-                                      <span className="capacity-allocation-hours">
-                                        {allocation.hours}h
-                                      </span>
-                                    </div>
-                                    <div className="capacity-allocation-dates">
-                                      {allocation.startDate} to {allocation.endDate}
-                                    </div>
-                                  </div>
-                                ))}
+                              <div className="capacity-allocations" style={{ overflowX: 'auto' }}>
+                                <table className="capacity-alloc-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Project</th>
+                                      <th>Summary</th>
+                                      <th>Status</th>
+                                      <th>Start Date</th>
+                                      <th>End Date</th>
+                                      <th>Effort (MDs)</th>
+                                      <th>Additional Devs</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {consultant.upcomingAllocations.map((alloc, i) => (
+                                      <tr key={i}>
+                                        <td>{alloc.project}</td>
+                                        <td>{alloc.summary}</td>
+                                        <td>
+                                          <span className={`capacity-status-badge optimal`} style={{ padding: '2px 6px', fontSize: '10px' }}>
+                                            {alloc.status}
+                                          </span>
+                                        </td>
+                                        <td style={{ whiteSpace: 'nowrap' }}>{alloc.startDate}</td>
+                                        <td style={{ whiteSpace: 'nowrap' }}>{alloc.endDate}</td>
+                                        <td>{alloc.effort}</td>
+                                        <td>{alloc.additionalDevs}</td>
+                                      </tr>
+                                    ))}
+                                    {consultant.upcomingAllocations.length === 0 && (
+                                      <tr>
+                                        <td colSpan="7" style={{ textAlign: 'center', padding: '16px', color: 'var(--text-tertiary)' }}>
+                                          No assigned projects
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
                               </div>
                             </div>
 

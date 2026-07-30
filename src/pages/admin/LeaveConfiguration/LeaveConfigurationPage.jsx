@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Building2,
   Calendar,
   Check,
+  ChevronDown,
   Edit2,
   ListChecks,
   Plus,
@@ -11,10 +12,13 @@ import {
   X,
 } from 'lucide-react';
 
+import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
+import { leaveService } from '@services/leaveService';
 import './LeaveConfigurationPage.css';
 
 /* ── Pre-populated Initial Mock Data ── */
@@ -27,6 +31,7 @@ const INITIAL_HOLIDAYS = [
     day: 'Thursday',
     type: 'Public Holiday',
     status: 'Past',
+    description: 'Saudi National Holiday celebrated with national festivities and public observance.',
   },
   {
     id: 'h2',
@@ -35,6 +40,7 @@ const INITIAL_HOLIDAYS = [
     day: 'Sunday',
     type: 'National Holiday',
     status: 'Upcoming',
+    description: 'Commemorates the founding of the kingdom with a day off for all employees.',
   },
   {
     id: 'h3',
@@ -43,6 +49,7 @@ const INITIAL_HOLIDAYS = [
     day: 'Friday',
     type: 'Public Holiday',
     status: 'Upcoming',
+    description: 'Observed holiday for the Eid Al-Fitr celebration period across the organization.',
   },
   {
     id: 'h4',
@@ -51,6 +58,7 @@ const INITIAL_HOLIDAYS = [
     day: 'Wednesday',
     type: 'Public Holiday',
     status: 'Upcoming',
+    description: 'Annual holiday aligned with the Eid Al-Adha observance and family gatherings.',
   },
   {
     id: 'h5',
@@ -59,6 +67,7 @@ const INITIAL_HOLIDAYS = [
     day: 'Wednesday',
     type: 'National Holiday',
     status: 'Upcoming',
+    description: 'National day celebration marked as a public holiday for employees and leaders.',
   },
 ];
 
@@ -184,6 +193,178 @@ function formatDate(dateStr) {
   }
 }
 
+function parseDateValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const normalized = value.includes('T') ? value : `${value}T00:00:00`;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+}
+
+function toDateInputValue(dateValue) {
+  if (!dateValue) return '';
+  const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function computeDayOfWeek(dateStr) {
+  if (!dateStr) return '';
+  const d = parseDateValue(dateStr);
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+function computeStatus(dateStr) {
+  if (!dateStr) return 'Upcoming';
+  const date = parseDateValue(dateStr);
+  if (!date || Number.isNaN(date.getTime())) return 'Upcoming';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  return targetDate.getTime() < today.getTime() ? 'Past' : 'Upcoming';
+}
+
+
+
+function CreatableSelect({ value, onChange, placeholder, options, id }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState(value || '');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    setSearch(value || '');
+  }, [value]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearch(value || '');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [value]);
+
+  const uniqueOptions = Array.from(new Set([...options, value].filter(Boolean)));
+  const filtered = uniqueOptions.filter((opt) =>
+    opt.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const showCreateOption =
+    search.trim() &&
+    !uniqueOptions.some((opt) => opt.toLowerCase() === search.trim().toLowerCase());
+
+  const handleSelect = (val) => {
+    onChange(val);
+    setSearch(val);
+    setIsOpen(false);
+    setFocusedIndex(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsOpen(true);
+      setFocusedIndex((prev) =>
+        prev < (showCreateOption ? filtered.length : filtered.length - 1) ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIndex >= 0) {
+        if (focusedIndex === filtered.length && showCreateOption) {
+          handleSelect(search.trim());
+        } else if (filtered[focusedIndex]) {
+          handleSelect(filtered[focusedIndex]);
+        }
+      } else if (search.trim()) {
+        handleSelect(search.trim());
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      setSearch(value || '');
+    }
+  };
+
+  return (
+    <div className="lc-creatable-select" ref={containerRef} style={{ position: 'relative' }}>
+      <div className="lc-creatable-input-wrap">
+        <input
+          id={id}
+          type="text"
+          className="ss-input"
+          style={{ width: '100%', paddingRight: '32px' }}
+          placeholder={placeholder}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setIsOpen(true);
+            setFocusedIndex(-1);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          className="lc-creatable-chevron"
+          onClick={() => setIsOpen((prev) => !prev)}
+          tabIndex={-1}
+        >
+          <ChevronDown size={14} />
+        </button>
+      </div>
+
+      {isOpen && (
+        <ul className="lc-creatable-dropdown">
+          {filtered.map((opt, index) => (
+            <li
+              key={opt}
+              className={`lc-creatable-option ${index === focusedIndex ? 'focused' : ''} ${opt === value ? 'selected' : ''
+                }`}
+              onClick={() => handleSelect(opt)}
+              onMouseEnter={() => setFocusedIndex(index)}
+            >
+              <span>{opt}</span>
+              {opt === value && <Check size={12} className="check-icon" />}
+            </li>
+          ))}
+          {showCreateOption && (
+            <li
+              className={`lc-creatable-option create ${focusedIndex === filtered.length ? 'focused' : ''
+                }`}
+              onClick={() => handleSelect(search.trim())}
+              onMouseEnter={() => setFocusedIndex(filtered.length)}
+            >
+              <span>Create "{search.trim()}"</span>
+            </li>
+          )}
+          {filtered.length === 0 && !showCreateOption && (
+            <li className="lc-creatable-no-options">No matches found</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+
 /**
  * Admin Panel Leave Configurations Page Redesign.
  */
@@ -195,9 +376,36 @@ export function LeaveConfigurationPage() {
   const [activeTab, setActiveTab] = useState('holidays');
 
   // Master Data State
-  const [holidays, setHolidays] = useState(INITIAL_HOLIDAYS);
+  const [holidays, setHolidays] = useState([]);
   const [leaveTypes, setLeaveTypes] = useState(INITIAL_LEAVE_TYPES);
   const [policies, setPolicies] = useState(INITIAL_POLICIES);
+
+  // Fetch API Data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (activeTab === 'holidays') {
+          const hData = await leaveService.listHolidays();
+          // Adjust field names if backend returns something different (e.g., holiday_name vs name)
+          const mappedHolidays = (hData || []).map(h => ({
+            ...h,
+            id: h.id,
+            name: h.holiday_name || h.name,
+            date: h.date || (h.dates && h.dates[0]) || '',
+            day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
+            type: h.type || 'Public Holiday',
+            status: h.status || 'Upcoming',
+            description: h.description || '',
+          }));
+          setHolidays(mappedHolidays);
+        }
+      } catch (err) {
+        console.error('Failed to load holidays:', err);
+        toast({ title: 'Error loading data', type: 'error' });
+      }
+    };
+    fetchData();
+  }, [activeTab]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -206,15 +414,36 @@ export function LeaveConfigurationPage() {
   const [editingPolicyId, setEditingPolicyId] = useState(null);
   const [editingDaysValue, setEditingDaysValue] = useState('');
 
-  // ── Modal States ───────────────────────────────────────────────────────────
+  // ── Inline Edit State for Holidays / Leave Types ──────────────────────────
+  const [editingHolidayId, setEditingHolidayId] = useState(null);
+  const [holidayEditForm, setHolidayEditForm] = useState({
+    name: '',
+    date: '',
+    day: '',
+    type: 'Public Holiday',
+    status: 'Upcoming',
+    description: '',
+  });
+
+  const [editingLeaveTypeId, setEditingLeaveTypeId] = useState(null);
+  const [leaveTypeEditForm, setLeaveTypeEditForm] = useState({
+    code: '',
+    name: '',
+    description: '',
+    maxDays: 10,
+    paid: true,
+    active: true,
+  });
+
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
   const [holidayForm, setHolidayForm] = useState({
     name: '',
     date: '',
-    day: 'Thursday',
+    day: '',
     type: 'Public Holiday',
     status: 'Upcoming',
+    description: '',
   });
 
   const [isLeaveTypeModalOpen, setIsLeaveTypeModalOpen] = useState(false);
@@ -231,47 +460,143 @@ export function LeaveConfigurationPage() {
   // ── Section 1: Holiday Handlers ─────────────────────────────────────────────
   const openAddHolidayModal = () => {
     setEditingHoliday(null);
+    const todayStr = toDateInputValue(new Date());
     setHolidayForm({
       name: '',
-      date: new Date().toISOString().split('T')[0],
-      day: 'Thursday',
+      date: todayStr,
+      day: computeDayOfWeek(todayStr),
       type: 'Public Holiday',
-      status: 'Upcoming',
+      status: computeStatus(todayStr),
+      description: '',
     });
     setIsHolidayModalOpen(true);
   };
 
   const openEditHolidayModal = (h) => {
     setEditingHoliday(h);
-    setHolidayForm({ ...h });
+    setHolidayForm({
+      ...h,
+      day: computeDayOfWeek(h.date),
+      status: computeStatus(h.date),
+    });
     setIsHolidayModalOpen(true);
   };
 
-  const handleSaveHoliday = () => {
+  const startHolidayInlineEdit = (h) => {
+    setEditingHolidayId(h.id);
+    setHolidayEditForm({
+      name: h.name,
+      date: h.date,
+      day: computeDayOfWeek(h.date),
+      type: h.type || 'Public Holiday',
+      status: computeStatus(h.date),
+      description: h.description || '',
+    });
+  };
+
+  const cancelHolidayInlineEdit = () => {
+    setEditingHolidayId(null);
+    setHolidayEditForm({
+      name: '',
+      date: '',
+      day: '',
+      type: 'Public Holiday',
+      status: 'Upcoming',
+      description: '',
+    });
+  };
+
+  const handleSaveHolidayInlineEdit = async (id) => {
+    if (!holidayEditForm.name || !holidayEditForm.date) {
+      toast.error('Please enter holiday name and date');
+      return;
+    }
+
+    const payload = {
+      holiday_name: holidayEditForm.name,
+      dates: [holidayEditForm.date],
+      description: holidayEditForm.description || '',
+      emp_id: 10
+    };
+
+    try {
+      await leaveService.editHoliday(id, payload);
+      const computedDay = computeDayOfWeek(holidayEditForm.date);
+      const computedStatus = computeStatus(holidayEditForm.date);
+
+      setHolidays((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+              ...item,
+              name: holidayEditForm.name,
+              date: holidayEditForm.date,
+              day: computedDay,
+              type: holidayEditForm.type,
+              status: computedStatus,
+              description: holidayEditForm.description,
+            }
+            : item,
+        ),
+      );
+      setEditingHolidayId(null);
+      toast.success(`Updated holiday: ${holidayEditForm.name}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save inline edit');
+    }
+  };
+
+  const handleSaveHoliday = async () => {
     if (!holidayForm.name || !holidayForm.date) {
       toast.error('Please enter holiday name and date');
       return;
     }
 
-    if (editingHoliday) {
-      setHolidays((prev) =>
-        prev.map((item) => (item.id === editingHoliday.id ? { ...holidayForm } : item)),
-      );
-      toast.success(`Updated holiday: ${holidayForm.name}`);
-    } else {
-      const newH = {
-        ...holidayForm,
-        id: `h-${Date.now()}`,
-      };
-      setHolidays((prev) => [...prev, newH]);
-      toast.success(`Added holiday: ${holidayForm.name}`);
+    const payload = {
+      holiday_name: holidayForm.name,
+      dates: [holidayForm.date],
+      description: holidayForm.description,
+      emp_id: 10 // Assuming current user ID 10
+    };
+
+    try {
+      if (editingHoliday) {
+        await leaveService.editHoliday(editingHoliday.id, payload);
+        toast.success(`Updated holiday: ${holidayForm.name}`);
+      } else {
+        await leaveService.addHoliday(payload);
+        toast.success(`Added holiday: ${holidayForm.name}`);
+      }
+      setIsHolidayModalOpen(false);
+      // Re-fetch holidays
+      const hData = await leaveService.listHolidays();
+      const mappedHolidays = (hData || []).map(h => ({
+        ...h,
+        id: h.id,
+        name: h.holiday_name || h.name,
+        date: h.date || (h.dates && h.dates[0]) || '',
+        day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
+        type: h.type || 'Public Holiday',
+        status: h.status || 'Upcoming',
+        description: h.description || '',
+      }));
+      setHolidays(mappedHolidays);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save holiday');
     }
-    setIsHolidayModalOpen(false);
   };
 
-  const handleDeleteHoliday = (id) => {
-    setHolidays((prev) => prev.filter((h) => h.id !== id));
-    toast.success('Holiday deleted');
+  const handleDeleteHoliday = async (id) => {
+    try {
+      await leaveService.deleteHoliday(id, { emp_id: 10 });
+      setHolidays((prev) => prev.filter((h) => h.id !== id));
+      toast.success('Holiday deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete holiday');
+    }
   };
 
   // ── Section 2: Leave Type Handlers ──────────────────────────────────────────
@@ -288,10 +613,34 @@ export function LeaveConfigurationPage() {
     setIsLeaveTypeModalOpen(true);
   };
 
-  const openEditLeaveTypeModal = (lt) => {
-    setEditingLeaveType(lt);
-    setLeaveTypeForm({ ...lt });
-    setIsLeaveTypeModalOpen(true);
+  const startLeaveTypeInlineEdit = (lt) => {
+    setEditingLeaveTypeId(lt.id);
+    setLeaveTypeEditForm({ ...lt });
+  };
+
+  const cancelLeaveTypeInlineEdit = () => {
+    setEditingLeaveTypeId(null);
+    setLeaveTypeEditForm({
+      code: '',
+      name: '',
+      description: '',
+      maxDays: 10,
+      paid: true,
+      active: true,
+    });
+  };
+
+  const handleSaveLeaveTypeInlineEdit = (id) => {
+    if (!leaveTypeEditForm.code || !leaveTypeEditForm.name) {
+      toast.error('Please enter leave code and name');
+      return;
+    }
+
+    setLeaveTypes((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...leaveTypeEditForm } : item)),
+    );
+    setEditingLeaveTypeId(null);
+    toast.success(`Updated leave type: ${leaveTypeEditForm.name}`);
   };
 
   const handleSaveLeaveType = () => {
@@ -386,9 +735,6 @@ export function LeaveConfigurationPage() {
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="lc-page-header">
         <h1 className="lc-page-title">Leaves Configurations</h1>
-        <p className="lc-page-subtext">
-          Configure company holidays, active leave types, and annual entitlement policies.
-        </p>
       </div>
 
       {/* ── Tabbed Navigation Bar ─────────────────────────────────────────── */}
@@ -439,6 +785,22 @@ export function LeaveConfigurationPage() {
         </button>
       </div>
 
+      {/* ── Mobile Tab Navigation (Dropdown) ── */}
+      <div className="lc-nav-tabs-mobile">
+        <select
+          value={activeTab}
+          onChange={(e) => {
+            setActiveTab(e.target.value);
+            setSearchQuery('');
+          }}
+          className="lc-tab-select"
+        >
+          <option value="holidays">Holidays ({holidays.length})</option>
+          <option value="leave-types">Leave Types ({leaveTypes.length})</option>
+          <option value="policies">Organization Leave Policies ({policies.length})</option>
+        </select>
+      </div>
+
       {/* ── Main Tab Content ──────────────────────────────────────────────── */}
       <div className="lc-tab-content">
         {/* ── TAB 1: HOLIDAYS ── */}
@@ -460,65 +822,170 @@ export function LeaveConfigurationPage() {
               </button>
             </div>
 
-            <table className="lc-data-table">
-              <thead>
-                <tr>
-                  <th>Holiday Name</th>
-                  <th>Date</th>
-                  <th>Day</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHolidays.length === 0 ? (
+            <div className="lc-table-responsive">
+              <table className="lc-data-table">
+                <thead>
                   <tr>
-                    <td colSpan={6} className="lc-empty-state">
-                      No holidays match your search criteria.
-                    </td>
+                    <th>Holiday Name</th>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Description</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ) : (
-                  filteredHolidays.map((h) => (
-                    <tr key={h.id}>
-                      <td style={{ fontWeight: 600 }}>{h.name}</td>
-                      <td>{formatDate(h.date)}</td>
-                      <td style={{ color: '#64748b' }}>{h.day}</td>
-                      <td>
-                        <span className="lc-code-badge">{h.type}</span>
-                      </td>
-                      <td>
-                        {h.status === 'Upcoming' ? (
-                          <span className="lc-tag-upcoming">Upcoming</span>
-                        ) : (
-                          <span className="lc-tag-past">Past</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '4px' }}>
-                          <button
-                            type="button"
-                            className="lc-ghost-btn"
-                            title="Edit Holiday"
-                            onClick={() => openEditHolidayModal(h)}
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className="lc-ghost-btn danger"
-                            title="Delete Holiday"
-                            onClick={() => handleDeleteHoliday(h.id)}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                </thead>
+                <tbody>
+                  {filteredHolidays.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="lc-empty-state">
+                        No holidays match your search criteria.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredHolidays.map((h) => {
+                      const isEditing = editingHolidayId === h.id;
+
+                      return (
+                        <tr key={h.id}>
+                          <td style={{ fontWeight: 600 }}>
+                            {isEditing ? (
+                              <input
+                                className="lc-inline-input"
+                                style={{ width: '100%', minWidth: '150px' }}
+                                value={holidayEditForm.name}
+                                onChange={(e) =>
+                                  setHolidayEditForm((prev) => ({ ...prev, name: e.target.value }))
+                                }
+                                autoFocus
+                              />
+                            ) : (
+                              h.name
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <div className="lc-inline-edit-wrap" style={{ width: '100%' }}>
+                                <DatePicker
+                                  value={parseDateValue(holidayEditForm.date)}
+                                  onChange={(value) =>
+                                    setHolidayEditForm((prev) => ({
+                                      ...prev,
+                                      date: toDateInputValue(value),
+                                    }))
+                                  }
+                                  placeholder="Select date"
+                                  width="100%"
+                                  showClear={false}
+                                />
+                              </div>
+                            ) : (
+                              formatDate(h.date)
+                            )}
+                          </td>
+                          <td style={{ color: '#64748b' }}>
+                            {isEditing ? computeDayOfWeek(holidayEditForm.date) : computeDayOfWeek(h.date)}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <Select
+                                value={holidayEditForm.type}
+                                onChange={(value) =>
+                                  setHolidayEditForm((prev) => ({ ...prev, type: value }))
+                                }
+                                options={[
+                                  { value: 'Public Holiday', label: 'Public Holiday' },
+                                  { value: 'National Holiday', label: 'National Holiday' },
+                                  { value: 'Company Holiday', label: 'Company Holiday' },
+                                ]}
+                                placeholder="Select type"
+                                width="180px"
+                              />
+                            ) : (
+                              <span className="lc-code-badge">{h.type}</span>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <span className={computeStatus(holidayEditForm.date) === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past'}>
+                                {computeStatus(holidayEditForm.date)}
+                              </span>
+                            ) : (
+                              <span className={computeStatus(h.date) === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past'}>
+                                {computeStatus(h.date)}
+                              </span>
+                            )}
+                          </td>
+
+                          <td>
+                            {isEditing ? (
+                              <input
+                                className="lc-inline-input"
+                                style={{ width: '100%', minWidth: '150px' }}
+                                value={holidayEditForm.description}
+                                onChange={(e) =>
+                                  setHolidayEditForm((prev) => ({ ...prev, description: e.target.value }))
+                                }
+                              />
+                            ) : (
+                              <span
+                                className="lc-description-cell"
+                                title={h.description || 'No description available'}
+                              >
+                                {h.description || '—'}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isEditing ? (
+                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  className="lc-btn-primary"
+                                  style={{ height: '32px', padding: '0 12px' }}
+                                  onClick={() => handleSaveHolidayInlineEdit(h.id)}
+                                >
+                                  <Check size={14} />
+                                  Save Changes
+                                </button>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn"
+                                  style={{ width: 'auto', padding: '0 12px' }}
+                                  onClick={cancelHolidayInlineEdit}
+                                >
+                                  <X size={14} />
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn"
+                                  title="Edit Holiday"
+                                  onClick={() => startHolidayInlineEdit(h)}
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn danger"
+                                  title="Delete Holiday"
+                                  onClick={() => handleDeleteHoliday(h.id)}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -541,71 +1008,129 @@ export function LeaveConfigurationPage() {
               </button>
             </div>
 
-            <table className="lc-data-table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Leave Type Name</th>
-                  <th>Description</th>
-                  <th>Max Quota</th>
-                  <th>Payment</th>
-                  <th>Active Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeaveTypes.length === 0 ? (
+            <div className="lc-table-responsive">
+              <table className="lc-data-table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="lc-empty-state">
-                      No leave types match your search criteria.
-                    </td>
+                    <th>Code</th>
+                    <th>Leave Type Name</th>
+                    <th>Description</th>
+                    <th>Max Quota</th>
+                    <th>Payment</th>
+                    <th>Active Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ) : (
-                  filteredLeaveTypes.map((lt) => (
-                    <tr key={lt.id}>
-                      <td>
-                        <span className="lc-code-badge">{lt.code}</span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{lt.name}</td>
-                      <td style={{ color: '#64748b', maxWidth: '300px' }}>{lt.description}</td>
-                      <td style={{ fontWeight: 600 }}>{lt.maxDays} Days</td>
-                      <td>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#047857' }}>
-                          {lt.paid ? 'Paid' : 'Unpaid'}
-                        </span>
-                      </td>
-                      <td>
-                        <Toggle
-                          checked={lt.active}
-                          onChange={(val) => handleToggleLeaveTypeActive(lt.id, val)}
-                          ariaLabel={`Toggle active status for ${lt.name}`}
-                        />
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '4px' }}>
-                          <button
-                            type="button"
-                            className="lc-ghost-btn"
-                            title="Edit Leave Type"
-                            onClick={() => openEditLeaveTypeModal(lt)}
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            className="lc-ghost-btn danger"
-                            title="Delete Leave Type"
-                            onClick={() => handleDeleteLeaveType(lt.id)}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                </thead>
+                <tbody>
+                  {filteredLeaveTypes.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="lc-empty-state">
+                        No leave types match your search criteria.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredLeaveTypes.map((lt) => {
+                      const isEditing = editingLeaveTypeId === lt.id;
+
+                      return (
+                        <tr key={lt.id}>
+                          <td>
+                            {isEditing ? (
+                              <input
+                                className="lc-inline-input"
+                                style={{ width: '100%', minWidth: '70px' }}
+                                value={leaveTypeEditForm.code}
+                                onChange={(e) =>
+                                  setLeaveTypeEditForm((prev) => ({ ...prev, code: e.target.value }))
+                                }
+                                autoFocus
+                              />
+                            ) : (
+                              <span className="lc-code-badge">{lt.code}</span>
+                            )}
+                          </td>
+                          <td style={{ fontWeight: 600 }}>
+                            {isEditing ? (
+                              <input
+                                className="lc-inline-input"
+                                style={{ width: '100%', minWidth: '150px' }}
+                                value={leaveTypeEditForm.name}
+                                onChange={(e) =>
+                                  setLeaveTypeEditForm((prev) => ({ ...prev, name: e.target.value }))
+                                }
+                              />
+                            ) : (
+                              lt.name
+                            )}
+                          </td>
+                          <td style={{ color: '#64748b', maxWidth: '300px' }}>{lt.description}</td>
+                          <td style={{ fontWeight: 600 }}>{lt.maxDays} Days</td>
+                          <td>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#047857' }}>
+                              {lt.paid ? 'Paid' : 'Unpaid'}
+                            </span>
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <span className="lc-inline-readonly">{lt.active ? 'Active' : 'Inactive'}</span>
+                            ) : (
+                              <Toggle
+                                checked={lt.active}
+                                onChange={(val) => handleToggleLeaveTypeActive(lt.id, val)}
+                                ariaLabel={`Toggle active status for ${lt.name}`}
+                              />
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isEditing ? (
+                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  className="lc-btn-primary"
+                                  style={{ height: '32px', padding: '0 12px' }}
+                                  onClick={() => handleSaveLeaveTypeInlineEdit(lt.id)}
+                                >
+                                  <Check size={14} />
+                                  Save Changes
+                                </button>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn"
+                                  style={{ width: 'auto', padding: '0 12px' }}
+                                  onClick={cancelLeaveTypeInlineEdit}
+                                >
+                                  <X size={14} />
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn"
+                                  title="Edit Leave Type"
+                                  onClick={() => startLeaveTypeInlineEdit(lt)}
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="lc-ghost-btn danger"
+                                  title="Delete Leave Type"
+                                  onClick={() => handleDeleteLeaveType(lt.id)}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -624,90 +1149,92 @@ export function LeaveConfigurationPage() {
               </div>
             </div>
 
-            <table className="lc-data-table">
-              <thead>
-                <tr>
-                  <th>Policy Name</th>
-                  <th>Leave Code</th>
-                  <th>Applies To</th>
-                  <th>Accrual Schedule</th>
-                  <th>Entitled Days (Inline Edit)</th>
-                  <th>Carry-Over Limit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPolicies.length === 0 ? (
+            <div className="lc-table-responsive">
+              <table className="lc-data-table">
+                <thead>
                   <tr>
-                    <td colSpan={6} className="lc-empty-state">
-                      No organization policies match your search criteria.
-                    </td>
+                    <th>Policy Name</th>
+                    <th>Leave Code</th>
+                    <th>Applies To</th>
+                    <th>Accrual Schedule</th>
+                    <th>Entitled Days (Inline Edit)</th>
+                    <th>Carry-Over Limit</th>
                   </tr>
-                ) : (
-                  filteredPolicies.map((p) => {
-                    const isEditing = editingPolicyId === p.id;
+                </thead>
+                <tbody>
+                  {filteredPolicies.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="lc-empty-state">
+                        No organization policies match your search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPolicies.map((p) => {
+                      const isEditing = editingPolicyId === p.id;
 
-                    return (
-                      <tr key={p.id}>
-                        <td style={{ fontWeight: 600 }}>{p.policyName}</td>
-                        <td>
-                          <span className="lc-code-badge">{p.leaveCode}</span>
-                        </td>
-                        <td style={{ color: '#475569' }}>{p.appliesTo}</td>
-                        <td style={{ color: '#64748b' }}>{p.accrualSchedule}</td>
+                      return (
+                        <tr key={p.id}>
+                          <td style={{ fontWeight: 600 }}>{p.policyName}</td>
+                          <td>
+                            <span className="lc-code-badge">{p.leaveCode}</span>
+                          </td>
+                          <td style={{ color: '#475569' }}>{p.appliesTo}</td>
+                          <td style={{ color: '#64748b' }}>{p.accrualSchedule}</td>
 
-                        {/* In-Line Editing Cell for Entitled Days */}
-                        <td>
-                          {isEditing ? (
-                            <div className="lc-inline-edit-wrap">
-                              <input
-                                type="number"
-                                className="lc-inline-input"
-                                value={editingDaysValue}
-                                onChange={(e) => setEditingDaysValue(e.target.value)}
-                                onKeyDown={(e) => handlePolicyKeyDown(e, p.id)}
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                className="lc-inline-btn save"
-                                title="Save (Press Enter)"
-                                onClick={() => handleSavePolicyEdit(p.id)}
+                          {/* In-Line Editing Cell for Entitled Days */}
+                          <td>
+                            {isEditing ? (
+                              <div className="lc-inline-edit-wrap">
+                                <input
+                                  type="number"
+                                  className="lc-inline-input"
+                                  value={editingDaysValue}
+                                  onChange={(e) => setEditingDaysValue(e.target.value)}
+                                  onKeyDown={(e) => handlePolicyKeyDown(e, p.id)}
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  className="lc-inline-btn save"
+                                  title="Save (Press Enter)"
+                                  onClick={() => handleSavePolicyEdit(p.id)}
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="lc-inline-btn cancel"
+                                  title="Cancel (Press Esc)"
+                                  onClick={handleCancelPolicyEdit}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className="lc-inline-badge"
+                                onClick={() => handleStartPolicyEdit(p)}
+                                title="Click to edit entitled days"
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') handleStartPolicyEdit(p);
+                                }}
                               >
-                                <Check size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                className="lc-inline-btn cancel"
-                                title="Cancel (Press Esc)"
-                                onClick={handleCancelPolicyEdit}
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div
-                              className="lc-inline-badge"
-                              onClick={() => handleStartPolicyEdit(p)}
-                              title="Click to edit entitled days"
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') handleStartPolicyEdit(p);
-                              }}
-                            >
-                              <span>{p.entitlementDays} Days</span>
-                              <Edit2 size={13} style={{ color: '#64748b' }} />
-                            </div>
-                          )}
-                        </td>
+                                <span>{p.entitlementDays} Days</span>
+                                <Edit2 size={13} style={{ color: '#64748b' }} />
+                              </div>
+                            )}
+                          </td>
 
-                        <td style={{ color: '#64748b' }}>{p.carryForwardLimit}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          <td style={{ color: '#64748b' }}>{p.carryForwardLimit}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -717,6 +1244,7 @@ export function LeaveConfigurationPage() {
         isOpen={isHolidayModalOpen}
         onClose={() => setIsHolidayModalOpen(false)}
         title={editingHoliday ? 'Edit Holiday' : 'Add Holiday'}
+        size="lg"
         footer={
           <>
             <button
@@ -733,7 +1261,8 @@ export function LeaveConfigurationPage() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="lc-modal-grid">
+          {/* Holiday Name */}
           <div className="ss-modal-form-group">
             <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name">
               Holiday Name
@@ -742,70 +1271,118 @@ export function LeaveConfigurationPage() {
               id="holiday-name"
               type="text"
               className="ss-input"
+              style={{ width: '100%' }}
               value={holidayForm.name}
               placeholder="e.g. Founding Day"
               onChange={(e) => setHolidayForm((prev) => ({ ...prev, name: e.target.value }))}
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-date">
-                Date
-              </label>
-              <input
-                id="holiday-date"
-                type="date"
-                className="ss-input"
-                value={holidayForm.date}
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="holiday-day">
-                Day of Week
-              </label>
-              <input
-                id="holiday-day"
-                type="text"
-                className="ss-input"
-                value={holidayForm.day}
-                placeholder="e.g. Thursday"
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, day: e.target.value }))}
-              />
+          {/* Date */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-date">
+              Date
+            </label>
+            <DatePicker
+              value={parseDateValue(holidayForm.date)}
+              onChange={(value) => {
+                const dateStr = toDateInputValue(value);
+                setHolidayForm((prev) => ({
+                  ...prev,
+                  date: dateStr,
+                  day: computeDayOfWeek(dateStr),
+                  status: computeStatus(dateStr)
+                }));
+              }}
+              placeholder="Select holiday date"
+              width="100%"
+              showClear={false}
+            />
+          </div>
+
+          {/* Computed Day (Read-only Info Field) */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="holiday-computed-day">
+              Day of Week (Computed)
+            </label>
+            <div
+              id="holiday-computed-day"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                height: '38px',
+                padding: '0 12px',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#475569',
+                fontWeight: 500
+              }}
+            >
+              {holidayForm.date ? computeDayOfWeek(holidayForm.date) : 'Select a date'}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="holiday-type">
-                Holiday Type
-              </label>
-              <select
-                id="holiday-type"
-                className="ss-input"
-                value={holidayForm.type}
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, type: e.target.value }))}
-              >
-                <option value="Public Holiday">Public Holiday</option>
-                <option value="National Holiday">National Holiday</option>
-                <option value="Company Holiday">Company Holiday</option>
-              </select>
+          {/* Computed Status (Read-only Info Badge) */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="holiday-computed-status">
+              Status (Computed)
+            </label>
+            <div
+              id="holiday-computed-status"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                height: '38px',
+                padding: '0 12px',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '14px',
+              }}
+            >
+              {holidayForm.date ? (
+                computeStatus(holidayForm.date) === 'Upcoming' ? (
+                  <span className="lc-tag-upcoming" style={{ fontSize: '12px', padding: '2px 8px' }}>Upcoming</span>
+                ) : (
+                  <span className="lc-tag-past" style={{ fontSize: '12px', padding: '2px 8px' }}>Past</span>
+                )
+              ) : (
+                <span style={{ color: '#94a3b8' }}>Select a date</span>
+              )}
             </div>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="holiday-status">
-                Status
-              </label>
-              <select
-                id="holiday-status"
-                className="ss-input"
-                value={holidayForm.status}
-                onChange={(e) => setHolidayForm((prev) => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="Upcoming">Upcoming</option>
-                <option value="Past">Past</option>
-              </select>
-            </div>
+          </div>
+
+          {/* Holiday Type */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="holiday-type">
+              Holiday Type
+            </label>
+            <CreatableSelect
+              id="holiday-type"
+              value={holidayForm.type}
+              onChange={(value) => setHolidayForm((prev) => ({ ...prev, type: value }))}
+              placeholder="Select or type holiday type"
+              options={Array.from(new Set(['Public Holiday', 'National Holiday', 'Company Holiday', ...holidays.map(h => h.type).filter(Boolean)]))}
+            />
+          </div>
+
+
+          {/* Description */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2">
+            <label className="ss-modal-label" htmlFor="holiday-description">
+              Description
+            </label>
+            <input
+              id="holiday-description"
+              type="text"
+              className="ss-input"
+              style={{ width: '100%' }}
+              placeholder="Add a concise holiday summary"
+              value={holidayForm.description}
+              onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
+            />
           </div>
         </div>
       </AdminModal>
@@ -815,6 +1392,7 @@ export function LeaveConfigurationPage() {
         isOpen={isLeaveTypeModalOpen}
         onClose={() => setIsLeaveTypeModalOpen(false)}
         title={editingLeaveType ? 'Edit Leave Type' : 'Add Leave Type'}
+        size="md"
         footer={
           <>
             <button
@@ -831,56 +1409,57 @@ export function LeaveConfigurationPage() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px' }}>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-code">
-                Code
-              </label>
-              <input
-                id="lt-code"
-                type="text"
-                className="ss-input"
-                value={leaveTypeForm.code}
-                placeholder="e.g. AL"
-                onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, code: e.target.value }))}
-              />
-            </div>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-name">
-                Leave Type Name
-              </label>
-              <input
-                id="lt-name"
-                type="text"
-                className="ss-input"
-                value={leaveTypeForm.name}
-                placeholder="e.g. Annual Leave"
-                onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
+        <div className="lc-modal-grid">
+          {/* Leave Code */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-code">
+              Leave Code
+            </label>
+            <input
+              id="lt-code"
+              type="text"
+              className="ss-input"
+              value={leaveTypeForm.code}
+              placeholder="e.g. AL"
+              onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, code: e.target.value }))}
+            />
           </div>
 
+          {/* Leave Type Name */}
           <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-name">
+              Leave Type Name
+            </label>
+            <input
+              id="lt-name"
+              type="text"
+              className="ss-input"
+              value={leaveTypeForm.name}
+              placeholder="e.g. Annual Leave"
+              onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2">
             <label className="ss-modal-label" htmlFor="lt-desc">
               Description
             </label>
             <textarea
               id="lt-desc"
-              rows={3}
+              rows={2}
               className="ss-input"
-              style={{ height: 'auto', padding: '10px' }}
+              style={{ minHeight: '74px', resize: 'vertical' }}
               placeholder="Brief description of leave policy"
               value={leaveTypeForm.description}
-              onChange={(e) =>
-                setLeaveTypeForm((prev) => ({ ...prev, description: e.target.value }))
-              }
+              onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, description: e.target.value }))}
             />
           </div>
 
+          {/* Maximum Days */}
           <div className="ss-modal-form-group">
             <label className="ss-modal-label" htmlFor="lt-maxdays">
-              Max Quota (Days)
+              Maximum Days
             </label>
             <input
               id="lt-maxdays"
@@ -896,22 +1475,28 @@ export function LeaveConfigurationPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '24px', marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Toggle
-                checked={leaveTypeForm.paid}
-                onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, paid: v }))}
-                ariaLabel="Paid status"
-              />
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>Paid Leave</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Toggle
-                checked={leaveTypeForm.active}
-                onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, active: v }))}
-                ariaLabel="Active status"
-              />
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>Active</span>
+          {/* Status Toggles */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label">Status</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', minHeight: '38px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Toggle
+                  checked={leaveTypeForm.paid}
+                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, paid: v }))}
+                  ariaLabel="Paid status"
+                />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>Paid</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Toggle
+                  checked={leaveTypeForm.active}
+                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, active: v }))}
+                  ariaLabel="Active status"
+                />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                  {leaveTypeForm.active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
