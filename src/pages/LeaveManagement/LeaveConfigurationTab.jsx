@@ -36,17 +36,17 @@ export function LeaveConfigurationTab() {
       if (!user?.emp_id) return;
       setLoading(true);
       try {
-        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id));
+        const res = await api.get(endpoints.manager.teamEditQuotaFields(user.emp_id), { params: { year: new Date().getFullYear() } });
         const payload = res.data?.data || res.data;
         const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
         
         const mappedEmployees = rawData.map(emp => {
-          const lts = Array.isArray(emp.leave_types) ? emp.leave_types : [];
+          const efs = Array.isArray(emp.editable_fields) ? emp.editable_fields : [];
           
-          const al = lts.find(lt => lt.leave_type_code === 'AL') || {};
-          const sl = lts.find(lt => lt.leave_type_code === 'SL') || {};
-          const compOff = lts.find(lt => lt.leave_type_code === 'CompOff' || lt.leave_type_code === 'CCompOff') || {};
-          const ww = lts.find(lt => lt.leave_type_code === 'WW' || lt.leave_type_code === 'CWW') || {};
+          const al = efs.find(f => f.leave_type_code === 'AL') || {};
+          const sl = efs.find(f => f.leave_type_code === 'SL') || {};
+          const compOff = efs.find(f => f.leave_type_code === 'CompOff' || f.leave_type_code === 'CCompOff') || {};
+          const ww = efs.find(f => f.leave_type_code === 'WW' || f.leave_type_code === 'CWW') || {};
 
           return {
             id: emp.emp_id,
@@ -59,11 +59,11 @@ export function LeaveConfigurationTab() {
             reportingManager: '',
             status: 'Active',
             lastModified: new Date().toISOString().split('T')[0],
-            carryOver: { balance: al.carryover || 0, limit: 0 },
-            sickLeave: { balance: sl.entitled || 0, maxQuota: 0 },
-            compOff: { balance: compOff.entitled || 0 },
-            weekendWork: { balance: ww.entitled || 0 },
-            _raw: emp // store raw in case we need to know accurate codes like CCompOff vs CompOff
+            carryOver: { balance: al.current_value || 0, limit: 0 },
+            sickLeave: { balance: sl.current_value || 0, maxQuota: 0 },
+            compOff: { balance: compOff.current_value || 0 },
+            weekendWork: { balance: ww.current_value || 0 },
+            _raw: emp 
           };
         });
 

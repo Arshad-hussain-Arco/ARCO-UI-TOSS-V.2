@@ -35,6 +35,7 @@ const endpoints = {
     pending: (id) => `/leaves/manager/${id}/pending/`,
     teamBalances: (id) => `/leaves/manager/${id}/team-balances/`,
     teamLeaveQuota: (id) => `/leaves/manager/${id}/team-leave-quota/`,
+    teamEditQuotaFields: (id) => `/leaves/manager/${id}/team-edit-quota-fields/`,
     updateQuota: (managerId, empId) => `/leaves/manager/${managerId}/employee/${empId}/quota/`,
     headcount: (id) => `/leaves/manager/${id}/headcount/`,
     modRequests: (id) => `/leaves/manager/${id}/mod-requests/`,
