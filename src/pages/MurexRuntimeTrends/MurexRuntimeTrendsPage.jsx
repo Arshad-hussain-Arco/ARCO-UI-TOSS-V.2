@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Download,
   RefreshCw,
@@ -31,6 +31,7 @@ import {
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
@@ -57,22 +58,44 @@ export function MurexRuntimeTrendsPage() {
   const [pinnedScriptIds, setPinnedScriptIds] = useState(() => new Set());
 
   // Category Management State
-  const fetchCategories = useCallback(() => murexService.getCategories(), []);
-  const { data: remoteCategoriesData, refetch: refetchCategories } = useAsync(fetchCategories, { immediate: true });
-  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
-
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [categoryFormName, setCategoryFormName] = useState('');
+  const [categoryFormDescription, setCategoryFormDescription] = useState('');
+  const [categoryFormScripts, setCategoryFormScripts] = useState([]); // Array of script names
+  const [availableSearch, setAvailableSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
 
+  const [remoteCategoriesData, setRemoteCategoriesData] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  const fetchCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
+    try {
+      const data = await murexService.getCategories();
+      setRemoteCategoriesData(data);
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
   const scripts = useMemo(
     () =>
       (data?.scripts ?? []).map((script) => {
-        // Find matching remote category to override static category logic if applicable
-        const matchingCategory = remoteCategories.find(c => script.name.toUpperCase().includes(c.name.toUpperCase()));
+        // Find explicit remote category that contains this script
+        const matchingCategory = remoteCategories.find(c => 
+          c.scripts && c.scripts.some(s => s.script_name === script.name)
+        );
         return {
           ...script,
-          category: matchingCategory ? matchingCategory.name : script.category,
+          category: matchingCategory ? matchingCategory.name : 'Unassigned Scripts',
           isPinned: pinnedScriptIds.has(script.id),
         };
       }),
@@ -120,6 +143,10 @@ export function MurexRuntimeTrendsPage() {
   const handleAddCategory = () => {
     setEditingCategory(null);
     setCategoryFormName('');
+    setCategoryFormDescription('');
+    setCategoryFormScripts([]);
+    setAvailableSearch('');
+    setCategorySearch('');
     setShowCategoryModal(true);
   };
 
@@ -127,34 +154,86 @@ export function MurexRuntimeTrendsPage() {
     e.stopPropagation();
     setEditingCategory(cat);
     setCategoryFormName(cat.name);
+    setCategoryFormDescription(cat.description || '');
+    setCategoryFormScripts((cat.scripts || []).map(s => s.script_name));
+    setAvailableSearch('');
+    setCategorySearch('');
     setShowCategoryModal(true);
   };
 
-  const handleDeleteCategory = async (cat, e) => {
+  const allKnownScripts = useMemo(() => {
+    const unassigned = remoteCategories.find(c => c.id === null)?.scripts || [];
+    const currentCatScripts = editingCategory?.scripts || [];
+    return [...unassigned, ...currentCatScripts];
+  }, [remoteCategories, editingCategory]);
+
+  const renderedAvailableScripts = allKnownScripts
+    .filter(s => !categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(availableSearch.toLowerCase()));
+
+  const renderedAssignedScripts = allKnownScripts
+    .filter(s => categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(categorySearch.toLowerCase()));
+
+  const toggleScriptAssignment = (scriptName, assign) => {
+    if (assign) {
+      setCategoryFormScripts(prev => [...prev, scriptName]);
+    } else {
+      setCategoryFormScripts(prev => prev.filter(name => name !== scriptName));
+    }
+  };
+
+  const [deletingCategory, setDeletingCategory] = useState(null);
+
+  const handleDeleteCategory = (cat, e) => {
     e.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
-      try {
-        await murexService.deleteCategory(cat.id);
-        refetchCategories();
-        if (selectedCategory === cat.name) {
-          setSelectedCategory('all');
-        }
-      } catch (err) {
-        console.error('Failed to delete category', err);
+    setDeletingCategory(cat);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deletingCategory) return;
+    try {
+      const res = await murexService.deleteCategory(deletingCategory.id);
+      if (res?.categories) {
+        setRemoteCategoriesData(res.categories);
+      } else {
+        fetchCategories();
       }
+      if (selectedCategory === deletingCategory.name) {
+        setSelectedCategory('all');
+      }
+    } catch (err) {
+      console.error('Failed to delete category', err);
+    } finally {
+      setDeletingCategory(null);
     }
   };
 
   const handleSaveCategory = async () => {
     if (!categoryFormName.trim()) return;
     try {
+      const originalScripts = (editingCategory?.scripts || []).map(s => s.script_name);
+      
+      const payload = {
+        name: categoryFormName.trim(),
+        description: categoryFormDescription.trim(),
+        assign_scripts: categoryFormScripts.filter(name => !originalScripts.includes(name)),
+        unassign_scripts: originalScripts.filter(name => !categoryFormScripts.includes(name))
+      };
+      
+      let res;
       if (editingCategory) {
-        await murexService.updateCategory(editingCategory.id, { name: categoryFormName.trim() });
+        res = await murexService.updateCategory(editingCategory.id, payload);
       } else {
-        await murexService.createCategory({ name: categoryFormName.trim() });
+        res = await murexService.createCategory(payload);
+      }
+      
+      if (res?.categories) {
+        setRemoteCategoriesData(res.categories);
+      } else {
+        fetchCategories();
       }
       setShowCategoryModal(false);
-      refetchCategories();
     } catch (err) {
       console.error('Failed to save category', err);
     }
@@ -521,23 +600,25 @@ export function MurexRuntimeTrendsPage() {
                         {scripts.filter((s) => s.category === category.name).length}
                       </span>
                     </button>
-                    <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
-                      <button 
-                        className="murex-icon-btn" 
-                        title="Edit Category"
-                        onClick={(e) => handleEditCategory(category, e)}
-                      >
-                        <Edit size={12} />
-                      </button>
-                      <button 
-                        className="murex-icon-btn error" 
-                        title="Delete Category"
-                        onClick={(e) => handleDeleteCategory(category, e)}
-                        style={{ color: 'var(--error-color)' }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
+                    {category.id !== null && (
+                      <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+                        <button 
+                          className="murex-icon-btn" 
+                          title="Edit Category"
+                          onClick={(e) => handleEditCategory(category, e)}
+                        >
+                          <Edit size={12} />
+                        </button>
+                        <button 
+                          className="murex-icon-btn error" 
+                          title="Delete Category"
+                          onClick={(e) => handleDeleteCategory(category, e)}
+                          style={{ color: 'var(--error-color)' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -855,34 +936,132 @@ export function MurexRuntimeTrendsPage() {
         </div>
       )}
       {/* Category Management Modal */}
-      {showCategoryModal && (
-        <div className="murex-drawer-overlay" {...dismissBackdrop(() => setShowCategoryModal(false))}>
-          <div className="murex-drawer" role="dialog" style={{ width: '400px', height: 'auto', bottom: 'auto', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', borderRadius: '8px' }}>
-            <div className="murex-drawer-header">
-              <h2 className="murex-drawer-title">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
-              <button className="murex-drawer-close" onClick={() => setShowCategoryModal(false)}>
-                <X size={14} />
-              </button>
-            </div>
-            <div className="murex-drawer-content" style={{ padding: '20px' }}>
-              <div className="murex-form-group">
-                <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Category Name</label>
+      <AdminModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        title={editingCategory ? 'Edit Category' : 'Create a New Category'}
+        size={editingCategory ? 'lg' : 'md'}
+        footer={
+          <>
+            <button className="con-drawer-btn-cancel" onClick={() => setShowCategoryModal(false)}>
+              Cancel
+            </button>
+            <button className="con-drawer-btn-save" onClick={handleSaveCategory}>
+              {editingCategory ? 'Save Changes' : 'Create Category'}
+            </button>
+          </>
+        }
+      >
+        <div className="murex-category-form-grid" style={{ display: 'grid', gridTemplateColumns: editingCategory ? '1fr 1fr' : '1fr', gap: '20px' }}>
+          <div className="murex-form-group">
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Category Name *</label>
+            <input 
+              type="text" 
+              value={categoryFormName} 
+              onChange={e => setCategoryFormName(e.target.value)} 
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
+            />
+          </div>
+          <div className="murex-form-group">
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Description</label>
+            <textarea 
+              value={categoryFormDescription} 
+              onChange={e => setCategoryFormDescription(e.target.value)} 
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }} 
+            />
+          </div>
+        </div>
+
+        {editingCategory && (
+          <div className="murex-dual-list-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '24px' }}>
+            {/* Available Scripts */}
+            <div className="murex-script-list-pane">
+              <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Available Scripts ({renderedAvailableScripts.length})</h4>
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                 <input 
                   type="text" 
-                  value={categoryFormName} 
-                  onChange={e => setCategoryFormName(e.target.value)} 
-                  style={{ width: '100%', padding: '8px', marginTop: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
-                  placeholder="Enter category name"
+                  placeholder="Search available scripts..." 
+                  value={availableSearch}
+                  onChange={(e) => setAvailableSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
               </div>
-              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button onClick={() => setShowCategoryModal(false)} style={{ padding: '6px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleSaveCategory} style={{ padding: '6px 12px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
+              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}>
+                {renderedAvailableScripts.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts found</div>
+                ) : (
+                  renderedAvailableScripts.map(script => (
+                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                      <span>{script.script_name}</span>
+                      <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Category Scripts */}
+            <div className="murex-script-list-pane">
+              <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Category Scripts ({renderedAssignedScripts.length})</h4>
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search category scripts..." 
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                />
+              </div>
+              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px', background: 'var(--bg-tertiary)' }}>
+                {renderedAssignedScripts.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts assigned</div>
+                ) : (
+                  renderedAssignedScripts.map(script => (
+                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', background: 'var(--bg-primary)', borderRadius: '4px', marginBottom: '4px' }}>
+                      <span>{script.script_name}</span>
+                      <button onClick={() => toggleScriptAssignment(script.script_name, false)} style={{ background: 'var(--error-color)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>-</button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
+        )}
+      </AdminModal>
+      
+      {/* Delete Confirmation Modal */}
+      <AdminModal
+        isOpen={!!deletingCategory}
+        onClose={() => setDeletingCategory(null)}
+        title=""
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', width: '100%', justifyContent: 'center', gap: '10px' }}>
+            <button className="con-drawer-btn-cancel" onClick={() => setDeletingCategory(null)}>
+              Cancel
+            </button>
+            <button className="con-drawer-btn-save danger" onClick={confirmDeleteCategory}>
+              Delete
+            </button>
+          </div>
+        }
+      >
+        <div style={{ textAlign: 'center', padding: '10px' }}>
+          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: '#f59e0b' }}>
+            <AlertTriangle size={24} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Confirm Deletion</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Are you sure you want to delete the category<br />
+            <strong>{deletingCategory?.name}</strong>?
+          </p>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+            All scripts within this category will become uncategorized.
+          </p>
         </div>
-      )}
+      </AdminModal>
     </div>
   );
 }

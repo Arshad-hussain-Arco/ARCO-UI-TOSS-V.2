@@ -147,7 +147,7 @@ export const murexService = {
   },
   getCategories: async () => {
     const res = await api.get(endpoints.scriptManager.categories.list);
-    return res.data?.results || res.data;
+    return res.data?.categories || res.data?.results || res.data || [];
   },
   createCategory: async (payload) => {
     const res = await api.post(endpoints.scriptManager.categories.create, payload);

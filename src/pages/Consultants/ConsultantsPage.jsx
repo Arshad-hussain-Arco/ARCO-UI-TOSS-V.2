@@ -102,8 +102,10 @@ export function ConsultantsPage() {
   const fetchCompLocations = useCallback(() => consultantService.getComputerLocations(), []);
   const { data: compLocationsData } = useAsync(fetchCompLocations, { immediate: true });
 
-  const dynamicTeams = refData?.teams || [];
-  const dynamicDesignations = refData?.designations || [];
+  const dynamicDesignations = Array.isArray(refData) ? refData : (refData?.results || refData?.designations || []);
+  const dynamicTeams = Array.isArray(refData) 
+    ? refData.flatMap(d => d.teams || [])
+    : (refData?.teams || []);
   const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
   const dynamicCompLocations = Array.isArray(compLocationsData) ? compLocationsData : (compLocationsData?.results || []);
 

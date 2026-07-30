@@ -54,29 +54,11 @@ function EmployeeCard({ consultant, onClick }) {
 }
 
 function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap }) {
-  const fetchMembers = useCallback(async () => {
-    if (cache[team.id]) return cache[team.id];
-    const res = await consultantService.getConsultants({ teamId: team.id });
-    const list = Array.isArray(res) ? res : res?.results || [];
-    const normalized = list.map(c => normalizeConsultant(c, true));
-    const teamName = team.name || team.team_name || 'Unknown';
-    const filtered = normalized.filter(c => 
-      c.teamId === team.id || 
-      c.team?.toLowerCase() === teamName?.toLowerCase() ||
-      c.team_name?.toLowerCase() === teamName?.toLowerCase()
-    );
-    return filtered.length > 0 ? filtered : normalized;
-  }, [team, cache]);
-
-  const { data: members, isLoading, error } = useAsync(fetchMembers, isExpanded && !cache[team.id]);
-
-  useEffect(() => {
-    if (members && !cache[team.id]) {
-      setCache(prev => ({ ...prev, [team.id]: members }));
-    }
-  }, [members, team.id, cache, setCache]);
-
-  const activeMembers = useMemo(() => cache[team.id] || [], [cache, team.id]);
+  const hc = headcountMap[team.id];
+  const activeMembers = useMemo(() => {
+    const list = hc?.members || hc?.employees || hc?.consultants || hc?.users || [];
+    return list.map(c => normalizeConsultant(c, true));
+  }, [hc]);
 
   const { manager, employees } = useMemo(() => {
     const mems = activeMembers;
@@ -87,7 +69,6 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   }, [activeMembers]);
 
   // Use live headcount data if available, otherwise fall back to member list count
-  const hc = headcountMap[team.id];
   const displayTotal = hc ? hc.total : activeMembers.length;
 
   const priDev = parseFloat(team.pri_dev_contr_per || 0).toFixed(1);
@@ -130,42 +111,18 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 
       {isExpanded && (
         <div className="tv-accordion-body">
-          {isLoading && !activeMembers.length ? (
-            <div className="tv-body-loader"><Loader message="Loading team members..." /></div>
-          ) : error ? (
-             <div className="tv-body-error"><span className="text-red-500">Failed to load members.</span></div>
-          ) : (
-            <div className="tv-body-content">
-              {manager && (
-                <div className="tv-manager-section">
-                  <h4 className="tv-section-title">TEAM MANAGER</h4>
-                  <div className="tv-manager-card" {...activatable(() => onProfileView(manager.id))}>
-                    <img className="tv-mgr-avatar" src={manager.avatar || MOCK_AVATAR(manager.name)} alt="" />
-                    <div className="tv-mgr-info">
-                      <div className="tv-mgr-name">{manager.name}</div>
-                      <div className="tv-mgr-role">{manager.designation || manager.role}</div>
-                    </div>
-                    <div className="tv-mgr-meta">
-                      <div className="tv-mgr-meta-item"><Users size={14}/> {manager.userId || 'N/A'}</div>
-                      <div className="tv-mgr-meta-item"><Mail size={14}/> {manager.email || 'N/A'}</div>
-                      <div className="tv-mgr-meta-item"><Phone size={14}/> {manager.phone || 'N/A'}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {employees.length > 0 && (
+          <div className="tv-body-content">
+              {activeMembers.length > 0 && (
                 <div className="tv-members-section">
                   <h4 className="tv-section-title">TEAM MEMBERS</h4>
                   <div className="tv-members-grid">
-                    {employees.map(emp => (
+                    {activeMembers.map(emp => (
                       <EmployeeCard key={emp.id} consultant={emp} onClick={onProfileView} />
                     ))}
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       )}
     </div>
