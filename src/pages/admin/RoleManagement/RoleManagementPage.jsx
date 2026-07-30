@@ -126,6 +126,7 @@ export function RoleManagementPage() {
     fetchRoles();
   }, [fetchRoles]);
 
+
   // Modal State for "Add Role"
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');

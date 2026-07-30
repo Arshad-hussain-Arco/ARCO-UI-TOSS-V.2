@@ -1,27 +1,106 @@
-import { memo, useState } from 'react';
-import { Eye, EyeOff, Save } from 'lucide-react';
+import { memo, useState, useEffect } from 'react';
+import { Eye, EyeOff, Save, Loader2 } from 'lucide-react';
+import { settingsService } from '@services/settingsService';
+import { useToast } from '@hooks/useToast';
 
 /**
  * TAB 1: Environment Config
  * 2-column grid layout for high density admin form.
  */
-function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSaving }) {
+function EnvironmentConfigPanelComponent() {
+  const toast = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [configId, setConfigId] = useState(1);
+  const [configModule, setConfigModule] = useState('app');
   const [formData, setFormData] = useState({
-    clientDirectory: values.clientDirectory || '/upload/csvfiles/oss/',
-    importantLinks: values.importantLinks || '/upload/CABCalendar',
-    systemHealthHeartbeat: values.systemHealthHeartbeat || '20',
-    eodHeartbeatInterval: values.eodHeartbeatInterval || '60',
-    environmentServerIp: values.environmentServerIp || '192.168.0.98',
-    environmentPortNo: values.environmentPortNo || '22',
-    environmentUserName: values.environmentUserName || 'sourcesftp',
-    environmentPassword: values.environmentPassword || '••••••••••••',
+    clientDirectory: '',
+    ImpLinksPath: '',
+    systemHealthHeartbeat: '',
+    eodHeartbeatInterval: '',
+    envConfigServerIp: '',
+    envConfigPort: '',
+    envConfigUsername: '',
+    envConfigPassword: '',
   });
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await settingsService.getEnvironmentConfig();
+      if (res) {
+        setConfigId(res.id || 1);
+        setConfigModule(res.module || 'app');
+        setFormData({
+          clientDirectory: res.clientDirectory || '',
+          ImpLinksPath: res.ImpLinksPath || '',
+          systemHealthHeartbeat: res.systemHealthHeartbeat || '',
+          eodHeartbeatInterval: res.eodHeartbeatInterval || '',
+          envConfigServerIp: res.envConfigServerIp || '',
+          envConfigPort: res.envConfigPort || '',
+          envConfigUsername: res.envConfigUsername || '',
+          envConfigPassword: res.envConfigPassword || '',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch environment config:', error);
+      toast.error('Failed to load environment configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      
+      // Need to fetch full config to merge as update requires full replace
+      // In this case, we just send what we have, but according to API, we might need all configs
+      const allConfigs = await settingsService.getEnvironmentConfig(); // Get base config
+      const importConfigs = await settingsService.getImportFileConfig(); // It might return other fields
+
+      const mergedConfig = {
+        ...allConfigs,
+        ...importConfigs,
+        ...formData
+      };
+
+      // Remove id and module from configuration object
+      delete mergedConfig.id;
+      delete mergedConfig.module;
+
+      const payload = {
+        id: configId,
+        module: configModule,
+        configuration: mergedConfig
+      };
+
+      await settingsService.updateConfig(payload);
+      toast.success('Environment configuration updated successfully');
+    } catch (error) {
+      console.error('Failed to update environment config:', error);
+      toast.error('Failed to update configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
   const handleChange = (field, val) => {
     setFormData((prev) => ({ ...prev, [field]: val }));
-    if (onChange) onChange(field, val);
   };
+
+  if (loading) {
+    return (
+      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="ss-form-card">
@@ -30,10 +109,7 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
       </div>
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (onSave) onSave();
-        }}
+        onSubmit={handleSave}
         style={{ padding: '24px' }}
       >
         {/* 2-Column Grid Layout */}
@@ -62,9 +138,9 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
               id="env-important-links"
               type="text"
               className="ss-input"
-              value={formData.importantLinks}
+              value={formData.ImpLinksPath}
               placeholder="/upload/CABCalendar"
-              onChange={(e) => handleChange('importantLinks', e.target.value)}
+              onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
             />
           </div>
 
@@ -107,9 +183,9 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
               id="env-server-ip"
               type="text"
               className="ss-input"
-              value={formData.environmentServerIp}
+              value={formData.envConfigServerIp}
               placeholder="192.168.0.98"
-              onChange={(e) => handleChange('environmentServerIp', e.target.value)}
+              onChange={(e) => handleChange('envConfigServerIp', e.target.value)}
             />
           </div>
 
@@ -122,9 +198,9 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
               id="env-port-no"
               type="number"
               className="ss-input"
-              value={formData.environmentPortNo}
+              value={formData.envConfigPort}
               placeholder="22"
-              onChange={(e) => handleChange('environmentPortNo', e.target.value)}
+              onChange={(e) => handleChange('envConfigPort', e.target.value)}
             />
           </div>
 
@@ -137,9 +213,9 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
               id="env-user-name"
               type="text"
               className="ss-input"
-              value={formData.environmentUserName}
+              value={formData.envConfigUsername}
               placeholder="sourcesftp"
-              onChange={(e) => handleChange('environmentUserName', e.target.value)}
+              onChange={(e) => handleChange('envConfigUsername', e.target.value)}
             />
           </div>
 
@@ -153,8 +229,8 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
                 id="env-password"
                 type={showPassword ? 'text' : 'password'}
                 className="ss-input with-right-icon"
-                value={formData.environmentPassword}
-                onChange={(e) => handleChange('environmentPassword', e.target.value)}
+                value={formData.envConfigPassword}
+                onChange={(e) => handleChange('envConfigPassword', e.target.value)}
               />
               <button
                 type="button"
@@ -170,9 +246,9 @@ function EnvironmentConfigPanelComponent({ values = {}, onChange, onSave, isSavi
 
         {/* Primary Action Button */}
         <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
-          <button type="submit" className="ss-btn-update" disabled={isSaving}>
-            <Save size={16} />
-            {isSaving ? 'Updating...' : 'Update'}
+          <button type="submit" className="ss-btn-update" disabled={saving}>
+            {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
+            {saving ? 'Updating...' : 'Update'}
           </button>
         </div>
       </form>

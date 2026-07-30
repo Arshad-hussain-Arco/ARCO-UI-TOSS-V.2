@@ -1,48 +1,45 @@
-import { memo, useMemo, useState } from 'react';
-import { ArrowUpDown, Edit2 } from 'lucide-react';
+import { memo, useMemo, useState, useEffect } from 'react';
+import { ArrowUpDown, Edit2, Loader2 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useToast } from '@hooks/useToast';
-
-const SAMPLE_CR_DATA = [
-  { id: '1', code: 'Additional_Developers', excel: 'Additional Developers' },
-  { id: '2', code: 'Assigned_Developer', excel: 'Assigned Programmer' },
-  { id: '3', code: 'Effort_in_MDs', excel: 'Proposed Effort in MDs' },
-  { id: '4', code: 'End_Date', excel: 'End Date' },
-  { id: '5', code: 'Id', excel: 'Id' },
-  { id: '6', code: 'Priority', excel: 'Priority' },
-  { id: '7', code: 'Project', excel: 'Project' },
-  { id: '8', code: 'Start_Date', excel: 'Start Date' },
-  { id: '9', code: 'Status', excel: 'Status Information' },
-];
-
-const SAMPLE_WO_DATA = [
-  { id: '1', code: 'Attachments', excel: 'Attachment' },
-  { id: '2', code: 'Backup_IT_Delivery_Lead', excel: 'Backup IT Delivery Lead' },
-  { id: '3', code: 'Clarity_Planned_Finish_Date', excel: 'Clarity Planned Finish Date' },
-  { id: '4', code: 'Created_By', excel: 'Created By' },
-  { id: '5', code: 'Creation_Date', excel: 'Creation Date' },
-  { id: '6', code: 'Depends_On', excel: 'Depends On' },
-  { id: '7', code: 'Description', excel: 'Description' },
-  { id: '8', code: 'Due_Date', excel: 'Due Date' },
-  { id: '9', code: 'Estimation', excel: 'Estimation' },
-];
+import { settingsService } from '@services/settingsService';
 
 /**
  * TAB 3 & TAB 4: CR and WO File Matching Columns Table
  */
 function ColumnMappingPanelComponent({ type = 'CR', title }) {
   const toast = useToast();
-  const initialData = type === 'CR' ? SAMPLE_CR_DATA : SAMPLE_WO_DATA;
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Sorting state
-  const [sortField, setSortField] = useState('code');
+  const [sortField, setSortField] = useState('code_col');
   const [sortAsc, setSortAsc] = useState(true);
 
   // Editing state
   const [editRow, setEditRow] = useState(null);
   const [editCode, setEditCode] = useState('');
   const [editExcel, setEditExcel] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, [type]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = type === 'CR' 
+        ? await settingsService.getCrColumns()
+        : await settingsService.getWoColumns();
+      setData(res || []);
+    } catch (error) {
+      console.error(`Failed to fetch ${type} columns:`, error);
+      toast.error(`Failed to load ${type} column mappings`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const sortedData = useMemo(() => {
     return [...data].sort((a, b) => {
@@ -65,21 +62,48 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
 
   const handleOpenEdit = (row) => {
     setEditRow(row);
-    setEditCode(row.code);
-    setEditExcel(row.excel);
+    setEditCode(row.code_col || '');
+    setEditExcel(row.excel_col || '');
   };
 
-  const handleSaveEdit = () => {
-    if (editRow) {
+  const handleSaveEdit = async () => {
+    if (!editRow) return;
+    
+    try {
+      setSaving(true);
+      const payload = {
+        code_col: editCode,
+        excel_col: editExcel,
+      };
+
+      if (type === 'CR') {
+        await settingsService.updateCrColumn(editRow.id, payload);
+      } else {
+        await settingsService.updateWoColumn(editRow.id, payload);
+      }
+      
       setData((prev) =>
         prev.map((item) =>
-          item.id === editRow.id ? { ...item, code: editCode, excel: editExcel } : item,
+          item.id === editRow.id ? { ...item, code_col: editCode, excel_col: editExcel } : item,
         ),
       );
       toast.success(`Updated column mapping for ${editCode}`);
       setEditRow(null);
+    } catch (error) {
+      console.error(`Failed to update ${type} column mapping:`, error);
+      toast.error(`Failed to update column mapping`);
+    } finally {
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="ss-form-card">
@@ -93,20 +117,20 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
             <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-primary)' }}>
               <th
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
-                onClick={() => handleSort('code')}
+                onClick={() => handleSort('code_col')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <span>Code Column</span>
-                  <ArrowUpDown size={14} style={{ opacity: sortField === 'code' ? 1 : 0.4 }} />
+                  <ArrowUpDown size={14} style={{ opacity: sortField === 'code_col' ? 1 : 0.4 }} />
                 </div>
               </th>
               <th
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
-                onClick={() => handleSort('excel')}
+                onClick={() => handleSort('excel_col')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                   <span>Excel Column</span>
-                  <ArrowUpDown size={14} style={{ opacity: sortField === 'excel' ? 1 : 0.4 }} />
+                  <ArrowUpDown size={14} style={{ opacity: sortField === 'excel_col' ? 1 : 0.4 }} />
                 </div>
               </th>
               <th style={{ padding: '12px 20px', textAlign: 'right', width: '10%' }}>Action</th>
@@ -123,10 +147,10 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 }}
               >
                 <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
-                  {row.code}
+                  {row.code_col}
                 </td>
                 <td style={{ padding: '12px 20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  {row.excel}
+                  {row.excel_col}
                 </td>
                 <td style={{ padding: '12px 20px', textAlign: 'right' }}>
                   <button
@@ -164,11 +188,12 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
               className="ss-btn-update"
               style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
               onClick={() => setEditRow(null)}
+              disabled={saving}
             >
               Cancel
             </button>
-            <button type="button" className="ss-btn-update" onClick={handleSaveEdit}>
-              Save Changes
+            <button type="button" className="ss-btn-update" onClick={handleSaveEdit} disabled={saving}>
+              {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : 'Save Changes'}
             </button>
           </>
         }

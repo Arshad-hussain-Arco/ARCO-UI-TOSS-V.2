@@ -9,12 +9,12 @@ import {
 import { useAsync } from '@hooks/useAsync';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
-import { ConsultantCard } from '@components/data-display/ConsultantCard/ConsultantCard';
+import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 
-export function InactiveConsultants({ onProfileView }) {
+export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, designationsData, teamsData }) {
   const fetchInactive = useCallback(async () => {
     const res = await consultantService.getInactiveConsultants();
     const list = Array.isArray(res) ? res : res?.results || [];
@@ -46,8 +46,15 @@ export function InactiveConsultants({ onProfileView }) {
 
   const inactiveConsultants = consultants || [];
 
-  const teams = useMemo(() => Array.from(new Set(inactiveConsultants.map(c => c.team).filter(Boolean))), [inactiveConsultants]);
-  const designations = useMemo(() => Array.from(new Set(inactiveConsultants.map(c => c.designation).filter(Boolean))), [inactiveConsultants]);
+  const teams = useMemo(() => {
+    if (teamsData && teamsData.length > 0) return teamsData.map(t => t.name);
+    return Array.from(new Set(inactiveConsultants.map(c => c.team).filter(Boolean)));
+  }, [inactiveConsultants, teamsData]);
+
+  const designations = useMemo(() => {
+    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name);
+    return Array.from(new Set(inactiveConsultants.map(c => c.designation).filter(Boolean)));
+  }, [inactiveConsultants, designationsData]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -86,7 +93,15 @@ export function InactiveConsultants({ onProfileView }) {
   }
 
   if (isLoading && !consultants) {
-    return <Loader message="Loading inactive consultants..." />;
+    return (
+      <div className="consultants-grid-scrollable">
+        <div className="consultants-grid">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <ConsultantCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

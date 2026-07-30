@@ -9,20 +9,17 @@ import {
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
-import { ConsultantCard } from '@components/data-display/ConsultantCard/ConsultantCard';
+import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
 import { ConsultantsStats } from '@components/data-display/ConsultantsStats/ConsultantsStats';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 
-export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView }) {
-  const fetchActive = useCallback(async () => {
-    const res = await consultantService.getConsultants();
-    const list = Array.isArray(res) ? res : res?.results || [];
+export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
+  const activeConsultants = useMemo(() => {
+    const list = Array.isArray(employeesData) ? employeesData : employeesData?.results || [];
     return list.map(c => normalizeConsultant(c, true));
-  }, []);
-
-  const { data: consultants, isLoading, error, refetch } = useAsync(fetchActive);
+  }, [employeesData]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
@@ -43,10 +40,15 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  const activeConsultants = consultants || [];
+  const teams = useMemo(() => {
+    if (teamsData && teamsData.length > 0) return teamsData.map(t => t.name);
+    return Array.from(new Set(activeConsultants.map(c => c.team).filter(Boolean)));
+  }, [activeConsultants, teamsData]);
 
-  const teams = useMemo(() => Array.from(new Set(activeConsultants.map(c => c.team).filter(Boolean))), [activeConsultants]);
-  const designations = useMemo(() => Array.from(new Set(activeConsultants.map(c => c.designation).filter(Boolean))), [activeConsultants]);
+  const designations = useMemo(() => {
+    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name);
+    return Array.from(new Set(activeConsultants.map(c => c.designation).filter(Boolean)));
+  }, [activeConsultants, designationsData]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -71,17 +73,25 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
     );
   }
 
-  if (isLoading && !consultants) {
-    return <Loader message="Loading active consultants..." />;
+  if (isLoading && activeConsultants.length === 0) {
+    return (
+      <div className="consultants-grid-scrollable">
+        <div className="consultants-grid">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <ConsultantCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
       <ConsultantsStats
-        total={activeConsultants.length}
-        active={activeConsultants.length}
-        teams={teams.length}
-        designations={designations.length}
+        total={employeesData?.total_consultants ?? activeConsultants.length}
+        active={employeesData?.active_consultants ?? activeConsultants.length}
+        teams={employeesData?.teams ?? teams.length}
+        designations={employeesData?.designations ?? designations.length}
       />
       <div className="consultants-filter-panel-sticky">
         <div className="consultants-filter-row">

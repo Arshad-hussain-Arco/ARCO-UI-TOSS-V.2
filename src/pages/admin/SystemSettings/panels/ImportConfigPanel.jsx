@@ -1,25 +1,60 @@
-import { memo, useRef, useState } from 'react';
-import { Eye, EyeOff, Save, Upload } from 'lucide-react';
+import { memo, useRef, useState, useEffect } from 'react';
+import { Eye, EyeOff, Save, Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
+import { settingsService } from '@services/settingsService';
 
 /**
  * TAB 2: ImportFileConfig
  * Grid form layout with file path inputs, inline Upload buttons, and credentials.
  */
-function ImportConfigPanelComponent({ onSave, isSaving }) {
+function ImportConfigPanelComponent() {
   const toast = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [configId, setConfigId] = useState(1);
+  const [configModule, setConfigModule] = useState('app');
 
   const [formData, setFormData] = useState({
-    woFilePath: '/upload/csvfiles/oss/WO_All_Columns_with_Last_Comment_Date_br...',
-    crFilePath: '/upload/csvfiles/oss/CR_Status_2_modified_dates2.csv',
-    runtimeTrendsFilePath: '/upload/csvfiles/oss/Murex-RuntimeTrends-2026-02-03.parquet',
-    documentsFilePath: '/upload/Documents',
-    crServerIp: '192.168.0.98',
-    crPortNo: '22',
-    crUserName: 'sourcesftp',
-    crPassword: '••••••••••••',
+    workOrderStatusFilePath: '',
+    changeRequestFilePath: '',
+    runTimeFilePath: '',
+    ImpLinksPath: '',
+    changeRequestServerIp: '',
+    changeRequestPort: '',
+    changeRequestUsername: '',
+    changeRequestPassword: '',
   });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await settingsService.getImportFileConfig();
+      if (res) {
+        setConfigId(res.id || 1);
+        setConfigModule(res.module || 'app');
+        setFormData({
+          workOrderStatusFilePath: res.workOrderStatusFilePath || '',
+          changeRequestFilePath: res.changeRequestFilePath || '',
+          runTimeFilePath: res.runTimeFilePath || '',
+          ImpLinksPath: res.ImpLinksPath || '',
+          changeRequestServerIp: res.changeRequestServerIp || '',
+          changeRequestPort: res.changeRequestPort || '',
+          changeRequestUsername: res.changeRequestUsername || '',
+          changeRequestPassword: res.changeRequestPassword || '',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch import config:', error);
+      toast.error('Failed to load import configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fileInputRefs = {
     woFilePath: useRef(null),
@@ -31,14 +66,66 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
     setFormData((prev) => ({ ...prev, [field]: val }));
   };
 
-  const handleFileUpload = (field, event) => {
+  const handleFileUpload = async (field, fileKey, event) => {
     const file = event.target.files?.[0];
     if (file) {
-      const mockPath = `/upload/csvfiles/oss/${file.name}`;
-      setFormData((prev) => ({ ...prev, [field]: mockPath }));
-      toast.success(`File selected: ${file.name}`);
+      try {
+        const payload = new FormData();
+        payload.append('file', file);
+        payload.append('fileKey', fileKey);
+        
+        await settingsService.uploadFile(payload);
+        
+        toast.success(`File uploaded successfully: ${file.name}`);
+        // Refresh the path after successful upload
+        await fetchData();
+      } catch (error) {
+        console.error('File upload failed:', error);
+        toast.error(`Failed to upload ${file.name}`);
+      }
     }
   };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      
+      const allConfigs = await settingsService.getEnvironmentConfig(); 
+      const importConfigs = await settingsService.getImportFileConfig(); 
+
+      const mergedConfig = {
+        ...allConfigs,
+        ...importConfigs,
+        ...formData
+      };
+
+      delete mergedConfig.id;
+      delete mergedConfig.module;
+
+      const payload = {
+        id: configId,
+        module: configModule,
+        configuration: mergedConfig
+      };
+
+      await settingsService.updateConfig(payload);
+      toast.success('Import configuration updated successfully');
+    } catch (error) {
+      console.error('Failed to update import config:', error);
+      toast.error('Failed to update configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="ss-form-card">
@@ -47,10 +134,7 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
       </div>
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (onSave) onSave();
-        }}
+        onSubmit={handleSave}
         style={{ padding: '24px' }}
       >
         <div className="ss-grid-2col">
@@ -64,14 +148,14 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
                 id="imp-wo-filepath"
                 type="text"
                 className="ss-input"
-                value={formData.woFilePath}
-                onChange={(e) => handleChange('woFilePath', e.target.value)}
+                value={formData.workOrderStatusFilePath}
+                onChange={(e) => handleChange('workOrderStatusFilePath', e.target.value)}
               />
               <input
                 type="file"
                 ref={fileInputRefs.woFilePath}
                 style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('woFilePath', e)}
+                onChange={(e) => handleFileUpload('workOrderStatusFilePath', 'wofilePath', e)}
               />
               <button
                 type="button"
@@ -103,14 +187,14 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
                 id="imp-cr-filepath"
                 type="text"
                 className="ss-input"
-                value={formData.crFilePath}
-                onChange={(e) => handleChange('crFilePath', e.target.value)}
+                value={formData.changeRequestFilePath}
+                onChange={(e) => handleChange('changeRequestFilePath', e.target.value)}
               />
               <input
                 type="file"
                 ref={fileInputRefs.crFilePath}
                 style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('crFilePath', e)}
+                onChange={(e) => handleFileUpload('changeRequestFilePath', 'crfilePath', e)}
               />
               <button
                 type="button"
@@ -142,14 +226,14 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
                 id="imp-runtime-filepath"
                 type="text"
                 className="ss-input"
-                value={formData.runtimeTrendsFilePath}
-                onChange={(e) => handleChange('runtimeTrendsFilePath', e.target.value)}
+                value={formData.runTimeFilePath}
+                onChange={(e) => handleChange('runTimeFilePath', e.target.value)}
               />
               <input
                 type="file"
                 ref={fileInputRefs.runtimeTrendsFilePath}
                 style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('runtimeTrendsFilePath', e)}
+                onChange={(e) => handleFileUpload('runTimeFilePath', 'runTimeFilePath', e)}
               />
               <button
                 type="button"
@@ -180,8 +264,8 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
               id="imp-docs-filepath"
               type="text"
               className="ss-input"
-              value={formData.documentsFilePath}
-              onChange={(e) => handleChange('documentsFilePath', e.target.value)}
+              value={formData.ImpLinksPath}
+              onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
             />
           </div>
 
@@ -194,8 +278,8 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
               id="imp-cr-server-ip"
               type="text"
               className="ss-input"
-              value={formData.crServerIp}
-              onChange={(e) => handleChange('crServerIp', e.target.value)}
+              value={formData.changeRequestServerIp}
+              onChange={(e) => handleChange('changeRequestServerIp', e.target.value)}
             />
           </div>
 
@@ -208,8 +292,8 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
               id="imp-cr-port-no"
               type="number"
               className="ss-input"
-              value={formData.crPortNo}
-              onChange={(e) => handleChange('crPortNo', e.target.value)}
+              value={formData.changeRequestPort}
+              onChange={(e) => handleChange('changeRequestPort', e.target.value)}
             />
           </div>
 
@@ -222,8 +306,8 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
               id="imp-cr-user-name"
               type="text"
               className="ss-input"
-              value={formData.crUserName}
-              onChange={(e) => handleChange('crUserName', e.target.value)}
+              value={formData.changeRequestUsername}
+              onChange={(e) => handleChange('changeRequestUsername', e.target.value)}
             />
           </div>
 
@@ -237,8 +321,8 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
                 id="imp-cr-password"
                 type={showPassword ? 'text' : 'password'}
                 className="ss-input with-right-icon"
-                value={formData.crPassword}
-                onChange={(e) => handleChange('crPassword', e.target.value)}
+                value={formData.changeRequestPassword}
+                onChange={(e) => handleChange('changeRequestPassword', e.target.value)}
               />
               <button
                 type="button"
@@ -254,9 +338,9 @@ function ImportConfigPanelComponent({ onSave, isSaving }) {
 
         {/* Primary Action Button */}
         <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
-          <button type="submit" className="ss-btn-update" disabled={isSaving}>
-            <Save size={16} />
-            {isSaving ? 'Updating...' : 'Update'}
+          <button type="submit" className="ss-btn-update" disabled={saving}>
+            {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
+            {saving ? 'Updating...' : 'Update'}
           </button>
         </div>
       </form>

@@ -320,3 +320,29 @@
     font-size: 8px;
   }
 }
+
+/* Skeleton Loading Styles */
+.leave-card-skeleton-text {
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  animation: pulse-skeleton 1.5s ease-in-out infinite;
+}
+
+.leave-card-skeleton-circle {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  animation: pulse-skeleton 1.5s ease-in-out infinite;
+}
+
+[data-theme='dark'] .leave-card-skeleton-text,
+[data-theme='dark'] .leave-card-skeleton-circle {
+  background-color: #4b5563;
+}
+
+@keyframes pulse-skeleton {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Calendar,
   Users,
@@ -23,16 +23,20 @@ import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { TeamRequestsTab } from './TeamRequestsTab';
 import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { useAuth } from '@hooks/useAuth';
+import leaveService from '@services/leaveService';
 import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
 import './LeaveManagementPage.css';
 import './LeaveTable.css';
-const tabs = [
+const ALL_TABS = [
   { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
   { id: 'team-requests', label: 'Team Leave Requests', icon: Users },
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3 },
-  { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal },
+  { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, adminOnly: true },
 ];
+import { Loader } from '@components/feedback/Loader/Loader';
+
 export function LeaveManagementPage() {
   useDocumentTitle('Leave Management');
 
@@ -44,6 +48,71 @@ export function LeaveManagementPage() {
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(currentDate.getMonth());
+
+  const { user } = useAuth();
+  const [leaveBalances, setLeaveBalances] = useState(null);
+  const [leaves, setLeaves] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Fetch only if we're on the relevant tab that needs this data
+      if (activeTab !== 'my-leaves') return;
+
+      setIsLoading(true);
+      try {
+        let targetEmpId = user?.emp_id;
+
+        // Fetch explicitly from user-info if emp_id is missing
+        if (!targetEmpId) {
+          try {
+            const { default: httpClient } = await import('@api/httpClient');
+            const { default: endpoints } = await import('@api/endpoints');
+            const res = await httpClient.get(endpoints.auth.userInfo);
+            const info = res.data?.userInformation || res.data;
+            targetEmpId = info?.empId || info?.emp_id || info?.employee_id;
+          } catch (err) {
+            console.error("Failed to fetch user-info", err);
+          }
+        }
+
+        // If STILL no targetEmpId, we must abort instead of falling back to 1
+        // to avoid "You can only access your own profile" error.
+        if (!targetEmpId) {
+          console.error("No valid emp_id found for logged-in user.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Fetching data for targetEmpId:", targetEmpId, "User:", user);
+
+        try {
+          const response = await leaveService.getLeaveBalance(targetEmpId);
+          setLeaveBalances(response?.balances);
+        } catch (e) {
+          console.error("Failed to fetch leave balances", e);
+        }
+
+        try {
+          const leavesResponse = await leaveService.getMyLeaves(targetEmpId);
+          const userLeaves = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse?.results || []);
+          setLeaves(userLeaves);
+          setCalendarEvents(userLeaves);
+        } catch (e) {
+          console.error("Failed to fetch leaves", e);
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch leave data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [user, calendarYear, calendarMonth, activeTab, refreshKey]);
+
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
       setCalendarMonth(11);
@@ -63,10 +132,19 @@ export function LeaveManagementPage() {
   return (
     <div className="leave-management">
       {modalType && (
-        <ApplyLeaveModal onClose={() => setModalType(null)} isAdmin={true} type={modalType} />
+        <ApplyLeaveModal 
+          onClose={(shouldRefresh) => {
+            setModalType(null);
+            if (shouldRefresh === true) {
+              setRefreshKey(k => k + 1);
+            }
+          }} 
+          isAdmin={true} 
+          type={modalType} 
+        />
       )}
       <div className="leave-management-tabs">
-        {tabs.map((tab) => {
+        {ALL_TABS.filter(tab => !tab.adminOnly || user?.isAdmin === 1 || user?.roleName?.includes('HR')).map((tab) => {
           const Icon = tab.icon;
           return (
             <button
@@ -109,74 +187,83 @@ export function LeaveManagementPage() {
             <div className="leave-cards-grid">
               <LeaveCard
                 title="Leave Quota"
-                centerCount={20}
-                left={12}
-                used={8}
-                total={20}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.AL?.entitled ?? 0}
+                left={leaveBalances?.AL?.available ?? 0}
+                used={leaveBalances?.AL?.used ?? 0}
+                total={leaveBalances?.AL?.entitled ?? 0}
                 color="#006633"
               />
               <LeaveCard
                 title="Carry Over"
-                centerCount={5}
-                left={5}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.AL?.carried_forward ?? 0}
+                left={leaveBalances?.AL?.carried_forward ?? 0}
                 used={0}
-                total={5}
+                total={leaveBalances?.AL?.carried_forward ?? 0}
                 color="#0891b2"
               />
               <LeaveCard
                 title="Comp Off"
-                centerCount={3}
-                left={2}
-                used={1}
-                total={3}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.CompOff?.entitled ?? 0}
+                left={leaveBalances?.CompOff?.available ?? 0}
+                used={leaveBalances?.CompOff?.used ?? 0}
+                total={leaveBalances?.CompOff?.entitled ?? 0}
                 color="#8b5cf6"
               />
               <LeaveCard
                 title="Sick Leaves"
-                centerCount={10}
-                left={7}
-                used={3}
-                total={10}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.SL?.entitled ?? 0}
+                left={leaveBalances?.SL?.available ?? 0}
+                used={leaveBalances?.SL?.used ?? 0}
+                total={leaveBalances?.SL?.entitled ?? 0}
                 color="#dc2626"
               />
               <LeaveCard
                 title="Weekend Work"
-                centerCount={4}
-                left={4}
-                used={0}
-                total={4}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.WW?.entitled ?? 0}
+                left={leaveBalances?.WW?.available ?? 0}
+                used={leaveBalances?.WW?.used ?? 0}
+                total={leaveBalances?.WW?.entitled ?? 0}
                 color="#f59e0b"
               />
               <LeaveCard
                 title="Booked Leave"
-                centerCount={15}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.AL?.used ?? 0}
                 left={0}
-                used={15}
-                total={15}
+                used={leaveBalances?.AL?.used ?? 0}
+                total={leaveBalances?.AL?.used ?? 0}
                 color="#059669"
               />
               <LeaveCard
                 title="Upcoming"
-                centerCount={6}
-                left={6}
+                isLoading={isLoading}
+                centerCount={0}
+                left={0}
                 used={0}
-                total={6}
+                total={0}
                 color="#3b82f6"
               />
               <LeaveCard
                 title="Completed"
-                centerCount={12}
+                isLoading={isLoading}
+                centerCount={0}
                 left={0}
-                used={12}
-                total={12}
+                used={0}
+                total={0}
                 color="#10b981"
               />
               <LeaveCard
                 title="Offshore Work"
-                centerCount={8}
-                left={5}
-                used={3}
-                total={8}
+                isLoading={isLoading}
+                centerCount={leaveBalances?.OW?.entitled ?? 0}
+                left={leaveBalances?.OW?.available ?? 0}
+                used={leaveBalances?.OW?.used ?? 0}
+                total={leaveBalances?.OW?.entitled ?? 0}
                 color="#6366f1"
               />
             </div>
@@ -192,7 +279,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('all')}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">1</span>
+                        <span className="leave-filter-badge">{leaves.length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -200,7 +287,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">0</span>
+                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -208,7 +295,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">1</span>
+                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -216,7 +303,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">0</span>
+                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -224,7 +311,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">0</span>
+                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase() === 'self-rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -232,7 +319,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('offshore')}
                       >
                         <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">1</span>
+                        <span className="leave-filter-badge">{leaves.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                     </div>
 
@@ -289,7 +376,11 @@ export function LeaveManagementPage() {
                   </div>
                 </div>
 
-                {viewMode === 'list' ? (
+                {isLoading ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+                    <Loader message="Loading your leaves..." />
+                  </div>
+                ) : viewMode === 'list' ? (
                   <div className="leave-table-container">
                     <table className="leave-table">
                       <colgroup>
@@ -313,123 +404,71 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        <tr className="leave-table-row">
-                          <td className="leave-table-cell" data-label="Leave Type">
-                            Annual Leave
-                          </td>
-                          <td className="leave-table-cell" data-label="Dates">
-                            <div className="leave-table-dates">
-                              <span className="leave-table-date-text text-[14px]">
-                                Fri, 05 Dec 2025
-                              </span>
-                              <span className="leave-table-date-duration">(1 day)</span>
-                            </div>
-                          </td>
-                          <td className="leave-table-cell" data-label="Work Days">
-                            1
-                          </td>
-                          <td className="leave-table-cell" data-label="Leave Reason">
-                            End of Meet
-                          </td>
-                          <td className="leave-table-cell" data-label="Status">
-                            <span className="leave-table-status" data-status="approved">
-                              approved
-                            </span>
-                          </td>
-                          <td className="leave-table-cell" data-label="Comments">
-                            <button className="leave-table-icon-button" title="View Comments">
-                              <FileCheck className="leave-table-icon" />
-                            </button>
-                          </td>
-                          <td className="leave-table-cell" data-label="Action">
-                            <div className="leave-table-actions">
-                              <button className="leave-table-action-button" title="Cancel Request">
-                                <X className="leave-table-action-icon" />
-                              </button>
-                              <button className="leave-table-action-button" title="Edit Request">
-                                <Edit className="leave-table-action-icon" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr className="leave-table-row">
-                          <td className="leave-table-cell" data-label="Leave Type">
-                            Annual Leave
-                          </td>
-                          <td className="leave-table-cell" data-label="Dates">
-                            <div className="leave-table-dates">
-                              <span className="leave-table-date-text text-[14px]">
-                                Mon, 08 Dec 2025 - Tue, 09 Dec 2025
-                              </span>
-                              <span className="leave-table-date-duration">(2 days)</span>
-                            </div>
-                          </td>
-                          <td className="leave-table-cell" data-label="Work Days">
-                            2
-                          </td>
-                          <td className="leave-table-cell" data-label="Leave Reason">
-                            Annual Leave
-                          </td>
-                          <td className="leave-table-cell" data-label="Status">
-                            <span className="leave-table-status" data-status="approved">
-                              approved
-                            </span>
-                          </td>
-                          <td className="leave-table-cell" data-label="Comments">
-                            <button className="leave-table-icon-button" title="View Comments">
-                              <FileCheck className="leave-table-icon" />
-                            </button>
-                          </td>
-                          <td className="leave-table-cell" data-label="Action">
-                            <div className="leave-table-actions">
-                              <button className="leave-table-action-button" title="Cancel Request">
-                                <X className="leave-table-action-icon" />
-                              </button>
-                              <button className="leave-table-action-button" title="Edit Request">
-                                <Edit className="leave-table-action-icon" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr className="leave-table-row">
-                          <td className="leave-table-cell" data-label="Leave Type">
-                            Offshore Work
-                          </td>
-                          <td className="leave-table-cell" data-label="Dates">
-                            <div className="leave-table-dates">
-                              <span className="leave-table-date-text text-[14px]">
-                                Tue, 04 Nov 2025 - Wed, 12 Nov 2025
-                              </span>
-                              <span className="leave-table-date-duration">(8 days)</span>
-                            </div>
-                          </td>
-                          <td className="leave-table-cell" data-label="Work Days">
-                            4
-                          </td>
-                          <td className="leave-table-cell" data-label="Leave Reason">
-                            Offshore Work Request
-                          </td>
-                          <td className="leave-table-cell" data-label="Status">
-                            <span className="leave-table-status" data-status="approved">
-                              approved
-                            </span>
-                          </td>
-                          <td className="leave-table-cell" data-label="Comments">
-                            <button className="leave-table-icon-button" title="View Comments">
-                              <FileCheck className="leave-table-icon" />
-                            </button>
-                          </td>
-                          <td className="leave-table-cell" data-label="Action">
-                            <div className="leave-table-actions">
-                              <button className="leave-table-action-button" title="Cancel Request">
-                                <X className="leave-table-action-icon" />
-                              </button>
-                              <button className="leave-table-action-button" title="Edit Request">
-                                <Edit className="leave-table-action-icon" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                        {leaves.filter(leave => {
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+                        }).map((leave) => {
+                          const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+                          const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+                          const dateDisplay = leave.start_date === leave.end_date ? startDate : `${startDate} - ${endDate}`;
+
+                          // Mapping standard abbreviation codes to readable text if needed
+                          const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
+                          const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+
+                          return (
+                            <tr key={leave.id} className="leave-table-row">
+                              <td className="leave-table-cell" data-label="Leave Type">
+                                {displayType}
+                              </td>
+                              <td className="leave-table-cell" data-label="Dates">
+                                <div className="leave-table-dates">
+                                  <span className="leave-table-date-text text-[14px]">
+                                    {dateDisplay}
+                                  </span>
+                                  <span className="leave-table-date-duration">({leave.in_days} day{leave.in_days !== 1 ? 's' : ''})</span>
+                                </div>
+                              </td>
+                              <td className="leave-table-cell" data-label="Work Days">
+                                {leave.business_days}
+                              </td>
+                              <td className="leave-table-cell" data-label="Leave Reason">
+                                {leave.leave_reason}
+                              </td>
+                              <td className="leave-table-cell" data-label="Status">
+                                <span className="leave-table-status" data-status={statusStr}>
+                                  {statusStr}
+                                </span>
+                              </td>
+                              <td className="leave-table-cell" data-label="Comments">
+                                {(leave.approval_reason || leave.rejected_reason) ? (
+                                  <button className="leave-table-icon-button" title={leave.approval_reason || leave.rejected_reason}>
+                                    <FileCheck className="leave-table-icon" />
+                                  </button>
+                                ) : null}
+                              </td>
+                              <td className="leave-table-cell" data-label="Action">
+                                <div className="leave-table-actions">
+                                  <button className="leave-table-action-button" title="Cancel Request">
+                                    <X className="leave-table-action-icon" />
+                                  </button>
+                                  <button className="leave-table-action-button" title="Edit Request">
+                                    <Edit className="leave-table-action-icon" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {leaves.filter(leave => {
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+                        }).length === 0 && (
+                            <tr className="leave-table-row">
+                              <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
+                            </tr>
+                          )}
                       </tbody>
                     </table>
                   </div>
@@ -437,7 +476,7 @@ export function LeaveManagementPage() {
                   <LeaveCalendar
                     year={calendarYear}
                     month={calendarMonth}
-                    events={MY_LEAVE_EVENTS}
+                    events={calendarEvents}
                     onPrevMonth={handlePrevMonth}
                     onNextMonth={handleNextMonth}
                   />
