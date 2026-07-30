@@ -35,7 +35,7 @@ export function CapacityPlanningPage() {
   const [selectedDrillConsultant, setSelectedDrillConsultant] = useState(null);
   const [selectedDrillTimeframe, setSelectedDrillTimeframe] = useState(null);
 
-  const fetchPlan = useCallback(() => capacityService.getCapacityPlan({ timeRange: 90 }), []);
+  const fetchPlan = useCallback(() => capacityService.getCapacityPlanning({ timeRange: 90 }), []);
   const { data, isLoading, error, refetch } = useAsync(fetchPlan);
 
   const sources = data?.sources || { woFile: 'API', crFile: 'API' };

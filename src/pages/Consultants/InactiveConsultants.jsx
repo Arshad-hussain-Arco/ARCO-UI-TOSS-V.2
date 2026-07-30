@@ -52,7 +52,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   }, [inactiveConsultants, teamsData]);
 
   const designations = useMemo(() => {
-    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name);
+    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name || d.designation).filter(Boolean);
     return Array.from(new Set(inactiveConsultants.map(c => c.designation).filter(Boolean)));
   }, [inactiveConsultants, designationsData]);
 

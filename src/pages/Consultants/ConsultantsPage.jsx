@@ -82,18 +82,19 @@ const EfSwitchRow = ({ checked, onChange, label }) => (
 export function ConsultantsPage() {
   useDocumentTitle('Consultants');
   const toast = useToast();
-  
+
   const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
 
   const { data: employeesData, refetch: loadEmployees, isLoading: isEmployeesLoading, error: employeesError, setData: setEmployeesData } = useAsync(fetchEmployees, { immediate: true });
 
   const dynamicEmployees = employeesData?.results || employeesData || [];
-  
-  // Extract unique roles and teams from the full employees list
-  const dynamicRoles = Array.from(new Set(dynamicEmployees.map(e => e.role_id || e.role).filter(Boolean))).map(id => {
-    const emp = dynamicEmployees.find(e => e.role_id === id || e.role === id);
-    return { id, name: emp.role_name || emp.role || String(id) };
-  });
+
+  const fetchRoles = useCallback(() => consultantService.getRoles(), []);
+  const { data: rolesData } = useAsync(fetchRoles, { immediate: true });
+  const dynamicRoles = Array.isArray(rolesData)
+    ? rolesData.map(r => ({ id: r.id, name: r.role_name || r.name || String(r.id) }))
+    : [];
+    
   const fetchRefData = useCallback(() => consultantService.getDesignationsAndTeams(), []);
   const { data: refData } = useAsync(fetchRefData, { immediate: true });
   const fetchLocations = useCallback(() => consultantService.getLocations(), []);
@@ -101,8 +102,10 @@ export function ConsultantsPage() {
   const fetchCompLocations = useCallback(() => consultantService.getComputerLocations(), []);
   const { data: compLocationsData } = useAsync(fetchCompLocations, { immediate: true });
 
-  const dynamicTeams = refData?.teams || [];
-  const dynamicDesignations = refData?.designations || [];
+  const dynamicDesignations = Array.isArray(refData) ? refData : (refData?.results || refData?.designations || []);
+  const dynamicTeams = Array.isArray(refData) 
+    ? refData.flatMap(d => d.teams || [])
+    : (refData?.teams || []);
   const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
   const dynamicCompLocations = Array.isArray(compLocationsData) ? compLocationsData : (compLocationsData?.results || []);
 
@@ -113,7 +116,7 @@ export function ConsultantsPage() {
   const [editingTarget, setEditingTarget] = useState(null);
   const [showPw, setShowPw] = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);
-  
+
   const [viewProfileId, setViewProfileId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
@@ -184,7 +187,7 @@ export function ConsultantsPage() {
       const base64String = reader.result;
       const rawBase64 = base64String.split(',')[1];
       patch({ avatar: base64String, photoUploadBase64: rawBase64, photo: rawBase64, photoDeleteFlag: false });
-      
+
       // If we are editing an existing consultant, upload immediately
       if (editingTarget?.id) {
         try {
@@ -207,7 +210,7 @@ export function ConsultantsPage() {
 
   const handlePhotoRemove = async () => {
     patch({ avatar: null, photoUploadBase64: null, photo: null, photoDeleteFlag: true });
-    
+
     // If we are editing an existing consultant, delete immediately
     if (editingTarget?.id) {
       try {
@@ -246,13 +249,13 @@ export function ConsultantsPage() {
         });
       } else {
         const newConsultant = await consultantService.createConsultant(formData);
-        
+
         // If they uploaded a photo during creation, we still need this here!
         const newId = newConsultant?.id || newConsultant?.emp_id;
         if (newId && formData.photoUploadBase64) {
           await consultantService.uploadPhoto(newId, formData.photoUploadBase64);
         }
-        
+
         toast.success('Consultant added successfully');
       }
       closeDrawer();
@@ -265,8 +268,8 @@ export function ConsultantsPage() {
   const handleConfirmDelete = async () => {
     try {
       // Prompt asked for "api/employees/delete/". Assuming ID is passed.
-      await consultantService.deleteConsultant({ 
-        id: editingTarget.id, 
+      await consultantService.deleteConsultant({
+        id: editingTarget.id,
         userId: editingTarget.userId,
         name: editingTarget.name
       });
@@ -307,7 +310,7 @@ export function ConsultantsPage() {
       {/* Content */}
       <div className="consultants-content">
         {activeTab === 'consultants' && (
-          <ActiveConsultants 
+          <ActiveConsultants
             onAdd={handleAdd}
             onEdit={handleEdit}
             onPassword={handlePw}
@@ -322,7 +325,7 @@ export function ConsultantsPage() {
           />
         )}
         {activeTab === 'inactive' && (
-          <InactiveConsultants 
+          <InactiveConsultants
             onEdit={handleEdit}
             onPassword={handlePw}
             onDelete={handleDelete}
@@ -334,9 +337,9 @@ export function ConsultantsPage() {
       </div>
 
       {viewProfileId && (
-        <ConsultantProfileModal 
-          consultantId={viewProfileId} 
-          onClose={() => setViewProfileId(null)} 
+        <ConsultantProfileModal
+          consultantId={viewProfileId}
+          onClose={() => setViewProfileId(null)}
         />
       )}
 
@@ -402,11 +405,11 @@ export function ConsultantsPage() {
                         <span className="ef-avatar-name">{formData.name || 'New Consultant'}</span>
                         <div className="ef-avatar-btns">
                           <label className="ef-avatar-btn-sm" style={{ cursor: 'pointer' }}>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              style={{ display: 'none' }} 
-                              onChange={handlePhotoUpload} 
+                            <input
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={handlePhotoUpload}
                             />
                             <Upload size={10} /> Upload
                           </label>
@@ -538,15 +541,15 @@ export function ConsultantsPage() {
                       </EfField>
                       <EfField label="Location">
                         <Select
-                           value={formData.location || ''}
-                           onChange={(v) => patch({ location: v })}
-                           options={[{ value: '', label: 'Select location' }, ...dynamicLocations.map(l => ({ value: l.name, label: l.name }))]}
+                          value={formData.location || ''}
+                          onChange={(v) => patch({ location: v })}
+                          options={[{ value: '', label: 'Select location' }, ...dynamicLocations.map(l => ({ value: l.name, label: l.name }))]}
                         />
                       </EfField>
                     </div>
                   </div>
                 )}
-                
+
                 {formTab === 'user-info' && (
                   <div className="ef-form">
                     <EfSection label="Account Identity" />
@@ -577,25 +580,25 @@ export function ConsultantsPage() {
                           options={STATIC_STATUSES.map(s => ({ value: s, label: s }))}
                         />
                       </EfField>
-                      
+
                       {/* Only show password on Add */}
                       {!isEditing && (
                         <EfField label="Initial Password" required>
-                           <input
-                              type="password"
-                              className="ef-input"
-                              value={formData.password || ''}
-                              onChange={(e) => patch({ password: e.target.value })}
-                           />
+                          <input
+                            type="password"
+                            className="ef-input"
+                            value={formData.password || ''}
+                            onChange={(e) => patch({ password: e.target.value })}
+                          />
                         </EfField>
                       )}
                     </div>
-                    
+
                     <div style={{ marginTop: '24px' }}>
-                      <EfSwitchRow 
-                        label="Include in CP" 
-                        checked={formData.includeInCp} 
-                        onChange={(v) => patch({ includeInCp: v })} 
+                      <EfSwitchRow
+                        label="Include in CP"
+                        checked={formData.includeInCp}
+                        onChange={(v) => patch({ includeInCp: v })}
                       />
                     </div>
                   </div>
@@ -667,15 +670,15 @@ export function ConsultantsPage() {
                         />
                       </EfField>
                     </div>
-                    
+
                     <div style={{ marginTop: '16px' }}>
-                      <EfSwitchRow 
-                        label="Physical PC Available" 
-                        checked={formData.physicalPcAvailable} 
-                        onChange={(v) => patch({ physicalPcAvailable: v })} 
+                      <EfSwitchRow
+                        label="Physical PC Available"
+                        checked={formData.physicalPcAvailable}
+                        onChange={(v) => patch({ physicalPcAvailable: v })}
                       />
                     </div>
-                    
+
                     <div style={{ marginTop: '16px' }}>
                       <EfField label="Remarks">
                         <textarea
@@ -696,11 +699,11 @@ export function ConsultantsPage() {
               </div>
             </>
           )}
-          
+
           {drawerMode === 'delete' && (
             <div className="con-drawer-body delete-mode">
-               <p>Are you sure you want to deactivate this consultant?</p>
-               <div className="con-drawer-footer">
+              <p>Are you sure you want to deactivate this consultant?</p>
+              <div className="con-drawer-footer">
                 <button className="con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
                 <button className="con-drawer-btn-save danger" onClick={handleConfirmDelete}>Deactivate</button>
               </div>

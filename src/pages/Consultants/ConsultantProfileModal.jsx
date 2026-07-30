@@ -5,6 +5,7 @@ import { Image } from '@components/common/Image/Image';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { dismissBackdrop } from '@utils/interactive';
 import { useCallback } from 'react';
+import { useAuth } from '@hooks/useAuth';
 import './ConsultantProfileModal.css';
 
 function getInitials(name) {
@@ -18,6 +19,7 @@ function formatDate(dateString) {
 }
 
 export function ConsultantProfileModal({ consultantId, onClose }) {
+  const { user } = useAuth();
   const fetchInfo = useCallback(async () => {
     const info = await consultantService.getConsultantInfo(consultantId);
     let photoUrl = info.photo || info.avatar || '';
@@ -187,8 +189,14 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
             </div>
           </div>
 
-          {leaveSummary.length > 0 && (
-            <div className="cp-section">
+          {(() => {
+            const managerName = info.manager_name || info.reporting_manager || info.manager;
+            const isManager = user?.emp_id === info.manager_id || user?.userId === info.manager_id || (user?.name && managerName && user.name.toLowerCase() === managerName.toLowerCase());
+            
+            if (!isManager || leaveSummary.length === 0) return null;
+            
+            return (
+              <div className="cp-section">
               <h4 className="cp-section-title">Leave Summary</h4>
               <div className="cp-leave-grid">
                 {leaveSummary.map((leave, idx) => {
@@ -237,7 +245,8 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                 })}
               </div>
             </div>
-          )}
+            );
+          })()}
           
         </div>
       </div>

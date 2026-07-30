@@ -46,7 +46,7 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   }, [activeConsultants, teamsData]);
 
   const designations = useMemo(() => {
-    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name);
+    if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name || d.designation).filter(Boolean);
     return Array.from(new Set(activeConsultants.map(c => c.designation).filter(Boolean)));
   }, [activeConsultants, designationsData]);
 

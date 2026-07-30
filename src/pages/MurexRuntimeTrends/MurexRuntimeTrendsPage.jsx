@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Download,
   RefreshCw,
@@ -14,6 +14,8 @@ import {
   Zap,
   Calendar,
   BarChart3,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import {
   Line,
@@ -29,6 +31,7 @@ import {
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
@@ -54,20 +57,56 @@ export function MurexRuntimeTrendsPage() {
    */
   const [pinnedScriptIds, setPinnedScriptIds] = useState(() => new Set());
 
+  // Category Management State
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryFormName, setCategoryFormName] = useState('');
+  const [categoryFormDescription, setCategoryFormDescription] = useState('');
+  const [categoryFormScripts, setCategoryFormScripts] = useState([]); // Array of script names
+  const [availableSearch, setAvailableSearch] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+
+  const [remoteCategoriesData, setRemoteCategoriesData] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  const fetchCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
+    try {
+      const data = await murexService.getCategories();
+      setRemoteCategoriesData(data);
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
   const scripts = useMemo(
     () =>
-      (data?.scripts ?? []).map((script) => ({
-        ...script,
-        isPinned: pinnedScriptIds.has(script.id),
-      })),
-    [data, pinnedScriptIds],
+      (data?.scripts ?? []).map((script) => {
+        // Find explicit remote category that contains this script
+        const matchingCategory = remoteCategories.find(c => 
+          c.scripts && c.scripts.some(s => s.script_name === script.name)
+        );
+        return {
+          ...script,
+          category: matchingCategory ? matchingCategory.name : 'Unassigned Scripts',
+          isPinned: pinnedScriptIds.has(script.id),
+        };
+      }),
+    [data, pinnedScriptIds, remoteCategories],
   );
 
   const [activeTab, setActiveTab] = useState('runtime');
   const [timeRange, setTimeRange] = useState('7d');
   // The design highlights one script in the insight panel and offers no control
   // to change it; promote to state once a selector exists.
-  const selectedScript = 'script-1';
+  const selectedScript = scripts.length > 0 ? scripts[0].id : '';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [scriptFilter, setScriptFilter] = useState('');
@@ -100,6 +139,106 @@ export function MurexRuntimeTrendsPage() {
       return next;
     });
   };
+
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryFormName('');
+    setCategoryFormDescription('');
+    setCategoryFormScripts([]);
+    setAvailableSearch('');
+    setCategorySearch('');
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (cat, e) => {
+    e.stopPropagation();
+    setEditingCategory(cat);
+    setCategoryFormName(cat.name);
+    setCategoryFormDescription(cat.description || '');
+    setCategoryFormScripts((cat.scripts || []).map(s => s.script_name));
+    setAvailableSearch('');
+    setCategorySearch('');
+    setShowCategoryModal(true);
+  };
+
+  const allKnownScripts = useMemo(() => {
+    const unassigned = remoteCategories.find(c => c.id === null)?.scripts || [];
+    const currentCatScripts = editingCategory?.scripts || [];
+    return [...unassigned, ...currentCatScripts];
+  }, [remoteCategories, editingCategory]);
+
+  const renderedAvailableScripts = allKnownScripts
+    .filter(s => !categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(availableSearch.toLowerCase()));
+
+  const renderedAssignedScripts = allKnownScripts
+    .filter(s => categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(categorySearch.toLowerCase()));
+
+  const toggleScriptAssignment = (scriptName, assign) => {
+    if (assign) {
+      setCategoryFormScripts(prev => [...prev, scriptName]);
+    } else {
+      setCategoryFormScripts(prev => prev.filter(name => name !== scriptName));
+    }
+  };
+
+  const [deletingCategory, setDeletingCategory] = useState(null);
+
+  const handleDeleteCategory = (cat, e) => {
+    e.stopPropagation();
+    setDeletingCategory(cat);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deletingCategory) return;
+    try {
+      const res = await murexService.deleteCategory(deletingCategory.id);
+      if (res?.categories) {
+        setRemoteCategoriesData(res.categories);
+      } else {
+        fetchCategories();
+      }
+      if (selectedCategory === deletingCategory.name) {
+        setSelectedCategory('all');
+      }
+    } catch (err) {
+      console.error('Failed to delete category', err);
+    } finally {
+      setDeletingCategory(null);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryFormName.trim()) return;
+    try {
+      const originalScripts = (editingCategory?.scripts || []).map(s => s.script_name);
+      
+      const payload = {
+        name: categoryFormName.trim(),
+        description: categoryFormDescription.trim(),
+        assign_scripts: categoryFormScripts.filter(name => !originalScripts.includes(name)),
+        unassign_scripts: originalScripts.filter(name => !categoryFormScripts.includes(name))
+      };
+      
+      let res;
+      if (editingCategory) {
+        res = await murexService.updateCategory(editingCategory.id, payload);
+      } else {
+        res = await murexService.createCategory(payload);
+      }
+      
+      if (res?.categories) {
+        setRemoteCategoriesData(res.categories);
+      } else {
+        fetchCategories();
+      }
+      setShowCategoryModal(false);
+    } catch (err) {
+      console.error('Failed to save category', err);
+    }
+  };
+
   const openScriptDetail = (script) => {
     setDetailScript(script);
     setShowScriptDetail(true);
@@ -449,20 +588,42 @@ export function MurexRuntimeTrendsPage() {
                   <span className="murex-category-count">{scripts.length}</span>
                 </button>
 
-                {Object.keys(categoryCounts).map((category) => (
-                  <button
-                    key={category}
-                    className={`murex-category-item ${selectedCategory === category ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(category)}
-                    style={{ borderLeft: `3px solid ${getCategoryColor(category)}` }}
-                  >
-                    <span className="murex-category-name">{category}</span>
-                    <span className="murex-category-count">{categoryCounts[category]}</span>
-                  </button>
+                {remoteCategories.map((category) => (
+                  <div key={category.id} className="murex-category-item-wrapper" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                    <button
+                      className={`murex-category-item ${selectedCategory === category.name ? 'active' : ''}`}
+                      onClick={() => setSelectedCategory(category.name)}
+                      style={{ borderLeft: `3px solid ${getCategoryColor(category.name) || 'var(--primary-color)'}`, flex: 1 }}
+                    >
+                      <span className="murex-category-name">{category.name}</span>
+                      <span className="murex-category-count">
+                        {scripts.filter((s) => s.category === category.name).length}
+                      </span>
+                    </button>
+                    {category.id !== null && (
+                      <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+                        <button 
+                          className="murex-icon-btn" 
+                          title="Edit Category"
+                          onClick={(e) => handleEditCategory(category, e)}
+                        >
+                          <Edit size={12} />
+                        </button>
+                        <button 
+                          className="murex-icon-btn error" 
+                          title="Delete Category"
+                          onClick={(e) => handleDeleteCategory(category, e)}
+                          style={{ color: 'var(--error-color)' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
-              <button className="murex-add-category-btn">
+              <button className="murex-add-category-btn" onClick={handleAddCategory}>
                 <Plus size={12} />
                 <span>Add Category</span>
               </button>
@@ -706,15 +867,15 @@ export function MurexRuntimeTrendsPage() {
                 <div className="murex-drawer-metrics-grid">
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Total Executions</span>
-                    <span className="murex-drawer-metric-value">286</span>
+                    <span className="murex-drawer-metric-value">{detailScript.totalExecutions || 0}</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Success Rate</span>
-                    <span className="murex-drawer-metric-value success">98.6%</span>
+                    <span className="murex-drawer-metric-value success">{detailScript.successRate || 0}%</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Failed Runs</span>
-                    <span className="murex-drawer-metric-value error">4</span>
+                    <span className="murex-drawer-metric-value error">{detailScript.failedRuns || 0}</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Avg Duration</span>
@@ -737,84 +898,170 @@ export function MurexRuntimeTrendsPage() {
               <div className="murex-drawer-section">
                 <h3 className="murex-drawer-section-title">Recent Activity</h3>
                 <div className="murex-drawer-activity-list">
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">45m 23s</span>
+                  {(detailScript.history || []).map((historyItem, index) => (
+                    <div key={index} className="murex-drawer-activity-item">
+                      <div className={`murex-drawer-activity-dot ${historyItem.status}`} />
+                      <div className="murex-drawer-activity-content">
+                        <div className="murex-drawer-activity-header">
+                          <span className="murex-drawer-activity-title">{historyItem.title}</span>
+                          <span className={`murex-drawer-activity-duration ${historyItem.status}`}>
+                            {historyItem.durationFormatted}
+                          </span>
+                        </div>
+                        <div className="murex-drawer-activity-time">{historyItem.date}</div>
+                        {historyItem.steps && historyItem.steps.length > 0 && (
+                          <div className="murex-drawer-activity-steps">
+                            {historyItem.steps.map((step, sIdx) => (
+                               <div key={sIdx} className="murex-step-detail">
+                                 <span className="murex-step-name">{step.name}</span>
+                                 <span className="murex-step-metrics">
+                                   CPU: {step.cpu_time}ms | DB: {step.db_time}ms | Elapsed: {step.elapsed_time}ms
+                                 </span>
+                               </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="murex-drawer-activity-time">{detailScript.lastRun}</div>
                     </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">44m 12s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-03 02:30</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot warning" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">
-                          Runtime Threshold Exceeded
-                        </span>
-                        <span className="murex-drawer-activity-duration warning">52m 18s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 20:15</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">43m 45s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 14:30</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">46m 02s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 08:15</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot error" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Failed</span>
-                        <span className="murex-drawer-activity-duration error">12m 34s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 02:08</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">45m 55s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-01 20:45</div>
-                    </div>
-                  </div>
+                  ))}
+                  {(!detailScript.history || detailScript.history.length === 0) && (
+                     <div className="murex-empty-state" style={{ padding: '20px 0' }}>
+                       <p>No recent activity data available.</p>
+                     </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
+      {/* Category Management Modal */}
+      <AdminModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        title={editingCategory ? 'Edit Category' : 'Create a New Category'}
+        size={editingCategory ? 'lg' : 'md'}
+        footer={
+          <>
+            <button className="con-drawer-btn-cancel" onClick={() => setShowCategoryModal(false)}>
+              Cancel
+            </button>
+            <button className="con-drawer-btn-save" onClick={handleSaveCategory}>
+              {editingCategory ? 'Save Changes' : 'Create Category'}
+            </button>
+          </>
+        }
+      >
+        <div className="murex-category-form-grid" style={{ display: 'grid', gridTemplateColumns: editingCategory ? '1fr 1fr' : '1fr', gap: '20px' }}>
+          <div className="murex-form-group">
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Category Name *</label>
+            <input 
+              type="text" 
+              value={categoryFormName} 
+              onChange={e => setCategoryFormName(e.target.value)} 
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
+            />
+          </div>
+          <div className="murex-form-group">
+            <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Description</label>
+            <textarea 
+              value={categoryFormDescription} 
+              onChange={e => setCategoryFormDescription(e.target.value)} 
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }} 
+            />
+          </div>
+        </div>
+
+        {editingCategory && (
+          <div className="murex-dual-list-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '24px' }}>
+            {/* Available Scripts */}
+            <div className="murex-script-list-pane">
+              <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Available Scripts ({renderedAvailableScripts.length})</h4>
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search available scripts..." 
+                  value={availableSearch}
+                  onChange={(e) => setAvailableSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                />
+              </div>
+              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}>
+                {renderedAvailableScripts.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts found</div>
+                ) : (
+                  renderedAvailableScripts.map(script => (
+                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                      <span>{script.script_name}</span>
+                      <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Category Scripts */}
+            <div className="murex-script-list-pane">
+              <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Category Scripts ({renderedAssignedScripts.length})</h4>
+              <div style={{ position: 'relative', marginBottom: '10px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search category scripts..." 
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                />
+              </div>
+              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px', background: 'var(--bg-tertiary)' }}>
+                {renderedAssignedScripts.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts assigned</div>
+                ) : (
+                  renderedAssignedScripts.map(script => (
+                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', background: 'var(--bg-primary)', borderRadius: '4px', marginBottom: '4px' }}>
+                      <span>{script.script_name}</span>
+                      <button onClick={() => toggleScriptAssignment(script.script_name, false)} style={{ background: 'var(--error-color)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>-</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </AdminModal>
+      
+      {/* Delete Confirmation Modal */}
+      <AdminModal
+        isOpen={!!deletingCategory}
+        onClose={() => setDeletingCategory(null)}
+        title=""
+        size="sm"
+        footer={
+          <div style={{ display: 'flex', width: '100%', justifyContent: 'center', gap: '10px' }}>
+            <button className="con-drawer-btn-cancel" onClick={() => setDeletingCategory(null)}>
+              Cancel
+            </button>
+            <button className="con-drawer-btn-save danger" onClick={confirmDeleteCategory}>
+              Delete
+            </button>
+          </div>
+        }
+      >
+        <div style={{ textAlign: 'center', padding: '10px' }}>
+          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: '#f59e0b' }}>
+            <AlertTriangle size={24} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Confirm Deletion</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Are you sure you want to delete the category<br />
+            <strong>{deletingCategory?.name}</strong>?
+          </p>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+            All scripts within this category will become uncategorized.
+          </p>
+        </div>
+      </AdminModal>
     </div>
   );
 }
