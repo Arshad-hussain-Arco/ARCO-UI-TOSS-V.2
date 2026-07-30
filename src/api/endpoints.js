@@ -29,6 +29,21 @@ const endpoints = {
       delete: (id) => `/important-links/link-data/${id}/delete/`,
     }
   },
+  systemSettings: {
+    environmentConfig: '/env-admin/environment-config/',
+    updateConfig: '/env-admin/update-config/',
+    importFileConfig: '/env-admin/import-file-config/',
+    uploadFile: '/env-admin/upload-file/',
+    crColumns: '/capacity-planning/cr-columns/',
+    updateCrColumn: (id) => `/capacity-planning/cr-columns/${id}/update/`,
+    woColumns: '/capacity-planning/wo-columns/',
+    updateWoColumn: (id) => `/capacity-planning/wo-columns/${id}/update/`,
+    weekendConfig: '/env-admin/weekend-config/',
+    homeData: '/dashboard/home-data/',
+    createHomeData: '/dashboard/home-data/create/',
+    updateHomeData: (id) => `/dashboard/home-data/${id}/update/`,
+    deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
+  },
   // Add other endpoints here as they get integrated
   me: {
     balance: (id) => `/leaves/me/${id}/balance/`,

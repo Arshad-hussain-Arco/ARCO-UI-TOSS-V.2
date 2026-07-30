@@ -126,48 +126,6 @@ export function RoleManagementPage() {
     fetchRoles();
   }, [fetchRoles]);
 
-  const fetchRoles = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await roleService.getRoles();
-      const mappedRoles = data.map((r) => {
-        const funcs = r.access_functions ? r.access_functions.split(',') : [];
-        const matrix = createEmptyMatrix();
-        
-        const hasAdd = funcs.includes('add');
-        const hasEdit = funcs.includes('edit');
-        const hasDelete = funcs.includes('delete');
-        
-        MODULES.forEach((mod) => {
-          matrix[mod] = {
-            add: hasAdd ? 'Allow' : 'Deny',
-            edit: hasEdit ? 'Allow' : 'Deny',
-            delete: hasDelete ? 'Allow' : 'Deny',
-            read: 'Allow', 
-            export: 'Deny',
-          };
-        });
-
-        return {
-          id: r.id,
-          name: r.role_name,
-          description: `Role ID: ${r.id}, modified by ${r.last_modified_by || 'system'}`,
-          isAdmin: r.is_admin === 1,
-          permissions: matrix,
-          originalFunctions: funcs,
-        };
-      });
-      setRoles(mappedRoles);
-    } catch (error) {
-      console.error('Failed to fetch roles', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles]);
 
   // Modal State for "Add Role"
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
