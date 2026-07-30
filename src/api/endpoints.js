@@ -69,12 +69,22 @@ const endpoints = {
     notificationsMarkAllRead: `/leaves/me/notifications/mark-all-read/`,
     notificationMarkRead: (id) => `/leaves/me/notifications/${id}/read/`,
   },
+  scriptManager: {
+    runtimeFile: '/script-manager/runtime-file/',
+    categories: {
+      list: '/script-manager/categories/',
+      create: '/script-manager/categories/create/',
+      update: (id) => `/script-manager/categories/${id}/update/`,
+      delete: (id) => `/script-manager/categories/${id}/delete/`,
+    },
+  },
   manager: {
     pending: (id) => `/leaves/manager/${id}/pending/`,
     teamBalances: (id) => `/leaves/manager/${id}/team-balances/`,
     teamLeaveQuota: (id) => `/leaves/manager/${id}/team-leave-quota/`,
     teamEditQuotaFields: (id) => `/leaves/manager/${id}/team-edit-quota-fields/`,
     updateQuota: (managerId, empId) => `/leaves/manager/${managerId}/employee/${empId}/quota/`,
+    departmentAttendance: `leaves/manager/org/department-attendance/`,
     headcount: (id) => `/leaves/manager/${id}/headcount/`,
     modRequests: (id) => `/leaves/manager/${id}/mod-requests/`,
     conflicts: `/leaves/manager/conflicts/`,

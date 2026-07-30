@@ -7,6 +7,9 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { activatable } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
+import api from '@api/httpClient';
+import endpoints from '@api/endpoints';
+import { useAuth } from '@hooks/useAuth';
 import './TeamsView.css';
 
 const MOCK_AVATAR = (name) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
@@ -170,12 +173,22 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 }
 
 export function TeamsView({ onProfileView }) {
+  const { user } = useAuth();
+
   const fetchTeams = useCallback(async () => {
     const res = await consultantService.getTeams();
     return Array.isArray(res) ? res : res?.results || [];
   }, []);
 
-  const fetchHeadcount = useCallback(() => consultantService.getTeamHeadcount(), []);
+  const fetchHeadcount = useCallback(async () => {
+    if (!user?.emp_id) return [];
+    const dateStr = new Date().toISOString().split('T')[0];
+    const res = await api.get(endpoints.manager.departmentAttendance, {
+      params: { date: dateStr }
+    });
+    const payload = res.data?.data || res.data;
+    return Array.isArray(payload) ? payload : (payload?.results || []);
+  }, [user?.emp_id]);
 
   const { data: teams, isLoading, error, refetch } = useAsync(fetchTeams);
   const { data: headcountData } = useAsync(fetchHeadcount);

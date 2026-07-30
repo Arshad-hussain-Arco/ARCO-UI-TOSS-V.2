@@ -14,6 +14,8 @@ import {
   Zap,
   Calendar,
   BarChart3,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import {
   Line,
@@ -54,20 +56,34 @@ export function MurexRuntimeTrendsPage() {
    */
   const [pinnedScriptIds, setPinnedScriptIds] = useState(() => new Set());
 
+  // Category Management State
+  const fetchCategories = useCallback(() => murexService.getCategories(), []);
+  const { data: remoteCategoriesData, refetch: refetchCategories } = useAsync(fetchCategories, { immediate: true });
+  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
+
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryFormName, setCategoryFormName] = useState('');
+
   const scripts = useMemo(
     () =>
-      (data?.scripts ?? []).map((script) => ({
-        ...script,
-        isPinned: pinnedScriptIds.has(script.id),
-      })),
-    [data, pinnedScriptIds],
+      (data?.scripts ?? []).map((script) => {
+        // Find matching remote category to override static category logic if applicable
+        const matchingCategory = remoteCategories.find(c => script.name.toUpperCase().includes(c.name.toUpperCase()));
+        return {
+          ...script,
+          category: matchingCategory ? matchingCategory.name : script.category,
+          isPinned: pinnedScriptIds.has(script.id),
+        };
+      }),
+    [data, pinnedScriptIds, remoteCategories],
   );
 
   const [activeTab, setActiveTab] = useState('runtime');
   const [timeRange, setTimeRange] = useState('7d');
   // The design highlights one script in the insight panel and offers no control
   // to change it; promote to state once a selector exists.
-  const selectedScript = 'script-1';
+  const selectedScript = scripts.length > 0 ? scripts[0].id : '';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [scriptFilter, setScriptFilter] = useState('');
@@ -100,6 +116,50 @@ export function MurexRuntimeTrendsPage() {
       return next;
     });
   };
+
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryFormName('');
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (cat, e) => {
+    e.stopPropagation();
+    setEditingCategory(cat);
+    setCategoryFormName(cat.name);
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategory = async (cat, e) => {
+    e.stopPropagation();
+    if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+      try {
+        await murexService.deleteCategory(cat.id);
+        refetchCategories();
+        if (selectedCategory === cat.name) {
+          setSelectedCategory('all');
+        }
+      } catch (err) {
+        console.error('Failed to delete category', err);
+      }
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryFormName.trim()) return;
+    try {
+      if (editingCategory) {
+        await murexService.updateCategory(editingCategory.id, { name: categoryFormName.trim() });
+      } else {
+        await murexService.createCategory({ name: categoryFormName.trim() });
+      }
+      setShowCategoryModal(false);
+      refetchCategories();
+    } catch (err) {
+      console.error('Failed to save category', err);
+    }
+  };
+
   const openScriptDetail = (script) => {
     setDetailScript(script);
     setShowScriptDetail(true);
@@ -449,20 +509,40 @@ export function MurexRuntimeTrendsPage() {
                   <span className="murex-category-count">{scripts.length}</span>
                 </button>
 
-                {Object.keys(categoryCounts).map((category) => (
-                  <button
-                    key={category}
-                    className={`murex-category-item ${selectedCategory === category ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(category)}
-                    style={{ borderLeft: `3px solid ${getCategoryColor(category)}` }}
-                  >
-                    <span className="murex-category-name">{category}</span>
-                    <span className="murex-category-count">{categoryCounts[category]}</span>
-                  </button>
+                {remoteCategories.map((category) => (
+                  <div key={category.id} className="murex-category-item-wrapper" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                    <button
+                      className={`murex-category-item ${selectedCategory === category.name ? 'active' : ''}`}
+                      onClick={() => setSelectedCategory(category.name)}
+                      style={{ borderLeft: `3px solid ${getCategoryColor(category.name) || 'var(--primary-color)'}`, flex: 1 }}
+                    >
+                      <span className="murex-category-name">{category.name}</span>
+                      <span className="murex-category-count">
+                        {scripts.filter((s) => s.category === category.name).length}
+                      </span>
+                    </button>
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+                      <button 
+                        className="murex-icon-btn" 
+                        title="Edit Category"
+                        onClick={(e) => handleEditCategory(category, e)}
+                      >
+                        <Edit size={12} />
+                      </button>
+                      <button 
+                        className="murex-icon-btn error" 
+                        title="Delete Category"
+                        onClick={(e) => handleDeleteCategory(category, e)}
+                        style={{ color: 'var(--error-color)' }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
 
-              <button className="murex-add-category-btn">
+              <button className="murex-add-category-btn" onClick={handleAddCategory}>
                 <Plus size={12} />
                 <span>Add Category</span>
               </button>
@@ -706,15 +786,15 @@ export function MurexRuntimeTrendsPage() {
                 <div className="murex-drawer-metrics-grid">
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Total Executions</span>
-                    <span className="murex-drawer-metric-value">286</span>
+                    <span className="murex-drawer-metric-value">{detailScript.totalExecutions || 0}</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Success Rate</span>
-                    <span className="murex-drawer-metric-value success">98.6%</span>
+                    <span className="murex-drawer-metric-value success">{detailScript.successRate || 0}%</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Failed Runs</span>
-                    <span className="murex-drawer-metric-value error">4</span>
+                    <span className="murex-drawer-metric-value error">{detailScript.failedRuns || 0}</span>
                   </div>
                   <div className="murex-drawer-metric-item">
                     <span className="murex-drawer-metric-label">Avg Duration</span>
@@ -737,79 +817,67 @@ export function MurexRuntimeTrendsPage() {
               <div className="murex-drawer-section">
                 <h3 className="murex-drawer-section-title">Recent Activity</h3>
                 <div className="murex-drawer-activity-list">
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">45m 23s</span>
+                  {(detailScript.history || []).map((historyItem, index) => (
+                    <div key={index} className="murex-drawer-activity-item">
+                      <div className={`murex-drawer-activity-dot ${historyItem.status}`} />
+                      <div className="murex-drawer-activity-content">
+                        <div className="murex-drawer-activity-header">
+                          <span className="murex-drawer-activity-title">{historyItem.title}</span>
+                          <span className={`murex-drawer-activity-duration ${historyItem.status}`}>
+                            {historyItem.durationFormatted}
+                          </span>
+                        </div>
+                        <div className="murex-drawer-activity-time">{historyItem.date}</div>
+                        {historyItem.steps && historyItem.steps.length > 0 && (
+                          <div className="murex-drawer-activity-steps">
+                            {historyItem.steps.map((step, sIdx) => (
+                               <div key={sIdx} className="murex-step-detail">
+                                 <span className="murex-step-name">{step.name}</span>
+                                 <span className="murex-step-metrics">
+                                   CPU: {step.cpu_time}ms | DB: {step.db_time}ms | Elapsed: {step.elapsed_time}ms
+                                 </span>
+                               </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="murex-drawer-activity-time">{detailScript.lastRun}</div>
                     </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">44m 12s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-03 02:30</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot warning" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">
-                          Runtime Threshold Exceeded
-                        </span>
-                        <span className="murex-drawer-activity-duration warning">52m 18s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 20:15</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">43m 45s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 14:30</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">46m 02s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 08:15</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot error" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Failed</span>
-                        <span className="murex-drawer-activity-duration error">12m 34s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-02 02:08</div>
-                    </div>
-                  </div>
-                  <div className="murex-drawer-activity-item">
-                    <div className="murex-drawer-activity-dot success" />
-                    <div className="murex-drawer-activity-content">
-                      <div className="murex-drawer-activity-header">
-                        <span className="murex-drawer-activity-title">Execution Completed</span>
-                        <span className="murex-drawer-activity-duration">45m 55s</span>
-                      </div>
-                      <div className="murex-drawer-activity-time">2026-02-01 20:45</div>
-                    </div>
-                  </div>
+                  ))}
+                  {(!detailScript.history || detailScript.history.length === 0) && (
+                     <div className="murex-empty-state" style={{ padding: '20px 0' }}>
+                       <p>No recent activity data available.</p>
+                     </div>
+                  )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Category Management Modal */}
+      {showCategoryModal && (
+        <div className="murex-drawer-overlay" {...dismissBackdrop(() => setShowCategoryModal(false))}>
+          <div className="murex-drawer" role="dialog" style={{ width: '400px', height: 'auto', bottom: 'auto', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', borderRadius: '8px' }}>
+            <div className="murex-drawer-header">
+              <h2 className="murex-drawer-title">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
+              <button className="murex-drawer-close" onClick={() => setShowCategoryModal(false)}>
+                <X size={14} />
+              </button>
+            </div>
+            <div className="murex-drawer-content" style={{ padding: '20px' }}>
+              <div className="murex-form-group">
+                <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Category Name</label>
+                <input 
+                  type="text" 
+                  value={categoryFormName} 
+                  onChange={e => setCategoryFormName(e.target.value)} 
+                  style={{ width: '100%', padding: '8px', marginTop: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
+                  placeholder="Enter category name"
+                />
+              </div>
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button onClick={() => setShowCategoryModal(false)} style={{ padding: '6px 12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleSaveCategory} style={{ padding: '6px 12px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
               </div>
             </div>
           </div>

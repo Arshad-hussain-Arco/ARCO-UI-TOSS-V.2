@@ -107,6 +107,10 @@ export const consultantService = {
     const response = await httpClient.get(endpoints.consultants.locations);
     return response.data;
   },
+  getRoles: async () => {
+    const response = await httpClient.get(endpoints.consultants.roles);
+    return response.data;
+  },
   getComputerLocations: async () => {
     const response = await httpClient.get(endpoints.consultants.computerLocations);
     return response.data;
