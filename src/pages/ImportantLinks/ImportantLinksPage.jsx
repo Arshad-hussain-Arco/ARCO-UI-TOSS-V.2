@@ -181,18 +181,23 @@ export function ImportantLinksPage() {
           groupId = existingGroup.id;
         }
 
-        const linkData = {
-          link: label,
-          url,
-          content: [sharedFolder, comments].filter(Boolean).join(' · ') || '',
-          is_header: pinToHeader,
-          group: groupId,
-        };
+        const formData = new FormData();
+        formData.append('link', label);
+        formData.append('url', url);
+        formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
+        formData.append('is_header', pinToHeader ? 1 : 0);
+        if (group) {
+          formData.append('group', group);
+        }
+        if (files && files.length > 0 && files[0] instanceof File) {
+          formData.append('file', files[0]);
+        }
 
-        const newLink = await linkService.createLink(linkData);
+        const newLinkResponse = await linkService.createLink(formData);
+        const newLinkId = newLinkResponse?.data?.id || id;
 
         if (pinToHeader) {
-          pinLink({ id: newLink?.id || id, group, label, url });
+          pinLink({ id: newLinkId, group, label, url });
         }
 
         await refetch();
@@ -205,20 +210,24 @@ export function ImportantLinksPage() {
 
   // ── Handle Update Link ─────────────────────────────────────────
   const handleUpdateLink = useCallback(
-    async ({ id, group, label, url, sharedFolder, comments, pinToHeader }) => {
+    async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
       try {
         const existingGroup = serverCategories?.find((c) => c.title === group);
         const groupId = existingGroup?.id;
 
-        const linkData = {
-          link: label,
-          url,
-          content: [sharedFolder, comments].filter(Boolean).join(' · ') || '',
-          is_header: pinToHeader,
-          group: groupId,
-        };
+        const formData = new FormData();
+        formData.append('link', label);
+        formData.append('url', url);
+        formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
+        formData.append('is_header', pinToHeader ? 1 : 0);
+        if (group) {
+          formData.append('group', group);
+        }
+        if (files && files.length > 0 && files[0] instanceof File) {
+          formData.append('file', files[0]);
+        }
 
-        await linkService.updateLink(id, linkData);
+        await linkService.updateLink(id, formData);
 
         if (pinToHeader) {
           pinLink({ id, group, label, url });
@@ -233,6 +242,23 @@ export function ImportantLinksPage() {
       }
     },
     [serverCategories, pinLink, unpinLink, refetch],
+  );
+
+  // ── Handle Delete Link ─────────────────────────────────────────
+  const handleDeleteLink = useCallback(
+    async (link) => {
+      if (!window.confirm(`Are you sure you want to delete "${link.label}"?`)) {
+        return;
+      }
+      try {
+        await linkService.deleteLink(link.id);
+        unpinLink(link.id);
+        await refetch();
+      } catch (err) {
+        console.error('Failed to delete link:', err);
+      }
+    },
+    [unpinLink, refetch],
   );
 
   // ── Open edit modal ────────────────────────────────────────────
@@ -319,6 +345,7 @@ export function ImportantLinksPage() {
               icon={CATEGORY_ICONS[category.iconKey] ?? null}
               links={category.links}
               onEditLink={handleEditLink}
+              onDeleteLink={handleDeleteLink}
             />
           ))}
         </div>

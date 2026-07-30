@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ExternalLink, Pencil } from 'lucide-react';
+import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
 
 import './ImportantLinksPage.css';
 
@@ -14,7 +14,7 @@ const TAG_CLASS_MAP = {
 /**
  * Single link row rendered inside a group card.
  */
-function LinkItem({ link, onEdit }) {
+function LinkItem({ link, onEdit, onDelete }) {
   const badgeMod = link.tag
     ? (TAG_CLASS_MAP[(link.tag || '').toLowerCase()] ?? 'il-badge-default')
     : null;
@@ -40,6 +40,19 @@ function LinkItem({ link, onEdit }) {
           }}
         >
           <Pencil size={12} />
+        </button>
+
+        <button
+          type="button"
+          className="il-link-action-btn il-link-action-delete"
+          title="Delete link"
+          aria-label={`Delete ${link.label}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(link);
+          }}
+        >
+          <Trash2 size={12} />
         </button>
 
         <a
@@ -68,8 +81,9 @@ function LinkItem({ link, onEdit }) {
  * @param {import('react').ComponentType} [props.icon]
  * @param {{ id: string, label: string, url: string, description?: string, tag?: string }[]} props.links
  * @param {(link: Object) => void} props.onEditLink   Called when user clicks the edit icon on a link.
+ * @param {(link: Object) => void} props.onDeleteLink Called when user clicks the delete icon on a link.
  */
-function GroupCardComponent({ id, title, icon: Icon, links, onEditLink }) {
+function GroupCardComponent({ id, title, icon: Icon, links, onEditLink, onDeleteLink }) {
   return (
     <article className="il-group-card" aria-labelledby={`group-heading-${id}`}>
 
@@ -96,6 +110,7 @@ function GroupCardComponent({ id, title, icon: Icon, links, onEditLink }) {
               key={link.id}
               link={link}
               onEdit={onEditLink}
+              onDelete={onDeleteLink}
             />
           ))
         )}

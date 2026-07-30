@@ -177,10 +177,15 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
     const finalGroup =
       state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup?.trim() || '';
+    let finalUrl = state.url.trim();
+    if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
+      finalUrl = `https://${finalUrl}`;
+    }
+
     const payload = {
       id: editLink?.id ?? createId('link'),
       label: state.linkName.trim(),
-      url: state.url.trim(),
+      url: finalUrl,
       sharedFolder: state.sharedFolder.trim() || '',
       comments: state.comments.trim() || '',
       pinToHeader: state.pinToHeader,
@@ -191,6 +196,13 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       payload.group = finalGroup;
       payload.isNewGroup = state.groupMode === 'new';
     }
+
+    if (isEditMode) {
+      onUpdate(payload);
+    } else {
+      onAdd(payload);
+    }
+    onClose();
   }
 
   function handleFileChange(e) {
@@ -227,49 +239,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
         {/* ── Body ────────────────────────────────────────────────── */}
         <div className="il-modal-body">
-          {/* Group */}
-          <div className="il-form-group">
-            <span className="il-label">
-              Group
-              <span className="il-label-optional">(optional)</span>
-            </span>
-
-            <GroupDropdown
-              groups={existingGroups}
-              value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
-              hasError={false}
-              onSelect={(g) => {
-                set('selectedGroup', g);
-                set('groupMode', 'existing');
-                setErrors((prev) => ({ ...prev, group: undefined }));
-              }}
-              onCreateNew={() => {
-                set('groupMode', 'new');
-                set('selectedGroup', '');
-                setErrors((prev) => ({ ...prev, group: undefined }));
-              }}
-            />
-          </div>
-
-          {/* New Group Name */}
-          {state.groupMode === 'new' && (
-            <div className="il-new-group-row">
-              <span className="il-label">
-                New Group Name
-                <span className="il-label-optional">(optional)</span>
-              </span>
-              <input
-                type="text"
-                className={`il-input${errors.group ? ' il-input-error' : ''}`}
-                placeholder="e.g. Analytics & Reporting"
-                value={state.newGroupName}
-                onChange={(e) => {
-                  set('newGroupName', e.target.value);
-                  setErrors((prev) => ({ ...prev, group: undefined }));
-                }}
-              />
-            </div>
-          )}
 
           {/* Link Name */}
           <div className="il-form-group">
@@ -317,6 +286,50 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               onChange={(e) => set('sharedFolder', e.target.value)}
             />
           </div>
+
+          {/* Group */}
+          <div className="il-form-group">
+            <span className="il-label">
+              Group
+              <span className="il-label-optional">(optional)</span>
+            </span>
+
+            <GroupDropdown
+              groups={existingGroups}
+              value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
+              hasError={false}
+              onSelect={(g) => {
+                set('selectedGroup', g);
+                set('groupMode', 'existing');
+                setErrors((prev) => ({ ...prev, group: undefined }));
+              }}
+              onCreateNew={() => {
+                set('groupMode', 'new');
+                set('selectedGroup', '');
+                setErrors((prev) => ({ ...prev, group: undefined }));
+              }}
+            />
+          </div>
+
+          {/* New Group Name */}
+          {state.groupMode === 'new' && (
+            <div className="il-new-group-row">
+              <span className="il-label">
+                New Group Name
+                <span className="il-label-optional">(optional)</span>
+              </span>
+              <input
+                type="text"
+                className={`il-input${errors.group ? ' il-input-error' : ''}`}
+                placeholder="e.g. Analytics & Reporting"
+                value={state.newGroupName}
+                onChange={(e) => {
+                  set('newGroupName', e.target.value);
+                  setErrors((prev) => ({ ...prev, group: undefined }));
+                }}
+              />
+            </div>
+          )}
 
           {/* Upload File */}
           <div className="il-form-group">
