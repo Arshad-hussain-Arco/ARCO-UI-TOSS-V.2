@@ -34,6 +34,8 @@ const endpoints = {
   manager: {
     pending: (id) => `/leaves/manager/${id}/pending/`,
     teamBalances: (id) => `/leaves/manager/${id}/team-balances/`,
+    teamLeaveQuota: (id) => `/leaves/manager/${id}/team-leave-quota/`,
+    updateQuota: (managerId, empId) => `/leaves/manager/${managerId}/employee/${empId}/quota/`,
     headcount: (id) => `/leaves/manager/${id}/headcount/`,
     modRequests: (id) => `/leaves/manager/${id}/mod-requests/`,
     conflicts: `/leaves/manager/conflicts/`,
@@ -51,6 +53,20 @@ const endpoints = {
     exportLeaves: (id) => `/leaves/manager/${id}/leaves/export/`,
     importLeaves: (id) => `/leaves/manager/${id}/leaves/import/`,
     teamCalendar: (id) => `/leaves/manager/${id}/team-calendar/`,
+    shifts: {
+      list: '/leaves/shifts/',
+      add: '/leaves/shifts/add/',
+      edit: (id) => `/leaves/shifts/${id}/edit/`,
+      delete: (id) => `/leaves/shifts/${id}/delete/`,
+      assign: '/leaves/shifts/assign/',
+      employeeShift: '/leaves/shifts/employee/',
+    },
+    holidaysManagement: {
+      list: '/leaves/holidays/',
+      add: '/leaves/holidays/add/',
+      edit: (id) => `/leaves/holidays/${id}/edit/`,
+      delete: (id) => `/leaves/holidays/${id}/delete/`,
+    },
   },
   hr: {
     leaveTypes: `/leaves/hr/leave-types/`,
@@ -65,10 +81,25 @@ const endpoints = {
     audit: `/leaves/hr/audit/`,
     stalePending: `/leaves/hr/stale-pending/`,
     departmentReport: `/leaves/hr/reports/department/`,
+    teamLeaveSummary: `/leaves/hr/reports/team-summary/`,
     utilizationReport: `/leaves/hr/reports/utilization/`,
     holidays: `/leaves/hr/holidays/`,
     exportLeaves: `/leaves/hr/leaves/export/`,
     importLeaves: `/leaves/hr/leaves/import/`,
+    shifts: {
+      list: '/leaves/shifts/',
+      add: '/leaves/shifts/add/',
+      edit: (id) => `/leaves/shifts/${id}/edit/`,
+      delete: (id) => `/leaves/shifts/${id}/delete/`,
+      assign: '/leaves/shifts/assign/',
+      employeeShift: '/leaves/shifts/employee/',
+    },
+    holidaysManagement: {
+      list: '/leaves/holidays/',
+      add: '/leaves/holidays/add/',
+      edit: (id) => `/leaves/holidays/${id}/edit/`,
+      delete: (id) => `/leaves/holidays/${id}/delete/`,
+    },
   },
   consultants: {
     info: (id) => `/employees/employee-info/${id}/`,
@@ -87,6 +118,7 @@ const endpoints = {
     designations: '/employees/designations/',
     locations: '/employees/locations/',
     computerLocations: '/employees/computer-locations/',
+    myTeam: (managerId) => `/employees/my-team/${managerId}/`,
   },
 };
 

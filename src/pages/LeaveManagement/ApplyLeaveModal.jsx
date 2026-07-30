@@ -345,12 +345,11 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     if (isMultiDay) setDuration('full');
   }, [isMultiDay]);
   useEffect(() => {
-    if (user?.mySubordinates?.length > 0) {
+    if (user?.mySubordinates?.length > 0 && user?.emp_id) {
       import('@services/consultantService').then(({ default: consultantService }) => {
-        consultantService.getEmployeesList().then((data) => {
+        consultantService.getMyTeam(user.emp_id).then((data) => {
           const arr = Array.isArray(data) ? data : (data?.results || []);
-          const subordinates = arr.filter((emp) => user.mySubordinates.includes(emp.emp_id || emp.id));
-          setEmpItems(subordinates.map((e) => ({ ...e, id: e.emp_id || e.id, name: e.name || e.emp_name, label: e.name || e.emp_name })));
+          setEmpItems(arr.map((e) => ({ ...e, id: e.emp_id || e.id, name: e.name || e.emp_name, label: e.name || e.emp_name })));
         }).catch(err => {
           console.error("Failed to fetch subordinates", err);
         });
@@ -542,7 +541,15 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
                       };
                       
-                      await leaveService.applyLeave(payload);
+                      if (applyFor === 'behalf') {
+                        payload.manager_id = user?.emp_id;
+                      }
+                      
+                      if (applyFor === 'behalf') {
+                        await leaveService.applyLeaveOnBehalf(payload);
+                      } else {
+                        await leaveService.applyLeave(payload);
+                      }
                       setShowConfirm(false);
                       setSubmitted(true);
                       toast.success(SUCCESS_TITLES[type]);
