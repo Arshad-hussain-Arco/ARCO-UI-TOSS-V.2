@@ -1,142 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, ArrowUpDown, Edit2, Check, X, Users } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { activatable } from '@utils/interactive';
+import api from '@api/httpClient';
+import endpoints from '@api/endpoints';
+import { useAuth } from '@hooks/useAuth';
 import './LeaveConfiguration.css';
 
-// Initial Mock Employees Data for Leave Configuration
-const INITIAL_CONFIG_EMPLOYEES = [
-  {
-    id: 'EMP001',
-    employeeId: 'EMP001',
-    name: 'Rajesh Kumar',
-    email: 'rajesh.k@company.com',
-    role: 'Sr. Software Engineer',
-    department: 'Engineering',
-    team: 'Frontend',
-    reportingManager: 'Aarav Gupta',
-    status: 'Active',
-    lastModified: '2026-07-20',
-    carryOver: { balance: 5, limit: 10 },
-    sickLeave: { balance: 12, maxQuota: 14 },
-    compOff: { balance: 3 },
-    weekendWork: { balance: 2 },
-  },
-  {
-    id: 'EMP002',
-    employeeId: 'EMP002',
-    name: 'Priya Sharma',
-    email: 'priya.s@company.com',
-    role: 'Tech Lead',
-    department: 'Engineering',
-    team: 'Frontend',
-    reportingManager: 'Aarav Gupta',
-    status: 'Active',
-    lastModified: '2026-07-18',
-    carryOver: { balance: 8, limit: 10 },
-    sickLeave: { balance: 14, maxQuota: 14 },
-    compOff: { balance: 5 },
-    weekendWork: { balance: 4 },
-  },
-  {
-    id: 'EMP003',
-    employeeId: 'EMP003',
-    name: 'Amit Patel',
-    email: 'amit.p@company.com',
-    role: 'Software Engineer',
-    department: 'Engineering',
-    team: 'Backend',
-    reportingManager: 'Meera Nair',
-    status: 'Active',
-    lastModified: '2026-07-15',
-    carryOver: { balance: 3, limit: 7 },
-    sickLeave: { balance: 10, maxQuota: 12 },
-    compOff: { balance: 1 },
-    weekendWork: { balance: 0 },
-  },
-  {
-    id: 'EMP004',
-    employeeId: 'EMP004',
-    name: 'Sneha Reddy',
-    email: 'sneha.r@company.com',
-    role: 'QA Engineer',
-    department: 'Quality Assurance',
-    team: 'QA Core',
-    reportingManager: 'Vikram Malhotra',
-    status: 'Active',
-    lastModified: '2026-07-22',
-    carryOver: { balance: 4, limit: 8 },
-    sickLeave: { balance: 11, maxQuota: 14 },
-    compOff: { balance: 2 },
-    weekendWork: { balance: 3 },
-  },
-  {
-    id: 'EMP005',
-    employeeId: 'EMP005',
-    name: 'Vikram Malhotra',
-    email: 'vikram.m@company.com',
-    role: 'QA Lead',
-    department: 'Quality Assurance',
-    team: 'QA Core',
-    reportingManager: 'Aarav Gupta',
-    status: 'Active',
-    lastModified: '2026-07-12',
-    carryOver: { balance: 10, limit: 12 },
-    sickLeave: { balance: 14, maxQuota: 14 },
-    compOff: { balance: 6 },
-    weekendWork: { balance: 5 },
-  },
-  {
-    id: 'EMP006',
-    employeeId: 'EMP006',
-    name: 'Ananya Sen',
-    email: 'ananya.s@company.com',
-    role: 'Product Manager',
-    department: 'Product Management',
-    team: 'Core Product',
-    reportingManager: 'Aarav Gupta',
-    status: 'Active',
-    lastModified: '2026-07-21',
-    carryOver: { balance: 6, limit: 10 },
-    sickLeave: { balance: 13, maxQuota: 14 },
-    compOff: { balance: 4 },
-    weekendWork: { balance: 1 },
-  },
-  {
-    id: 'EMP007',
-    employeeId: 'EMP007',
-    name: 'Rohan Joshi',
-    email: 'rohan.j@company.com',
-    role: 'UI/UX Designer',
-    department: 'Design',
-    team: 'UX Design',
-    reportingManager: 'Ananya Sen',
-    status: 'Active',
-    lastModified: '2026-07-19',
-    carryOver: { balance: 2, limit: 5 },
-    sickLeave: { balance: 9, maxQuota: 12 },
-    compOff: { balance: 0 },
-    weekendWork: { balance: 0 },
-  },
-  {
-    id: 'EMP008',
-    employeeId: 'EMP008',
-    name: 'Kavita Roy',
-    email: 'kavita.r@company.com',
-    role: 'HR Specialist',
-    department: 'HR & Ops',
-    team: 'Talent',
-    reportingManager: 'Meera Nair',
-    status: 'Inactive',
-    lastModified: '2026-06-30',
-    carryOver: { balance: 0, limit: 5 },
-    sickLeave: { balance: 5, maxQuota: 12 },
-    compOff: { balance: 0 },
-    weekendWork: { balance: 0 },
-  },
-];
 
-const TEAMS = ['All Teams', 'Frontend', 'Backend', 'QA Core', 'Core Product', 'UX Design', 'Talent'];
 
 function getInitials(name) {
   return name
@@ -149,12 +20,66 @@ function getInitials(name) {
 
 const AVATAR_COLORS = ['#1d4ed8', '#065f46', '#5b21b6', '#92400e', '#0f766e', '#4f46e5'];
 function getAvatarBg(id) {
-  const num = parseInt(id.replace(/\D/g, ''), 10) || 0;
+  const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
   return AVATAR_COLORS[num % AVATAR_COLORS.length];
 }
 
 export function LeaveConfigurationTab() {
-  const [employees, setEmployees] = useState(INITIAL_CONFIG_EMPLOYEES);
+  const { user } = useAuth();
+  const [employees, setEmployees] = useState([]);
+  const [teams, setTeams] = useState(['All Teams']);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      if (!user?.emp_id) return;
+      setLoading(true);
+      try {
+        const res = await api.get(endpoints.manager.teamEditQuotaFields(user.emp_id), { params: { year: new Date().getFullYear() } });
+        const payload = res.data?.data || res.data;
+        const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
+        
+        const mappedEmployees = rawData.map(emp => {
+          const efs = Array.isArray(emp.editable_fields) ? emp.editable_fields : [];
+          
+          const al = efs.find(f => f.leave_type_code === 'AL') || {};
+          const sl = efs.find(f => f.leave_type_code === 'SL') || {};
+          const compOff = efs.find(f => f.leave_type_code === 'CompOff' || f.leave_type_code === 'CCompOff') || {};
+          const ww = efs.find(f => f.leave_type_code === 'WW' || f.leave_type_code === 'CWW') || {};
+
+          return {
+            id: emp.emp_id,
+            employeeId: `EMP${emp.emp_id}`,
+            name: emp.emp_name || 'Unknown Employee',
+            email: '',
+            role: emp.designation || '',
+            department: emp.department_name || '',
+            team: emp.team_name || 'Unassigned',
+            reportingManager: '',
+            status: 'Active',
+            lastModified: new Date().toISOString().split('T')[0],
+            carryOver: { balance: al.current_value || 0, limit: 0 },
+            sickLeave: { balance: sl.current_value || 0, maxQuota: 0 },
+            compOff: { balance: compOff.current_value || 0 },
+            weekendWork: { balance: ww.current_value || 0 },
+            _raw: emp 
+          };
+        });
+
+        setEmployees(mappedEmployees);
+        
+        const uniqueTeams = Array.from(new Set(mappedEmployees.map(e => e.team))).filter(Boolean);
+        setTeams(['All Teams', ...uniqueTeams]);
+      } catch (err) {
+        console.error('Failed to load employees for leave configuration', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployees();
+  }, [user?.emp_id]);
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -241,41 +166,94 @@ export function LeaveConfigurationTab() {
     setEditForm(null);
   };
 
-  const handleSaveEdit = (empId) => {
-    if (!editForm) return;
+  const handleSaveEdit = async (empId) => {
+    if (!editForm || !user?.emp_id) return;
+    setIsSaving(true);
+    
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) {
+      setIsSaving(false);
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const promises = [];
+
+    // Check AL carryover change
+    const newCarryOver = Number(editForm.carryOverBalance) || 0;
+    if (newCarryOver !== emp.carryOver.balance) {
+      promises.push(
+        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "AL",
+          field: "carried_forward",
+          year: currentYear,
+          new_value: newCarryOver
+        })
+      );
+    }
+
+    // Check SL entitled change
+    const newSickLeave = Number(editForm.sickLeaveBalance) || 0;
+    if (newSickLeave !== emp.sickLeave.balance) {
+      promises.push(
+        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "SL",
+          field: "entitled_days",
+          year: currentYear,
+          new_value: newSickLeave
+        })
+      );
+    }
+
+    // Check CompOff entitled change
+    const newCompOff = Number(editForm.compOffBalance) || 0;
+    if (newCompOff !== emp.compOff.balance) {
+      promises.push(
+        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "CCompOff",
+          field: "entitled_days",
+          year: currentYear,
+          new_value: newCompOff
+        })
+      );
+    }
+
+    // Check Weekend Work entitled change
+    const newWeekendWork = Number(editForm.weekendWorkBalance) || 0;
+    if (newWeekendWork !== emp.weekendWork.balance) {
+      promises.push(
+        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "CWW",
+          field: "entitled_days",
+          year: currentYear,
+          new_value: newWeekendWork
+        })
+      );
+    }
+
+    if (promises.length > 0) {
+      await Promise.allSettled(promises);
+    }
 
     setEmployees((prev) =>
-      prev.map((emp) => {
-        if (emp.id === empId) {
+      prev.map((e) => {
+        if (e.id === empId) {
           return {
-            ...emp,
-            carryOver: {
-              ...emp.carryOver,
-              balance: Number(editForm.carryOverBalance) || 0,
-              limit: Number(editForm.carryOverLimit) || 0,
-            },
-            sickLeave: {
-              ...emp.sickLeave,
-              balance: Number(editForm.sickLeaveBalance) || 0,
-              maxQuota: Number(editForm.sickLeaveMaxQuota) || 0,
-            },
-            compOff: {
-              ...emp.compOff,
-              balance: Number(editForm.compOffBalance) || 0,
-            },
-            weekendWork: {
-              ...emp.weekendWork,
-              balance: Number(editForm.weekendWorkBalance) || 0,
-            },
+            ...e,
+            carryOver: { ...e.carryOver, balance: newCarryOver },
+            sickLeave: { ...e.sickLeave, balance: newSickLeave },
+            compOff: { ...e.compOff, balance: newCompOff },
+            weekendWork: { ...e.weekendWork, balance: newWeekendWork },
             lastModified: new Date().toISOString().split('T')[0],
           };
         }
-        return emp;
+        return e;
       })
     );
 
     setEditingRowId(null);
     setEditForm(null);
+    setIsSaving(false);
   };
 
   return (
@@ -297,7 +275,7 @@ export function LeaveConfigurationTab() {
           <Select
             value={teamFilter}
             onChange={setTeamFilter}
-            options={TEAMS.map((t) => ({ value: t, label: t }))}
+            options={teams.map((t) => ({ value: t, label: t }))}
             width="team"
           />
         </div>
@@ -499,11 +477,12 @@ export function LeaveConfigurationTab() {
                             <button
                               className="lc-act-btn save"
                               title="Save Changes"
+                              disabled={isSaving}
                               {...activatable(() => handleSaveEdit(emp.id), {
-                                label: `Save changes for ${emp.name}`,
+                                disabled: isSaving,
                               })}
                             >
-                              <Check size={14} />
+                              <Check size={16} />
                             </button>
                             <button
                               className="lc-act-btn cancel"

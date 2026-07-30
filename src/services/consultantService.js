@@ -15,7 +15,7 @@ export const consultantService = {
       name: payload.name,
       user_name: payload.username || payload.userId,
       password: payload.password,
-      designation: payload.designation,
+      designation: payload.designation_name || payload.designation,
       team_id: payload.teamId || payload.team_id || payload.team,
       joining_date: payload.joiningDate,
       mobile: payload.mobile || payload.phone,
@@ -47,7 +47,7 @@ export const consultantService = {
       name: payload.name,
       user_name: payload.username || payload.userId || payload.user_name,
       password: payload.password,
-      designation: Number(payload.designationId || payload.designation_id || payload.designation),
+      designation: payload.designation_name || payload.designation,
       team_id: Number(payload.teamId || payload.team_id || payload.team),
       role_id: Number(payload.roleId || payload.role_id || payload.role),
       manager_id: payload.managerId || payload.manager_id ? Number(payload.managerId || payload.manager_id) : null,
@@ -97,6 +97,22 @@ export const consultantService = {
   },
   getDesignationsAndTeams: async () => {
     const response = await httpClient.get(endpoints.consultants.designationsTeams);
+    return response.data;
+  },
+  getDesignations: async () => {
+    const response = await httpClient.get(endpoints.consultants.designations);
+    return response.data;
+  },
+  getLocations: async () => {
+    const response = await httpClient.get(endpoints.consultants.locations);
+    return response.data;
+  },
+  getComputerLocations: async () => {
+    const response = await httpClient.get(endpoints.consultants.computerLocations);
+    return response.data;
+  },
+  getMyTeam: async (managerId) => {
+    const response = await httpClient.get(endpoints.consultants.myTeam(managerId));
     return response.data;
   },
   activateConsultant: async (payload) => {
