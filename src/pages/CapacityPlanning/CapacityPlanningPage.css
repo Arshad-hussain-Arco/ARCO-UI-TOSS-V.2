@@ -1,6 +1,5 @@
 /* Capacity Planning - Compact Enterprise Design */
 .capacity-planning-page {
-  padding: 16px 20px;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -73,10 +72,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  padding: 0px 14px;
   flex-wrap: wrap;
 }
 
@@ -299,10 +295,9 @@
 /* High Density Table */
 .capacity-table-container {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
   overflow: auto;
   flex: 1;
+  padding: 0px 16px;
   min-height: 0;
 }
 
@@ -513,6 +508,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -768,4 +764,407 @@
   .capacity-table {
     min-width: 700px;
   }
+}
+
+/* Row 2: Boxed Pill/Card Tabs matching Leave Management Page */
+.capacity-tabs-container {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  padding: 12px 16px 0 16px;
+  margin-top: 4px;
+}
+
+.capacity-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: none !important;
+  padding: 8px 18px;
+  height: 38px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
+}
+
+.capacity-tab:hover:not([data-active='true']) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.capacity-tab[data-active='true'] {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--surface-primary);
+  border-radius: 8px 8px 0 0;
+  color: #115e59;
+  /* Forest Green active accent matching Apply Leave */
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.capacity-tab-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.capacity-tab[data-active='true'] .capacity-tab-icon {
+  color: #115e59;
+}
+
+.capacity-tab-label {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+
+
+.capacity-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.capacity-filter-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.capacity-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: #115e59;
+  /* Forest Green */
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.capacity-export-btn:hover {
+  background-color: #0f766e;
+}
+
+.capacity-consultant-flat {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-primary);
+  padding-left: 8px;
+}
+
+.numerical-col {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  padding: 8px 14px;
+}
+
+.numerical-col.available-cell {
+  color: #059669;
+}
+
+.capacity-th.sub-th {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 6px 14px;
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .capacity-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .capacity-filter-left {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .capacity-filter-right {
+    width: 100%;
+  }
+
+  .capacity-export-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Subtabs Navigation inside Teams Tab */
+.capacity-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.capacity-subtab-chip {
+  padding: 5px 12px;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  outline: none;
+  user-select: none;
+}
+
+.capacity-subtab-chip:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.capacity-subtab-chip.active {
+  background-color: #115e59;
+  /* Forest Green active fill */
+  border-color: #115e59;
+  color: #ffffff;
+}
+
+.capacity-empty-row {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Clickable Cell Hover Highlight */
+.clickable-cell {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clickable-cell:hover {
+  background-color: var(--bg-hover) !important;
+  /* Soft hover indicator */
+}
+
+/* Group-hover highlight on the inner progress bar fill */
+.clickable-cell:hover .capacity-mini-fill {
+  filter: brightness(1.25);
+  box-shadow: 0 0 6px rgba(17, 94, 89, 0.5);
+}
+
+.capacity-row:hover .clickable-cell:hover {
+  background-color: #05C479 !important;
+}
+
+/* Capacity Planning Drill Modal Overlay */
+.capacity-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capacity-modal-container {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  width: 92vw;
+  max-width: 1280px;
+  /* max-w-7xl */
+  max-height: 85vh;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalZoom 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.capacity-modal-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.capacity-modal-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.capacity-modal-close-icon {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capacity-modal-close-icon:hover {
+  color: var(--text-primary);
+}
+
+.capacity-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.capacity-modal-empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.capacity-modal-table-wrapper {
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.capacity-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 900px;
+}
+
+.capacity-modal-table th {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 10px 12px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  /* Prevent wrapping header text */
+}
+
+.capacity-modal-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+  color: var(--text-primary);
+}
+
+.capacity-modal-table tr:last-child td {
+  border-bottom: none;
+}
+
+.capacity-modal-table td.bold {
+  font-weight: 600;
+}
+
+.capacity-modal-table td.numerical {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.capacity-modal-table td.color-primary {
+  color: #115e59;
+}
+
+.status-badge-drill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.status-badge-drill.in-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge-drill.planned {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.capacity-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.capacity-modal-close-btn {
+  padding: 8px 16px;
+  background-color: #115e59;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.capacity-modal-close-btn:hover {
+  background-color: #0f766e;
 }
