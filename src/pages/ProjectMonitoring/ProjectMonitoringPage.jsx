@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import projectService from '@services/projectService';
+import capacityService from '@services/capacityService';
 import './ProjectMonitoringPage.css';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -732,13 +734,95 @@ export function ProjectMonitoringPage() {
   // Tab 3 — resolution table
   const [activeBreachMetric, setActiveBreachMetric] = useState(null);
 
+  const [projectsList, setProjectsList] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoadingData(true);
+      const [capacityRes, workOrderRes] = await Promise.all([
+        capacityService.getCapacityPlanning(),
+        projectService.getWorkOrderStatus()
+      ]);
+      
+      let allProjects = [];
+
+      // Helper to map work orders
+      const mapWorkOrder = (wo) => ({
+        id: wo.Wo_Id ? wo.Wo_Id.toString() : wo.Ipm_Number || '',
+        code: wo.Ipm_Number || '',
+        ipmNumber: wo.Ipm_Number || '',
+        summary: wo.Summary || '',
+        workOrderType: wo.Work_Order_Type || 'Project',
+        priority: wo.Priority || 'Medium',
+        startDate: wo.Start_Date || '',
+        clarityFinishDate: wo.Clarity_Planned_Finish_Date || '',
+        plannedDevDate: wo.Planned_DEV_completion_Date || '',
+        endDate: wo.Due_Date || wo.Handover_Planned_End_Date || '',
+        itdl: wo.IT_Delivery_Lead || 'unassigned',
+        backupItdl: wo.Backup_IT_Delivery_Lead || 'unassigned',
+        po: wo.Product_Owner || 'unassigned',
+        pmo: wo.PMO_Project_Manager || 'unassigned',
+        ownedBy: wo.Owned_By || 'unassigned',
+        requestorName: wo.Requestor_Name || 'unassigned',
+        stage: wo.Status ? wo.Status.toLowerCase() : 'planning',
+        stageIdx: 0,
+        lastComment: wo.Last_Comment || '',
+        fullDesc: wo.Description || wo.Summary || '',
+        overdueDays: 0,
+      });
+
+      // Helper to map change requests
+      const mapChangeRequest = (cr) => ({
+        id: cr.Id ? cr.Id.toString() : '',
+        code: cr.Wo_Id ? cr.Wo_Id.toString() : '',
+        ipmNumber: '',
+        summary: cr.Summary || '',
+        workOrderType: 'CR',
+        priority: cr.Priority || 'Medium',
+        startDate: cr.Start_Date || '',
+        endDate: cr.End_Date || '',
+        itdl: cr.Assigned_Developer || 'unassigned',
+        backupItdl: cr.Additional_Developers || 'unassigned',
+        po: 'unassigned',
+        pmo: 'unassigned',
+        ownedBy: cr.Assigned_Developer || 'unassigned',
+        stage: cr.Status ? cr.Status.toLowerCase() : 'planning',
+        stageIdx: 0,
+        lastComment: '',
+        fullDesc: cr.Summary || '',
+        overdueDays: 0,
+      });
+
+      if (workOrderRes?.workOrders) {
+        allProjects = [...allProjects, ...workOrderRes.workOrders.map(mapWorkOrder)];
+      }
+      if (workOrderRes?.changeRequests) {
+        allProjects = [...allProjects, ...workOrderRes.changeRequests.map(mapChangeRequest)];
+      }
+      
+      // If the API hasn't returned anything yet, we can fallback to SAMPLE_PROJECTS for demo purposes
+      setProjectsList(allProjects.length > 0 ? allProjects : SAMPLE_PROJECTS);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+      setProjectsList(SAMPLE_PROJECTS);
+    } finally {
+      setLoadingData(false);
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   /* Handlers */
   const handleSync = () => {
     setSyncing(true);
-    setTimeout(() => setSyncing(false), 1800);
+    fetchData();
   };
 
-  const filteredProjects = SAMPLE_PROJECTS.filter((p) => {
+  const filteredProjects = projectsList.filter((p) => {
     const q = searchQuery.toLowerCase();
     if (q && !p.code.toLowerCase().includes(q) && !p.itdl.toLowerCase().includes(q) && !p.po.toLowerCase().includes(q) && !p.summary.toLowerCase().includes(q)) return false;
     if (statusFilter && p.stage !== statusFilter) return false;
@@ -750,7 +834,30 @@ export function ProjectMonitoringPage() {
     setActiveBreachMetric((prev) => (prev === metricId ? null : metricId));
   };
 
+  const uniqueStatuses = useMemo(() => {
+    return Array.from(new Set(projectsList.map((p) => p.stage))).filter(Boolean).sort();
+  }, [projectsList]);
+
   const maxVelocity = Math.max(...COMPLETED_DATA, ...TARGET_DATA);
+
+  const dynamicPipelineStages = useMemo(() => {
+    const stages = [
+      { key: 'building', label: 'Building', cls: 'pm-stage-building', count: 0 },
+      { key: 'testing', label: 'Testing', cls: 'pm-stage-testing', count: 0 },
+      { key: 'release', label: 'Release Process', cls: 'pm-stage-release', count: 0 },
+      { key: 'deployed', label: 'Deployed', cls: 'pm-stage-deployed', count: 0 },
+      { key: 'completed', label: 'Completed', cls: 'pm-stage-completed', count: 0 }
+    ];
+    
+    projectsList.forEach(p => {
+      if (p.workOrderType === 'Project') {
+        const stageObj = stages.find(s => s.key === p.stage);
+        if (stageObj) stageObj.count++;
+      }
+    });
+
+    return stages;
+  }, [projectsList]);
 
   /* ─── Lifecycle count depending on category ─── */
   const isAllCategory = selectedCategory === 'all';
@@ -814,8 +921,8 @@ export function ProjectMonitoringPage() {
               ))}
             </div>
             <div className="pm-pipeline-track">
-              {LIFECYCLE_STAGES.map((s) => {
-                const count = isAllCategory ? s.countAll : s.countSelected;
+              {dynamicPipelineStages.map((s) => {
+                const count = s.count;
                 return (
                   <div key={s.key} className="pm-pipeline-stage">
                     <div
@@ -1019,13 +1126,11 @@ export function ProjectMonitoringPage() {
                 {/* Status filter */}
                 <select className="pm-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                   <option value="">All Status</option>
-                  <option value="inception">Inception</option>
-                  <option value="planning">Planning</option>
-                  <option value="building">Building</option>
-                  <option value="testing">Testing</option>
-                  <option value="release">Release Process</option>
-                  <option value="deployed">Deployed</option>
-                  <option value="completed">Completed</option>
+                  {uniqueStatuses.map((st) => (
+                    <option key={st} value={st}>
+                      {STAGE_LABELS[st] || (st.charAt(0).toUpperCase() + st.slice(1))}
+                    </option>
+                  ))}
                 </select>
 
                 {/* Date range */}
@@ -1038,11 +1143,8 @@ export function ProjectMonitoringPage() {
                 <button type="button" className="pm-icon-btn" title="Swap / Sort">
                   <ArrowLeftRight size={15} />
                 </button>
-                <button type="button" className="pm-icon-btn" title="Reset Filters" onClick={() => { setSearchQuery(''); setStatusFilter(''); setStartDate(''); setEndDate(''); }}>
+                <button type="button" className="pm-icon-btn" title="Reset Filters" onClick={() => { setSearchQuery(''); setStatusFilter(''); setStartDate(''); setEndDate(''); setSelectedCategory('all'); }}>
                   <RotateCcw size={15} />
-                </button>
-                <button type="button" className="pm-icon-btn" title="Column Visibility">
-                  <Eye size={15} />
                 </button>
 
                 <div className="pm-toolbar-divider" />
@@ -1468,61 +1570,7 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
 
-          {/* Resolution Table — appears when a nonzero breach metric is selected */}
-          {activeBreachMetric && (
-            <div className="pm-resolution-section">
-              <div className="pm-resolution-header">
-                <h3 className="pm-resolution-title">
-                  <FileSearch size={14} />
-                  Resolution Grid
-                  <span className="pm-resolution-badge">{RESOLUTION_TABLE_DATA.length}</span>
-                </h3>
-                <button
-                  type="button"
-                  className="pm-export-btn"
-                  onClick={() => exportToCSV(RESOLUTION_TABLE_DATA, 'governance_breaches_resolution.csv')}
-                >
-                  <Download size={14} /> Export
-                </button>
-              </div>
-              <div className="pm-resolution-table-wrap">
-                <table className="pm-master-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '180px' }}>Project Code</th>
-                      <th>IT Delivery Lead</th>
-                      <th style={{ width: '180px' }}>Current Stage</th>
-                      <th>Missing Data Field</th>
-                      <th style={{ width: '120px', textAlign: 'center' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {RESOLUTION_TABLE_DATA.map((row, idx) => (
-                      <tr key={idx}>
-                        <td>
-                          <span className="pm-project-code">{row.code}</span>
-                        </td>
-                        <td style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>{row.itdl}</td>
-                        <td>
-                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[row.status.toLowerCase()] || '#f59e0b' }}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: 12, color: '#ef4444', fontWeight: 600 }}>
-                          {row.missingField}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button type="button" className="pm-export-btn" style={{ height: 28, fontSize: 11, padding: '0 12px' }}>
-                            Assign
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 
@@ -1531,6 +1579,7 @@ export function ProjectMonitoringPage() {
         <DrilldownModal
           stage={drilldownStage}
           onClose={() => setDrilldownStage(null)}
+          projectsData={projectsList}
         />
       )}
     </div>

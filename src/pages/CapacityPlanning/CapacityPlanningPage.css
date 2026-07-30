@@ -606,6 +606,36 @@
   color: var(--text-tertiary);
 }
 
+/* Allocations Table inside Drilldown */
+.capacity-alloc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.capacity-alloc-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.capacity-alloc-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-tertiary);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.capacity-alloc-table tr:hover {
+  background: var(--bg-hover);
+}
+
 /* Risk Indicator */
 .capacity-risk-indicator {
   display: flex;

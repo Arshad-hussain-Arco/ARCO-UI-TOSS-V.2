@@ -169,6 +169,10 @@ const endpoints = {
     computerLocations: '/employees/computer-locations/',
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
   },
+  projectMonitoring: {
+    capacityPlanning: '/capacity-planning/capacity-planning/',
+    workOrderStatus: '/capacity-planning/work-order-status/',
+  },
 };
 
 export default endpoints;
