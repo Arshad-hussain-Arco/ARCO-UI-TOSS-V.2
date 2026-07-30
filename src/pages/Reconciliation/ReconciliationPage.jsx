@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Check, ArrowUpRight, Loader2, AlertTriangle } from 'lucide-react';
+import { Check, ArrowUpRight, AlertTriangle } from 'lucide-react';
+import { DotsLoader } from '../../components/ui/DotsLoader/DotsLoader';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
@@ -198,11 +199,17 @@ export function ReconciliationPage() {
     return () => clearInterval(id);
   }, [isReconciling]);
 
-  const handleFilesChange = useCallback((updated) => {
-    setFiles(updated);
-    if (updated[0]?.columns) {
-      setColMappings(buildInitialMappings(updated[0].columns, updated[1]?.columns ?? []));
-    }
+  const handleFilesChange = useCallback((updater) => {
+    setFiles((prevFiles) => {
+      const updated = typeof updater === 'function' ? updater(prevFiles) : updater;
+      // Rebuild mappings only if file 1 was added or changed
+      if (updated[0]?.columns && (!prevFiles[0] || prevFiles[0].name !== updated[0].name)) {
+        setTimeout(() => {
+          setColMappings(buildInitialMappings(updated[0].columns, updated[1]?.columns ?? []));
+        }, 0);
+      }
+      return updated;
+    });
   }, []);
 
   const goToStep2 = useCallback(() => setStep(2), []);
@@ -362,16 +369,10 @@ export function ReconciliationPage() {
         <div className="rwiz-reconcile-overlay" role="status" aria-live="polite">
           <div className="rwiz-reconcile-card">
             <div className="rwiz-reconcile-spinner">
-              <Loader2 size={40} className="rwiz-reconcile-spinner-icon" />
+              <DotsLoader size={40} className="rwiz-reconcile-spinner-icon" color="#8cc63f" />
             </div>
             <h3 className="rwiz-reconcile-title">Running Reconciliation</h3>
             <p className="rwiz-reconcile-phase">{STATUS_MESSAGES[reconcilePhase]}</p>
-            <div className="rwiz-reconcile-progress">
-              <div
-                className="rwiz-reconcile-progress-bar"
-                style={{ width: `${((reconcilePhase + 1) / STATUS_MESSAGES.length) * 100}%` }}
-              />
-            </div>
             <p className="rwiz-reconcile-hint">Please wait, this may take a moment…</p>
           </div>
         </div>

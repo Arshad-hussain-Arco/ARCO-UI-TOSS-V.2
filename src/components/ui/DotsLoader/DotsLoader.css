@@ -1,0 +1,16 @@
+.rwiz-dots-loader {
+  display: inline-block;
+  position: relative;
+  animation: rwiz-dots-spin 1.2s linear infinite;
+}
+
+.rwiz-dots-loader .dot {
+  position: absolute;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+@keyframes rwiz-dots-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

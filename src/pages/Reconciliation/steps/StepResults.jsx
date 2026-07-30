@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X } from 'lucide-react';
+import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 import { useToast } from '@hooks/useToast';
 
 // ─── KPI Stat Card ────────────────────────────────────────────────────────────
@@ -91,6 +92,12 @@ function ExportModal({ onClose, onDownload }) {
 
 // ─── Results Tables ───────────────────────────────────────────────────────────
 
+const renderValue = (val) => {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+};
+
 function MatchedTable({ rows, mappings }) {
   if (!rows.length) return <div className="rrs-empty">No matched records.</div>;
   const cols = mappings.map((m) => m.src);
@@ -107,9 +114,9 @@ function MatchedTable({ rows, mappings }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr">
-              <td className="rrs-td rrs-td-key">{row._key}</td>
-              {cols.map((c) => <td key={c} className="rrs-td">{row[`_src_${c}`] ?? '—'}</td>)}
-              {cols.map((c) => <td key={c} className="rrs-td">{row[`_dst_${c}`] ?? '—'}</td>)}
+              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_src_${c}`])}</td>)}
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_dst_${c}`])}</td>)}
             </tr>
           ))}
         </tbody>
@@ -134,10 +141,14 @@ function MismatchedTable({ rows }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr rrs-tr--mismatch">
-              <td className="rrs-td rrs-td-key">{row._key}</td>
-              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_src_')).map(([k, v]) => `${k.replace('_src_', '')}: ${v}`).join(' | ')}</td>
-              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_dst_')).map(([k, v]) => `${k.replace('_dst_', '')}: ${v}`).join(' | ')}</td>
-              <td className="rrs-td rrs-td-diff">{row._differences}</td>
+              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
+              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_src_')).map(([k, v]) => `${k.replace('_src_', '')}: ${renderValue(v)}`).join(' | ')}</td>
+              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_dst_')).map(([k, v]) => `${k.replace('_dst_', '')}: ${renderValue(v)}`).join(' | ')}</td>
+              <td className="rrs-td rrs-td-diff">
+                {Array.isArray(row._differences)
+                  ? row._differences.map((d) => `${d.column}: "${renderValue(d.file1Value)}" → "${renderValue(d.file2Value)}"`).join(' | ')
+                  : renderValue(row._differences)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -161,8 +172,8 @@ function MissingTable({ rows }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr rrs-tr--missing">
-              <td className="rrs-td rrs-td-key">{row._key}</td>
-              {cols.slice(0, 5).map((c) => <td key={c} className="rrs-td">{row[c] ?? '—'}</td>)}
+              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
+              {cols.slice(0, 5).map((c) => <td key={c} className="rrs-td">{renderValue(row[c])}</td>)}
             </tr>
           ))}
         </tbody>
@@ -187,9 +198,9 @@ function DuplicateTable({ rows }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr rrs-tr--duplicate">
-              <td className="rrs-td rrs-td-key">{row._key}</td>
+              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
               <td className="rrs-td"><span className="rrs-dup-badge">×{row._count}</span></td>
-              {extraCols.map((c) => <td key={c} className="rrs-td">{row[c] ?? '—'}</td>)}
+              {extraCols.map((c) => <td key={c} className="rrs-td">{renderValue(row[c])}</td>)}
             </tr>
           ))}
         </tbody>
@@ -205,9 +216,37 @@ const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 export function StepResults({ results, file1Name, file2Name, onReset }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
-  const [missingSubTab, setMissingSubTab] = useState('dst');
+  const [missingSubTab, setMissingSubTab] = useState('src');
   const [dupSubTab, setDupSubTab] = useState('src');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleTabChange = useCallback((tab) => {
+    if (tab === activeTab) return;
+    setIsPending(true);
+    setTimeout(() => {
+      setActiveTab(tab);
+      setIsPending(false);
+    }, 50);
+  }, [activeTab]);
+
+  const handleMissingSubTabChange = useCallback((tab) => {
+    if (tab === missingSubTab) return;
+    setIsPending(true);
+    setTimeout(() => {
+      setMissingSubTab(tab);
+      setIsPending(false);
+    }, 50);
+  }, [missingSubTab]);
+
+  const handleDupSubTabChange = useCallback((tab) => {
+    if (tab === dupSubTab) return;
+    setIsPending(true);
+    setTimeout(() => {
+      setDupSubTab(tab);
+      setIsPending(false);
+    }, 50);
+  }, [dupSubTab]);
 
   const { stats, matched, mismatched, missingInDst, missingInSrc, dupSrc, dupDst, activeMappings } = results;
 
@@ -523,7 +562,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
               key={tab}
               type="button"
               className={`rrs-tab${activeTab === tab ? ' rrs-tab--active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
             >
               {tab === 'Matched' && <CheckCircle2 size={13} />}
               {tab === 'Mismatched' && <XCircle size={13} />}
@@ -552,48 +591,47 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
 
         {/* Tab content */}
         <div className="rrs-tab-content">
-          {activeTab === 'Matched' && (
+          {isPending ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '10px', color: 'var(--text-secondary)' }}>
+              <DotsLoader size={24} className="rwiz-btn-spinner" color="#8cc63f" />
+              <span>Loading data...</span>
+            </div>
+          ) : activeTab === 'Matched' ? (
             <MatchedTable rows={matched} mappings={activeMappings} />
-          )}
-
-          {activeTab === 'Mismatched' && (
+          ) : activeTab === 'Mismatched' ? (
             <MismatchedTable rows={mismatched} />
-          )}
-
-          {activeTab === 'Missing' && (
+          ) : activeTab === 'Missing' ? (
             <>
               <div className="rrs-sub-tabs">
                 <button
                   type="button"
-                  className={`rrs-sub-tab${missingSubTab === 'dst' ? ' rrs-sub-tab--active' : ''}`}
-                  onClick={() => setMissingSubTab('dst')}
-                >
-                  Missing in Destination
-                  <span className="rrs-tab-badge">{missingInDst.length}</span>
-                </button>
-                <button
-                  type="button"
                   className={`rrs-sub-tab${missingSubTab === 'src' ? ' rrs-sub-tab--active' : ''}`}
-                  onClick={() => setMissingSubTab('src')}
+                  onClick={() => handleMissingSubTabChange('src')}
                 >
                   Missing in Source
                   <span className="rrs-tab-badge">{missingInSrc.length}</span>
                 </button>
+                <button
+                  type="button"
+                  className={`rrs-sub-tab${missingSubTab === 'dst' ? ' rrs-sub-tab--active' : ''}`}
+                  onClick={() => handleMissingSubTabChange('dst')}
+                >
+                  Missing in Destination
+                  <span className="rrs-tab-badge">{missingInDst.length}</span>
+                </button>
               </div>
-              {missingSubTab === 'dst'
-                ? <MissingTable rows={missingInDst} />
-                : <MissingTable rows={missingInSrc} />
+              {missingSubTab === 'src'
+                ? <MissingTable rows={missingInSrc} />
+                : <MissingTable rows={missingInDst} />
               }
             </>
-          )}
-
-          {activeTab === 'Duplicates' && (
+          ) : activeTab === 'Duplicates' ? (
             <>
               <div className="rrs-sub-tabs">
                 <button
                   type="button"
                   className={`rrs-sub-tab${dupSubTab === 'src' ? ' rrs-sub-tab--active' : ''}`}
-                  onClick={() => setDupSubTab('src')}
+                  onClick={() => handleDupSubTabChange('src')}
                 >
                   Duplicates in Source
                   <span className="rrs-tab-badge">{dupSrc.length}</span>
@@ -601,7 +639,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                 <button
                   type="button"
                   className={`rrs-sub-tab${dupSubTab === 'dst' ? ' rrs-sub-tab--active' : ''}`}
-                  onClick={() => setDupSubTab('dst')}
+                  onClick={() => handleDupSubTabChange('dst')}
                 >
                   Duplicates in Destination
                   <span className="rrs-tab-badge">{dupDst.length}</span>
@@ -612,7 +650,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                 : <DuplicateTable rows={dupDst} />
               }
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Export Modal */}
