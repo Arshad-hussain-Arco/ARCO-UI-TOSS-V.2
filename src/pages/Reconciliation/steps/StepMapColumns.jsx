@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import { RefreshCw, Wand2, Loader2, AlertTriangle, X } from 'lucide-react';
+import { RefreshCw, Wand2, AlertTriangle, X } from 'lucide-react';
+import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 
 import { useToast } from '@hooks/useToast';
 
@@ -275,7 +276,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           >
             {isReconciling ? (
               <>
-                <Loader2 size={14} className="rwiz-btn-spinner" />
+                <DotsLoader size={14} className="rwiz-btn-spinner" color="#fff" />
                 Running…
               </>
             ) : (

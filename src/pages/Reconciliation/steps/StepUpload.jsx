@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 
 import { useToast } from '@hooks/useToast';
 import { reconciliationService } from '@services/reconciliationService';
@@ -125,9 +126,13 @@ function DropZone({ index, fileInfo, onFile, onRemove, isProcessing, onProcessin
             if (!isProcessing && e.key === 'Enter') inputRef.current?.click();
           }}
         >
-          <Upload size={20} className="rfz-dropzone-icon" />
+          {isProcessing ? (
+            <DotsLoader size={20} className="rfz-dropzone-icon rwiz-btn-spinner" color="#8cc63f" />
+          ) : (
+            <Upload size={20} className="rfz-dropzone-icon" />
+          )}
           <p className="rfz-dropzone-text">
-            {isProcessing ? 'Processing upload…' : 'Choose a file or drag &amp; drop it here'}
+            {isProcessing ? 'Processing upload…' : 'Choose a file or drag & drop it here'}
           </p>
           <p className="rfz-dropzone-hint">{FORMAT_LABELS}</p>
         </button>
@@ -152,20 +157,24 @@ export function StepUpload({ files, onFilesChange, onNext }) {
 
   const setFile = useCallback(
     (index, fileInfo) => {
-      const updated = [...files];
-      updated[index] = fileInfo;
-      onFilesChange(updated);
+      onFilesChange((prev) => {
+        const updated = [...prev];
+        updated[index] = fileInfo;
+        return updated;
+      });
     },
-    [files, onFilesChange],
+    [onFilesChange],
   );
 
   const removeFile = useCallback(
     (index) => {
-      const updated = [...files];
-      updated[index] = null;
-      onFilesChange(updated);
+      onFilesChange((prev) => {
+        const updated = [...prev];
+        updated[index] = null;
+        return updated;
+      });
     },
-    [files, onFilesChange],
+    [onFilesChange],
   );
 
   const updateProcessing = useCallback((index, value) => {
