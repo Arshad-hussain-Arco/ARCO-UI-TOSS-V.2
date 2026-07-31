@@ -8,6 +8,7 @@ import {
   Square,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
   Clock,
   Zap,
   Database,
@@ -20,9 +21,22 @@ import {
   WifiOff,
   Edit2,
   Trash2,
+  Eye,
+  EyeOff,
+  LayoutGrid,
+  List,
+  X,
+  FileText,
+  FolderOpen,
+  KeyRound,
+  Network,
+  Search,
+  User,
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { eodService } from '@services/eodService';
@@ -45,12 +59,38 @@ export function EODManagementPage() {
   const [environments, setEnvironments] = useState([]);
 
   useEffect(() => {
-    if (data?.environments) setEnvironments(data.environments);
+    if (data?.environments) {
+      // Seed extra config fields from ENV defaults if missing
+      setEnvironments(
+        data.environments.map((e) => ({
+          serverIp: '192.168.1.1',
+          userName: 'sourcesftp',
+          password: '••••••••',
+          port: '22',
+          logFilePath: '/upload/csvfiles/oss/logs/',
+          scriptPath: `/upload/csvfiles/oss/scripts/${e.id}/`,
+          startScript: 'start.sh',
+          pauseScript: 'pause.sh',
+          stopScript: 'stop.sh',
+          statusFileName: 'myjobstorun.txt',
+          jobsFileName: `${e.name}_JobsToRun_Original.txt`,
+          ...e,
+        }))
+      );
+    }
   }, [data]);
 
   const schedules = data?.schedules ?? [];
   const handleToggleActive = (id) =>
     setEnvironments((prev) => prev.map((e) => (e.id === id ? { ...e, isActive: !e.isActive } : e)));
+  const handleSaveEnv = (updated) =>
+    setEnvironments((prev) =>
+      prev.some((e) => e.id === updated.id)
+        ? prev.map((e) => (e.id === updated.id ? { ...e, ...updated } : e))
+        : [...prev, { ...updated, id: updated.name.toLowerCase(), status: 'idle', progress: 0, color: '#6366f1', logs: [], stepsDone: 0, stepsTotal: 12, currentStep: '', duration: '—', lastRun: '—', nextRun: '—', isActive: true }]
+    );
+  const handleDeleteEnv = (id) =>
+    setEnvironments((prev) => prev.filter((e) => e.id !== id));
   const handleStartEOD = (id) =>
     setEnvironments((prev) =>
       prev.map((e) =>
@@ -98,47 +138,18 @@ export function EODManagementPage() {
 
   return (
     <div className="eod-page">
-      {/* Header */}
-      <div className="eod-header">
-        <div className="eod-header-left">
-          <p className="eod-title">EOD Management</p>
-          <p className="eod-subtitle">End-of-day processing across all environments</p>
-        </div>
-        <div className="eod-header-pills">
-          {running > 0 && (
-            <span className="eod-header-pill running">
-              <span className="eod-pill-dot" />
-              {running} Running
-            </span>
-          )}
-          {completed > 0 && (
-            <span className="eod-header-pill info">
-              <CheckCircle size={10} />
-              {completed} Done
-            </span>
-          )}
-          {failed > 0 && (
-            <span className="eod-header-pill alert">
-              <AlertCircle size={10} />
-              {failed} Failed
-            </span>
-          )}
-        </div>
-        <button className="eod-header-add-btn" onClick={() => setActiveSection('control')}>
-          <Play size={12} /> Run EOD
-        </button>
-      </div>
-
-      {/* Tabs */}
+      {/* ── Tabs (matching Leave Management page) ── */}
       <div className="eod-tabs">
         {tabs.map(({ key, label, Icon }) => (
           <button
             key={key}
-            className={`eod-tab${activeSection === key ? ' active' : ''}`}
+            type="button"
+            className="eod-tab"
+            data-active={activeSection === key}
             onClick={() => setActiveSection(key)}
           >
-            <Icon size={13} className="eod-tab-icon" />
-            {label}
+            <Icon className="eod-tab-icon" />
+            <span className="eod-tab-label">{label}</span>
           </button>
         ))}
       </div>
@@ -150,7 +161,8 @@ export function EODManagementPage() {
           <ConfigSection
             environments={environments}
             onToggle={handleToggleActive}
-            onTest={handleTestConnection}
+            onSave={handleSaveEnv}
+            onDelete={handleDeleteEnv}
           />
         )}
         {activeSection === 'schedules' && (
@@ -176,7 +188,7 @@ function OverviewSection({ environments }) {
   const runningEnv = environments.find((e) => e.status === 'running');
   return (
     <div className="eod-section">
-      {/* Stat strip */}
+      {/* ── Stat Cards ─────────────────────────────────────────── */}
       <div className="eod-stat-strip">
         <StatCard
           icon={<Server size={16} />}
@@ -209,65 +221,31 @@ function OverviewSection({ environments }) {
         />
       </div>
 
-      {/* Live run highlight */}
+      {/* ── Live Run Banner ────────────────────────────────────── */}
       {runningEnv && (
-        <div
-          style={{
-            background: 'var(--surface-primary)',
-            border: '1px solid var(--c-success)',
-            borderRadius: 7,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '7px 12px',
-              background: 'var(--c-success-light)',
-              borderBottom: '1px solid rgba(16,185,129,.2)',
-            }}
-          >
-            <Activity size={12} color="var(--c-success)" className="eod-pulse-icon" />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-success)' }}>
-              Live Run — {runningEnv.name}
-            </span>
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-secondary)' }}>
-              {runningEnv.duration}
-            </span>
+        <div className="eod-live-banner">
+          {/* Header row: title left, timer right */}
+          <div className="eod-live-banner-header">
+            <div className="eod-live-banner-title">
+              <Activity size={12} className="eod-pulse-icon" style={{ color: 'var(--c-success)' }} />
+              <span>Live Run — {runningEnv.name}</span>
+            </div>
+            <span className="eod-live-banner-timer">{runningEnv.duration}</span>
           </div>
-          <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 140 }}>
+          {/* Body row: step label | progress bar | percentage */}
+          <div className="eod-live-banner-body">
+            <span className="eod-live-banner-step">
               Step {runningEnv.stepsDone}/{runningEnv.stepsTotal} — {runningEnv.currentStep}
             </span>
-            <div
-              style={{
-                flex: 1,
-                height: 6,
-                background: 'var(--bg-tertiary)',
-                borderRadius: 3,
-                overflow: 'hidden',
-              }}
-            >
+            <div className="eod-live-banner-track">
               <div className="eod-inline-fill" style={{ width: `${runningEnv.progress}%` }} />
             </div>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--c-success)',
-                minWidth: 35,
-                textAlign: 'right',
-              }}
-            >
-              {runningEnv.progress}%
-            </span>
+            <span className="eod-live-banner-pct">{runningEnv.progress}%</span>
           </div>
         </div>
       )}
 
-      {/* Environment status table */}
+      {/* ── Environment Status Table ────────────────────────────── */}
       <div className="eod-section-bar">
         <p className="eod-section-title">Environment Status</p>
         <button
@@ -282,312 +260,916 @@ function OverviewSection({ environments }) {
         </button>
       </div>
 
-      <div className="eod-env-table">
-        <div className="eod-env-thead">
-          <div className="eod-env-thead-cell">Environment</div>
-          <div className="eod-env-thead-cell">Status</div>
-          <div className="eod-env-thead-cell">Progress</div>
-          <div className="eod-env-thead-cell">Last Run</div>
-          <div className="eod-env-thead-cell">Next Run</div>
-          <div className="eod-env-thead-cell">Duration</div>
-        </div>
-        {environments.map((env) => (
-          <div key={env.id} className="eod-env-row">
-            <div className="eod-env-row-left">
-              <div className="eod-env-color-bar" style={{ background: env.color }} />
-              <span className="eod-env-row-name">{env.name}</span>
-            </div>
-            <div className="eod-env-row-cell">
-              <StatusBadge status={env.status} />
-            </div>
-            <div className="eod-inline-progress">
-              {env.status === 'running' || env.status === 'paused' ? (
-                <>
-                  <div className="eod-inline-bar">
-                    <div className="eod-inline-fill" style={{ width: `${env.progress}%` }} />
+      <div className="eod-env-table-wrap">
+        <table className="eod-env-table">
+          <thead>
+            <tr className="eod-env-thead">
+              <th className="eod-env-th eod-th-env">Environment</th>
+              <th className="eod-env-th eod-th-status">Status</th>
+              <th className="eod-env-th eod-th-progress">Progress</th>
+              <th className="eod-env-th eod-th-date">Last Run</th>
+              <th className="eod-env-th eod-th-date">Next Run</th>
+              <th className="eod-env-th eod-th-dur">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {environments.map((env) => (
+              <tr key={env.id} className="eod-env-row">
+                {/* Col 1 — Environment */}
+                <td className="eod-env-td eod-td-env">
+                  <div className="eod-env-row-left">
+                    <div className="eod-env-color-bar" style={{ background: env.color }} />
+                    <span className="eod-env-row-name">{env.name}</span>
                   </div>
-                  <span className="eod-inline-pct">{env.progress}%</span>
-                </>
-              ) : env.status === 'completed' ? (
-                <>
-                  <div className="eod-inline-bar">
-                    <div
-                      className="eod-inline-fill"
-                      style={{ width: '100%', background: 'var(--c-success)' }}
-                    />
-                  </div>
-                  <span className="eod-inline-pct">100%</span>
-                </>
-              ) : env.status === 'failed' ? (
-                <>
-                  <div className="eod-inline-bar">
-                    <div
-                      className="eod-inline-fill"
-                      style={{ width: `${env.progress}%`, background: 'var(--c-danger)' }}
-                    />
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--c-danger)' }}>
-                    {env.progress}%
-                  </span>
-                </>
-              ) : (
-                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>—</span>
-              )}
-            </div>
-            <div className="eod-env-row-cell">{env.lastRun}</div>
-            <div className="eod-env-row-cell">{env.nextRun}</div>
-            <div className="eod-env-row-cell">
-              <code>{env.duration}</code>
-            </div>
-          </div>
-        ))}
+                </td>
+                {/* Col 2 — Status badge (fixed width, centred) */}
+                <td className="eod-env-td eod-td-status">
+                  <StatusBadge status={env.status} />
+                </td>
+                {/* Col 3 — Progress bar + pct */}
+                <td className="eod-env-td eod-td-progress">
+                  {env.status === 'running' || env.status === 'paused' ? (
+                    <div className="eod-inline-progress">
+                      <div className="eod-inline-bar">
+                        <div className="eod-inline-fill" style={{ width: `${env.progress}%` }} />
+                      </div>
+                      <span className="eod-inline-pct">{env.progress}%</span>
+                    </div>
+                  ) : env.status === 'completed' ? (
+                    <div className="eod-inline-progress">
+                      <div className="eod-inline-bar">
+                        <div className="eod-inline-fill" style={{ width: '100%', background: 'var(--c-success)' }} />
+                      </div>
+                      <span className="eod-inline-pct">100%</span>
+                    </div>
+                  ) : env.status === 'failed' ? (
+                    <div className="eod-inline-progress">
+                      <div className="eod-inline-bar">
+                        <div className="eod-inline-fill" style={{ width: `${env.progress}%`, background: 'var(--c-danger)' }} />
+                      </div>
+                      <span className="eod-inline-pct" style={{ color: 'var(--c-danger)' }}>{env.progress}%</span>
+                    </div>
+                  ) : (
+                    <span className="eod-td-empty">—</span>
+                  )}
+                </td>
+                {/* Col 4 — Last Run */}
+                <td className="eod-env-td eod-td-date">{env.lastRun}</td>
+                {/* Col 5 — Next Run */}
+                <td className="eod-env-td eod-td-date">{env.nextRun}</td>
+                {/* Col 6 — Duration */}
+                <td className="eod-env-td eod-td-dur">
+                  <code className="eod-dur-code">{env.duration}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
-const CONFIG_META = {
-  uat: {
-    dbUser: 'eod_uat_svc',
-    port: '1521',
-    scripts: ['eod_ar.sql', 'eod_ap.sql', 'eod_gl.sql'],
-    dbValid: true,
-  },
-  sit: {
-    dbUser: 'eod_sit_svc',
-    port: '1521',
-    scripts: ['eod_ar.sql', 'eod_ap.sql', 'eod_gl.sql', 'eod_rep.sql'],
-    dbValid: true,
-  },
-  prod: {
-    dbUser: 'eod_prod_svc',
-    port: '1522',
-    scripts: ['eod_ar.sql', 'eod_ap.sql', 'eod_gl.sql', 'eod_rep.sql', 'eod_arch.sql'],
-    dbValid: true,
-  },
-  dev: {
-    dbUser: 'eod_dev_svc',
-    port: '1521',
-    scripts: ['eod_ar.sql', 'eod_gl.sql'],
-    dbValid: false,
-  },
+/* ─── Default blank form shape ────────────────────────────────── */
+const BLANK_ENV = {
+  id: '',
+  name: '',
+  isActive: true,
+  serverIp: '',
+  userName: '',
+  password: '',
+  port: '22',
+  logFilePath: '',
+  scriptPath: '',
+  startScript: 'start.sh',
+  pauseScript: 'pause.sh',
+  stopScript: 'stop.sh',
+  statusFileName: 'myjobstorun.txt',
+  jobsFileName: '',
 };
-function ConfigSection({ environments, onToggle, onTest }) {
-  const [testingIds, setTestingIds] = useState(/* @__PURE__ */ new Set());
-  const handleTest = (id) => {
-    setTestingIds((prev) => /* @__PURE__ */ new Set([...prev, id]));
-    onTest(id);
-    setTimeout(() => {
-      setTestingIds((prev) => {
-        const s = new Set(prev);
-        s.delete(id);
-        return s;
-      });
-    }, 2e3);
+
+/* ─── ConfigSection ────────────────────────────────────────────── */
+function ConfigSection({ environments, onToggle, onSave, onDelete }) {
+  const [viewMode, setViewMode] = useState('card'); // 'card' | 'table'
+  const [modalMode, setModalMode] = useState(null);  // null | 'add' | 'edit'
+  const [editTarget, setEditTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const openAdd = () => { setEditTarget({ ...BLANK_ENV }); setModalMode('add'); };
+  const openEdit = (env) => { setEditTarget({ ...env }); setModalMode('edit'); };
+  const closeModal = () => { setModalMode(null); setEditTarget(null); };
+
+  const handleSave = (formData) => {
+    onSave(formData);
+    closeModal();
   };
+  const confirmDelete = () => {
+    if (deleteTarget) { onDelete(deleteTarget.id); setDeleteTarget(null); }
+  };
+
+  const filteredEnvironments = environments.filter((env) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      env.name.toLowerCase().includes(q) ||
+      (env.serverIp && env.serverIp.toLowerCase().includes(q)) ||
+      (env.userName && env.userName.toLowerCase().includes(q)) ||
+      (env.startScript && env.startScript.toLowerCase().includes(q)) ||
+      (env.scriptPath && env.scriptPath.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="eod-section">
+      {/* ── Top Action Bar (Search + View Toggle + New Environment) ── */}
       <div className="eod-section-bar">
-        <p className="eod-section-title">Environment Configuration</p>
-        <button className="eod-add-btn">
-          <Plus size={11} /> New Environment
-        </button>
+        <div className="eod-search-wrapper">
+          <Search size={13} className="eod-search-icon" />
+          <input
+            type="text"
+            className="eod-search-input"
+            placeholder="Search environment, IP, user, script..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="eod-search-clear" onClick={() => setSearchQuery('')}>
+              <X size={11} />
+            </button>
+          )}
+        </div>
+        <div className="eod-cfg-topbar-right">
+          {/* View toggle */}
+          <div className="eod-view-toggle">
+            <button
+              className={`eod-view-btn${viewMode === 'card' ? ' active' : ''}`}
+              onClick={() => setViewMode('card')}
+              title="Card View"
+            >
+              <LayoutGrid size={13} />
+            </button>
+            <button
+              className={`eod-view-btn${viewMode === 'table' ? ' active' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+            >
+              <List size={13} />
+            </button>
+          </div>
+          <button className="eod-add-btn" onClick={openAdd}>
+            <Plus size={11} /> New Environment
+          </button>
+        </div>
       </div>
 
-      <div className="eod-config-grid">
-        {environments.map((env) => {
-          const meta = CONFIG_META[env.id] || {
-            dbUser: 'svc',
-            port: '1521',
-            scripts: [],
-            dbValid: true,
-          };
-          return (
+      {/* ── Card View ───────────────────────────────────────────── */}
+      {viewMode === 'card' && (
+        <div className="eod-config-grid">
+          {filteredEnvironments.map((env) => (
             <div key={env.id} className="eod-config-card">
+              {/* Card Header */}
               <div className="eod-config-head">
                 <div className="eod-config-head-left">
-                  <div
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      background: env.color,
-                      flexShrink: 0,
-                    }}
-                  />
+                  <div className="eod-cfg-dot" style={{ background: env.color }} />
                   <p className="eod-config-env-name">{env.name}</p>
                   <StatusBadge status={env.status} />
                 </div>
                 <div className="eod-config-head-right">
-                  <span className="eod-toggle-text">{env.isActive ? 'Enabled' : 'Disabled'}</span>
-                  <span className="eod-toggle">
-                    <input
-                      type="checkbox"
-                      checked={env.isActive}
-                      onChange={() => onToggle(env.id)}
-                      aria-label={`${env.isActive ? 'Disable' : 'Enable'} ${env.name}`}
-                    />
-                    <span className="eod-toggle-track" />
-                  </span>
-                  <button className="eod-icon-btn" title="Edit">
+                  <label className="eod-toggle-wrap">
+                    <span className="eod-toggle-text">{env.isActive ? 'Enabled' : 'Disabled'}</span>
+                    <span className="eod-toggle">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(env.isActive)}
+                        onChange={() => onToggle(env.id)}
+                        aria-label={`${env.isActive ? 'Disable' : 'Enable'} ${env.name}`}
+                      />
+                      <span className="eod-toggle-track" />
+                    </span>
+                  </label>
+                  <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
                     <Edit2 size={11} />
                   </button>
-                  <button className="eod-icon-btn danger" title="Delete">
+                  <button className="eod-icon-btn danger" title="Delete" onClick={() => setDeleteTarget(env)}>
                     <Trash2 size={11} />
                   </button>
                 </div>
               </div>
 
+              {/* Card Body — compact key-value grid */}
               <div className="eod-config-body">
-                {/* Connection */}
-                <div className="eod-config-group">
-                  <div className="eod-config-group-title">
-                    <Database size={10} /> Connection
-                  </div>
-                  {[
-                    ['Server', env.server],
-                    ['Database', env.database],
-                    ['User', meta.dbUser],
-                    ['Port', meta.port],
-                  ].map(([label, val]) => (
-                    <div key={label} className="eod-config-row">
-                      <span className="eod-config-row-label">{label}</span>
-                      <span className="eod-config-row-val">{val}</span>
-                    </div>
-                  ))}
-                </div>
+                <div className="eod-cfg-kv-grid">
+                  <span className="eod-cfg-k">Server IP</span>
+                  <span className="eod-cfg-v">{env.serverIp || '—'}</span>
 
-                {/* Credentials */}
-                <div className="eod-config-group">
-                  <div className="eod-config-group-title">
-                    <Settings size={10} /> Credentials
-                  </div>
-                  <div className={`eod-cred-row ${meta.dbValid ? 'ok' : 'err'}`}>
-                    {meta.dbValid ? <Wifi size={11} /> : <WifiOff size={11} />}
-                    {meta.dbValid ? 'Connection validated' : 'Connection failed \u2014 timeout'}
-                    <span className={`eod-val-badge ${meta.dbValid ? 'ok' : 'err'}`}>
-                      {meta.dbValid ? 'Valid' : 'Error'}
-                    </span>
-                  </div>
-                </div>
+                  <span className="eod-cfg-k">Port</span>
+                  <span className="eod-cfg-v">{env.port || '—'}</span>
 
-                {/* Scripts */}
-                <div className="eod-config-group">
-                  <div className="eod-config-group-title">
-                    <Terminal size={10} /> EOD Scripts ({meta.scripts.length})
-                  </div>
-                  <div className="eod-script-rows">
-                    {meta.scripts.map((s, i) => (
-                      <div key={s} className="eod-script-row">
-                        <span
-                          style={{
-                            fontSize: 9,
-                            fontWeight: 700,
-                            color: 'var(--text-tertiary)',
-                            minWidth: 16,
-                            textAlign: 'right',
-                          }}
-                        >
-                          {i + 1}
-                        </span>
-                        <code>{s}</code>
-                        <button className="eod-icon-btn" style={{ width: 20, height: 20 }}>
-                          <Edit2 size={9} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                  <span className="eod-cfg-k">User</span>
+                  <span className="eod-cfg-v">{env.userName || '—'}</span>
 
-              <div className="eod-config-foot">
-                <button
-                  className="eod-test-btn"
-                  onClick={() => handleTest(env.id)}
-                  disabled={testingIds.has(env.id)}
-                >
-                  {testingIds.has(env.id) ? (
-                    <>
-                      <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />{' '}
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      <Wifi size={12} /> Test Connection
-                    </>
-                  )}
-                </button>
+                  <span className="eod-cfg-k">Start Script</span>
+                  <code className="eod-cfg-code">{env.startScript || '—'}</code>
+
+                  <span className="eod-cfg-k">Pause Script</span>
+                  <code className="eod-cfg-code">{env.pauseScript || '—'}</code>
+
+                  <span className="eod-cfg-k">Stop Script</span>
+                  <code className="eod-cfg-code">{env.stopScript || '—'}</code>
+
+                  <span className="eod-cfg-k">Script Path</span>
+                  <code className="eod-cfg-code eod-cfg-code-full">{env.scriptPath || '—'}</code>
+
+                  <span className="eod-cfg-k">Log Path</span>
+                  <code className="eod-cfg-code eod-cfg-code-full">{env.logFilePath || '—'}</code>
+
+                  <span className="eod-cfg-k">Status File</span>
+                  <code className="eod-cfg-code">{env.statusFileName || '—'}</code>
+                </div>
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
+      )}
+
+      {/* ── Table View ──────────────────────────────────────────── */}
+      {viewMode === 'table' && (
+        <div className="eod-env-table-wrap">
+          <table className="eod-env-table eod-cfg-table">
+            <thead>
+              <tr className="eod-env-thead">
+                <th className="eod-env-th">Environment</th>
+                <th className="eod-env-th">Active</th>
+                <th className="eod-env-th">Start Script</th>
+                <th className="eod-env-th">Pause Script</th>
+                <th className="eod-env-th">Stop Script</th>
+                <th className="eod-env-th">EOD Path</th>
+                <th className="eod-env-th">Log Path</th>
+                <th className="eod-env-th">Server IP</th>
+                <th className="eod-env-th">Port</th>
+                <th className="eod-env-th">Status File</th>
+                <th className="eod-env-th" style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEnvironments.map((env) => (
+                <tr key={env.id} className="eod-env-row">
+                  <td className="eod-env-td">
+                    <div className="eod-env-row-left">
+                      <div className="eod-env-color-bar" style={{ background: env.color }} />
+                      <span className="eod-env-row-name">{env.name}</span>
+                    </div>
+                  </td>
+                  <td className="eod-env-td">
+                    <span className={`eod-active-badge ${env.isActive ? 'yes' : 'no'}`}>
+                      {env.isActive ? 'Yes' : 'No'}
+                    </span>
+                  </td>
+                  <td className="eod-env-td"><code className="eod-dur-code">{env.startScript || '—'}</code></td>
+                  <td className="eod-env-td"><code className="eod-dur-code">{env.pauseScript || '—'}</code></td>
+                  <td className="eod-env-td"><code className="eod-dur-code">{env.stopScript || '—'}</code></td>
+                  <td className="eod-env-td eod-td-path">{env.scriptPath || '—'}</td>
+                  <td className="eod-env-td eod-td-path">{env.logFilePath || '—'}</td>
+                  <td className="eod-env-td">{env.serverIp || '—'}</td>
+                  <td className="eod-env-td">{env.port || '—'}</td>
+                  <td className="eod-env-td"><code className="eod-dur-code">{env.statusFileName || '—'}</code></td>
+                  <td className="eod-env-td" style={{ textAlign: 'right' }}>
+                    <div className="eod-tl-actions">
+                      <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
+                        <Edit2 size={11} />
+                      </button>
+                      <button className="eod-icon-btn danger" title="Delete" onClick={() => setDeleteTarget(env)}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Add / Edit Modal ────────────────────────────────────── */}
+      {modalMode && editTarget && (
+        <EnvModal
+          mode={modalMode}
+          initial={editTarget}
+          onSave={handleSave}
+          onClose={closeModal}
+        />
+      )}
+
+      {/* ── Delete Confirm Dialog ───────────────────────────────── */}
+      {deleteTarget && (
+        <div className="eod-modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="eod-modal eod-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="eod-modal-header">
+              <span className="eod-modal-title" style={{ color: 'var(--c-danger)' }}>
+                <AlertCircle size={15} /> Delete Environment
+              </span>
+              <button className="eod-modal-close" onClick={() => setDeleteTarget(null)}><X size={14} /></button>
+            </div>
+            <div className="eod-modal-body">
+              <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0 }}>
+                Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="eod-modal-footer">
+              <button className="eod-modal-btn cancel" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="eod-modal-btn danger" onClick={confirmDelete}>
+                <Trash2 size={12} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── EnvModal (Add / Edit) ────────────────────────────────────── */
+function EnvModal({ mode, initial, onSave, onClose }) {
+  const [activeTab, setActiveTab] = useState('env'); // 'env' | 'script'
+  const [form, setForm] = useState({ ...initial });
+  const [showPwd, setShowPwd] = useState(false);
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setCheck = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.checked }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    onSave({ ...form, id: form.id || form.name.toLowerCase().replace(/\s+/g, '_') });
+  };
+
+  const isAdd = mode === 'add';
+  const title = isAdd ? 'Add EOD Environment' : 'Edit EOD Environment';
+
+  return (
+    <div className="eod-modal-overlay" onClick={onClose}>
+      <div className="eod-modal" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="eod-modal-header">
+          <span className="eod-modal-title">{title}</span>
+          <button className="eod-modal-close" onClick={onClose}><X size={14} /></button>
+        </div>
+
+        {/* Sub-tabs */}
+        <div className="eod-modal-tabs">
+          <button
+            className={`eod-modal-tab${activeTab === 'env' ? ' active' : ''}`}
+            onClick={() => setActiveTab('env')}
+          >
+            <Network size={12} /> Environment
+          </button>
+          <button
+            className={`eod-modal-tab${activeTab === 'script' ? ' active' : ''}`}
+            onClick={() => setActiveTab('script')}
+          >
+            <Terminal size={12} /> Scripts
+          </button>
+        </div>
+
+        {/* Body */}
+        <form onSubmit={handleSubmit}>
+          <div className="eod-modal-body">
+
+            {/* ── Tab 1: Environment ─────────────────────────── */}
+            {activeTab === 'env' && (
+              <div className="eod-modal-fields">
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Environment Name</label>
+                  <input
+                    className="eod-modal-input"
+                    value={form.name}
+                    onChange={set('name')}
+                    placeholder="e.g. PRODUCTION"
+                    disabled={!isAdd}
+                    required
+                  />
+                </div>
+
+                <div className="eod-modal-field eod-modal-field-row">
+                  <label className="eod-modal-label">Is Active</label>
+                  <label className="eod-toggle-wrap">
+                    <span className="eod-toggle">
+                      <input type="checkbox" checked={form.isActive} onChange={setCheck('isActive')} />
+                      <span className="eod-toggle-track" />
+                    </span>
+                    <span className="eod-toggle-text">{form.isActive ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                </div>
+
+                <div className="eod-modal-row2">
+                  <div className="eod-modal-field">
+                    <label className="eod-modal-label">Server IP</label>
+                    <input className="eod-modal-input" value={form.serverIp} onChange={set('serverIp')} placeholder="192.168.1.24" />
+                  </div>
+                  <div className="eod-modal-field">
+                    <label className="eod-modal-label">Port No</label>
+                    <input className="eod-modal-input" value={form.port} onChange={set('port')} placeholder="22" type="number" />
+                  </div>
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">User Name</label>
+                  <input className="eod-modal-input" value={form.userName} onChange={set('userName')} placeholder="sourcesftp" />
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Password</label>
+                  <div className="eod-modal-pwd-wrap">
+                    <input
+                      className="eod-modal-input"
+                      type={showPwd ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={set('password')}
+                      placeholder="••••••••"
+                    />
+                    <button type="button" className="eod-modal-pwd-eye" onClick={() => setShowPwd((v) => !v)}>
+                      {showPwd ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Log File Path</label>
+                  <input className="eod-modal-input" value={form.logFilePath} onChange={set('logFilePath')} placeholder="/upload/csvfiles/oss/logs/" />
+                </div>
+              </div>
+            )}
+
+            {/* ── Tab 2: Scripts ─────────────────────────────── */}
+            {activeTab === 'script' && (
+              <div className="eod-modal-fields">
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Script Path</label>
+                  <input className="eod-modal-input" value={form.scriptPath} onChange={set('scriptPath')} placeholder="/upload/csvfiles/oss/scripts/env1/" />
+                </div>
+
+                <div className="eod-modal-row2">
+                  <div className="eod-modal-field">
+                    <label className="eod-modal-label">Start Script</label>
+                    <input className="eod-modal-input" value={form.startScript} onChange={set('startScript')} placeholder="start.sh" />
+                  </div>
+                  <div className="eod-modal-field">
+                    <label className="eod-modal-label">Pause Script</label>
+                    <input className="eod-modal-input" value={form.pauseScript} onChange={set('pauseScript')} placeholder="pause.sh" />
+                  </div>
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Stop Script</label>
+                  <input className="eod-modal-input" value={form.stopScript} onChange={set('stopScript')} placeholder="stop.sh" />
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Jobs To Run Status File Name</label>
+                  <input className="eod-modal-input" value={form.statusFileName} onChange={set('statusFileName')} placeholder="myjobstorun.txt" />
+                </div>
+
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">Jobs To Run Original File Name</label>
+                  <input className="eod-modal-input" value={form.jobsFileName} onChange={set('jobsFileName')} placeholder="Dev_JobsToRun_Original.txt" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="eod-modal-footer">
+            <button type="button" className="eod-modal-btn cancel" onClick={onClose}>Cancel</button>
+            <button type="submit" className="eod-modal-btn primary">
+              {isAdd ? <><Plus size={12} /> Add</> : <><CheckCircle size={12} /> Update</>}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
-function SchedulesSection({ schedules, environments }) {
-  const getEnv = (envId) => environments.find((e) => e.id === envId);
-  const days = ['Today', 'Tomorrow', 'Thu 25 Jul'];
+function formatDateGroup(dateVal) {
+  if (!dateVal) return 'Today';
+  const d = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
+  if (isNaN(d.getTime())) return String(dateVal);
+
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (
+    d.getDate() === today.getDate() &&
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  ) {
+    return 'Today';
+  }
+
+  if (
+    d.getDate() === tomorrow.getDate() &&
+    d.getMonth() === tomorrow.getMonth() &&
+    d.getFullYear() === tomorrow.getFullYear()
+  ) {
+    return 'Tomorrow';
+  }
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${dayNames[d.getDay()]} ${d.getDate()} ${monthNames[d.getMonth()]}`;
+}
+
+const DEFAULT_SCHEDULES = [
+  {
+    id: 's1',
+    envId: 'prod',
+    dateGroup: 'Today',
+    time: '00:00',
+    recurrence: 'Daily',
+    isActive: true,
+  },
+  {
+    id: 's2',
+    envId: 'sit',
+    dateGroup: 'Today',
+    time: '22:00',
+    recurrence: 'Daily',
+    isActive: true,
+  },
+  {
+    id: 's3',
+    envId: 'uat',
+    dateGroup: 'Tomorrow',
+    time: '23:00',
+    recurrence: 'Weekdays',
+    isActive: true,
+  },
+  {
+    id: 's4',
+    envId: 'dev',
+    dateGroup: 'Thu 25 Jul',
+    time: '18:30',
+    recurrence: 'Custom / One-time',
+    isActive: true,
+  },
+];
+
+function SchedulesSection({ schedules: initialSchedules, environments }) {
+  const [scheduleList, setScheduleList] = useState(() => {
+    if (initialSchedules && initialSchedules.length > 0) {
+      return initialSchedules.map((s, idx) => ({
+        id: s.id || `s-${idx}`,
+        envId: s.envId || 'sit',
+        dateGroup: s.dateGroup || (idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : 'Thu 25 Jul'),
+        time: s.time || '22:00',
+        recurrence: s.recurrence || 'Daily',
+        isActive: s.isActive !== false,
+      }));
+    }
+    return DEFAULT_SCHEDULES;
+  });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
+  const [deleteConfirmSchedule, setDeleteConfirmSchedule] = useState(null);
+
+  const getEnv = (envId) =>
+    environments.find((e) => e.id === envId || e.name?.toLowerCase() === envId?.toLowerCase());
+
+  const handleOpenAdd = (dateGroupPreset = 'Today') => {
+    setEditingSchedule({
+      id: '',
+      envId: environments[0]?.id || 'sit',
+      selectedDate: new Date(),
+      time: '22:00',
+      recurrence: 'Daily',
+    });
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (sch, e) => {
+    e?.stopPropagation();
+    setEditingSchedule({
+      ...sch,
+      selectedDate: new Date(),
+    });
+    setModalOpen(true);
+  };
+
+  const handleSaveSchedule = (schData) => {
+    const formattedDate = formatDateGroup(schData.selectedDate);
+    const itemToSave = {
+      id: schData.id || `sch-${Date.now()}`,
+      envId: schData.envId,
+      dateGroup: formattedDate,
+      time: schData.time,
+      recurrence: schData.recurrence,
+      isActive: true,
+    };
+
+    if (schData.id) {
+      setScheduleList((prev) => prev.map((s) => (s.id === schData.id ? itemToSave : s)));
+    } else {
+      setScheduleList((prev) => [...prev, itemToSave]);
+    }
+    setModalOpen(false);
+  };
+
+  const handleDeleteSchedule = (id) => {
+    setScheduleList((prev) => prev.filter((s) => s.id !== id));
+    setDeleteConfirmSchedule(null);
+  };
+
+  const days = Array.from(
+    new Set(['Today', 'Tomorrow', 'Thu 25 Jul', ...scheduleList.map((s) => s.dateGroup)])
+  );
+
   return (
     <div className="eod-section">
       <div className="eod-section-bar">
-        <p className="eod-section-title">Scheduled Runs</p>
-        <button className="eod-add-btn">
-          <Plus size={11} /> Add Schedule
+        <div>
+          <p className="eod-section-title">Scheduled Runs</p>
+          <span className="eod-section-subtitle">Manage automated End-of-Day batch execution schedules</span>
+        </div>
+        <button type="button" className="eod-add-btn primary-green" onClick={() => handleOpenAdd('Today')}>
+          <Plus size={13} /> Add Schedule
         </button>
       </div>
 
-      {days.map((day) => (
-        <div key={day} className="eod-schedule-wrap">
-          <div className="eod-schedule-date-bar">
-            <Calendar size={12} color="var(--c-primary)" />
-            {day}
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 10,
-                color: 'var(--text-secondary)',
-                fontWeight: 500,
+      <div className="eod-schedules-container">
+        {days.map((day) => {
+          const daySchedules = scheduleList.filter((s) => s.dateGroup === day);
+          return (
+            <div key={day} className="eod-schedule-card">
+              <div className="eod-schedule-header">
+                <div className="eod-schedule-header-title">
+                  <Calendar size={14} className="eod-cal-icon" />
+                  <span>{day}</span>
+                </div>
+                <span className="eod-schedule-count-pill">
+                  {daySchedules.length} scheduled
+                </span>
+              </div>
+
+              {daySchedules.length === 0 ? (
+                <div className="eod-schedule-empty">
+                  <Clock size={18} className="eod-empty-clock" />
+                  <span>No scheduled runs for {day}.</span>
+                  <button type="button" className="eod-empty-add-btn" onClick={() => handleOpenAdd(day)}>
+                    <Plus size={11} /> Add Schedule
+                  </button>
+                </div>
+              ) : (
+                <div className="eod-timeline-list">
+                  {daySchedules.map((sch) => {
+                    const env = getEnv(sch.envId);
+                    const envName = env?.name || sch.envId?.toUpperCase() || 'ENVIRONMENT';
+                    const envColor = env?.color || '#005A36';
+
+                    return (
+                      <div key={sch.id} className="eod-sch-row-item">
+                        {/* Time Column */}
+                        <div className="eod-sch-time-col">
+                          <span className="eod-sch-time-tag">{sch.time}</span>
+                        </div>
+
+                        {/* Dot Timeline Connector */}
+                        <div className="eod-sch-dot-wrap">
+                          <span className="eod-sch-dot" style={{ background: envColor, color: envColor }} />
+                        </div>
+
+                        {/* Details Group */}
+                        <div className="eod-sch-details-col">
+                          <div className="eod-sch-env-badge">
+                            <span className="eod-sch-env-dot" style={{ background: envColor }} />
+                            <span className="eod-sch-env-name">{envName}</span>
+                          </div>
+
+                          <div className="eod-sch-recur-pill">
+                            <RefreshCw size={10} />
+                            <span>{sch.recurrence}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions Column */}
+                        <div className="eod-sch-actions-col">
+                          <button
+                            type="button"
+                            className="eod-icon-btn"
+                            onClick={(e) => handleOpenEdit(sch, e)}
+                            title="Edit Schedule"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="eod-icon-btn danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmSchedule(sch);
+                            }}
+                            title="Delete Schedule"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Add / Edit Schedule Modal Overlay */}
+      {modalOpen && editingSchedule && (
+        <ScheduleModal
+          isOpen={modalOpen}
+          schedule={editingSchedule}
+          environments={environments}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSaveSchedule}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmSchedule && (
+        <AdminModal
+          isOpen={Boolean(deleteConfirmSchedule)}
+          onClose={() => setDeleteConfirmSchedule(null)}
+          title="Delete Schedule"
+          size="sm"
+        >
+          <div className="eod-delete-modal-body">
+            <AlertTriangle size={24} className="eod-danger-icon" />
+            <p>
+              Are you sure you want to delete the schedule for{' '}
+              <strong>{getEnv(deleteConfirmSchedule.envId)?.name || deleteConfirmSchedule.envId}</strong> at{' '}
+              <strong>{deleteConfirmSchedule.time}</strong>?
+            </p>
+          </div>
+          <div className="eod-modal-footer">
+            <button type="button" className="eod-modal-btn cancel" onClick={() => setDeleteConfirmSchedule(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="eod-modal-btn danger"
+              onClick={() => handleDeleteSchedule(deleteConfirmSchedule.id)}
+            >
+              Delete Schedule
+            </button>
+          </div>
+        </AdminModal>
+      )}
+    </div>
+  );
+}
+
+function ScheduleModal({ isOpen, schedule, environments, onClose, onSave }) {
+  const [form, setForm] = useState({
+    id: schedule.id || '',
+    envId: schedule.envId || (environments[0]?.id || 'sit'),
+    selectedDate: schedule.selectedDate || new Date(),
+    time: schedule.time || '22:00',
+    recurrence: schedule.recurrence || 'Daily',
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const isEdit = Boolean(form.id);
+
+  const validate = () => {
+    const errs = {};
+    if (!form.envId) errs.envId = 'Environment is required';
+    if (!form.selectedDate) errs.selectedDate = 'Schedule Date is required';
+    if (!form.time) errs.time = 'Schedule Time is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    setIsSaving(true);
+    setTimeout(() => {
+      onSave(form);
+      setIsSaving(false);
+    }, 250);
+  };
+
+  return (
+    <AdminModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEdit ? 'Edit Schedule' : 'Add New Schedule'}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="eod-schedule-modal-form">
+        <div className="eod-modal-field-group">
+          {/* Environment Selection */}
+          <div className="eod-modal-field">
+            <label className="eod-modal-label">
+              Environment <span className="req">*</span>
+            </label>
+            <select
+              className={`eod-modal-input ${errors.envId ? 'error' : ''}`}
+              value={form.envId}
+              onChange={(e) => {
+                setForm({ ...form, envId: e.target.value });
+                if (errors.envId) setErrors({ ...errors, envId: null });
               }}
             >
-              {schedules.length} scheduled
-            </span>
+              <option value="" disabled>Select environment</option>
+              {environments.map((env) => (
+                <option key={env.id} value={env.id}>
+                  {env.name} ({env.status.toUpperCase()})
+                </option>
+              ))}
+            </select>
+            {errors.envId && <span className="eod-field-error">{errors.envId}</span>}
           </div>
-          <div className="eod-timeline">
-            {schedules.map((sch) => {
-              const env = getEnv(sch.envId);
-              return (
-                <div key={sch.id} className="eod-tl-item">
-                  <span className="eod-tl-time">{sch.time}</span>
-                  <span
-                    className="eod-tl-dot"
-                    style={{ background: env?.color || 'var(--c-primary)' }}
-                  />
-                  <div className="eod-tl-content">
-                    <span className="eod-tl-env">{env?.name || sch.envId}</span>
-                    <span className="eod-tl-owner">
-                      <Settings size={10} />
-                      {sch.owner}
-                    </span>
-                    <span className="eod-tl-recur">
-                      <RefreshCw size={9} />
-                      {sch.recurrence}
-                    </span>
-                  </div>
-                  <div className="eod-tl-actions">
-                    <button className="eod-icon-btn">
-                      <Edit2 size={11} />
-                    </button>
-                    <button className="eod-icon-btn danger">
-                      <Trash2 size={11} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+
+          {/* Recurrence */}
+          <div className="eod-modal-field">
+            <label className="eod-modal-label">
+              Recurrence <span className="req">*</span>
+            </label>
+            <select
+              className="eod-modal-input"
+              value={form.recurrence}
+              onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
+            >
+              <option value="Daily">Daily</option>
+              <option value="Weekdays">Weekdays</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Custom / One-time">Custom / One-time</option>
+            </select>
+          </div>
+
+          {/* Date & Time Row */}
+          <div className="eod-modal-row2">
+            <div className="eod-modal-field">
+              <label className="eod-modal-label">
+                Schedule Date <span className="req">*</span>
+              </label>
+              <DatePicker
+                value={form.selectedDate}
+                onChange={(d) => {
+                  setForm({ ...form, selectedDate: d });
+                  if (errors.selectedDate) setErrors({ ...errors, selectedDate: null });
+                }}
+                placeholder="Select schedule date"
+                width="100%"
+              />
+              {errors.selectedDate && <span className="eod-field-error">{errors.selectedDate}</span>}
+            </div>
+
+            <div className="eod-modal-field">
+              <label className="eod-modal-label">
+                Schedule Time <span className="req">*</span>
+              </label>
+              <input
+                type="time"
+                className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                value={form.time}
+                onChange={(e) => {
+                  setForm({ ...form, time: e.target.value });
+                  if (errors.time) setErrors({ ...errors, time: null });
+                }}
+              />
+              {errors.time && <span className="eod-field-error">{errors.time}</span>}
+            </div>
           </div>
         </div>
-      ))}
-    </div>
+
+        {/* Modal Actions Footer */}
+        <div className="eod-modal-footer">
+          <button type="button" className="eod-modal-btn cancel" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </button>
+          <button type="submit" className="eod-modal-btn primary-green" disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <RefreshCw size={12} className="eod-pulse-icon" /> Saving...
+              </>
+            ) : isEdit ? (
+              <>
+                <CheckCircle size={12} /> Update Schedule
+              </>
+            ) : (
+              <>
+                <Plus size={12} /> Add Schedule
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </AdminModal>
   );
 }
 function ControlSection({ environments, onStart, onPause, onStop }) {

@@ -1,33 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, Fragment } from 'react';
 import {
   Download,
   RefreshCw,
   Search,
   TrendingUp,
+  TrendingDown,
   Eye,
+  ChevronDown,
+  ChevronUp,
   Pin,
   Plus,
-  X,
   AlertTriangle,
   Clock,
   Activity,
-  Zap,
   Calendar,
   BarChart3,
   Edit,
   Trash2,
 } from 'lucide-react';
-import {
-  Line,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ComposedChart,
-  ReferenceLine,
-} from 'recharts';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
@@ -38,6 +28,517 @@ import { murexService } from '@services/murexService';
 
 import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
+
+/* ─── Plotly Chart Wrapper Component (CDN Auto-Loader) ────────── */
+function PlotlyChart({ data, layout, config, onClick, style }) {
+  const containerRef = useRef(null);
+  const [plotlyLoaded, setPlotlyLoaded] = useState(Boolean(window.Plotly));
+
+  useEffect(() => {
+    if (window.Plotly) {
+      setPlotlyLoaded(true);
+      return;
+    }
+    const existing = document.getElementById('plotly-script');
+    if (existing) {
+      existing.addEventListener('load', () => setPlotlyLoaded(true));
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'plotly-script';
+    script.src = 'https://cdn.plot.ly/plotly-2.35.2.min.js';
+    script.async = true;
+    script.onload = () => setPlotlyLoaded(true);
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!plotlyLoaded || !containerRef.current || !window.Plotly) return;
+
+    const el = containerRef.current;
+    window.Plotly.newPlot(el, data, layout, {
+      responsive: true,
+      displayModeBar: false,
+      ...config,
+    });
+
+    if (onClick) {
+      el.removeAllListeners?.('plotly_click');
+      el.on('plotly_click', onClick);
+    }
+
+    const handleResize = () => {
+      if (window.Plotly && el) {
+        window.Plotly.Plots.resize(el);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (window.Plotly && el) {
+        window.Plotly.purge(el);
+      }
+    };
+  }, [plotlyLoaded, data, layout, config, onClick]);
+
+  if (!plotlyLoaded) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180, color: 'var(--text-tertiary)' }}>
+        <RefreshCw size={14} className="eod-pulse-icon" style={{ marginRight: 8 }} /> Loading Plotly engine...
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 220, ...style }} />;
+}
+
+/* ─── Stacked Bar Chart Spec for Job Cards ─────────────────────── */
+function buildJobStackedBarSpec(script) {
+  const trendData = script.trendData || [];
+  const history = script.history || [];
+  const avgMin = script.minRuntime || 0;
+  const avgMax = script.maxRuntime || 0;
+  const avgRuntimeMin = (avgMin + avgMax) / 2 || 1;
+  const threshold = avgRuntimeMin * 1.8;
+
+  // Build date labels: prefer history dates, fallback to Day-N
+  const dates = trendData.map((_, i) => {
+    const h = history[history.length - 1 - i]; // history is most-recent-first
+    if (h?.date) {
+      const d = new Date(h.date);
+      if (!isNaN(d.getTime())) {
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      }
+      return h.date;
+    }
+    return `Day ${i + 1}`;
+  }).reverse();
+
+  const vals = [...trendData].reverse();
+
+  // Split each bar into 3 stacked segments (base 60%, standard 30%, remainder)
+  const seg1 = vals.map(v => Math.round(v * 0.60));
+  const seg2 = vals.map(v => Math.round(v * 0.28));
+  const seg3 = vals.map(v => Math.round(v * 0.12));
+
+  // Outlier markers where value > threshold
+  const outlierX = dates.filter((_, i) => vals[i] > threshold);
+  const outlierY = vals.filter(v => v > threshold);
+
+  // Build custom hover text
+  const hoverText = vals.map((v, i) => {
+    const isOut = v > threshold;
+    const hh = String(Math.floor(v / 60)).padStart(2, '0');
+    const mm = String(Math.floor(v % 60)).padStart(2, '0');
+    const ss = String(Math.floor((v * 60) % 60)).padStart(2, '0');
+    return `<b>${dates[i]}</b><br>Duration: ${hh}:${mm}:${ss}${isOut ? '<br><span style="color:#EF4444">⚠️ Outlier</span>' : ''}`;
+  });
+
+  return {
+    data: [
+      {
+        x: dates,
+        y: seg1,
+        type: 'bar',
+        name: 'Base Run',
+        marker: { color: '#1E3A8A' },
+        hovertemplate: '%{customdata}<extra></extra>',
+        customdata: hoverText,
+      },
+      {
+        x: dates,
+        y: seg2,
+        type: 'bar',
+        name: 'Standard',
+        marker: { color: '#3B82F6' },
+        hoverinfo: 'skip',
+        showlegend: false,
+      },
+      {
+        x: dates,
+        y: seg3,
+        type: 'bar',
+        name: 'Tail',
+        marker: { color: '#93C5FD' },
+        hoverinfo: 'skip',
+        showlegend: false,
+      },
+      ...(outlierX.length > 0 ? [{
+        x: outlierX,
+        y: outlierY,
+        type: 'scatter',
+        mode: 'markers',
+        name: '⚠️ Outlier',
+        marker: { color: '#EF4444', size: 8, symbol: 'circle', line: { color: '#fff', width: 1.5 } },
+        hovertemplate: '<b>%{x}</b><br>⚠️ Outlier: %{y:.0f}m<extra></extra>',
+      }] : []),
+    ],
+    layout: {
+      barmode: 'stack',
+      bargap: 0.55,
+      margin: { t: 18, r: 20, b: 48, l: 52 },
+      height: 200,
+      autosize: true,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: { color: '#64748b', size: 10, family: 'Inter, system-ui, sans-serif' },
+      xaxis: {
+        tickfont: { size: 9 },
+        showgrid: false,
+        zeroline: false,
+        tickangle: -30,
+      },
+      yaxis: {
+        title: { text: 'Minutes', font: { size: 9, color: '#94a3b8' } },
+        tickfont: { size: 9 },
+        gridcolor: 'rgba(148,163,184,0.15)',
+        zeroline: false,
+      },
+      shapes: [
+        {
+          type: 'line',
+          x0: 0,
+          x1: 1,
+          xref: 'paper',
+          y0: threshold,
+          y1: threshold,
+          yref: 'y',
+          line: { color: '#EF4444', width: 1.5, dash: 'dash' },
+        },
+      ],
+      annotations: [
+        {
+          x: 1,
+          xref: 'paper',
+          y: threshold,
+          yref: 'y',
+          text: 'Upper Threshold',
+          showarrow: false,
+          xanchor: 'right',
+          font: { size: 9, color: '#EF4444' },
+          bgcolor: 'rgba(239,68,68,0.08)',
+          borderpad: 2,
+        },
+      ],
+      legend: {
+        orientation: 'h',
+        y: -0.35,
+        x: 0,
+        font: { size: 9 },
+      },
+    },
+  };
+}
+
+/* ─── JobCard Component ─────────────────────────────────────────── */
+function JobCard({ script, onOpenDetail }) {
+  const barSpec = useMemo(() => buildJobStackedBarSpec(script), [script]);
+
+  const avgRuntimeFmt = script.avgRuntime || '—';
+  const minRtFmt = script.minRuntime != null ? `${script.minRuntime}m` : '—';
+  const maxRtFmt = script.maxRuntime != null ? `${script.maxRuntime}m` : '—';
+  const lastRunFmt = script.lastRun || '—';
+  const outlierCount = (script.history || []).filter(h => h.status === 'error').length;
+  const freqFmt = script.frequency != null ? `${script.frequency}/day` : '—';
+  const trendPct = script.successRate != null ? `${script.successRate}%` : '—';
+  const trendPositive = (script.successRate || 0) >= 80;
+  const minMaxRatio =
+    script.maxRuntime > 0 ? Math.min((script.minRuntime / script.maxRuntime) * 100, 100) : 0;
+
+  const healthColor =
+    script.health === 'Healthy' ? '#10b981' :
+    script.health === 'Warning' ? '#f59e0b' : '#ef4444';
+
+  return (
+    <div className="murex-job-card">
+      {/* Card Header */}
+      <div className="murex-job-card-header">
+        <div className="murex-job-card-title-group">
+          <Activity size={14} className="murex-job-card-icon" />
+          <span className="murex-job-card-name">{script.name}</span>
+        </div>
+        <div className="murex-job-card-header-right">
+          <span className="murex-job-cat-tag">{script.category}</span>
+          <span
+            className="murex-job-health-badge"
+            style={{ background: healthColor }}
+          >
+            {(script.health || 'Unknown').toUpperCase()}
+          </span>
+          <button
+            className="murex-icon-btn"
+            title="View Execution History"
+            onClick={() => onOpenDetail && onOpenDetail(script)}
+          >
+            <Eye size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Row inside each Job Card */}
+      <div className="murex-kpi-row murex-job-kpi-row">
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Min Runtime</div>
+          <div className="murex-kpi-value">{minRtFmt}</div>
+        </div>
+        <div className="murex-kpi-divider" />
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Max Runtime</div>
+          <div className="murex-kpi-value">{maxRtFmt}</div>
+        </div>
+        <div className="murex-kpi-divider" />
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Avg Runtime</div>
+          <div className="murex-kpi-value">{avgRuntimeFmt}</div>
+        </div>
+        <div className="murex-kpi-divider" />
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Latest Run</div>
+          <div className="murex-kpi-value">{lastRunFmt}</div>
+        </div>
+        <div className="murex-kpi-divider" />
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Trend</div>
+          <div className={`murex-kpi-value ${trendPositive ? 'trend-up' : 'trend-down'}`}>
+            {trendPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+            {trendPct}
+          </div>
+        </div>
+        <div className="murex-kpi-divider" />
+        <div className="murex-kpi-item">
+          <div className="murex-kpi-label">Outliers</div>
+          <div className={`murex-kpi-value ${outlierCount > 0 ? 'outlier' : ''}`}>
+            {outlierCount}
+          </div>
+        </div>
+      </div>
+
+      {/* Card Body: Chart + Details Panel */}
+      <div className="murex-job-card-body">
+        {/* Left: Stacked Bar Chart */}
+        <div className="murex-job-chart-area">
+          <PlotlyChart
+            data={barSpec.data}
+            layout={barSpec.layout}
+            style={{ minHeight: 200 }}
+          />
+        </div>
+
+        {/* Right: Stats Panel */}
+        <div className="murex-job-details-panel">
+          {/* 2×2 Metric Grid */}
+          <div className="murex-job-metric-grid">
+            {/* Avg Runtime */}
+            <div className="murex-job-metric-card">
+              <div className="murex-job-metric-icon blue">
+                <Clock size={13} />
+              </div>
+              <div className="murex-job-metric-info">
+                <span className="murex-job-metric-label">Avg Runtime</span>
+                <span className="murex-job-metric-value blue">{avgRuntimeFmt}</span>
+              </div>
+            </div>
+
+            {/* Success Rate / Trend */}
+            <div className="murex-job-metric-card">
+              <div className={`murex-job-metric-icon ${trendPositive ? 'green' : 'red'}`}>
+                {trendPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+              </div>
+              <div className="murex-job-metric-info">
+                <span className="murex-job-metric-label">Success Rate</span>
+                <span className={`murex-job-metric-value ${trendPositive ? 'green' : 'red'}`}>{trendPct}</span>
+              </div>
+            </div>
+
+            {/* Frequency */}
+            <div className="murex-job-metric-card">
+              <div className="murex-job-metric-icon purple">
+                <Calendar size={13} />
+              </div>
+              <div className="murex-job-metric-info">
+                <span className="murex-job-metric-label">Frequency</span>
+                <span className="murex-job-metric-value purple">{freqFmt}</span>
+              </div>
+            </div>
+
+            {/* Outliers */}
+            <div className="murex-job-metric-card">
+              <div className={`murex-job-metric-icon ${outlierCount > 0 ? 'red' : 'green'}`}>
+                <AlertTriangle size={13} />
+              </div>
+              <div className="murex-job-metric-info">
+                <span className="murex-job-metric-label">Outliers</span>
+                <span className={`murex-job-metric-value ${outlierCount > 0 ? 'red' : 'green'}`}>
+                  {outlierCount > 0 ? `⚠️ ${outlierCount}` : '0'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Last Run Row */}
+          <div className="murex-job-last-run">
+            <Clock size={11} className="murex-job-last-run-icon" />
+            <span className="murex-job-last-run-label">Last Run</span>
+            <span className="murex-job-last-run-val">{lastRunFmt}</span>
+          </div>
+
+          {/* Min / Max Range Bar */}
+          <div className="murex-job-minmax-wrap">
+            <div className="murex-job-minmax-header">
+              <span className="murex-job-minmax-label">Min vs Max Runtime</span>
+            </div>
+            <div className="murex-job-minmax-bar">
+              <div
+                className="murex-job-minmax-fill"
+                style={{ width: `${minMaxRatio}%` }}
+              />
+            </div>
+            <div className="murex-job-minmax-values">
+              <span className="murex-job-minmax-min">⬇ {minRtFmt}</span>
+              <span className="murex-job-minmax-max">⬆ {maxRtFmt}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Heatmap & Gantt Data Generators ─────────────────────────── */
+function getScriptHeatmapSpec(script) {
+  const weeks = ['Week 36', 'Week 37', 'Week 38', 'Week 39', 'Week 40'];
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  const seed = (script?.id || 'script').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const zMatrix = days.map((day, dIdx) => {
+    return weeks.map((week, wIdx) => {
+      const base = 1800 + ((seed * (dIdx + 1) * (wIdx + 1)) % 14000);
+      const isOutlier = (dIdx === 3 && wIdx === 2) || (dIdx === 1 && wIdx === 4);
+      return isOutlier ? base + 18000 : base;
+    });
+  });
+
+  return {
+    weeks,
+    days,
+    zMatrix,
+    data: [
+      {
+        z: zMatrix,
+        x: weeks,
+        y: days,
+        type: 'heatmap',
+        colorscale: [
+          [0.0, '#fef08a'],
+          [0.3, '#fdba74'],
+          [0.6, '#ea580c'],
+          [1.0, '#991b1b'],
+        ],
+        colorbar: {
+          title: 'Avg Duration (s)',
+          titleside: 'top',
+          thickness: 14,
+          len: 0.9,
+          tickfont: { size: 10, color: '#64748b' },
+        },
+        hoverongaps: false,
+        hovertemplate: '<b>%{x}</b><br>Day: %{y}<br>Avg Duration: %{z}s<extra></extra>',
+      },
+    ],
+    layout: {
+      margin: { t: 25, r: 90, b: 40, l: 50 },
+      height: 230,
+      autosize: true,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: { color: '#334155', size: 11, family: 'Inter, system-ui, sans-serif' },
+      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: '#64748b' } } },
+      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: '#64748b' } }, autorange: 'reversed' },
+    },
+  };
+}
+
+function getCellExecutionDetails(script, weekLabel, dayLabel) {
+  return {
+    scriptName: script.name,
+    category: script.category,
+    week: weekLabel || 'Week 38',
+    day: dayLabel || 'Thu',
+    date: '2026-02-19',
+    avgDuration: '49:39:10',
+    totalRuns: 2,
+    outliersCount: 1,
+    runs: [
+      {
+        id: `${script.id}-run-1`,
+        name: 'Run 1',
+        duration: '40:04:52',
+        seconds: 144292,
+        isOutlier: false,
+        steps: [
+          { name: 'Step 1: DB Extraction', dbTime: 4200, cpuTime: 1800, elapsed: 48000 },
+          { name: 'Step 2: Validation Engine', dbTime: 8100, cpuTime: 3400, elapsed: 54000 },
+          { name: 'Step 3: GL Reconciliation', dbTime: 3200, cpuTime: 1400, elapsed: 28000 },
+          { name: 'Step 4: Archival & Clean', dbTime: 900, cpuTime: 400, elapsed: 14292 },
+        ],
+      },
+      {
+        id: `${script.id}-run-2`,
+        name: 'Run 2',
+        duration: '59:15:28',
+        seconds: 213328,
+        isOutlier: true,
+        steps: [
+          { name: 'Step 1: DB Extraction', dbTime: 9200, cpuTime: 3800, elapsed: 68000 },
+          { name: 'Step 2: Validation Engine', dbTime: 14100, cpuTime: 6400, elapsed: 84000 },
+          { name: 'Step 3: GL Reconciliation', dbTime: 6200, cpuTime: 2400, elapsed: 42000 },
+          { name: 'Step 4: Archival & Clean', dbTime: 1900, cpuTime: 800, elapsed: 19328 },
+        ],
+      },
+    ],
+  };
+}
+
+function getRunGanttSpec(run) {
+  const steps = run.steps.map((s) => s.name);
+  const dbTimes = run.steps.map((s) => s.dbTime);
+  const cpuTimes = run.steps.map((s) => s.cpuTime);
+
+  return {
+    data: [
+      {
+        y: steps,
+        x: dbTimes,
+        name: 'Total Database Time (s)',
+        type: 'bar',
+        orientation: 'h',
+        marker: { color: '#005A36' },
+      },
+      {
+        y: steps,
+        x: cpuTimes,
+        name: 'Total CPU Time (s)',
+        type: 'bar',
+        orientation: 'h',
+        marker: { color: '#2563eb' },
+      },
+    ],
+    layout: {
+      barmode: 'stack',
+      margin: { t: 10, r: 25, b: 35, l: 150 },
+      height: 170,
+      autosize: true,
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      font: { color: '#334155', size: 10 },
+      xaxis: { title: { text: 'Duration (seconds)', font: { size: 10 } } },
+      yaxis: { autorange: 'reversed' },
+      legend: { orientation: 'h', y: -0.3, font: { size: 10 } },
+    },
+  };
+}
 
 /** Murex batch runtime trends, heatmaps and per-script health. */
 export function MurexRuntimeTrendsPage() {
@@ -104,14 +605,43 @@ export function MurexRuntimeTrendsPage() {
 
   const [activeTab, setActiveTab] = useState('runtime');
   const [timeRange, setTimeRange] = useState('7d');
-  // The design highlights one script in the insight panel and offers no control
-  // to change it; promote to state once a selector exists.
   const selectedScript = scripts.length > 0 ? scripts[0].id : '';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [scriptFilter, setScriptFilter] = useState('');
   const [showScriptDetail, setShowScriptDetail] = useState(false);
   const [detailScript, setDetailScript] = useState(null);
+  const [expandedScriptIds, setExpandedScriptIds] = useState(() => new Set());
+  const [selectedCellDetails, setSelectedCellDetails] = useState(null);
+  const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
+
+  const toggleExpandScript = (scriptId, e) => {
+    e?.stopPropagation();
+    setExpandedScriptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(scriptId)) next.delete(scriptId);
+      else next.add(scriptId);
+      return next;
+    });
+  };
+
+  const toggleRunGantt = (runId) => {
+    setExpandedRunGanttIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(runId)) next.delete(runId);
+      else next.add(runId);
+      return next;
+    });
+  };
+
+  const handleHeatmapCellClick = (script, eventData) => {
+    if (eventData?.points?.[0]) {
+      const pt = eventData.points[0];
+      const details = getCellExecutionDetails(script, pt.x, pt.y);
+      setSelectedCellDetails(details);
+      setExpandedRunGanttIds(new Set());
+    }
+  };
   const categoryCounts = {
     ETL: scripts.filter((s) => s.category === 'ETL').length,
     Backup: scripts.filter((s) => s.category === 'Backup').length,
@@ -379,189 +909,19 @@ export function MurexRuntimeTrendsPage() {
       <div className="murex-tab-content">
         {activeTab === 'runtime' ? (
           <div className="murex-runtime-tab">
-            {/* Runtime Summary KPIs */}
-            <div className="murex-kpi-row">
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Min Runtime</div>
-                <div className="murex-kpi-value">{runtimeSummary.min}</div>
-              </div>
-              <div className="murex-kpi-divider" />
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Max Runtime</div>
-                <div className="murex-kpi-value">{runtimeSummary.max}</div>
-              </div>
-              <div className="murex-kpi-divider" />
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Avg Runtime</div>
-                <div className="murex-kpi-value">{runtimeSummary.avg}</div>
-              </div>
-              <div className="murex-kpi-divider" />
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Latest Run</div>
-                <div className="murex-kpi-value">{runtimeSummary.latest}</div>
-              </div>
-              <div className="murex-kpi-divider" />
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Trend</div>
-                <div className="murex-kpi-value trend-up">
-                  <TrendingUp size={14} />
-                  {runtimeSummary.trend}%
-                </div>
-              </div>
-              <div className="murex-kpi-divider" />
-              <div className="murex-kpi-item">
-                <div className="murex-kpi-label">Outliers</div>
-                <div className="murex-kpi-value outlier">{runtimeSummary.outliers}</div>
-              </div>
-            </div>
-
-            {/* Main Layout: Chart + Script Insight Panel */}
-            <div className="murex-runtime-layout">
-              {/* Left: Runtime Chart */}
-              <div className="murex-chart-section">
-                <div className="murex-section-header">
-                  <h3 className="murex-section-title">Runtime Trend Analysis</h3>
-                </div>
-                <div className="murex-chart-container">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={runtimeTrendData}>
-                      <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        key="xaxis"
-                        dataKey="date"
-                        tick={{ fontSize: 11 }}
-                        tickFormatter={(date) =>
-                          new Date(date).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        }
-                      />
-                      <YAxis
-                        key="yaxis"
-                        tick={{ fontSize: 11 }}
-                        label={{
-                          value: 'Minutes',
-                          angle: -90,
-                          position: 'insideLeft',
-                          style: { fontSize: 11 },
-                        }}
-                      />
-                      <Tooltip
-                        key="tooltip"
-                        contentStyle={{ fontSize: 11, borderRadius: 6 }}
-                        formatter={(value) => formatMinutes(value)}
-                      />
-                      <ReferenceLine
-                        key="ref"
-                        y={3500}
-                        stroke="#ef4444"
-                        strokeDasharray="5 5"
-                        label={{ value: 'Threshold', position: 'right', fontSize: 10 }}
-                      />
-                      <Bar key="bar" dataKey="runtime" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      <Line
-                        key="line"
-                        type="monotone"
-                        dataKey="average"
-                        stroke="#06b6d4"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Right: Script Insight Panel */}
-              {selectedScriptData && (
-                <div className="murex-script-insight-panel">
-                  <div className="murex-insight-panel-header">
-                    <div className="murex-insight-panel-title">{selectedScriptData.name}</div>
-                    <span
-                      className="murex-insight-health-badge"
-                      style={{ background: getHealthColor(selectedScriptData.health) }}
-                    >
-                      {selectedScriptData.health.toUpperCase()}
-                    </span>
-                  </div>
-
-                  <div className="murex-insight-panel-content">
-                    <div className="murex-insight-stat-row">
-                      <div className="murex-insight-stat-icon">
-                        <Clock size={14} />
-                      </div>
-                      <div className="murex-insight-stat-info">
-                        <div className="murex-insight-stat-label">Avg Runtime</div>
-                        <div className="murex-insight-stat-value">
-                          {selectedScriptData.avgRuntime}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="murex-insight-stat-row">
-                      <div className="murex-insight-stat-icon">
-                        <Activity size={14} />
-                      </div>
-                      <div className="murex-insight-stat-info">
-                        <div className="murex-insight-stat-label">Frequency</div>
-                        <div className="murex-insight-stat-value">
-                          {selectedScriptData.frequency} runs/day
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="murex-insight-stat-row">
-                      <div className="murex-insight-stat-icon">
-                        <Calendar size={14} />
-                      </div>
-                      <div className="murex-insight-stat-info">
-                        <div className="murex-insight-stat-label">Last Run</div>
-                        <div className="murex-insight-stat-value">{selectedScriptData.lastRun}</div>
-                      </div>
-                    </div>
-
-                    <div className="murex-insight-divider" />
-
-                    <div className="murex-insight-minmax-section">
-                      <div className="murex-insight-minmax-header">
-                        <span className="murex-insight-minmax-label">Min vs Max Runtime</span>
-                      </div>
-                      <div className="murex-insight-minmax-bar">
-                        <div
-                          className="murex-insight-minmax-fill"
-                          style={{
-                            width: `${(selectedScriptData.minRuntime / selectedScriptData.maxRuntime) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="murex-insight-minmax-values">
-                        <span className="min-val">{selectedScriptData.minRuntime}m</span>
-                        <span className="max-val">{selectedScriptData.maxRuntime}m</span>
-                      </div>
-                    </div>
-
-                    <div className="murex-insight-divider" />
-
-                    <div className="murex-insight-sparkline-section">
-                      <div className="murex-insight-sparkline-header">
-                        <BarChart3 size={12} />
-                        <span className="murex-insight-sparkline-label">7-Day Trend</span>
-                      </div>
-                      <div className="murex-insight-sparkline-bars">
-                        {selectedScriptData.trendData.map((value, i) => (
-                          <div
-                            key={i}
-                            className="murex-insight-sparkline-bar"
-                            style={{
-                              height: `${(value / Math.max(...selectedScriptData.trendData)) * 100}%`,
-                            }}
-                            title={`Day ${i + 1}: ${value}m`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+            {/* Per-Job Unified Cards */}
+            <div className="murex-job-cards-list">
+              {(scripts.length > 5 ? scripts.slice(0, 3) : scripts).map((script) => (
+                <JobCard
+                  key={script.id}
+                  script={script}
+                  onOpenDetail={openScriptDetail}
+                />
+              ))}
+              {scripts.length === 0 && (
+                <div className="murex-empty-state" style={{ padding: '40px 0' }}>
+                  <BarChart3 size={28} style={{ opacity: 0.3 }} />
+                  <p>No runtime data available</p>
                 </div>
               )}
             </div>
@@ -657,59 +1017,88 @@ export function MurexRuntimeTrendsPage() {
                     </tr>
                   </thead>
                   <tbody className="murex-script-tbody">
-                    {filteredScripts.map((script) => (
-                      <tr
-                        key={script.id}
-                        className={`murex-script-row ${detailScript?.id === script.id ? 'selected' : ''}`}
-                        onClick={() => openScriptDetail(script)}
-                      >
-                        <td className="murex-script-td">
-                          <div className="murex-script-name-cell">
-                            {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
-                            <span>{script.name}</span>
-                          </div>
-                        </td>
-                        <td className="murex-script-td">
-                          <span
-                            className="murex-category-tag"
-                            style={{ background: getCategoryColor(script.category) }}
+                    {filteredScripts.map((script) => {
+                      const isExpanded = expandedScriptIds.has(script.id);
+                      const spec = getScriptHeatmapSpec(script);
+                      return (
+                        <Fragment key={script.id}>
+                          <tr
+                            className={`murex-script-row ${isExpanded ? 'expanded' : ''}`}
+                            onClick={(e) => toggleExpandScript(script.id, e)}
                           >
-                            {script.category}
-                          </span>
-                        </td>
-                        <td className="murex-script-td">{script.lastRun}</td>
-                        <td className="murex-script-td">{script.avgRuntime}</td>
-                        <td className="murex-script-td">
-                          <span className={`murex-status-badge ${script.status.toLowerCase()}`}>
-                            {script.status}
-                          </span>
-                        </td>
-                        <td className="murex-script-td actions-col">
-                          <div className="murex-script-actions">
-                            <button
-                              className="murex-icon-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openScriptDetail(script);
-                              }}
-                              title="View Details"
-                            >
-                              <Eye size={12} />
-                            </button>
-                            <button
-                              className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePin(script.id);
-                              }}
-                              title="Pin Script"
-                            >
-                              <Pin size={12} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            <td className="murex-script-td">
+                              <div className="murex-script-name-cell">
+                                {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
+                                <span>{script.name}</span>
+                              </div>
+                            </td>
+                            <td className="murex-script-td">
+                              <span
+                                className="murex-category-tag"
+                                style={{ background: getCategoryColor(script.category) }}
+                              >
+                                {script.category}
+                              </span>
+                            </td>
+                            <td className="murex-script-td">{script.lastRun}</td>
+                            <td className="murex-script-td">{script.avgRuntime}</td>
+                            <td className="murex-script-td">
+                              <span className={`murex-status-badge ${script.status.toLowerCase()}`}>
+                                {script.status}
+                              </span>
+                            </td>
+                            <td className="murex-script-td actions-col">
+                              <div className="murex-script-actions">
+                                <button
+                                  className={`murex-icon-btn ${isExpanded ? 'active' : ''}`}
+                                  onClick={(e) => toggleExpandScript(script.id, e)}
+                                  title={isExpanded ? 'Collapse Details' : 'Expand Details & Heatmap'}
+                                >
+                                  {isExpanded ? <ChevronUp size={12} /> : <Eye size={12} />}
+                                </button>
+                                <button
+                                  className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePin(script.id);
+                                  }}
+                                  title="Pin Script"
+                                >
+                                  <Pin size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Child Row — Master-Detail Heatmap Accordion */}
+                          {isExpanded && (
+                            <tr className="murex-script-detail-row">
+                              <td colSpan={6}>
+                                <div className="murex-detail-accordion-content">
+                                  <div className="murex-detail-accordion-header">
+                                    <h4 className="murex-detail-title">
+                                      <Activity size={14} style={{ color: '#005A36' }} />
+                                      Runtime Heatmap & Execution Pattern — {script.name}
+                                    </h4>
+                                    <span className="murex-detail-subtitle">
+                                      Click any date cell on the heatmap to view detailed execution runs & Gantt charts
+                                    </span>
+                                  </div>
+
+                                  <div className="murex-detail-heatmap-wrapper">
+                                    <PlotlyChart
+                                      data={spec.data}
+                                      layout={spec.layout}
+                                      onClick={(e) => handleHeatmapCellClick(script, e)}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
 
@@ -725,215 +1114,104 @@ export function MurexRuntimeTrendsPage() {
         )}
       </div>
 
-      {/* Script Detail Drawer - Enhanced Compact Design */}
-      {showScriptDetail && detailScript && (
-        <div
-          className="murex-drawer-overlay"
-          {...dismissBackdrop(() => setShowScriptDetail(false))}
+      {/* Job Execution Details Modal */}
+      {selectedCellDetails && (
+        <AdminModal
+          isOpen={Boolean(selectedCellDetails)}
+          onClose={() => setSelectedCellDetails(null)}
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Job Execution Details</span>
+              <span className="murex-modal-script-badge">{selectedCellDetails.scriptName}</span>
+            </div>
+          }
+          size="lg"
         >
-          <div className="murex-drawer" role="dialog" aria-modal="true">
-            <div className="murex-drawer-header">
-              <div className="murex-drawer-header-content">
-                <h2 className="murex-drawer-title">{detailScript.name}</h2>
-                <div className="murex-drawer-meta">
-                  <span
-                    className="murex-drawer-category-tag"
-                    style={{ background: getCategoryColor(detailScript.category) }}
-                  >
-                    {detailScript.category}
-                  </span>
-                  <span
-                    className="murex-drawer-health-badge"
-                    style={{ background: getHealthColor(detailScript.health) }}
-                  >
-                    {detailScript.health}
-                  </span>
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Summary Stats Grid */}
+            <div className="murex-modal-summary-grid">
+              <div className="murex-modal-summary-card">
+                <span className="murex-modal-card-label">Week</span>
+                <span className="murex-modal-card-val">{selectedCellDetails.week}</span>
               </div>
-              <button className="murex-drawer-close" onClick={() => setShowScriptDetail(false)}>
-                <X size={14} />
-              </button>
+              <div className="murex-modal-summary-card">
+                <span className="murex-modal-card-label">Day</span>
+                <span className="murex-modal-card-val">{selectedCellDetails.day}</span>
+              </div>
+              <div className="murex-modal-summary-card">
+                <span className="murex-modal-card-label">Date</span>
+                <span className="murex-modal-card-val">{selectedCellDetails.date}</span>
+              </div>
+              <div className="murex-modal-summary-card">
+                <span className="murex-modal-card-label">Avg Duration</span>
+                <span className="murex-modal-card-val">{selectedCellDetails.avgDuration}</span>
+              </div>
+              <div className="murex-modal-summary-card">
+                <span className="murex-modal-card-label">Total Runs</span>
+                <span className="murex-modal-card-val">{selectedCellDetails.totalRuns}</span>
+              </div>
+              <div className={`murex-modal-summary-card ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
+                <span className="murex-modal-card-label">Outliers</span>
+                <span className={`murex-modal-card-val ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
+                  {selectedCellDetails.outliersCount > 0 ? `⚠️ ${selectedCellDetails.outliersCount}` : '0'}
+                </span>
+              </div>
             </div>
 
-            <div className="murex-drawer-content">
-              {/* Quick Stats Grid */}
-              <div className="murex-drawer-stats-grid">
-                <div className="murex-drawer-stat-card">
-                  <div className="murex-drawer-stat-icon">
-                    <Clock size={14} />
-                  </div>
-                  <div className="murex-drawer-stat-content">
-                    <div className="murex-drawer-stat-label">Avg Runtime</div>
-                    <div className="murex-drawer-stat-value">{detailScript.avgRuntime}</div>
-                  </div>
-                </div>
+            {/* All Run Durations Section */}
+            <div className="murex-modal-runs-section">
+              <h4 className="murex-modal-runs-title">All Run Durations</h4>
+              {selectedCellDetails.runs.map((run) => {
+                const isGanttOpen = expandedRunGanttIds.has(run.id);
+                const ganttSpec = getRunGanttSpec(run);
+                const totalDb = run.steps.reduce((a, b) => a + b.dbTime, 0);
+                const totalCpu = run.steps.reduce((a, b) => a + b.cpuTime, 0);
 
-                <div className="murex-drawer-stat-card">
-                  <div className="murex-drawer-stat-icon">
-                    <Activity size={14} />
-                  </div>
-                  <div className="murex-drawer-stat-content">
-                    <div className="murex-drawer-stat-label">Frequency</div>
-                    <div className="murex-drawer-stat-value">{detailScript.frequency}/day</div>
-                  </div>
-                </div>
-
-                <div className="murex-drawer-stat-card">
-                  <div className="murex-drawer-stat-icon">
-                    <Zap size={14} />
-                  </div>
-                  <div className="murex-drawer-stat-content">
-                    <div className="murex-drawer-stat-label">Min Runtime</div>
-                    <div className="murex-drawer-stat-value">{detailScript.minRuntime}m</div>
-                  </div>
-                </div>
-
-                <div className="murex-drawer-stat-card">
-                  <div className="murex-drawer-stat-icon">
-                    <AlertTriangle size={14} />
-                  </div>
-                  <div className="murex-drawer-stat-content">
-                    <div className="murex-drawer-stat-label">Max Runtime</div>
-                    <div className="murex-drawer-stat-value">{detailScript.maxRuntime}m</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hourly Heatmap - Day vs Hour */}
-              <div className="murex-drawer-section">
-                <h3 className="murex-drawer-section-title">Execution Pattern (Hour vs Day)</h3>
-                <div className="murex-drawer-heatmap-container">
-                  <div className="murex-drawer-heatmap-y-axis">
-                    <div className="murex-drawer-heatmap-y-label">00</div>
-                    <div className="murex-drawer-heatmap-y-label">04</div>
-                    <div className="murex-drawer-heatmap-y-label">08</div>
-                    <div className="murex-drawer-heatmap-y-label">12</div>
-                    <div className="murex-drawer-heatmap-y-label">16</div>
-                    <div className="murex-drawer-heatmap-y-label">20</div>
-                  </div>
-                  <div className="murex-drawer-heatmap-content">
-                    <div className="murex-drawer-heatmap-x-axis">
-                      <div className="murex-drawer-heatmap-x-label">Mon</div>
-                      <div className="murex-drawer-heatmap-x-label">Tue</div>
-                      <div className="murex-drawer-heatmap-x-label">Wed</div>
-                      <div className="murex-drawer-heatmap-x-label">Thu</div>
-                      <div className="murex-drawer-heatmap-x-label">Fri</div>
-                      <div className="murex-drawer-heatmap-x-label">Sat</div>
-                      <div className="murex-drawer-heatmap-x-label">Sun</div>
-                    </div>
-                    <div className="murex-drawer-heatmap-grid">
-                      {hourlyHeatmap.map((cell, i) => (
-                        <div
-                          key={i}
-                          className="murex-drawer-heatmap-cell"
-                          style={{ background: getHeatmapColor(cell.runtime) }}
-                          title={`${cell.day} ${cell.hour}:00 - ${cell.runtime}m`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="murex-drawer-heatmap-legend">
-                  <span className="murex-drawer-legend-label">No Run</span>
-                  <div className="murex-drawer-legend-gradient" />
-                  <span className="murex-drawer-legend-label">Peak</span>
-                </div>
-              </div>
-
-              {/* Monthly Heatmap */}
-              <div className="murex-drawer-section">
-                <h3 className="murex-drawer-section-title">February 2026 Execution Calendar</h3>
-                <div className="murex-drawer-monthly-grid">
-                  {monthlyHeatmap.map((day, i) => (
-                    <div
-                      key={i}
-                      className="murex-drawer-monthly-cell"
-                      style={{ background: getMonthlyHeatmapColor(day.executions) }}
-                      title={`${day.date} (${day.dayOfWeek}) - ${day.executions} runs, Avg: ${day.avgRuntime}m`}
-                    >
-                      <div className="murex-drawer-monthly-date">{day.date.split(' ')[1]}</div>
-                      <div className="murex-drawer-monthly-day">
-                        {day.dayOfWeek.substring(0, 1)}
-                      </div>
-                      <div className="murex-drawer-monthly-count">{day.executions}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Detailed Statistics */}
-              <div className="murex-drawer-section">
-                <h3 className="murex-drawer-section-title">Performance Metrics</h3>
-                <div className="murex-drawer-metrics-grid">
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Total Executions</span>
-                    <span className="murex-drawer-metric-value">{detailScript.totalExecutions || 0}</span>
-                  </div>
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Success Rate</span>
-                    <span className="murex-drawer-metric-value success">{detailScript.successRate || 0}%</span>
-                  </div>
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Failed Runs</span>
-                    <span className="murex-drawer-metric-value error">{detailScript.failedRuns || 0}</span>
-                  </div>
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Avg Duration</span>
-                    <span className="murex-drawer-metric-value">{detailScript.avgRuntime}</span>
-                  </div>
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Fastest Run</span>
-                    <span className="murex-drawer-metric-value">{detailScript.minRuntime}m</span>
-                  </div>
-                  <div className="murex-drawer-metric-item">
-                    <span className="murex-drawer-metric-label">Slowest Run</span>
-                    <span className="murex-drawer-metric-value warning">
-                      {detailScript.maxRuntime}m
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity Timeline */}
-              <div className="murex-drawer-section">
-                <h3 className="murex-drawer-section-title">Recent Activity</h3>
-                <div className="murex-drawer-activity-list">
-                  {(detailScript.history || []).map((historyItem, index) => (
-                    <div key={index} className="murex-drawer-activity-item">
-                      <div className={`murex-drawer-activity-dot ${historyItem.status}`} />
-                      <div className="murex-drawer-activity-content">
-                        <div className="murex-drawer-activity-header">
-                          <span className="murex-drawer-activity-title">{historyItem.title}</span>
-                          <span className={`murex-drawer-activity-duration ${historyItem.status}`}>
-                            {historyItem.durationFormatted}
+                return (
+                  <div key={run.id} className={`murex-run-item ${run.isOutlier ? 'outlier' : ''}`}>
+                    <div className="murex-run-item-header">
+                      <div className="murex-run-info-left">
+                        <span className="murex-run-name">{run.name}</span>
+                        <span className="murex-run-dur">{run.duration}</span>
+                        {run.isOutlier && (
+                          <span className="murex-run-badge-outlier">
+                            <AlertTriangle size={10} /> Outlier
                           </span>
-                        </div>
-                        <div className="murex-drawer-activity-time">{historyItem.date}</div>
-                        {historyItem.steps && historyItem.steps.length > 0 && (
-                          <div className="murex-drawer-activity-steps">
-                            {historyItem.steps.map((step, sIdx) => (
-                               <div key={sIdx} className="murex-step-detail">
-                                 <span className="murex-step-name">{step.name}</span>
-                                 <span className="murex-step-metrics">
-                                   CPU: {step.cpu_time}ms | DB: {step.db_time}ms | Elapsed: {step.elapsed_time}ms
-                                 </span>
-                               </div>
-                            ))}
-                          </div>
                         )}
                       </div>
+
+                      <button
+                        type="button"
+                        className="murex-gantt-toggle-btn"
+                        onClick={() => toggleRunGantt(run.id)}
+                      >
+                        {isGanttOpen ? (
+                          <>Hide Gantt <ChevronUp size={12} /></>
+                        ) : (
+                          <>Show Gantt <ChevronDown size={12} /></>
+                        )}
+                      </button>
                     </div>
-                  ))}
-                  {(!detailScript.history || detailScript.history.length === 0) && (
-                     <div className="murex-empty-state" style={{ padding: '20px 0' }}>
-                       <p>No recent activity data available.</p>
-                     </div>
-                  )}
-                </div>
-              </div>
+
+                    {/* Gantt Chart Container */}
+                    {isGanttOpen && (
+                      <div className="murex-gantt-chart-container">
+                        <div className="murex-gantt-summary-bar">
+                          <span className="murex-gantt-step-count">{run.steps.length} Steps</span>
+                          <span>Total DB: <strong>{totalDb.toLocaleString()}s</strong></span>
+                          <span>Total CPU: <strong>{totalCpu.toLocaleString()}s</strong></span>
+                          <span>Total Duration: <strong>{run.seconds.toLocaleString()}s</strong></span>
+                        </div>
+
+                        <PlotlyChart data={ganttSpec.data} layout={ganttSpec.layout} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
+        </AdminModal>
       )}
       {/* Category Management Modal */}
       <AdminModal
