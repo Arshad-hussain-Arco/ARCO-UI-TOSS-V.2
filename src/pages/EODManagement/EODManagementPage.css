@@ -19,8 +19,9 @@
 .eod-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--surface-primary);
   border-bottom: 1px solid var(--border-primary);
   flex-shrink: 0;
@@ -28,21 +29,19 @@
 
 .eod-header-left {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
+  align-items: center;
 }
-.eod-title {
+
+.eod-breadcrumb {
   font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
+  font-weight: 600;
+  color: var(--c-primary);
 }
-.eod-subtitle {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin: 0;
+
+.eod-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .eod-header-pills {
@@ -110,7 +109,7 @@
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 
-/* ── Tab Navigation ──────────────────────────────────────────── */
+/* ── Tab Navigation (matching Leave Management page) ────────── */
 .eod-tabs {
   display: flex;
   align-items: flex-end;
@@ -123,11 +122,6 @@
   box-sizing: border-box;
   position: relative;
   z-index: 1;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.eod-tabs::-webkit-scrollbar {
-  display: none;
 }
 
 .eod-tab {
@@ -136,37 +130,36 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  border-bottom: none !important;
   padding: 8px 18px;
   height: 38px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  font-family: var(--font-family);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
   box-sizing: border-box;
   outline: none;
   user-select: none;
-  white-space: nowrap;
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-bottom: none !important;
   border-radius: 8px 8px 0px 0px;
   color: var(--text-secondary);
 }
 
-.eod-tab:hover:not(.active) {
+.eod-tab:hover:not([data-active='true']) {
   background-color: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border-secondary);
 }
 
-.eod-tab.active {
+.eod-tab[data-active='true'] {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-bottom: 1px solid var(--surface-primary) !important;
+  border-bottom: 1px solid var(--surface-primary);
   border-radius: 8px 8px 0 0;
-  color: var(--text-primary);
+  color: var(--c-primary);
   font-weight: 600;
   margin-bottom: -1px;
   z-index: 2;
@@ -174,15 +167,21 @@
 }
 
 .eod-tab-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   color: var(--text-tertiary);
   transition: color 0.2s ease;
 }
 
-.eod-tab.active .eod-tab-icon {
+.eod-tab[data-active='true'] .eod-tab-icon {
   color: var(--c-primary);
+}
+
+.eod-tab-label {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* ── Body ────────────────────────────────────────────────────── */
@@ -222,20 +221,21 @@
 .eod-stat-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .eod-stat-card {
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   position: relative;
   overflow: hidden;
   transition: box-shadow 0.15s;
+  min-height: 68px;
 }
 .eod-stat-card:hover {
   box-shadow: var(--shadow-sm);
@@ -318,47 +318,132 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 8px;
   background: var(--c-success-light);
   font-size: 8px;
   font-weight: 700;
   color: var(--c-success);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-/* ── Environment status table ─────────────────────────────────── */
-.eod-env-table {
+/* ── Live Run Banner ──────────────────────────────────────────── */
+.eod-live-banner {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 7px;
+  border: 1px solid var(--c-success);
+  border-radius: 8px;
   overflow: hidden;
 }
 
+.eod-live-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--c-success-light);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.eod-live-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-success);
+}
+
+.eod-live-banner-timer {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+
+.eod-live-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.eod-live-banner-step {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.eod-live-banner-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.eod-live-banner-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-success);
+  white-space: nowrap;
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Environment status table ─────────────────────────────────── */
+
+/* Wrapper gives horizontal scroll on small screens */
+.eod-env-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  background: var(--surface-primary);
+}
+
+.eod-env-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Header row */
 .eod-env-thead {
-  display: grid;
-  grid-template-columns: 110px 90px 1fr 130px 130px 80px;
-  padding: 0 12px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
 }
-.eod-env-thead-cell {
-  padding: 6px 0;
+
+.eod-env-th {
+  padding: 7px 12px;
   font-size: 9px;
   font-weight: 700;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: left;
+  white-space: nowrap;
 }
 
+/* Column widths — table-layout:fixed enforces these */
+.eod-th-env   { width: 130px; }
+.eod-th-status { width: 110px; }
+.eod-th-progress { width: auto; }  /* flex fills remaining */
+.eod-th-date  { width: 140px; }
+.eod-th-dur   { width: 90px; text-align: right; }
+
+/* Body rows */
 .eod-env-row {
-  display: grid;
-  grid-template-columns: 110px 90px 1fr 130px 130px 80px;
-  padding: 0 12px;
-  align-items: center;
   border-bottom: 1px solid var(--border-tertiary);
   transition: background 0.1s;
-  min-height: 40px;
 }
 .eod-env-row:last-child {
   border-bottom: none;
@@ -367,11 +452,22 @@
   background: var(--bg-hover);
 }
 
+/* Body cells */
+.eod-env-td {
+  padding: 9px 12px;
+  vertical-align: middle;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Col 1 — Environment name with accent bar */
+.eod-td-env {
+  padding-left: 10px;
+}
 .eod-env-row-left {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 0;
+  gap: 8px;
 }
 .eod-env-color-bar {
   width: 3px;
@@ -383,65 +479,81 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
-.eod-env-row-cell {
-  padding: 6px 0;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.eod-env-row-cell code {
-  font-size: 10px;
-  font-family: 'Courier New', monospace;
-  background: var(--bg-tertiary);
-  padding: 2px 5px;
-  border-radius: 3px;
-  color: var(--text-primary);
+/* Col 2 — Status badge */
+.eod-td-status {
+  /* badge itself is inline-flex, no extra flex needed */
 }
 
-/* Progress inline */
+/* Col 3 — Progress */
+.eod-td-progress {
+  /* inner element handles flex layout */
+}
 .eod-inline-progress {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 0;
+  gap: 8px;
+  width: 100%;
 }
 .eod-inline-bar {
   flex: 1;
-  height: 5px;
+  height: 7px;
   background: var(--bg-tertiary);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
+  min-width: 40px;
 }
 .eod-inline-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   background: linear-gradient(90deg, var(--c-success-light), var(--c-success));
   transition: width 0.4s ease;
   animation: eod-shimmer 2s ease-in-out infinite;
 }
-@keyframes eod-shimmer {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.75;
-  }
-}
 .eod-inline-pct {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--c-success);
   white-space: nowrap;
+  min-width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.eod-td-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
-/* Status badge */
+/* Col 4 & 5 — Last Run / Next Run */
+.eod-td-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Col 6 — Duration */
+.eod-td-dur {
+  text-align: right;
+}
+.eod-dur-code {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  background: var(--bg-tertiary);
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  border: 1px solid var(--border-tertiary);
+}
+
+/* ── Status badges (shared across all tabs) ──────────────────── */
 .eod-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
@@ -477,6 +589,405 @@
   background: var(--c-info-light);
   color: var(--c-info);
   border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+/* ── Config tab: top action bar ──────────────────────────────── */
+.eod-cfg-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Search bar */
+.eod-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 280px;
+}
+.eod-search-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.eod-search-input {
+  width: 100%;
+  height: 30px;
+  padding: 0 24px 0 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-family);
+  transition: all 0.15s;
+  box-sizing: border-box;
+}
+.eod-search-input:focus {
+  outline: none;
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.08);
+}
+.eod-search-clear {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 3px;
+}
+.eod-search-clear:hover {
+  color: var(--text-primary);
+}
+
+/* View toggle (Card / Table icons) */
+.eod-view-toggle {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.eod-view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  background: var(--surface-primary);
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.eod-view-btn + .eod-view-btn {
+  border-left: 1px solid var(--border-primary);
+}
+.eod-view-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.eod-view-btn.active {
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+}
+
+/* Color dot on card header */
+.eod-cfg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Card KV grid (2-col key-value) */
+.eod-cfg-kv-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 12px;
+  align-items: center;
+}
+.eod-cfg-k {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.eod-cfg-v {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.eod-cfg-code {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  background: var(--bg-tertiary);
+  color: var(--c-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  display: inline-block;
+}
+.eod-cfg-code-full {
+  max-width: 100%;
+}
+
+/* Active badge (Yes / No) for table view */
+.eod-active-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.eod-active-badge.yes {
+  background: var(--c-success-light);
+  color: var(--c-success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.eod-active-badge.no {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+/* Path cells in table view */
+.eod-td-path {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Config table (table view overrides) */
+.eod-cfg-table {
+  table-layout: auto;  /* override fixed so cols auto-size */
+}
+
+/* ── Modal overlay & container ───────────────────────────────── */
+.eod-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.eod-modal {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.eod-confirm-modal {
+  max-width: 380px;
+}
+
+/* Modal header */
+.eod-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.eod-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.eod-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.eod-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Modal sub-tabs */
+.eod-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.eod-modal-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-family);
+}
+.eod-modal-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.eod-modal-tab.active {
+  color: var(--c-primary);
+  border-bottom-color: var(--c-primary);
+  font-weight: 600;
+}
+
+/* Modal body (scrollable) */
+.eod-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.eod-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.eod-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eod-modal-field-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.eod-modal-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.eod-modal-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.eod-modal-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-family);
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.eod-modal-input:focus {
+  outline: none;
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.08);
+}
+.eod-modal-input:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+/* Password wrapper */
+.eod-modal-pwd-wrap {
+  position: relative;
+}
+.eod-modal-pwd-wrap .eod-modal-input {
+  padding-right: 38px;
+}
+.eod-modal-pwd-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.15s;
+}
+.eod-modal-pwd-eye:hover {
+  color: var(--text-primary);
+}
+
+/* Modal footer */
+.eod-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.eod-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: var(--font-family);
+}
+.eod-modal-btn.primary {
+  background: var(--c-primary);
+  color: var(--text-inverse);
+}
+.eod-modal-btn.primary:hover {
+  background: var(--c-primary-hover);
+  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+}
+.eod-modal-btn.cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+.eod-modal-btn.cancel:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.eod-modal-btn.danger {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+.eod-modal-btn.danger:hover {
+  background: var(--c-danger);
+  color: var(--text-inverse);
 }
 
 /* ── Configuration grid ──────────────────────────────────────── */
@@ -526,52 +1037,77 @@
   gap: 6px;
 }
 
-/* Compact toggle */
+/* ── Toggle Switch Redesign ──────────────────────────────────── */
+.eod-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.eod-toggle-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 48px;
+  text-align: right;
+  line-height: 1;
+}
+
 .eod-toggle {
   position: relative;
-  width: 34px;
-  height: 18px;
+  width: 36px;
+  height: 20px;
   display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
+
 .eod-toggle input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  width: 0;
-  height: 0;
+  cursor: pointer;
+  z-index: 2;
+  margin: 0;
 }
+
 .eod-toggle-track {
   position: absolute;
-  cursor: pointer;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: var(--bg-tertiary);
   border: 1.5px solid var(--border-secondary);
-  border-radius: 18px;
-  transition: 0.2s;
+  border-radius: 20px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .eod-toggle-track::before {
-  position: absolute;
   content: '';
-  height: 12px;
-  width: 12px;
-  left: 1px;
-  bottom: 1px;
-  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  transition: 0.2s;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .eod-toggle input:checked + .eod-toggle-track {
   background: var(--c-success);
   border-color: var(--c-success);
 }
+
 .eod-toggle input:checked + .eod-toggle-track::before {
   transform: translateX(16px);
-}
-.eod-toggle-text {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
 }
 
 /* Icon buttons */
@@ -737,111 +1273,298 @@
 }
 
 /* ── Schedules ───────────────────────────────────────────────── */
-.eod-schedule-wrap {
-  background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 7px;
-  overflow: hidden;
+.eod-section-subtitle {
+  display: block;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-top: 2px;
 }
 
-.eod-schedule-date-bar {
+.eod-add-btn.primary-green {
+  background: #005A36 !important;
+  color: #ffffff !important;
+  border: 1px solid #004d2e !important;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 90, 54, 0.2);
+}
+
+.eod-add-btn.primary-green:hover {
+  background: #00472b !important;
+  box-shadow: 0 3px 8px rgba(0, 90, 54, 0.35);
+  transform: translateY(-1px);
+}
+
+.eod-schedules-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eod-schedule-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.eod-schedule-card:hover {
+  border-color: var(--border-hover, #cbd5e1);
+}
+
+.eod-schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.eod-schedule-header-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.eod-timeline {
-  position: relative;
-}
-.eod-timeline::before {
-  content: '';
-  position: absolute;
-  left: 56px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border-primary);
+.eod-cal-icon {
+  color: #005A36;
 }
 
-.eod-tl-item {
+.eod-schedule-count-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #005A36;
+  background: rgba(0, 90, 54, 0.08);
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 90, 54, 0.15);
+}
+
+.eod-timeline-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.eod-sch-row-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-tertiary);
-  position: relative;
-  transition: background 0.1s;
+  transition: background 0.15s ease-in-out;
 }
-.eod-tl-item:last-child {
+
+.eod-sch-row-item:last-child {
   border-bottom: none;
 }
-.eod-tl-item:hover {
+
+.eod-sch-row-item:hover {
   background: var(--bg-hover);
 }
 
-.eod-tl-time {
-  width: 44px;
-  font-size: 12px;
+.eod-sch-time-col {
+  width: 52px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.eod-sch-time-tag {
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+
+.eod-sch-dot-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
   flex-shrink: 0;
 }
-.eod-tl-dot {
+
+.eod-sch-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--c-primary);
   border: 2px solid var(--surface-primary);
-  box-shadow: 0 0 0 1.5px var(--c-primary);
-  flex-shrink: 0;
-  z-index: 1;
+  box-shadow: 0 0 0 1.5px currentColor;
 }
 
-.eod-tl-content {
+.eod-sch-details-col {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.eod-tl-env {
+
+.eod-sch-env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
-  flex-shrink: 0;
 }
-.eod-tl-owner {
+
+.eod-sch-env-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.eod-sch-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
-.eod-tl-recur {
-  display: flex;
+
+.eod-sch-icon {
+  color: var(--text-tertiary);
+}
+
+.eod-sch-recur-pill {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
-  border-radius: 8px;
-  background: var(--c-primary-light);
-  color: var(--c-primary);
-  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(0, 90, 54, 0.08);
+  color: #005A36;
+  font-size: 11px;
   font-weight: 600;
 }
 
-.eod-tl-actions {
+.eod-sch-notes {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.eod-sch-actions-col {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
+}
+
+/* Empty State */
+.eod-schedule-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 16px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.eod-empty-clock {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.eod-empty-add-btn {
+  background: transparent;
+  border: 1px dashed var(--border-secondary);
+  color: #005A36;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.eod-empty-add-btn:hover {
+  background: rgba(0, 90, 54, 0.05);
+  border-color: #005A36;
+}
+
+/* Modal form & field additions */
+.eod-schedule-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eod-modal-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eod-modal-label .req {
+  color: var(--c-danger, #ef4444);
+  margin-left: 2px;
+}
+
+.eod-modal-input.error {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+.eod-field-error {
+  font-size: 10px;
+  color: #ef4444;
+  font-weight: 500;
+  margin-top: 3px;
+}
+
+.eod-modal-btn.primary-green {
+  background: #005A36 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.eod-modal-btn.primary-green:hover {
+  background: #00472b !important;
+  box-shadow: 0 2px 6px rgba(0, 90, 54, 0.3);
+}
+
+.eod-modal-btn.danger {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.eod-modal-btn.danger:hover {
+  background: #b91c1c !important;
+}
+
+.eod-delete-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.eod-danger-icon {
+  color: #dc2626;
 }
 
 /* ── Control Panel ───────────────────────────────────────────── */
@@ -1134,6 +1857,12 @@
   animation: eod-pulse 2s ease-in-out infinite;
 }
 
+@keyframes eod-shimmer {
+  0%,
+  100% { opacity: 1; }
+  50%  { opacity: 0.75; }
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .eod-stat-strip {
@@ -1142,15 +1871,13 @@
   .eod-config-grid {
     grid-template-columns: 1fr;
   }
-  .eod-env-thead,
-  .eod-env-row {
-    grid-template-columns: 100px 80px 1fr 110px 90px;
-  }
-  .eod-env-thead-cell:last-child,
-  .eod-env-row > *:last-child {
+  /* Hide Duration column on medium screens */
+  .eod-th-dur,
+  .eod-td-dur {
     display: none;
   }
 }
+
 @media (max-width: 768px) {
   .eod-body {
     padding: 10px 12px;
@@ -1161,15 +1888,19 @@
   .eod-control-grid {
     grid-template-columns: 1fr;
   }
+  /* On mobile hide header row; stack date columns */
   .eod-env-thead {
     display: none;
   }
-  .eod-env-row {
-    grid-template-columns: auto 1fr auto auto;
-    gap: 8px;
+  .eod-th-date,
+  .eod-td-date {
+    display: none;
   }
-  .eod-env-row > *:nth-child(3),
-  .eod-env-row > *:nth-child(4) {
+  .eod-th-dur,
+  .eod-td-dur {
+    display: none;
+  }
+  .eod-live-banner-step {
     display: none;
   }
 }

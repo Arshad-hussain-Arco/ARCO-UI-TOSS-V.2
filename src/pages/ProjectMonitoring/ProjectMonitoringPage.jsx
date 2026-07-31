@@ -744,7 +744,7 @@ export function ProjectMonitoringPage() {
         capacityService.getCapacityPlanning(),
         projectService.getWorkOrderStatus()
       ]);
-      
+
       let allProjects = [];
 
       // Helper to map work orders
@@ -800,7 +800,7 @@ export function ProjectMonitoringPage() {
       if (workOrderRes?.changeRequests) {
         allProjects = [...allProjects, ...workOrderRes.changeRequests.map(mapChangeRequest)];
       }
-      
+
       // If the API hasn't returned anything yet, we can fallback to SAMPLE_PROJECTS for demo purposes
       setProjectsList(allProjects.length > 0 ? allProjects : SAMPLE_PROJECTS);
     } catch (err) {
@@ -848,7 +848,7 @@ export function ProjectMonitoringPage() {
       { key: 'deployed', label: 'Deployed', cls: 'pm-stage-deployed', count: 0 },
       { key: 'completed', label: 'Completed', cls: 'pm-stage-completed', count: 0 }
     ];
-    
+
     projectsList.forEach(p => {
       if (p.workOrderType === 'Project') {
         const stageObj = stages.find(s => s.key === p.stage);
@@ -1196,7 +1196,6 @@ export function ProjectMonitoringPage() {
                               : <ChevronRight size={14} color="#64748b" />
                             }
                             <span className="pm-project-code">{project.code}</span>
-                            <button type="button" className="pm-info-btn" onClick={(e) => e.stopPropagation()} title="More Info">i</button>
                           </div>
                         </td>
                         <td>

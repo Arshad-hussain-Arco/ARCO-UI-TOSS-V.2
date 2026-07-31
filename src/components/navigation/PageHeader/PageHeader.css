@@ -1,0 +1,38 @@
+/* ═══════════════════════════════════════════════════════════════
+   PageHeader — Reusable Dynamic Breadcrumb Header
+   ═══════════════════════════════════════════════════════════════ */
+
+.page-header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 24px;
+  background-color: var(--surface-primary, #ffffff);
+  border-bottom: 1px solid var(--border-primary, #e5e7eb);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .page-header-container {
+    padding: 8px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

@@ -33,38 +33,43 @@ export function LoginPage() {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
 
-      // 1. Logo: Fade in and drop down slightly
+      // 1. Logo: Fade in and drop down
       tl.fromTo(
         '.login-logo-fixed',
-        { y: -20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+        { y: -16, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.9, ease: 'power3.out' }
       );
 
-      // 2. TOSS Accent: Fade in and slide right
+      // 2. TOSS Accent: Fade in and slide in from right
       tl.fromTo(
         '.brand-accent',
-        { x: -20, opacity: 0 },
-        { x: 0, opacity: 1, duration: 1, ease: 'power3.out' },
+        { x: 16, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.8, ease: 'power3.out' },
+        '-=0.6'
+      );
+
+      // 3. Title lines: reveal upward from clip (expo out)
+      tl.fromTo(
+        '.brand-title-reveal-line',
+        { y: '100%' },
+        { y: '0%', duration: 1.2, stagger: 0.15, ease: 'expo.out' },
+        '-=0.6'
+      );
+
+      // 4. Login Card: Slide in from right and fade in
+      tl.fromTo(
+        cardRef.current,
+        { x: 24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 1.2, ease: 'power4.out' },
         '-=0.8'
       );
 
-      // 3. Massive Title Reveal (Desktop only)
-      const isMobile = window.matchMedia('(max-width: 1024px)').matches;
-      if (!isMobile) {
-        tl.fromTo(
-          '.brand-title-reveal-line',
-          { y: '100%' },
-          { y: '0%', duration: 1.2, stagger: 0.15, ease: 'expo.out' },
-          '-=0.8'
-        );
-      }
-
-      // 4. Login Card: Slide in from bottom and fade in
+      // 5. Version text fade
       tl.fromTo(
-        cardRef.current,
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1.5, ease: 'power4.out' },
-        '-=1.0'
+        '.login-version',
+        { opacity: 0 },
+        { opacity: 1, duration: 0.6, ease: 'power2.out' },
+        '-=0.4'
       );
     }, pageRef);
 
@@ -145,28 +150,30 @@ export function LoginPage() {
 
   return (
     <div ref={pageRef} className="login-page">
-      {/* Left Column - Editorial Brand Layer */}
-      <div className="login-left-brand">
-        {/* SNB logo rendered inside left column for layout alignment */}
+
+      {/* Right Panel — Logo → Brand → Form → Version (all right-aligned) */}
+      <div className="login-right-panel">
+
+        {/* 1. Logo */}
         <div className="login-logo-fixed">
           <img src={logoUrl} alt={APP_NAME} className="login-logo-img" />
         </div>
 
+        {/* 2. Brand accent */}
         <div className="brand-accent">
           <span className="brand-accent-text">TOSS</span>
           <div className="brand-accent-line" />
         </div>
 
+        {/* 3. Title reveal */}
         <div className="brand-title-reveal-wrapper">
           <h1 className="brand-title-reveal-line">Treasury IT</h1>
         </div>
         <div className="brand-title-reveal-wrapper">
           <h1 className="brand-title-reveal-line">One Stop Store</h1>
         </div>
-      </div>
 
-      {/* Right Column - Glassmorphism Login Card Container */}
-      <div className="login-right-form">
+        {/* 4. Login Card */}
         <div className="login-card-parallax-container">
           <div ref={cardRef} className="login-card">
             <h2 className="login-form-title">Sign in</h2>
@@ -241,12 +248,13 @@ export function LoginPage() {
             </form>
           </div>
         </div>
+
+
       </div>
-      
-      {/* Version Info */}
-      <div style={{ position: 'absolute', bottom: '16px', right: '24px', fontSize: '11px', color: 'var(--text-tertiary, #999999)', zIndex: 10 }}>
-        Version 2.0.0
-      </div>
+
+      {/* Version — absolute bottom of page */}
+      <p className="login-version">Version 2.0.0</p>
+
     </div>
   );
 }
