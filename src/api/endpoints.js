@@ -169,6 +169,12 @@ const endpoints = {
     computerLocations: '/employees/computer-locations/',
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
   },
+  documents: {
+    list: '/documents/get-documents/',
+    create: '/documents/create/',
+    update: (id) => `/documents/${id}/update/`,
+    delete: (id) => `/documents/${id}/delete/`,
+  },
   projectMonitoring: {
     capacityPlanning: '/capacity-planning/capacity-planning/',
     workOrderStatus: '/capacity-planning/work-order-status/',

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import toast from 'react-hot-toast';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { documentService } from '@services/documentService';
@@ -51,7 +52,7 @@ export function DocumentsPage() {
   const [expandedFolders, setExpandedFolders] = useState(
     new Set(['root', 'project-docs', 'q1-releases']),
   );
-  const [selectedFolder, setSelectedFolder] = useState('q1-releases');
+  const [selectedFolder, setSelectedFolder] = useState('root');
   const [selectedFile, setSelectedFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pdfZoom, setPdfZoom] = useState(100);
@@ -119,71 +120,64 @@ export function DocumentsPage() {
   };
 
   // Form Submits: Add Folder
-  const handleCreateFolder = (e) => {
+  const handleCreateFolder = async (e) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
 
-    const newFolderId = `folder-${Date.now()}`;
-    const newFolder = {
-      id: newFolderId,
-      name: newFolderName,
-      fileCount: 0,
-      parentId: selectedFolder || 'root',
-      children: []
-    };
-
-    let updatedTree = [];
-    if (!selectedFolder || selectedFolder === 'root-level') {
-      updatedTree = [...folderTreeState, newFolder];
-    } else {
-      updatedTree = addFolderToTree(folderTreeState, selectedFolder, newFolder);
+    try {
+      await documentService.createFolder({
+        name: newFolderName.trim(),
+        description: newFolderDescription.trim(),
+        parentId: selectedFolder,
+      });
+      toast.success('Folder created successfully');
+      setExpandedFolders(prev => new Set([...prev, selectedFolder]));
+      setShowAddFolderModal(false);
+      setNewFolderName('');
+      setNewFolderDescription('');
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create folder');
     }
-
-    setFolderTreeState(updatedTree);
-    setExpandedFolders(prev => new Set([...prev, selectedFolder]));
-    setShowAddFolderModal(false);
-    setNewFolderName('');
-    setNewFolderDescription('');
   };
 
   // Form Submits: Upload File
-  const handleUploadFile = (e) => {
+  const handleUploadFile = async (e) => {
     e.preventDefault();
-    const fileName = newFileName.trim() || (uploadedFileObject ? uploadedFileObject.name : 'Untitled_Document.pdf');
-    if (!fileName) return;
+    if (!uploadedFileObject) {
+      toast.error('Please select a file to upload');
+      return;
+    }
 
-    const fileExt = fileName.split('.').pop().toLowerCase();
-    const validTypes = ['pdf', 'docx', 'xlsx', 'png'];
-    const type = validTypes.includes(fileExt) ? fileExt : 'pdf'; // fallback
-
-    const newFile = {
-      id: `file-${Date.now()}`,
-      name: fileName,
-      type: type,
-      size: '1.2 MB', // mock size
-      owner: 'Rajesh Kumar',
-      lastModified: new Date().toISOString().slice(0, 10) + ' ' + new Date().toTimeString().slice(0, 5),
-      tags: ['Uploaded'],
-      permission: 'edit',
-      folderId: selectedFolder || 'root',
-      description: newFileDescription
-    };
-
-    setFilesState(prev => [...prev, newFile]);
-    setShowUploadFileModal(false);
-    setNewFileName('');
-    setNewFileDescription('');
-    setUploadedFileObject(null);
-
-    // Automatically select the new uploaded file
-    setSelectedFile(newFile);
+    try {
+      await documentService.uploadFile({
+        file: uploadedFileObject,
+        title: newFileName.trim(),
+        description: newFileDescription.trim(),
+        folderId: selectedFolder,
+      });
+      toast.success('File uploaded successfully');
+      setShowUploadFileModal(false);
+      setNewFileName('');
+      setNewFileDescription('');
+      setUploadedFileObject(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload file');
+    }
   };
 
   // Actions: Delete File
-  const handleDeleteFile = (fileId) => {
-    setFilesState(prev => prev.filter(f => f.id !== fileId));
-    if (selectedFile?.id === fileId) {
-      setSelectedFile(null);
+  const handleDeleteFile = async (fileId) => {
+    try {
+      await documentService.deleteDocument(fileId);
+      toast.success('Document deleted successfully');
+      if (selectedFile?.id === fileId) {
+        setSelectedFile(null);
+      }
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete document');
     }
   };
 
