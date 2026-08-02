@@ -14,13 +14,38 @@ export const environmentService = {
       storageLocation: cfg.file_location,
       uploadedBy: cfg.user_name,
       createdDate: cfg.modified_date,
+      fileData: cfg.file_data,
     }));
     
     // envList requires .id in UI for mapping and toggling
-    const environments = (data.env_details || []).map(env => ({
+    let environments = (data.env_details || []).map(env => ({
       ...env,
       id: env.name, 
     }));
+
+    // Auto-generate environments from config file data if backend doesn't provide env_details
+    if (environments.length === 0 && configFiles.length > 0) {
+      const envMap = new Map();
+      configFiles.forEach(cfg => {
+        if (cfg.fileData && cfg.fileData.records) {
+          cfg.fileData.records.forEach(r => {
+            if (r.ENV_NAME && !envMap.has(r.ENV_NAME)) {
+              envMap.set(r.ENV_NAME, {
+                id: r.ENV_NAME,
+                name: r.ENV_NAME,
+                status: 'ACTIVE', // default fallback
+                team: 'N/A',
+                servers_count: 0,
+                db_hosts_count: 0,
+                rtbs_status: 'Connected',
+                components: []
+              });
+            }
+          });
+        }
+      });
+      environments = Array.from(envMap.values());
+    }
     
     return { configFiles, environments };
   },
