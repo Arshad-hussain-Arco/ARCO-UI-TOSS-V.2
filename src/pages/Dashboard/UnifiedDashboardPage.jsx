@@ -7,7 +7,6 @@ import {
 } from '../../components/dashboard/charts';
 import httpClient from '@api/httpClient';
 import { useAuth } from '../../hooks/useAuth';
-import httpClient from '../../api/httpClient';
 import './UnifiedDashboardPage.css';
 
 export default function UnifiedDashboardPage() {
@@ -15,17 +14,17 @@ export default function UnifiedDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   // Real-time API States
-  const [summary, setSummary]                 = useState(null);
-  const [trendData, setTrendData]             = useState(null);
-  const [utilization, setUtilization]         = useState(null);
-  const [eodRecords, setEodRecords]           = useState([]);
-  const [teamHeadcount, setTeamHeadcount]     = useState([]);
-  const [leaveBalance, setLeaveBalance]       = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [trendData, setTrendData] = useState(null);
+  const [utilization, setUtilization] = useState(null);
+  const [eodRecords, setEodRecords] = useState([]);
+  const [teamHeadcount, setTeamHeadcount] = useState([]);
+  const [leaveBalance, setLeaveBalance] = useState(null);
   const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [announcements, setAnnouncements]     = useState({ banner: [], feed: [] });
+  const [announcements, setAnnouncements] = useState({ banner: [], feed: [] });
   const [departmentStats, setDepartmentStats] = useState([]);
 
-  const [employeesList, setEmployeesList]     = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
 
   const fetchDashboardData = async () => {
     try {
@@ -87,32 +86,32 @@ export default function UnifiedDashboardPage() {
   }, [user]);
 
   // Derived Realtime Stats from backend API responses
-  const totalEmployees            = summary?.total_employees ?? 0;
-  const activeEmployees           = summary?.active_employees ?? 0;
-  const presentCount              = summary?.present_count ?? 0;
-  const onLeaveCount              = summary?.employees_on_leave_today ?? 0;
-  const wfhCount                  = summary?.wfh_count ?? 0;
-  const pendingCount              = summary?.pending_approvals_count ?? pendingApprovals.length;
-  const stalePendingCount         = summary?.stale_pending_count ?? 0;
-  const blackoutCount             = summary?.active_blackout_periods_count ?? 0;
-  const inactiveCount             = totalEmployees - activeEmployees;
+  const totalEmployees = summary?.total_employees ?? 0;
+  const activeEmployees = summary?.active_employees ?? 0;
+  const presentCount = summary?.present_count ?? 0;
+  const onLeaveCount = summary?.employees_on_leave_today ?? 0;
+  const wfhCount = summary?.wfh_count ?? 0;
+  const pendingCount = summary?.pending_approvals_count ?? pendingApprovals.length;
+  const stalePendingCount = summary?.stale_pending_count ?? 0;
+  const blackoutCount = summary?.active_blackout_periods_count ?? 0;
+  const inactiveCount = totalEmployees - activeEmployees;
 
-  const totalActive               = activeEmployees || (totalEmployees - inactiveCount);
-  const presentPct                = totalActive ? Math.round((presentCount / totalActive) * 100) : 0;
-  const wfhPct                    = totalActive ? Math.round((wfhCount / totalActive) * 100) : 0;
-  const onLeavePct                = totalActive ? Math.round((onLeaveCount / totalActive) * 100) : 0;
+  const totalActive = activeEmployees || (totalEmployees - inactiveCount);
+  const presentPct = totalActive ? Math.round((presentCount / totalActive) * 100) : 0;
+  const wfhPct = totalActive ? Math.round((wfhCount / totalActive) * 100) : 0;
+  const onLeavePct = totalActive ? Math.round((onLeaveCount / totalActive) * 100) : 0;
 
-  const eodActiveCount            = eodRecords.filter(r => r.is_active === 'Yes' || r.is_active === 1 || r.is_active === true).length;
-  const eodTotal                  = eodRecords.length;
-  const eodRunning                = Math.max(0, eodTotal - eodActiveCount);
+  const eodActiveCount = eodRecords.filter(r => r.is_active === 'Yes' || r.is_active === 1 || r.is_active === true).length;
+  const eodTotal = eodRecords.length;
+  const eodRunning = Math.max(0, eodTotal - eodActiveCount);
 
   // Derive Leave Distribution Donut data from real API
   const donutData = Array.isArray(utilization?.results) && utilization.results.length > 0
     ? utilization.results.map((item, idx) => ({
-        name: item.leave_type_name || item.leave_type_code,
-        value: item.total_applications || item.total_days_used || 0,
-        color: [colors.blue.icon, colors.amber.icon, colors.purple.icon, colors.green.icon][idx % 4],
-      }))
+      name: item.leave_type_name || item.leave_type_code,
+      value: item.total_applications || item.total_days_used || 0,
+      color: [colors.blue.icon, colors.amber.icon, colors.purple.icon, colors.green.icon][idx % 4],
+    }))
     : [];
 
   return (
@@ -121,11 +120,11 @@ export default function UnifiedDashboardPage() {
       {/* KPI Strip */}
       <div className="ud-kpi-strip">
         {[
-          { val: totalEmployees,  label: 'Total Consultants', sub: 'Realtime Backend API', icon: '👥' },
-          { val: presentCount,    label: 'Present Today',     sub: 'Realtime Backend API', icon: '🏢', trend: '↗' },
-          { val: onLeaveCount,    label: 'On Leave',          sub: 'Realtime Backend API', icon: '🕒' },
-          { val: wfhCount,        label: 'Work From Home',    sub: 'Realtime Backend API', icon: '🏠' },
-          { val: inactiveCount,   label: 'Inactive',          sub: 'Realtime Backend API', icon: '👤' },
+          { val: totalEmployees, label: 'Total Consultants', sub: 'Realtime Backend API', icon: '👥' },
+          { val: presentCount, label: 'Present Today', sub: 'Realtime Backend API', icon: '🏢', trend: '↗' },
+          { val: onLeaveCount, label: 'On Leave', sub: 'Realtime Backend API', icon: '🕒' },
+          { val: wfhCount, label: 'Work From Home', sub: 'Realtime Backend API', icon: '🏠' },
+          { val: inactiveCount, label: 'Inactive', sub: 'Realtime Backend API', icon: '👤' },
         ].map(k => (
           <div key={k.label} className="ud-kpi-card">
             <div className="ud-kpi-info">
@@ -257,9 +256,9 @@ export default function UnifiedDashboardPage() {
             <div className="ud-card">
               <div className="ud-card-header"><h3 className="ud-card-title">ATTENDANCE STATUS</h3></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center', height: '80%' }}>
-                <ProgressBar label="Present"        percent={presentPct}  count={`${presentCount} consultants`}  variant="green" />
-                <ProgressBar label="Work From Home" percent={wfhPct}      count={`${wfhCount} consultants`}      variant="blue"  />
-                <ProgressBar label="On Leave"       percent={onLeavePct}  count={`${onLeaveCount} consultants`}  variant="amber" />
+                <ProgressBar label="Present" percent={presentPct} count={`${presentCount} consultants`} variant="green" />
+                <ProgressBar label="Work From Home" percent={wfhPct} count={`${wfhCount} consultants`} variant="blue" />
+                <ProgressBar label="On Leave" percent={onLeavePct} count={`${onLeaveCount} consultants`} variant="amber" />
               </div>
             </div>
           </div>
@@ -313,10 +312,10 @@ export default function UnifiedDashboardPage() {
                 (() => {
                   const b = leaveBalance.balances || leaveBalance;
                   const items = [
-                    { key: 'AL',      label: 'Annual Leave', color: 'var(--ud-brand)',        bal: b.AL || b.al },
-                    { key: 'PL',      label: 'Planned Leave',color: 'var(--ud-accent-green)',  bal: b.PL || b.pl },
-                    { key: 'SL',      label: 'Sick Leave',   color: 'var(--ud-accent-amber)',  bal: b.SL || b.sl },
-                    { key: 'CompOff', label: 'Comp Off',     color: 'var(--ud-accent-purple)', bal: b.CompOff || b.compOff },
+                    { key: 'AL', label: 'Annual Leave', color: 'var(--ud-brand)', bal: b.AL || b.al },
+                    { key: 'PL', label: 'Planned Leave', color: 'var(--ud-accent-green)', bal: b.PL || b.pl },
+                    { key: 'SL', label: 'Sick Leave', color: 'var(--ud-accent-amber)', bal: b.SL || b.sl },
+                    { key: 'CompOff', label: 'Comp Off', color: 'var(--ud-accent-purple)', bal: b.CompOff || b.compOff },
                   ];
                   return (
                     <div className="ud-balance-grid">
