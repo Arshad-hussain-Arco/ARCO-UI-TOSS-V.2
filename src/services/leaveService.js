@@ -254,6 +254,30 @@ export const leaveService = {
     const response = await httpClient.put(endpoints.hr.leaveTypeDetail(id), { is_active: true });
     return response.data;
   },
+  getPolicies: async (params) => {
+    const response = await httpClient.get(endpoints.hr.policies, { params });
+    return response.data;
+  },
+  getPolicy: async (id) => {
+    const response = await httpClient.get(endpoints.hr.policyDetail(id));
+    return response.data;
+  },
+  createPolicy: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.policies, payload);
+    return response.data;
+  },
+  updatePolicy: async (id, payload) => {
+    const response = await httpClient.put(endpoints.hr.policyDetail(id), payload);
+    return response.data;
+  },
+  deactivatePolicy: async (id) => {
+    const response = await httpClient.delete(endpoints.hr.policyDetail(id));
+    return response.data;
+  },
+  activatePolicy: async (id) => {
+    const response = await httpClient.put(endpoints.hr.policyDetail(id), { is_active: true });
+    return response.data;
+  },
   getWorkScheduleOptions: async () => {
     const response = await httpClient.get(endpoints.hr.workScheduleOptions);
     return response.data;
