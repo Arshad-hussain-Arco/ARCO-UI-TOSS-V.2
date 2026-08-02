@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { colors } from '../../styles/tokens';
 import { Pill, ProgressBar } from '../../components/ui';
 import {
@@ -6,9 +6,8 @@ import {
   LeaveDistributionDonut,
 } from '../../components/dashboard/charts';
 import { useAuth } from '../../hooks/useAuth';
+import httpClient from '../../api/httpClient';
 import './UnifiedDashboardPage.css';
-
-const API_BASE = '/api';
 
 const DEFAULT_TREND_DATA = [
   { day: 'Mon', count: 60, failed: 1 },
@@ -89,34 +88,34 @@ export default function UnifiedDashboardPage() {
       const empId = user?.employee_id || user?.id || 1;
       const [summaryRes, trendRes, eodRes, headcountRes, balanceRes, pendingRes] =
         await Promise.allSettled([
-          fetch(`${API_BASE}/dashboard/summary/`),
-          fetch(`${API_BASE}/dashboard/leave-requests-trend/?days=7`),
-          fetch(`${API_BASE}/eod-jobs/records/`),
-          fetch(`${API_BASE}/employees/team-headcount/`),
-          fetch(`${API_BASE}/leaves/me/${empId}/balance/`),
-          fetch(`${API_BASE}/leaves/manager/${empId}/pending/`),
+          httpClient.get(`/dashboard/summary/`),
+          httpClient.get(`/dashboard/leave-requests-trend/?days=7`),
+          httpClient.get(`/eod-jobs/records/`),
+          httpClient.get(`/employees/team-headcount/`),
+          httpClient.get(`/leaves/me/${empId}/balance/`),
+          httpClient.get(`/leaves/manager/${empId}/pending/`),
         ]);
 
-      if (summaryRes.status === 'fulfilled' && summaryRes.value.ok)
-        setSummary(await summaryRes.value.json());
-      if (trendRes.status === 'fulfilled' && trendRes.value.ok) {
-        const j = await trendRes.value.json();
+      if (summaryRes.status === 'fulfilled' && summaryRes.value.data)
+        setSummary(summaryRes.value.data);
+      if (trendRes.status === 'fulfilled' && trendRes.value.data) {
+        const j = trendRes.value.data;
         if (j.results?.length > 0) setTrendData(j);
       }
-      if (eodRes.status === 'fulfilled' && eodRes.value.ok) {
-        const r = await eodRes.value.json();
+      if (eodRes.status === 'fulfilled' && eodRes.value.data) {
+        const r = eodRes.value.data;
         if (Array.isArray(r) && r.length > 0) setEodRecords(r);
       }
-      if (headcountRes.status === 'fulfilled' && headcountRes.value.ok) {
-        const d = await headcountRes.value.json();
+      if (headcountRes.status === 'fulfilled' && headcountRes.value.data) {
+        const d = headcountRes.value.data;
         if (Array.isArray(d) && d.length > 0) setTeamHeadcount(d);
       }
-      if (balanceRes.status === 'fulfilled' && balanceRes.value.ok) {
-        const d = await balanceRes.value.json();
+      if (balanceRes.status === 'fulfilled' && balanceRes.value.data) {
+        const d = balanceRes.value.data;
         if (d) setLeaveBalance(d);
       }
-      if (pendingRes.status === 'fulfilled' && pendingRes.value.ok) {
-        const d = await pendingRes.value.json();
+      if (pendingRes.status === 'fulfilled' && pendingRes.value.data) {
+        const d = pendingRes.value.data;
         if (Array.isArray(d) && d.length > 0) {
           setPendingApprovals(d.slice(0, 5).map(r => ({
             id: r.id,
