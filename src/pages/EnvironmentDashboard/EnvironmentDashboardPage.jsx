@@ -66,10 +66,10 @@ export function EnvironmentDashboardPage() {
   // Search input queries for each Environment (keyed by env.id)
   const [envSearchQueries, setEnvSearchQueries] = useState({});
 
-  // Upload Configuration Modal States
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadFeatureType, setUploadFeatureType] = useState('Infra');
+  // Add Configuration Modal States
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ featureType: '', fileName: '', storageLocation: '' });
+  const [addErrors, setAddErrors] = useState({});
 
   // Edit Configuration Modal States
   const [editingConfig, setEditingConfig] = useState(null);
@@ -174,10 +174,13 @@ export function EnvironmentDashboardPage() {
 
   const handleUpdateConfig = async () => {
     const errors = {};
-    if (!editForm.fileName.trim()) {
+    if (!editForm.featureType?.trim()) {
+      errors.featureType = 'Configuration Type is required';
+    }
+    if (!editForm.fileName?.trim()) {
       errors.fileName = 'File Name is required';
     }
-    if (!editForm.storageLocation.trim()) {
+    if (!editForm.storageLocation?.trim()) {
       errors.storageLocation = 'File Location is required';
     }
 
@@ -215,28 +218,27 @@ export function EnvironmentDashboardPage() {
     }
   };
 
-  // Upload Handlers
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setUploadFile(e.target.files[0]);
-    }
-  };
-
-  const handleConfirmUpload = async () => {
-    if (!uploadFile) {
-      toast.error('Please drag & drop or select a CSV configuration file first.');
+  // Add Config Handler
+  const handleCreateConfig = async () => {
+    const errors = {};
+    if (!addForm.featureType) errors.featureType = 'Required';
+    if (!addForm.fileName) errors.fileName = 'Required';
+    if (!addForm.storageLocation) errors.storageLocation = 'Required';
+    if (Object.keys(errors).length > 0) {
+      setAddErrors(errors);
       return;
     }
 
     try {
       await environmentService.createConfig({
-        feature: uploadFeatureType,
-        file_name: uploadFile.name,
-        file_location: `/configs/${uploadFeatureType.toLowerCase()}/`,
+        feature: addForm.featureType,
+        file_name: addForm.fileName,
+        file_location: addForm.storageLocation,
       });
-      toast.success('Configuration file added successfully!');
-      setShowUploadModal(false);
-      setUploadFile(null);
+      toast.success('Configuration added successfully!');
+      setShowAddModal(false);
+      setAddForm({ featureType: '', fileName: '', storageLocation: '' });
+      setAddErrors({});
       refetch();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add configuration.');
@@ -321,7 +323,11 @@ export function EnvironmentDashboardPage() {
                 variant="primary"
                 size="sm"
                 leadingIcon={FileUp}
-                onClick={() => setShowUploadModal(true)}
+                onClick={() => {
+                  setAddForm({ featureType: '', fileName: '', storageLocation: '' });
+                  setAddErrors({});
+                  setShowAddModal(true);
+                }}
               >
                 Add Config
               </Button>
@@ -695,84 +701,65 @@ export function EnvironmentDashboardPage() {
         </div>
       </div>
 
-      {/* ── MODAL 1: Upload / Add Configuration ──────────────────────────────────── */}
+      {/* ── MODAL 1: Add Configuration ──────────────────────────────────── */}
       <AdminModal
-        isOpen={showUploadModal}
-        onClose={() => {
-          setShowUploadModal(false);
-          setUploadFile(null);
-        }}
-        title="Upload Configuration"
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add Configuration"
         footer={
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setShowUploadModal(false);
-                setUploadFile(null);
-              }}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" leadingIcon={FileUp} onClick={handleConfirmUpload}>
-              Upload
+            <Button variant="primary" size="sm" leadingIcon={FileUp} onClick={handleCreateConfig}>
+              Create
             </Button>
           </>
         }
       >
         <div className="env-form-grid">
           <div className="env-form-field-wrapper">
-            <span className="env-form-label env-form-label-required">Select CSV File</span>
-            <button
-              type="button"
-              className="env-modal-upload-zone"
-              onClick={() => document.getElementById('config-file-picker').click()}
-            >
-              <FileUp className="env-modal-upload-icon" size={32} />
-              <p className="env-modal-upload-title">Click to browse your computer</p>
-              <p className="env-modal-upload-hint">Supported file extension: .csv (max 5MB)</p>
-              <input
-                id="config-file-picker"
-                type="file"
-                accept=".csv"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-              />
-            </button>
-            {uploadFile && (
-              <div className="env-file-chip">
-                <FileText size={14} className="text-secondary" />
-                <span className="env-file-chip-name">{uploadFile.name}</span>
-                <span className="text-tertiary" style={{ fontSize: '11px' }}>
-                  ({(uploadFile.size / 1024).toFixed(1)} KB)
-                </span>
-                <button
-                  type="button"
-                  className="env-file-chip-remove"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUploadFile(null);
-                  }}
-                  title="Remove selected file"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
+            <label className="env-form-label env-form-label-required" htmlFor="add-featureType">
+              Configuration Type
+            </label>
+            <input
+              id="add-featureType"
+              type="text"
+              className={`env-form-input ${addErrors.featureType ? 'has-error' : ''}`}
+              value={addForm.featureType}
+              onChange={(e) => setAddForm((prev) => ({ ...prev, featureType: e.target.value }))}
+            />
+            {addErrors.featureType && <span className="env-form-error-msg">{addErrors.featureType}</span>}
           </div>
 
           <div className="env-form-field-wrapper">
-            <span className="env-form-label env-form-label-required">Feature Type Type</span>
-            <Select
-              value={uploadFeatureType}
-              onChange={setUploadFeatureType}
-              options={[
-                { value: 'Infra', label: 'Infra' },
-                { value: 'Status', label: 'Status' },
-              ]}
-              width="featureType"
+            <label className="env-form-label env-form-label-required" htmlFor="add-fileName">
+              File Name
+            </label>
+            <input
+              id="add-fileName"
+              type="text"
+              className={`env-form-input ${addErrors.fileName ? 'has-error' : ''}`}
+              value={addForm.fileName}
+              onChange={(e) => setAddForm((prev) => ({ ...prev, fileName: e.target.value }))}
             />
+            {addErrors.fileName && <span className="env-form-error-msg">{addErrors.fileName}</span>}
+          </div>
+
+          <div className="env-form-field-wrapper">
+            <label className="env-form-label env-form-label-required" htmlFor="add-storageLocation">
+              File Location
+            </label>
+            <input
+              id="add-storageLocation"
+              type="text"
+              className={`env-form-input ${addErrors.storageLocation ? 'has-error' : ''}`}
+              value={addForm.storageLocation}
+              onChange={(e) => setAddForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
+            />
+            {addErrors.storageLocation && (
+              <span className="env-form-error-msg">{addErrors.storageLocation}</span>
+            )}
           </div>
         </div>
       </AdminModal>
@@ -799,15 +786,14 @@ export function EnvironmentDashboardPage() {
               <label className="env-form-label env-form-label-required" htmlFor="edit-featureType">
                 Configuration Type
               </label>
-              <Select
+              <input
+                id="edit-featureType"
+                type="text"
+                className={`env-form-input ${editErrors.featureType ? 'has-error' : ''}`}
                 value={editForm.featureType}
-                onChange={(val) => setEditForm((prev) => ({ ...prev, featureType: val }))}
-                options={[
-                  { value: 'Infra', label: 'Infra' },
-                  { value: 'Status', label: 'Status' },
-                ]}
-                width="featureType"
+                onChange={(e) => setEditForm((prev) => ({ ...prev, featureType: e.target.value }))}
               />
+              {editErrors.featureType && <span className="env-form-error-msg">{editErrors.featureType}</span>}
             </div>
 
             <div className="env-form-field-wrapper">
