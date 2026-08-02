@@ -573,23 +573,23 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         payload.manager_id = user?.emp_id;
                       }
                       
-                      if (type === 'offshore') {
-                        const res = await leaveService.applyOwLeave(payload);
-                        if (res?.requires_justification && !payload.justification) {
-                          setRequiresJustification(true);
-                          setQuotaInfo(res.quota_info);
-                          setIsSubmitting(false);
-                          return;
-                        }
-                      } else if (type === 'wfh') {
-                        await leaveService.requestWfh(payload);
-                      } else if (type === 'compoff' && claimType === 'compoff') {
-                        await leaveService.claimCompOff(payload);
-                      } else if (type === 'compoff' && claimType === 'weekend') {
-                        await leaveService.claimWeekend(payload);
+                      if (applyFor === 'behalf') {
+                        await leaveService.applyLeaveOnBehalf(payload);
                       } else {
-                        if (applyFor === 'behalf') {
-                          await leaveService.applyLeaveOnBehalf(payload);
+                        if (type === 'offshore') {
+                          const res = await leaveService.applyOwLeave(payload);
+                          if (res?.requires_justification && !payload.justification) {
+                            setRequiresJustification(true);
+                            setQuotaInfo(res.quota_info);
+                            setIsSubmitting(false);
+                            return;
+                          }
+                        } else if (type === 'wfh') {
+                          await leaveService.requestWfh(payload);
+                        } else if (type === 'compoff' && claimType === 'compoff') {
+                          await leaveService.claimCompOff(payload);
+                        } else if (type === 'compoff' && claimType === 'weekend') {
+                          await leaveService.claimWeekend(payload);
                         } else {
                           await leaveService.applyLeave(payload);
                         }
