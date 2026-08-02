@@ -19,162 +19,9 @@ import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
 import { leaveService } from '@services/leaveService';
+import { Loader } from '@components/feedback/Loader/Loader';
 import './LeaveConfigurationPage.css';
 
-/* ── Pre-populated Initial Mock Data ── */
-
-const INITIAL_HOLIDAYS = [
-  {
-    id: 'h1',
-    name: "New Year's Day",
-    date: '2026-01-01',
-    day: 'Thursday',
-    type: 'Public Holiday',
-    status: 'Past',
-    description: 'Saudi National Holiday celebrated with national festivities and public observance.',
-  },
-  {
-    id: 'h2',
-    name: 'Founding Day',
-    date: '2026-02-22',
-    day: 'Sunday',
-    type: 'National Holiday',
-    status: 'Upcoming',
-    description: 'Commemorates the founding of the kingdom with a day off for all employees.',
-  },
-  {
-    id: 'h3',
-    name: 'Eid Al-Fitr Holiday',
-    date: '2026-03-20',
-    day: 'Friday',
-    type: 'Public Holiday',
-    status: 'Upcoming',
-    description: 'Observed holiday for the Eid Al-Fitr celebration period across the organization.',
-  },
-  {
-    id: 'h4',
-    name: 'Eid Al-Adha Holiday',
-    date: '2026-05-27',
-    day: 'Wednesday',
-    type: 'Public Holiday',
-    status: 'Upcoming',
-    description: 'Annual holiday aligned with the Eid Al-Adha observance and family gatherings.',
-  },
-  {
-    id: 'h5',
-    name: 'Saudi National Day',
-    date: '2026-09-23',
-    day: 'Wednesday',
-    type: 'National Holiday',
-    status: 'Upcoming',
-    description: 'National day celebration marked as a public holiday for employees and leaders.',
-  },
-];
-
-const INITIAL_LEAVE_TYPES = [
-  {
-    id: 'lt1',
-    code: 'AL',
-    name: 'Annual Leave',
-    description: 'Standard paid annual vacation days entitlement for full-time employees.',
-    maxDays: 24,
-    paid: true,
-    active: true,
-  },
-  {
-    id: 'lt2',
-    code: 'SL',
-    name: 'Sick Leave',
-    description: 'Medical and health leave with official medical certification.',
-    maxDays: 14,
-    paid: true,
-    active: true,
-  },
-  {
-    id: 'lt3',
-    code: 'WFH',
-    name: 'Work From Home',
-    description: 'Remote work allocation allowed per employee calendar year.',
-    maxDays: 12,
-    paid: true,
-    active: true,
-  },
-  {
-    id: 'lt4',
-    code: 'ML',
-    name: 'Maternity Leave',
-    description: 'Maternity leave allocation for eligible female staff members.',
-    maxDays: 90,
-    paid: true,
-    active: true,
-  },
-  {
-    id: 'lt5',
-    code: 'PL',
-    name: 'Paternity Leave',
-    description: 'Paternity leave entitlement for eligible male staff members.',
-    maxDays: 10,
-    paid: true,
-    active: true,
-  },
-  {
-    id: 'lt6',
-    code: 'CL',
-    name: 'Compassionate Leave',
-    description: 'Emergency family or bereavement leave entitlement.',
-    maxDays: 5,
-    paid: true,
-    active: true,
-  },
-];
-
-const INITIAL_POLICIES = [
-  {
-    id: 'p1',
-    policyName: 'Standard Full-Time Vacation Policy',
-    leaveCode: 'AL',
-    appliesTo: 'All Full-time',
-    accrualSchedule: 'Annual Frontload',
-    entitlementDays: 24,
-    carryForwardLimit: '5 Days',
-  },
-  {
-    id: 'p2',
-    policyName: 'Medical & Sick Leave Policy',
-    leaveCode: 'SL',
-    appliesTo: 'All Staff',
-    accrualSchedule: 'Annual Frontload',
-    entitlementDays: 14,
-    carryForwardLimit: '0 Days',
-  },
-  {
-    id: 'p3',
-    policyName: 'Engineering & Product Remote Policy',
-    leaveCode: 'WFH',
-    appliesTo: 'Engineering & Product',
-    accrualSchedule: 'Monthly Accrual (1 Day/mo)',
-    entitlementDays: 12,
-    carryForwardLimit: '2 Days',
-  },
-  {
-    id: 'p4',
-    policyName: 'Executive Leadership Vacation Policy',
-    leaveCode: 'AL',
-    appliesTo: 'Executive',
-    accrualSchedule: 'Annual Frontload',
-    entitlementDays: 30,
-    carryForwardLimit: '10 Days',
-  },
-  {
-    id: 'p5',
-    policyName: 'Parental Care Entitlement Policy',
-    leaveCode: 'PL',
-    appliesTo: 'Eligible Male Staff',
-    accrualSchedule: 'Event Based',
-    entitlementDays: 10,
-    carryForwardLimit: '0 Days',
-  },
-];
 
 /**
  * Format raw date string (e.g. '2026-02-22') into 'MMM DD, YYYY' (e.g. 'Feb 22, 2026').
@@ -375,14 +222,26 @@ export function LeaveConfigurationPage() {
   // Navigation tab state: 'holidays' | 'leave-types' | 'policies'
   const [activeTab, setActiveTab] = useState('holidays');
 
-  // Master Data State
   const [holidays, setHolidays] = useState([]);
-  const [leaveTypes, setLeaveTypes] = useState(INITIAL_LEAVE_TYPES);
-  const [policies, setPolicies] = useState(INITIAL_POLICIES);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Work Schedule State
+  const [workScheduleOptions, setWorkScheduleOptions] = useState({ schedules: [], custom_weekend_days: { days: [] } });
+  const [selectedSchedule, setSelectedSchedule] = useState('');
+  const [selectedCustomDays, setSelectedCustomDays] = useState([]);
 
   // Fetch API Data
   useEffect(() => {
+    // Reset Work Schedule selections when changing tabs
+    if (activeTab !== 'work-schedule') {
+      setSelectedSchedule('');
+      setSelectedCustomDays([]);
+    }
+
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         if (activeTab === 'holidays') {
           const hData = await leaveService.listHolidays();
@@ -398,10 +257,17 @@ export function LeaveConfigurationPage() {
             description: h.description || '',
           }));
           setHolidays(mappedHolidays);
+        } else if (activeTab === 'work-schedule') {
+          const wsData = await leaveService.getWorkScheduleOptions();
+          if (wsData) {
+            setWorkScheduleOptions(wsData);
+          }
         }
       } catch (err) {
-        console.error('Failed to load holidays:', err);
-        toast({ title: 'Error loading data', type: 'error' });
+        console.error('Failed to load data:', err);
+        toast.error('Error loading data');
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
@@ -409,6 +275,28 @@ export function LeaveConfigurationPage() {
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Leave Types Fetch & Search Effect
+  useEffect(() => {
+    let active = true;
+    const fetchLeaveTypes = async () => {
+      if (activeTab !== 'leave-types') return;
+      setIsLoading(true);
+      try {
+        const res = await leaveService.getLeaveTypes();
+        if (active) setLeaveTypes(res || []);
+      } catch (err) {
+        console.error('Failed to load leave types', err);
+        toast.error('Error loading leave types');
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    fetchLeaveTypes();
+    return () => {
+      active = false;
+    };
+  }, [activeTab]);
 
   // ── Inline Edit State for Policies ──────────────────────────────────────────
   const [editingPolicyId, setEditingPolicyId] = useState(null);
@@ -425,15 +313,7 @@ export function LeaveConfigurationPage() {
     description: '',
   });
 
-  const [editingLeaveTypeId, setEditingLeaveTypeId] = useState(null);
-  const [leaveTypeEditForm, setLeaveTypeEditForm] = useState({
-    code: '',
-    name: '',
-    description: '',
-    maxDays: 10,
-    paid: true,
-    active: true,
-  });
+  // (Removed inline edit states for leave types to use Modal exclusively)
 
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
@@ -448,13 +328,14 @@ export function LeaveConfigurationPage() {
 
   const [isLeaveTypeModalOpen, setIsLeaveTypeModalOpen] = useState(false);
   const [editingLeaveType, setEditingLeaveType] = useState(null);
+  const [leaveTypeCodeError, setLeaveTypeCodeError] = useState('');
   const [leaveTypeForm, setLeaveTypeForm] = useState({
     code: '',
     name: '',
     description: '',
-    maxDays: 10,
-    paid: true,
-    active: true,
+    max_quota_days: 10,
+    payment_type: 'PAID',
+    is_active: true,
   });
 
   // ── Section 1: Holiday Handlers ─────────────────────────────────────────────
@@ -588,6 +469,29 @@ export function LeaveConfigurationPage() {
     }
   };
 
+  const handleApplyWorkSchedule = async () => {
+    try {
+      if (!selectedSchedule) {
+        toast.error('Please select a standard work week');
+        return;
+      }
+      if (selectedSchedule === 'CUSTOM' && selectedCustomDays.length === 0) {
+        toast.error('Please select at least one custom weekend day');
+        return;
+      }
+      const payload = { work_schedule: selectedSchedule };
+      if (selectedSchedule === 'CUSTOM') {
+        payload.custom_weekend_days = selectedCustomDays;
+      }
+
+      await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
+      toast.success('Work schedule applied successfully!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to apply work schedule');
+    }
+  };
+
   const handleDeleteHoliday = async (id) => {
     try {
       await leaveService.deleteHoliday(id, { emp_id: 10 });
@@ -600,81 +504,103 @@ export function LeaveConfigurationPage() {
   };
 
   // ── Section 2: Leave Type Handlers ──────────────────────────────────────────
+  const fetchLeaveTypesSilently = async () => {
+    try {
+      const res = await leaveService.getLeaveTypes();
+      setLeaveTypes(res || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const openAddLeaveTypeModal = () => {
     setEditingLeaveType(null);
+    setLeaveTypeCodeError('');
     setLeaveTypeForm({
       code: '',
       name: '',
       description: '',
-      maxDays: 12,
-      paid: true,
-      active: true,
+      max_quota_days: 10,
+      payment_type: 'PAID',
+      is_active: true,
     });
     setIsLeaveTypeModalOpen(true);
   };
 
-  const startLeaveTypeInlineEdit = (lt) => {
-    setEditingLeaveTypeId(lt.id);
-    setLeaveTypeEditForm({ ...lt });
-  };
-
-  const cancelLeaveTypeInlineEdit = () => {
-    setEditingLeaveTypeId(null);
-    setLeaveTypeEditForm({
-      code: '',
-      name: '',
-      description: '',
-      maxDays: 10,
-      paid: true,
-      active: true,
+  const openEditLeaveTypeModal = (lt) => {
+    setEditingLeaveType(lt);
+    setLeaveTypeCodeError('');
+    setLeaveTypeForm({
+      code: lt.code || '',
+      name: lt.name || lt.leave_type || '',
+      description: lt.description || '',
+      max_quota_days: lt.max_quota_days ?? 10,
+      payment_type: lt.payment_type || 'PAID',
+      is_active: lt.active !== undefined ? lt.active : (lt.is_active ?? true),
     });
+    setIsLeaveTypeModalOpen(true);
   };
 
-  const handleSaveLeaveTypeInlineEdit = (id) => {
-    if (!leaveTypeEditForm.code || !leaveTypeEditForm.name) {
-      toast.error('Please enter leave code and name');
-      return;
-    }
-
-    setLeaveTypes((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...leaveTypeEditForm } : item)),
-    );
-    setEditingLeaveTypeId(null);
-    toast.success(`Updated leave type: ${leaveTypeEditForm.name}`);
-  };
-
-  const handleSaveLeaveType = () => {
+  const handleSaveLeaveType = async () => {
     if (!leaveTypeForm.code || !leaveTypeForm.name) {
       toast.error('Please enter leave code and name');
       return;
     }
 
-    if (editingLeaveType) {
-      setLeaveTypes((prev) =>
-        prev.map((item) => (item.id === editingLeaveType.id ? { ...leaveTypeForm } : item)),
-      );
-      toast.success(`Updated leave type: ${leaveTypeForm.name}`);
-    } else {
-      const newLt = {
-        ...leaveTypeForm,
-        id: `lt-${Date.now()}`,
-      };
-      setLeaveTypes((prev) => [...prev, newLt]);
-      toast.success(`Added leave type: ${leaveTypeForm.name}`);
+    try {
+      setLeaveTypeCodeError('');
+      if (editingLeaveType) {
+        // Update (ignore code in payload)
+        const payload = { ...leaveTypeForm };
+        delete payload.code;
+        await leaveService.updateLeaveType(editingLeaveType.id, payload);
+        toast.success(`Updated leave type: ${leaveTypeForm.name}`);
+      } else {
+        // Create
+        await leaveService.createLeaveType(leaveTypeForm);
+        toast.success(`Added leave type: ${leaveTypeForm.name}`);
+      }
+      setIsLeaveTypeModalOpen(false);
+      fetchLeaveTypesSilently();
+    } catch (err) {
+      if (err.response?.status === 400 && err.response.data?.code) {
+        setLeaveTypeCodeError(err.response.data.code[0]);
+      } else {
+        toast.error('Failed to save leave type');
+        console.error(err);
+      }
     }
-    setIsLeaveTypeModalOpen(false);
   };
 
-  const handleDeleteLeaveType = (id) => {
-    setLeaveTypes((prev) => prev.filter((lt) => lt.id !== id));
-    toast.success('Leave type removed');
+  const handleDeleteLeaveType = async (lt) => {
+    const name = lt.name || lt.leave_type;
+    if (window.confirm(`Are you sure you want to delete/deactivate ${name}?`)) {
+      try {
+        await leaveService.deactivateLeaveType(lt.id);
+        toast.success(`Deactivated ${name}`);
+        fetchLeaveTypesSilently();
+      } catch (err) {
+        toast.error('Failed to deactivate leave type');
+        console.error(err);
+      }
+    }
   };
 
-  const handleToggleLeaveTypeActive = (id, checked) => {
-    setLeaveTypes((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, active: checked } : item)),
-    );
-    toast.success('Active status updated');
+  const handleToggleLeaveTypeActive = async (lt, checked) => {
+    const name = lt.name || lt.leave_type;
+    try {
+      if (checked) {
+        await leaveService.activateLeaveType(lt.id);
+        toast.success(`Activated ${name}`);
+      } else {
+        await leaveService.deactivateLeaveType(lt.id);
+        toast.success(`Deactivated ${name}`);
+      }
+      fetchLeaveTypesSilently();
+    } catch (err) {
+      toast.error('Failed to update status');
+      console.error(err);
+    }
   };
 
   // ── Section 3: Policy Inline Editing Handlers ────────────────────────────────
@@ -713,21 +639,21 @@ export function LeaveConfigurationPage() {
   // Filtered views based on search query
   const filteredHolidays = holidays.filter(
     (h) =>
-      h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      h.type.toLowerCase().includes(searchQuery.toLowerCase()),
+      (h.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      (h.type || '').toLowerCase().includes((searchQuery || '').toLowerCase()),
   );
 
   const filteredLeaveTypes = leaveTypes.filter(
     (lt) =>
-      lt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lt.code.toLowerCase().includes(searchQuery.toLowerCase()),
+      (lt.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      (lt.code || '').toLowerCase().includes((searchQuery || '').toLowerCase()),
   );
 
   const filteredPolicies = policies.filter(
     (p) =>
-      p.policyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.leaveCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.appliesTo.toLowerCase().includes(searchQuery.toLowerCase()),
+      (p.policyName || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      (p.leaveCode || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      (p.appliesTo || '').toLowerCase().includes((searchQuery || '').toLowerCase()),
   );
 
   return (
@@ -751,7 +677,7 @@ export function LeaveConfigurationPage() {
         >
           <Calendar size={16} />
           <span>Holidays</span>
-          <span className="lc-tab-count">{holidays.length}</span>
+          <span className="lc-tab-count">{holidays?.length || 0}</span>
         </button>
 
         <button
@@ -766,7 +692,7 @@ export function LeaveConfigurationPage() {
         >
           <ListChecks size={16} />
           <span>Leave Types</span>
-          <span className="lc-tab-count">{leaveTypes.length}</span>
+          <span className="lc-tab-count">{leaveTypes?.length || 0}</span>
         </button>
 
         <button
@@ -781,7 +707,15 @@ export function LeaveConfigurationPage() {
         >
           <Building2 size={16} />
           <span>Organization Leave Policies</span>
-          <span className="lc-tab-count">{policies.length}</span>
+          <span className="lc-tab-count">{policies?.length || 0}</span>
+        </button>
+        <button
+          type="button"
+          className={`lc-tab-btn ${activeTab === 'work-schedule' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('work-schedule'); setSearchQuery(''); }}
+        >
+          <Calendar size={16} />
+          <span>Work Schedule</span>
         </button>
       </div>
 
@@ -795,9 +729,10 @@ export function LeaveConfigurationPage() {
           }}
           className="lc-tab-select"
         >
-          <option value="holidays">Holidays ({holidays.length})</option>
-          <option value="leave-types">Leave Types ({leaveTypes.length})</option>
-          <option value="policies">Organization Leave Policies ({policies.length})</option>
+          <option value="holidays">Holidays ({holidays?.length || 0})</option>
+          <option value="leave-types">Leave Types ({leaveTypes?.length || 0})</option>
+          <option value="policies">Organization Leave Policies ({policies?.length || 0})</option>
+          <option value="work-schedule">Work Schedule</option>
         </select>
       </div>
 
@@ -836,7 +771,15 @@ export function LeaveConfigurationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredHolidays.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={8}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+                          <Loader message="Loading holidays..." />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredHolidays.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="lc-empty-state">
                         No holidays match your search criteria.
@@ -1022,7 +965,15 @@ export function LeaveConfigurationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLeaveTypes.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+                          <Loader message="Loading leave types..." />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredLeaveTypes.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="lc-empty-state">
                         No leave types match your search criteria.
@@ -1030,99 +981,48 @@ export function LeaveConfigurationPage() {
                     </tr>
                   ) : (
                     filteredLeaveTypes.map((lt) => {
-                      const isEditing = editingLeaveTypeId === lt.id;
-
+                      const name = lt.name || lt.leave_type || '';
+                      const isActive = lt.active !== undefined ? lt.active : (lt.is_active ?? true);
+                      
                       return (
                         <tr key={lt.id}>
                           <td>
-                            {isEditing ? (
-                              <input
-                                className="lc-inline-input"
-                                style={{ width: '100%', minWidth: '70px' }}
-                                value={leaveTypeEditForm.code}
-                                onChange={(e) =>
-                                  setLeaveTypeEditForm((prev) => ({ ...prev, code: e.target.value }))
-                                }
-                                autoFocus
-                              />
-                            ) : (
-                              <span className="lc-code-badge">{lt.code}</span>
-                            )}
+                            <span className="lc-code-badge">{lt.code}</span>
                           </td>
-                          <td style={{ fontWeight: 600 }}>
-                            {isEditing ? (
-                              <input
-                                className="lc-inline-input"
-                                style={{ width: '100%', minWidth: '150px' }}
-                                value={leaveTypeEditForm.name}
-                                onChange={(e) =>
-                                  setLeaveTypeEditForm((prev) => ({ ...prev, name: e.target.value }))
-                                }
-                              />
-                            ) : (
-                              lt.name
-                            )}
-                          </td>
-                          <td style={{ color: '#64748b', maxWidth: '300px' }}>{lt.description}</td>
-                          <td style={{ fontWeight: 600 }}>{lt.maxDays} Days</td>
+                          <td style={{ fontWeight: 600 }}>{name}</td>
+                          <td style={{ color: '#64748b', maxWidth: '300px' }}>{lt.description || '-'}</td>
+                          <td style={{ fontWeight: 600 }}>{lt.max_quota_days ? `${lt.max_quota_days} Days` : '-'}</td>
                           <td>
                             <span style={{ fontSize: '12px', fontWeight: 600, color: '#047857' }}>
-                              {lt.paid ? 'Paid' : 'Unpaid'}
+                              {lt.payment_type === 'UNPAID' ? 'Unpaid' : 'Paid'}
                             </span>
                           </td>
                           <td>
-                            {isEditing ? (
-                              <span className="lc-inline-readonly">{lt.active ? 'Active' : 'Inactive'}</span>
-                            ) : (
-                              <Toggle
-                                checked={lt.active}
-                                onChange={(val) => handleToggleLeaveTypeActive(lt.id, val)}
-                                ariaLabel={`Toggle active status for ${lt.name}`}
-                              />
-                            )}
+                            <Toggle
+                              checked={isActive}
+                              onChange={(val) => handleToggleLeaveTypeActive(lt, val)}
+                              ariaLabel={`Toggle active status for ${name}`}
+                            />
                           </td>
                           <td style={{ textAlign: 'right' }}>
-                            {isEditing ? (
-                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
-                                <button
-                                  type="button"
-                                  className="lc-btn-primary"
-                                  style={{ height: '32px', padding: '0 12px' }}
-                                  onClick={() => handleSaveLeaveTypeInlineEdit(lt.id)}
-                                >
-                                  <Check size={14} />
-                                  Save Changes
-                                </button>
-                                <button
-                                  type="button"
-                                  className="lc-ghost-btn"
-                                  style={{ width: 'auto', padding: '0 12px' }}
-                                  onClick={cancelLeaveTypeInlineEdit}
-                                >
-                                  <X size={14} />
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'inline-flex', gap: '4px' }}>
-                                <button
-                                  type="button"
-                                  className="lc-ghost-btn"
-                                  title="Edit Leave Type"
-                                  onClick={() => startLeaveTypeInlineEdit(lt)}
-                                >
-                                  <Edit2 size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="lc-ghost-btn danger"
-                                  title="Delete Leave Type"
-                                  onClick={() => handleDeleteLeaveType(lt.id)}
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              </div>
-                            )}
+                            <div style={{ display: 'inline-flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn"
+                                title="Edit Leave Type"
+                                onClick={() => openEditLeaveTypeModal(lt)}
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn danger"
+                                title="Delete Leave Type"
+                                onClick={() => handleDeleteLeaveType(lt)}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1162,7 +1062,15 @@ export function LeaveConfigurationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPolicies.length === 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+                          <Loader message="Loading policies..." />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredPolicies.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="lc-empty-state">
                         No organization policies match your search criteria.
@@ -1234,6 +1142,74 @@ export function LeaveConfigurationPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+        {/* ── TAB 4: WORK SCHEDULE ── */}
+        {activeTab === 'work-schedule' && (
+          <div className="lc-card-panel">
+            <div style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>Work Schedule Settings</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label">Standard Work Week</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                    {(workScheduleOptions.schedules || []).map((schedule) => (
+                      <label key={schedule.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="workSchedule"
+                          value={schedule.value}
+                          checked={selectedSchedule === schedule.value}
+                          onChange={() => setSelectedSchedule(schedule.value)}
+                          style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                        />
+                        <span style={{ fontSize: '14px', color: '#334155' }}>{schedule.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {selectedSchedule === 'CUSTOM' && (
+                  <div className="ss-modal-form-group" style={{ paddingLeft: '24px', borderLeft: '2px solid #e2e8f0', marginLeft: '8px' }}>
+                    <label className="ss-modal-label">Select Custom Weekend Days</label>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                      {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                      {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => (
+                        <label key={day.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedCustomDays.includes(day.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCustomDays([...selectedCustomDays, day.value]);
+                              } else {
+                                setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
+                              }
+                            }}
+                            style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#334155' }}>{day.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+                <button
+                  type="button"
+                  className="lc-btn-primary"
+                  onClick={handleApplyWorkSchedule}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Check size={16} />
+                  Apply Work Schedule
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1415,14 +1391,45 @@ export function LeaveConfigurationPage() {
             <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-code">
               Leave Code
             </label>
-            <input
-              id="lt-code"
-              type="text"
-              className="ss-input"
-              value={leaveTypeForm.code}
-              placeholder="e.g. AL"
-              onChange={(e) => setLeaveTypeForm((prev) => ({ ...prev, code: e.target.value }))}
-            />
+            {editingLeaveType ? (
+              <div
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  color: '#64748b',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'not-allowed'
+                }}
+              >
+                {leaveTypeForm.code}
+              </div>
+            ) : (
+              <div>
+                <input
+                  id="lt-code"
+                  type="text"
+                  className="ss-input"
+                  style={{ borderColor: leaveTypeCodeError ? '#ef4444' : undefined }}
+                  value={leaveTypeForm.code}
+                  placeholder="e.g. AL"
+                  onChange={(e) => {
+                    setLeaveTypeCodeError('');
+                    setLeaveTypeForm((prev) => ({ ...prev, code: e.target.value }));
+                  }}
+                />
+                {leaveTypeCodeError && (
+                  <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
+                    {leaveTypeCodeError}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Leave Type Name */}
@@ -1456,20 +1463,20 @@ export function LeaveConfigurationPage() {
             />
           </div>
 
-          {/* Maximum Days */}
+          {/* Maximum Quota Days */}
           <div className="ss-modal-form-group">
             <label className="ss-modal-label" htmlFor="lt-maxdays">
-              Maximum Days
+              Max Quota Days
             </label>
             <input
               id="lt-maxdays"
               type="number"
               className="ss-input"
-              value={leaveTypeForm.maxDays}
+              value={leaveTypeForm.max_quota_days}
               onChange={(e) =>
                 setLeaveTypeForm((prev) => ({
                   ...prev,
-                  maxDays: parseInt(e.target.value, 10) || 0,
+                  max_quota_days: e.target.value ? parseFloat(e.target.value) : null,
                 }))
               }
             />
@@ -1477,24 +1484,24 @@ export function LeaveConfigurationPage() {
 
           {/* Status Toggles */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label">Status</label>
+            <label className="ss-modal-label">Status & Payment</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px', minHeight: '38px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Toggle
-                  checked={leaveTypeForm.paid}
-                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, paid: v }))}
+                  checked={leaveTypeForm.payment_type === 'PAID'}
+                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, payment_type: v ? 'PAID' : 'UNPAID' }))}
                   ariaLabel="Paid status"
                 />
                 <span style={{ fontSize: '13px', fontWeight: 600 }}>Paid</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Toggle
-                  checked={leaveTypeForm.active}
-                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, active: v }))}
+                  checked={leaveTypeForm.is_active}
+                  onChange={(v) => setLeaveTypeForm((prev) => ({ ...prev, is_active: v }))}
                   ariaLabel="Active status"
                 />
                 <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                  {leaveTypeForm.active ? 'Active' : 'Inactive'}
+                  {leaveTypeForm.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
             </div>

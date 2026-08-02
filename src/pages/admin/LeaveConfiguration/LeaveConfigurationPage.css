@@ -1,10 +1,10 @@
 .lc-redesign-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 64px); /* explicitly constrain to viewport to force internal scroll */
   width: 100%;
   background-color: var(--bg-secondary, #f8fafc);
-  overflow-y: auto;
+  overflow: hidden;
   font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   color: var(--text-primary, #0f172a);
 }
@@ -13,19 +13,20 @@
 .lc-page-header {
   padding: 24px 32px 16px 32px;
   background-color: #ffffff;
-  border-bottom: 1px solid var(--border-primary, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .lc-page-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 4px 0;
-  line-height: 1.2;
+  margin: 0;
 }
 
 .lc-page-subtext {
-  font-size: 13px;
+  font-size: 14px;
   color: #64748b;
   margin: 0;
 }
@@ -38,6 +39,9 @@
   background-color: #ffffff;
   border-bottom: 1px solid var(--border-primary, #e2e8f0);
   overflow-x: auto;
+  position: sticky;
+  top: 64px; /* match the header height */
+  z-index: 10;
 }
 
 .lc-tab-btn {
@@ -88,6 +92,7 @@
 .lc-tab-content {
   padding: 24px 32px;
   flex: 1;
+  overflow-y: auto;
 }
 
 /* Card Container */

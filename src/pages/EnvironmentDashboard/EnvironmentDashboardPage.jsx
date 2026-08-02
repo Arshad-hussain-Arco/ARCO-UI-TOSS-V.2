@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   Server,
   Database,
@@ -61,6 +61,7 @@ export function EnvironmentDashboardPage() {
 
   // Environment Sub-Accordion Expand State (Only one environment expanded at a time)
   const [expandedEnvironment, setExpandedEnvironment] = useState(null);
+  const [envDetailsData, setEnvDetailsData] = useState({});
 
   // Search input queries for each Environment (keyed by env.id)
   const [envSearchQueries, setEnvSearchQueries] = useState({});
@@ -87,8 +88,20 @@ export function EnvironmentDashboardPage() {
     setIsDetailsExpanded(!isDetailsExpanded);
   };
 
-  const toggleEnvironmentRow = (envId) => {
-    setExpandedEnvironment(expandedEnvironment === envId ? null : envId);
+  const toggleEnvironmentRow = async (envId) => {
+    if (expandedEnvironment === envId) {
+      setExpandedEnvironment(null);
+    } else {
+      setExpandedEnvironment(envId);
+      if (!envDetailsData[envId]) {
+        try {
+          const details = await environmentService.getEnvDetails(envId);
+          setEnvDetailsData((prev) => ({ ...prev, [envId]: details.files_data }));
+        } catch (err) {
+          toast.error('Failed to load raw configuration details.');
+        }
+      }
+    }
   };
 
   // Search query helper for environment component search
@@ -159,7 +172,7 @@ export function EnvironmentDashboardPage() {
     setEditErrors({});
   };
 
-  const handleUpdateConfig = () => {
+  const handleUpdateConfig = async () => {
     const errors = {};
     if (!editForm.fileName.trim()) {
       errors.fileName = 'File Name is required';
@@ -173,23 +186,33 @@ export function EnvironmentDashboardPage() {
       return;
     }
 
-    setConfigList((prev) =>
-      prev.map((c) =>
-        c.id === editingConfig.id ? { ...c, ...editForm, version: c.version + 1 } : c,
-      ),
-    );
-    toast.success('Configuration updated successfully!');
-    setEditingConfig(null);
+    try {
+      await environmentService.updateConfig(editingConfig.id, {
+        feature: editForm.featureType,
+        file_name: editForm.fileName,
+        file_location: editForm.storageLocation,
+      });
+      toast.success('Configuration updated successfully!');
+      setEditingConfig(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update configuration.');
+    }
   };
 
   const handleOpenDelete = (config) => {
     setDeletingConfig(config);
   };
 
-  const handleDeleteConfig = () => {
-    setConfigList((prev) => prev.filter((c) => c.id !== deletingConfig.id));
-    toast.success('Configuration deleted successfully!');
-    setDeletingConfig(null);
+  const handleDeleteConfig = async () => {
+    try {
+      await environmentService.deleteConfig(deletingConfig.id);
+      toast.success('Configuration deleted successfully!');
+      setDeletingConfig(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete configuration.');
+    }
   };
 
   // Upload Handlers
@@ -199,112 +222,28 @@ export function EnvironmentDashboardPage() {
     }
   };
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = async () => {
     if (!uploadFile) {
       toast.error('Please drag & drop or select a CSV configuration file first.');
       return;
     }
 
-    const newConfig = {
-      id: `cfg-${Date.now()}`,
-      featureType: uploadFeatureType,
-      fileName: uploadFile.name,
-      size: `${(uploadFile.size / 1024).toFixed(1)} KB`,
-      uploadedBy: 'Current User',
-      createdDate: new Date().toISOString().split('T')[0],
-      storageLocation: `/configs/${uploadFeatureType.toLowerCase()}/`,
-      version: 1,
-    };
-
-    setConfigList((prev) => [newConfig, ...prev]);
-    toast.success('Configuration file uploaded successfully!');
-    setShowUploadModal(false);
-    setUploadFile(null);
+    try {
+      await environmentService.createConfig({
+        feature: uploadFeatureType,
+        file_name: uploadFile.name,
+        file_location: `/configs/${uploadFeatureType.toLowerCase()}/`,
+      });
+      toast.success('Configuration file added successfully!');
+      setShowUploadModal(false);
+      setUploadFile(null);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add configuration.');
+    }
   };
 
   // Consolidated Environment Components Mapper (merges servers, dbHosts, directory, services)
-  const getEnvironmentComponents = (env) => {
-    const rows = [];
-
-    // 1. Servers
-    if (env.infra?.servers) {
-      env.infra.servers.forEach((srv) => {
-        rows.push({
-          id: `${env.id}-srv-${srv.name}`,
-          name: srv.name,
-          type: `${srv.type} Server`,
-          endpoint: srv.ip,
-          status: srv.status,
-        });
-      });
-    }
-
-    // 2. Database Hosts
-    if (env.infra?.dbHosts) {
-      env.infra.dbHosts.forEach((host, idx) => {
-        let role = 'Primary';
-        if (host.toLowerCase().includes('standby')) {
-          role = 'Standby';
-        } else if (host.toLowerCase().includes('dr')) {
-          role = 'DR';
-        }
-
-        rows.push({
-          id: `${env.id}-db-${idx}`,
-          name: `Database Host (${role})`,
-          type: 'Database Host',
-          endpoint: host,
-          status: 'active',
-        });
-      });
-    }
-
-    // 3. Application Directory
-    if (env.infra?.appDirectory) {
-      rows.push({
-        id: `${env.id}-appdir`,
-        name: 'Application Directory',
-        type: 'Deployment Path',
-        endpoint: env.infra.appDirectory,
-        status: 'active',
-      });
-    }
-
-    // 4. RTBS Connectivity
-    if (env.statusInfo?.rtbsConnectivity) {
-      rows.push({
-        id: `${env.id}-rtbs`,
-        name: 'RTBS Connection',
-        type: 'External Connectivity',
-        endpoint: `Connectivity: ${env.statusInfo.rtbsConnectivity}`,
-        status: env.statusInfo.rtbsConnectivity === 'connected' ? 'connected' : 'disconnected',
-      });
-    }
-
-    // 5. EOD Service
-    if (env.statusInfo?.lastEODRun) {
-      rows.push({
-        id: `${env.id}-eod`,
-        name: 'EOD Processing Engine',
-        type: 'EOD Service',
-        endpoint: `Last Run: ${env.statusInfo.lastEODRun}`,
-        status: 'active',
-      });
-    }
-
-    // 6. System Version Metadata
-    if (env.statusInfo?.systemVersion) {
-      rows.push({
-        id: `${env.id}-version`,
-        name: 'System Software Release',
-        type: 'Version Metadata',
-        endpoint: `Build: v${env.statusInfo.systemVersion} (Oracle: ${env.statusInfo.oracleVersion || '19c'})`,
-        status: 'active',
-      });
-    }
-
-    return rows;
-  };
 
   // Search Filter Handler for Config Cards
   const filteredConfigs = configList.filter((config) => {
@@ -543,7 +482,7 @@ export function EnvironmentDashboardPage() {
               const envQuery = getEnvSearchQuery(env.id);
 
               // Map & Filter Consolidated Items
-              const allComponents = getEnvironmentComponents(env);
+              const allComponents = env.components || [];
               const filteredComponents = allComponents.filter((item) => {
                 if (!envQuery) return true;
                 const query = envQuery.toLowerCase().trim();
@@ -588,25 +527,25 @@ export function EnvironmentDashboardPage() {
                       </span>
                     </div>
 
-                    <div className="env-row-cell" title={`Team Owner: ${env.statusInfo.owner}`}>
+                    <div className="env-row-cell" title={`Team Owner: ${env.team}`}>
                       <Users size={14} className="text-tertiary" />
-                      <span>{env.statusInfo.owner}</span>
+                      <span>{env.team}</span>
                     </div>
 
                     <div className="env-row-cell env-row-cell-stat">
                       <Server size={14} />
-                      <span>{env.infra.servers.length} Servers</span>
+                      <span>{env.servers_count} Servers</span>
                     </div>
 
                     <div className="env-row-cell env-row-cell-stat">
                       <Database size={14} />
-                      <span>{env.infra.dbHosts.length} DB Hosts</span>
+                      <span>{env.db_hosts_count} DB Hosts</span>
                     </div>
 
                     <div className="env-row-cell">
-                      <Network size={14} className={env.statusInfo.rtbsConnectivity === 'connected' ? 'text-success' : 'text-danger'} />
-                      <span className={env.statusInfo.rtbsConnectivity === 'connected' ? 'text-success font-semibold' : 'text-danger font-semibold'}>
-                        RTBS {env.statusInfo.rtbsConnectivity === 'connected' ? 'Connected' : 'Disconnected'}
+                      <Network size={14} className={env.rtbs_status && env.rtbs_status.toLowerCase().includes('not connected') ? 'text-danger' : 'text-success'} />
+                      <span className={env.rtbs_status && env.rtbs_status.toLowerCase().includes('not connected') ? 'text-danger font-semibold' : 'text-success font-semibold'}>
+                        {env.rtbs_status}
                       </span>
                     </div>
 
@@ -722,6 +661,30 @@ export function EnvironmentDashboardPage() {
                           ]}
                           data={filteredComponents}
                         />
+
+                        {/* Raw Config Files Section */}
+                        {envDetailsData[env.id] && envDetailsData[env.id].length > 0 && (
+                          <div className="env-raw-configs-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#334155' }}>Raw Configuration Mapping (SFTP)</h4>
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                              {envDetailsData[env.id].map((fileConfig) => (
+                                <div key={fileConfig.config_id} style={{ background: '#fff', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: '1 1 300px' }}>
+                                  <div style={{ fontWeight: '600', fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>
+                                    {fileConfig.file_name} <span style={{ color: '#64748b', fontWeight: 'normal' }}>({fileConfig.feature})</span>
+                                  </div>
+                                  <div style={{ fontSize: '11px', display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 12px' }}>
+                                    {Object.entries(fileConfig.data || {}).map(([key, value]) => (
+                                      <React.Fragment key={key}>
+                                        <span style={{ color: '#64748b' }}>{key}:</span>
+                                        <span style={{ color: '#334155', wordBreak: 'break-all' }}>{String(value)}</span>
+                                      </React.Fragment>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
