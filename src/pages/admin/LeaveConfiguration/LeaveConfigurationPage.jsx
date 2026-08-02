@@ -298,11 +298,65 @@ export function LeaveConfigurationPage() {
     };
   }, [activeTab]);
 
-  // ── Inline Edit State for Policies ──────────────────────────────────────────
-  const [editingPolicyId, setEditingPolicyId] = useState(null);
-  const [editingDaysValue, setEditingDaysValue] = useState('');
+  const [activeLeaveTypes, setActiveLeaveTypes] = useState([]);
+  
+  // Policies Fetch & Search Effect
+  useEffect(() => {
+    let active = true;
+    const fetchPoliciesData = async () => {
+      if (activeTab !== 'policies') return;
+      setIsLoading(true);
+      try {
+        const [polRes, ltRes] = await Promise.all([
+          leaveService.getPolicies(),
+          leaveService.getLeaveTypes({ is_active: true })
+        ]);
+        if (active) {
+          setPolicies(polRes || []);
+          setActiveLeaveTypes(ltRes || []);
+        }
+      } catch (err) {
+        console.error('Failed to load policies', err);
+        toast.error('Error loading policies');
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    fetchPoliciesData();
+    return () => {
+      active = false;
+    };
+  }, [activeTab]);
 
-  // ── Inline Edit State for Holidays / Leave Types ──────────────────────────
+  // ── Delete Confirmation State ──────────────────────────────────────────────
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, type: '', data: null });
+
+  // ── Policy Modal State ──────────────────────────────────────────
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState(null);
+  const [policyForm, setPolicyForm] = useState({
+    leave_type_code: '',
+    leave_type_name: '',
+    entitled_days: '0.0',
+    gender_restriction: '',
+    min_notice_days: 0,
+    max_consecutive: '',
+    requires_approval: true,
+    accrual_type: 'NONE',
+    proration_type: 'MONTHLY',
+    is_carry_forward_allowed: false,
+    max_carry_forward: '0.0',
+    carry_forward_expiry_months: '',
+    allow_negative: false,
+    max_negative_days: '0.0',
+    is_active: true,
+    effective_from: toDateInputValue(new Date()),
+    effective_to: '',
+    notes: ''
+  });
+  const [policyFormError, setPolicyFormError] = useState('');
+
+  // ── Inline Edit State for Holidays ──────────────────────────
   const [editingHolidayId, setEditingHolidayId] = useState(null);
   const [holidayEditForm, setHolidayEditForm] = useState({
     name: '',
@@ -492,15 +546,8 @@ export function LeaveConfigurationPage() {
     }
   };
 
-  const handleDeleteHoliday = async (id) => {
-    try {
-      await leaveService.deleteHoliday(id, { emp_id: 10 });
-      setHolidays((prev) => prev.filter((h) => h.id !== id));
-      toast.success('Holiday deleted');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete holiday');
-    }
+  const handleDeleteHoliday = (id) => {
+    setDeleteConfirm({ isOpen: true, type: 'holiday', data: { id } });
   };
 
   // ── Section 2: Leave Type Handlers ──────────────────────────────────────────
@@ -572,21 +619,23 @@ export function LeaveConfigurationPage() {
     }
   };
 
-  const handleDeleteLeaveType = async (lt) => {
-    const name = lt.name || lt.leave_type;
-    if (window.confirm(`Are you sure you want to delete/deactivate ${name}?`)) {
-      try {
-        await leaveService.deactivateLeaveType(lt.id);
-        toast.success(`Deactivated ${name}`);
-        fetchLeaveTypesSilently();
-      } catch (err) {
-        toast.error('Failed to deactivate leave type');
-        console.error(err);
-      }
+  const handleDeleteLeaveType = (lt) => {
+    const activePolicy = policies.find(p => p.leave_type_code === lt.code && p.is_active);
+    if (activePolicy) {
+      toast.error(`Cannot deactivate ${lt.name || lt.leave_type}. Please deactivate its active policy first.`);
+      return;
     }
+    setDeleteConfirm({ isOpen: true, type: 'leaveType', data: lt });
   };
 
   const handleToggleLeaveTypeActive = async (lt, checked) => {
+    if (!checked) {
+      const activePolicy = policies.find(p => p.leave_type_code === lt.code && p.is_active);
+      if (activePolicy) {
+        toast.error(`Cannot deactivate ${lt.name || lt.leave_type}. Please deactivate its active policy first.`);
+        return;
+      }
+    }
     const name = lt.name || lt.leave_type;
     try {
       if (checked) {
@@ -603,36 +652,166 @@ export function LeaveConfigurationPage() {
     }
   };
 
-  // ── Section 3: Policy Inline Editing Handlers ────────────────────────────────
-  const handleStartPolicyEdit = (p) => {
-    setEditingPolicyId(p.id);
-    setEditingDaysValue(String(p.entitlementDays));
-  };
-
-  const handleCancelPolicyEdit = () => {
-    setEditingPolicyId(null);
-    setEditingDaysValue('');
-  };
-
-  const handleSavePolicyEdit = (pId) => {
-    const num = parseInt(editingDaysValue, 10);
-    if (!isNaN(num) && num >= 0) {
-      setPolicies((prev) =>
-        prev.map((item) => (item.id === pId ? { ...item, entitlementDays: num } : item)),
-      );
-      toast.success('Policy entitlement days updated');
+  // ── Section 3: Policy Handlers ────────────────────────────────
+  const fetchPoliciesSilently = async () => {
+    try {
+      const polRes = await leaveService.getPolicies();
+      setPolicies(polRes || []);
+    } catch (err) {
+      console.error(err);
     }
-    setEditingPolicyId(null);
-    setEditingDaysValue('');
   };
 
-  const handlePolicyKeyDown = (e, pId) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSavePolicyEdit(pId);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancelPolicyEdit();
+  const openAddPolicyModal = () => {
+    setEditingPolicy(null);
+    setPolicyFormError('');
+    setPolicyForm({
+      leave_type_code: '',
+      leave_type_name: '',
+      entitled_days: '0.0',
+      gender_restriction: '',
+      min_notice_days: 0,
+      max_consecutive: '',
+      requires_approval: true,
+      accrual_type: 'NONE',
+      proration_type: 'MONTHLY',
+      is_carry_forward_allowed: false,
+      max_carry_forward: '0.0',
+      carry_forward_expiry_months: '',
+      allow_negative: false,
+      max_negative_days: '0.0',
+      is_active: true,
+      effective_from: toDateInputValue(new Date()),
+      effective_to: '',
+      notes: ''
+    });
+    setIsPolicyModalOpen(true);
+  };
+
+  const openEditPolicyModal = (p) => {
+    setEditingPolicy(p);
+    setPolicyFormError('');
+    setPolicyForm({
+      leave_type_code: p.leave_type_code || '',
+      leave_type_name: p.leave_type_name || '',
+      entitled_days: p.entitled_days || '0.0',
+      gender_restriction: p.gender_restriction || '',
+      min_notice_days: p.min_notice_days || 0,
+      max_consecutive: p.max_consecutive || '',
+      requires_approval: p.requires_approval ?? true,
+      accrual_type: p.accrual_type || 'NONE',
+      proration_type: p.proration_type || 'MONTHLY',
+      is_carry_forward_allowed: p.is_carry_forward_allowed || false,
+      max_carry_forward: p.max_carry_forward || '0.0',
+      carry_forward_expiry_months: p.carry_forward_expiry_months || '',
+      allow_negative: p.allow_negative || false,
+      max_negative_days: p.max_negative_days || '0.0',
+      is_active: p.is_active ?? true,
+      effective_from: p.effective_from || '',
+      effective_to: p.effective_to || '',
+      notes: p.notes || ''
+    });
+    setIsPolicyModalOpen(true);
+  };
+
+  const handleSavePolicy = async () => {
+    if (!policyForm.leave_type_code) {
+      toast.error('Please select a leave type');
+      return;
+    }
+    if (policyForm.effective_to && new Date(policyForm.effective_to) < new Date(policyForm.effective_from)) {
+      setPolicyFormError('effective_to must be after effective_from.');
+      return;
+    }
+    
+    // Auto-fill leave_type_name based on selection
+    const selectedLt = activeLeaveTypes.find(lt => lt.code === policyForm.leave_type_code);
+    const payload = { ...policyForm, leave_type_name: selectedLt?.name || policyForm.leave_type_name };
+
+    // Format dates or clear if empty
+    if (!payload.effective_to) payload.effective_to = null;
+    if (!payload.gender_restriction) payload.gender_restriction = null;
+    if (!payload.max_consecutive) payload.max_consecutive = null;
+    if (!payload.carry_forward_expiry_months) payload.carry_forward_expiry_months = null;
+
+    try {
+      setPolicyFormError('');
+      if (editingPolicy) {
+        await leaveService.updatePolicy(editingPolicy.id, payload);
+        toast.success(`Updated policy for: ${payload.leave_type_name}`);
+      } else {
+        await leaveService.createPolicy(payload);
+        toast.success(`Added policy for: ${payload.leave_type_name}`);
+      }
+      setIsPolicyModalOpen(false);
+      fetchPoliciesSilently();
+    } catch (err) {
+      if (err.response?.status === 400) {
+        if (err.response.data?.non_field_errors) {
+          setPolicyFormError(err.response.data.non_field_errors[0]);
+        } else if (err.response.data?.leave_type_code) {
+          setPolicyFormError(err.response.data.leave_type_code[0]);
+        } else {
+          toast.error('Invalid form data. Please check fields.');
+        }
+      } else {
+        toast.error('Failed to save policy');
+        console.error(err);
+      }
+    }
+  };
+
+  const handleDeletePolicy = (p) => {
+    setDeleteConfirm({ isOpen: true, type: 'policy', data: p });
+  };
+
+  const executeDelete = async () => {
+    const { type, data } = deleteConfirm;
+    if (type === 'holiday') {
+      try {
+        await leaveService.deleteHoliday(data.id, { emp_id: 10 });
+        setHolidays((prev) => prev.filter((h) => h.id !== data.id));
+        toast.success('Holiday deleted');
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to delete holiday');
+      }
+    } else if (type === 'leaveType') {
+      const name = data.name || data.leave_type;
+      try {
+        await leaveService.deactivateLeaveType(data.id);
+        toast.success(`Deactivated ${name}`);
+        fetchLeaveTypesSilently();
+      } catch (err) {
+        toast.error('Failed to deactivate leave type');
+        console.error(err);
+      }
+    } else if (type === 'policy') {
+      try {
+        await leaveService.deactivatePolicy(data.id);
+        toast.success(`Deactivated policy for ${data.leave_type_name}`);
+        fetchPoliciesSilently();
+      } catch (err) {
+        toast.error('Failed to deactivate policy');
+        console.error(err);
+      }
+    }
+    setDeleteConfirm({ isOpen: false, type: '', data: null });
+  };
+
+  const handleTogglePolicyActive = async (p, checked) => {
+    try {
+      if (checked) {
+        await leaveService.activatePolicy(p.id);
+        toast.success(`Activated policy for ${p.leave_type_name}`);
+      } else {
+        await leaveService.deactivatePolicy(p.id);
+        toast.success(`Deactivated policy for ${p.leave_type_name}`);
+      }
+      fetchPoliciesSilently();
+    } catch (err) {
+      toast.error('Failed to update status');
+      console.error(err);
     }
   };
 
@@ -651,9 +830,8 @@ export function LeaveConfigurationPage() {
 
   const filteredPolicies = policies.filter(
     (p) =>
-      (p.policyName || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-      (p.leaveCode || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-      (p.appliesTo || '').toLowerCase().includes((searchQuery || '').toLowerCase()),
+      (p.leave_type_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      (p.leave_type_code || '').toLowerCase().includes((searchQuery || '').toLowerCase())
   );
 
   return (
@@ -1047,24 +1225,29 @@ export function LeaveConfigurationPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <button className="lc-btn-primary" onClick={openAddPolicyModal}>
+                <Plus size={16} />
+                <span>Add Policy</span>
+              </button>
             </div>
 
             <div className="lc-table-responsive">
               <table className="lc-data-table">
                 <thead>
                   <tr>
-                    <th>Policy Name</th>
                     <th>Leave Code</th>
-                    <th>Applies To</th>
-                    <th>Accrual Schedule</th>
-                    <th>Entitled Days (Inline Edit)</th>
+                    <th>Leave Type Name</th>
+                    <th>Entitled Days</th>
+                    <th>Accrual Type</th>
                     <th>Carry-Over Limit</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                           <Loader message="Loading policies..." />
                         </div>
@@ -1072,70 +1255,53 @@ export function LeaveConfigurationPage() {
                     </tr>
                   ) : filteredPolicies.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="lc-empty-state">
+                      <td colSpan={7} className="lc-empty-state">
                         No organization policies match your search criteria.
                       </td>
                     </tr>
                   ) : (
                     filteredPolicies.map((p) => {
-                      const isEditing = editingPolicyId === p.id;
-
+                      const isActive = p.is_active ?? true;
                       return (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 600 }}>{p.policyName}</td>
                           <td>
-                            <span className="lc-code-badge">{p.leaveCode}</span>
+                            <span className="lc-code-badge">{p.leave_type_code}</span>
                           </td>
-                          <td style={{ color: '#475569' }}>{p.appliesTo}</td>
-                          <td style={{ color: '#64748b' }}>{p.accrualSchedule}</td>
-
-                          {/* In-Line Editing Cell for Entitled Days */}
+                          <td style={{ fontWeight: 600 }}>{p.leave_type_name}</td>
                           <td>
-                            {isEditing ? (
-                              <div className="lc-inline-edit-wrap">
-                                <input
-                                  type="number"
-                                  className="lc-inline-input"
-                                  value={editingDaysValue}
-                                  onChange={(e) => setEditingDaysValue(e.target.value)}
-                                  onKeyDown={(e) => handlePolicyKeyDown(e, p.id)}
-                                  autoFocus
-                                />
-                                <button
-                                  type="button"
-                                  className="lc-inline-btn save"
-                                  title="Save (Press Enter)"
-                                  onClick={() => handleSavePolicyEdit(p.id)}
-                                >
-                                  <Check size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="lc-inline-btn cancel"
-                                  title="Cancel (Press Esc)"
-                                  onClick={handleCancelPolicyEdit}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div
-                                className="lc-inline-badge"
-                                onClick={() => handleStartPolicyEdit(p)}
-                                title="Click to edit entitled days"
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') handleStartPolicyEdit(p);
-                                }}
+                            <span style={{ fontWeight: 600 }}>{p.entitled_days} Days</span>
+                          </td>
+                          <td style={{ color: '#64748b' }}>{p.accrual_type}</td>
+                          <td style={{ color: '#64748b' }}>
+                            {p.is_carry_forward_allowed ? `${p.max_carry_forward} Days` : 'Not Allowed'}
+                          </td>
+                          <td>
+                            <Toggle
+                              checked={isActive}
+                              onChange={(val) => handleTogglePolicyActive(p, val)}
+                              ariaLabel={`Toggle active status for policy ${p.leave_type_name}`}
+                            />
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn"
+                                title="Edit Policy"
+                                onClick={() => openEditPolicyModal(p)}
                               >
-                                <span>{p.entitlementDays} Days</span>
-                                <Edit2 size={13} style={{ color: '#64748b' }} />
-                              </div>
-                            )}
+                                <Edit2 size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn danger"
+                                title="Delete Policy"
+                                onClick={() => handleDeletePolicy(p)}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </td>
-
-                          <td style={{ color: '#64748b' }}>{p.carryForwardLimit}</td>
                         </tr>
                       );
                     })
@@ -1506,6 +1672,264 @@ export function LeaveConfigurationPage() {
               </div>
             </div>
           </div>
+        </div>
+      </AdminModal>
+
+      {/* ── MODAL 3: Add / Edit Policy ───────────────────────────────── */}
+      <AdminModal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+        title={editingPolicy ? 'Edit Organization Leave Policy' : 'Add Organization Leave Policy'}
+        size="lg"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{ padding: '0 16px', width: 'auto' }}
+              onClick={() => setIsPolicyModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button type="button" className="lc-btn-primary" onClick={handleSavePolicy}>
+              Save Policy
+            </button>
+          </>
+        }
+      >
+        <div className="lc-modal-grid">
+          {policyFormError && (
+            <div className="lc-modal-grid-span-2" style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', fontSize: '14px' }}>
+              {policyFormError}
+            </div>
+          )}
+
+          {/* Leave Type */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="pol-lt-code">
+              Leave Type
+            </label>
+            <select
+              id="pol-lt-code"
+              className="ss-input"
+              value={policyForm.leave_type_code}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, leave_type_code: e.target.value }))}
+              disabled={!!editingPolicy}
+              style={{ backgroundColor: editingPolicy ? '#f1f5f9' : 'white', cursor: editingPolicy ? 'not-allowed' : 'default' }}
+            >
+              <option value="" disabled>Select active leave type</option>
+              {activeLeaveTypes.map(lt => (
+                <option key={lt.code} value={lt.code}>{lt.name} ({lt.code})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Entitled Days */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="pol-entitled">
+              Entitled Days
+            </label>
+            <input
+              id="pol-entitled"
+              type="number"
+              step="0.5"
+              className="ss-input"
+              value={policyForm.entitled_days}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, entitled_days: e.target.value }))}
+            />
+          </div>
+
+          {/* Accrual Type */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="pol-accrual">
+              Accrual Type
+            </label>
+            <select
+              id="pol-accrual"
+              className="ss-input"
+              value={policyForm.accrual_type}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
+            >
+              <option value="NONE">None</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="YEARLY">Yearly</option>
+            </select>
+          </div>
+
+          {/* Requires Approval */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label">Requires Approval</label>
+            <div style={{ display: 'flex', alignItems: 'center', height: '38px', gap: '8px' }}>
+              <Toggle
+                checked={policyForm.requires_approval}
+                onChange={(v) => setPolicyForm((prev) => ({ ...prev, requires_approval: v }))}
+                ariaLabel="Requires Approval"
+              />
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {policyForm.requires_approval ? 'Yes' : 'No'}
+              </span>
+            </div>
+          </div>
+
+          {/* Active Status */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label">Is Active</label>
+            <div style={{ display: 'flex', alignItems: 'center', height: '38px', gap: '8px' }}>
+              <Toggle
+                checked={policyForm.is_active}
+                onChange={(v) => setPolicyForm((prev) => ({ ...prev, is_active: v }))}
+                ariaLabel="Active status"
+              />
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {policyForm.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+
+          {/* Carry Forward Section */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', marginTop: '8px' }}>
+            <label className="ss-modal-label">Carry Forward Settings</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <input 
+                type="checkbox" 
+                checked={policyForm.is_carry_forward_allowed} 
+                onChange={(e) => setPolicyForm(prev => ({ 
+                  ...prev, 
+                  is_carry_forward_allowed: e.target.checked,
+                  max_carry_forward: e.target.checked ? prev.max_carry_forward : '0.0',
+                  carry_forward_expiry_months: e.target.checked ? prev.carry_forward_expiry_months : ''
+                }))}
+              />
+              <span style={{ fontSize: '14px', color: '#334155' }}>Allow carry forward</span>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', opacity: policyForm.is_carry_forward_allowed ? 1 : 0.5 }}>
+              <div>
+                <label className="ss-modal-label" htmlFor="pol-max-cf">Max Carry Forward Days</label>
+                <input
+                  id="pol-max-cf"
+                  type="number"
+                  step="0.5"
+                  className="ss-input"
+                  disabled={!policyForm.is_carry_forward_allowed}
+                  value={policyForm.max_carry_forward}
+                  onChange={(e) => setPolicyForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="ss-modal-label" htmlFor="pol-cf-expiry">Expiry Months</label>
+                <input
+                  id="pol-cf-expiry"
+                  type="number"
+                  className="ss-input"
+                  disabled={!policyForm.is_carry_forward_allowed}
+                  value={policyForm.carry_forward_expiry_months}
+                  onChange={(e) => setPolicyForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
+                  placeholder="e.g. 3"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Negative Balance Section */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+            <label className="ss-modal-label">Negative Balance (Advance Leave)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <input 
+                type="checkbox" 
+                checked={policyForm.allow_negative} 
+                onChange={(e) => setPolicyForm(prev => ({ 
+                  ...prev, 
+                  allow_negative: e.target.checked,
+                  max_negative_days: e.target.checked ? prev.max_negative_days : '0.0'
+                }))}
+              />
+              <span style={{ fontSize: '14px', color: '#334155' }}>Allow advance leave</span>
+            </div>
+            
+            <div style={{ opacity: policyForm.allow_negative ? 1 : 0.5 }}>
+              <label className="ss-modal-label" htmlFor="pol-max-neg">Max Negative Days</label>
+              <input
+                id="pol-max-neg"
+                type="number"
+                step="0.5"
+                className="ss-input"
+                disabled={!policyForm.allow_negative}
+                value={policyForm.max_negative_days}
+                onChange={(e) => setPolicyForm((prev) => ({ ...prev, max_negative_days: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          {/* Effective Dates */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="pol-eff-from">
+              Effective From
+            </label>
+            <input
+              id="pol-eff-from"
+              type="date"
+              className="ss-input"
+              value={policyForm.effective_from}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, effective_from: e.target.value }))}
+            />
+          </div>
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="pol-eff-to">
+              Effective To
+            </label>
+            <input
+              id="pol-eff-to"
+              type="date"
+              className="ss-input"
+              value={policyForm.effective_to || ''}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, effective_to: e.target.value }))}
+            />
+          </div>
+
+          {/* Notes */}
+          <div className="ss-modal-form-group lc-modal-grid-span-2">
+            <label className="ss-modal-label" htmlFor="pol-notes">
+              Notes
+            </label>
+            <textarea
+              id="pol-notes"
+              rows={2}
+              className="ss-input"
+              style={{ minHeight: '74px', resize: 'vertical' }}
+              value={policyForm.notes}
+              onChange={(e) => setPolicyForm((prev) => ({ ...prev, notes: e.target.value }))}
+            />
+          </div>
+        </div>
+      </AdminModal>
+
+      {/* ── MODAL 4: Confirm Delete / Deactivate ───────────────────────────────── */}
+      <AdminModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, type: '', data: null })}
+        title={deleteConfirm.type === 'holiday' ? 'Delete Holiday' : 'Confirm Deactivation'}
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{ padding: '0 16px', width: 'auto' }}
+              onClick={() => setDeleteConfirm({ isOpen: false, type: '', data: null })}
+            >
+              Cancel
+            </button>
+            <button type="button" className="lc-btn-primary" style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }} onClick={executeDelete}>
+              {deleteConfirm.type === 'holiday' ? 'Delete' : 'Deactivate'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '14px', color: '#334155' }}>
+          {deleteConfirm.type === 'holiday' && 'Are you sure you want to delete this holiday? This action cannot be undone.'}
+          {deleteConfirm.type === 'leaveType' && `Are you sure you want to deactivate ${deleteConfirm.data?.name || deleteConfirm.data?.leave_type}? You will not be able to assign this leave type until it is re-activated.`}
+          {deleteConfirm.type === 'policy' && `Are you sure you want to deactivate the policy for ${deleteConfirm.data?.leave_type_name}? Employees will no longer be assigned this policy.`}
         </div>
       </AdminModal>
     </div>

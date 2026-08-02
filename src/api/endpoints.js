@@ -126,6 +126,8 @@ const endpoints = {
     allLeaveTypes: `/leaves/leave-types/all/`,
     gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`,
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
+    policies: `/hr/policies/`,
+    policyDetail: (id) => `/hr/policies/${id}/`,
     employeeProfile: (empId) => `/leaves/hr/employees/${empId}/profile/`,
     bulkUpdateProfile: `/leaves/hr/employees/profiles/bulk-update/`,
     balanceAdjust: `/leaves/hr/balance/adjust/`,
