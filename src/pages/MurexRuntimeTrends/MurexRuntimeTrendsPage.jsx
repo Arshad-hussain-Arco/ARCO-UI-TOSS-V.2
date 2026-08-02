@@ -25,6 +25,7 @@ import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
+import { parseISO, getISOWeek, getDay } from 'date-fns';
 
 import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
@@ -407,17 +408,44 @@ function JobCard({ script, onOpenDetail }) {
 
 /* ─── Heatmap & Gantt Data Generators ─────────────────────────── */
 function getScriptHeatmapSpec(script) {
-  const weeks = ['Week 36', 'Week 37', 'Week 38', 'Week 39', 'Week 40'];
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  // Extract all runs and map to ISO week and day
+  const runs = (script.history || [])
+    .filter(run => run.date && run.date !== 'Unknown Date')
+    .map(run => {
+      const dateObj = parseISO(run.date);
+      if (isNaN(dateObj)) return null;
+      
+      const week = getISOWeek(dateObj);
+      // getDay() returns 0 for Sunday, 1 for Monday. We want 0 for Mon, 6 for Sun.
+      const jsDay = getDay(dateObj);
+      const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+      return { ...run, week, dayIndex };
+    })
+    .filter(Boolean);
 
-  const seed = (script?.id || 'script').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  // Find unique weeks and sort them
+  const uniqueWeeks = [...new Set(runs.map(r => r.week))].sort((a, b) => a - b);
+  const weeks = uniqueWeeks.length > 0 ? uniqueWeeks.map(w => `${w}`) : ['No Data'];
 
-  const zMatrix = days.map((day, dIdx) => {
-    return weeks.map((week, wIdx) => {
-      const base = 1800 + ((seed * (dIdx + 1) * (wIdx + 1)) % 14000);
-      const isOutlier = (dIdx === 3 && wIdx === 2) || (dIdx === 1 && wIdx === 4);
-      return isOutlier ? base + 18000 : base;
-    });
+  // Initialize zMatrix and textMatrix
+  const zMatrix = Array(7).fill(0).map(() => Array(weeks.length).fill(null));
+  const textMatrix = Array(7).fill('').map(() => Array(weeks.length).fill(''));
+
+  // Group runs by day and week
+  runs.forEach(run => {
+    const wIdx = uniqueWeeks.indexOf(run.week);
+    if (wIdx !== -1 && run.dayIndex >= 0 && run.dayIndex < 7) {
+      if (zMatrix[run.dayIndex][wIdx] === null) {
+        zMatrix[run.dayIndex][wIdx] = run.durationMin;
+        textMatrix[run.dayIndex][wIdx] = run.durationFormatted;
+      } else {
+        // Average the z value and append text for multiple runs
+        zMatrix[run.dayIndex][wIdx] = (zMatrix[run.dayIndex][wIdx] + run.durationMin) / 2;
+        textMatrix[run.dayIndex][wIdx] += `<br>${run.durationFormatted}`;
+      }
+    }
   });
 
   return {
@@ -429,6 +457,8 @@ function getScriptHeatmapSpec(script) {
         z: zMatrix,
         x: weeks,
         y: days,
+        text: textMatrix,
+        texttemplate: '%{text}',
         type: 'heatmap',
         colorscale: [
           [0.0, '#fef08a'],
@@ -444,17 +474,17 @@ function getScriptHeatmapSpec(script) {
           tickfont: { size: 10, color: '#64748b' },
         },
         hoverongaps: false,
-        hovertemplate: '<b>%{x}</b><br>Day: %{y}<br>Avg Duration: %{z}s<extra></extra>',
+        hovertemplate: '<b>%{x}</b><br>Day: %{y}<br>Avg Duration: %{z}m<extra></extra>',
       },
     ],
     layout: {
       margin: { t: 25, r: 90, b: 40, l: 50 },
-      height: 230,
+      height: 300,
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: '#334155', size: 11, family: 'Inter, system-ui, sans-serif' },
-      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: '#64748b' } } },
+      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: '#64748b' } }, type: 'category' },
       yaxis: { title: { text: 'Day of Week', font: { size: 11, color: '#64748b' } }, autorange: 'reversed' },
     },
   };
@@ -634,12 +664,33 @@ export function MurexRuntimeTrendsPage() {
     });
   };
 
-  const handleHeatmapCellClick = (script, eventData) => {
+  const handleHeatmapCellClick = async (script, eventData) => {
     if (eventData?.points?.[0]) {
       const pt = eventData.points[0];
       const details = getCellExecutionDetails(script, pt.x, pt.y);
       setSelectedCellDetails(details);
       setExpandedRunGanttIds(new Set());
+      
+      // Find the exact date corresponding to this cell
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const ptDayIndex = days.indexOf(pt.y);
+      const ptWeek = parseInt(pt.x, 10);
+      
+      const matchingRun = (script.history || []).find(run => {
+        if (!run.date || run.date === 'Unknown Date') return false;
+        const dateObj = parseISO(run.date);
+        if (isNaN(dateObj)) return false;
+        const week = getISOWeek(dateObj);
+        const jsDay = getDay(dateObj);
+        const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+        return week === ptWeek && dayIndex === ptDayIndex;
+      });
+
+      if (matchingRun) {
+        // Dispatch payload to backend with exact date label
+        const payload = { script_name: script.name, label: matchingRun.date };
+        await murexService.fetchRuntimeDetails(payload);
+      }
     }
   };
   const categoryCounts = {
