@@ -65,7 +65,9 @@ export function AuthProvider({ children }) {
         }
         
         if (isMounted && persistedUser) {
-          setUser(persistedUser);
+          if (storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
+            setUser(persistedUser);
+          }
         }
       }
 

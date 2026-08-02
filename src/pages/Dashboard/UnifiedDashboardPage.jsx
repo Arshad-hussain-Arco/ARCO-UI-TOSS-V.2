@@ -7,6 +7,7 @@ import {
 } from '../../components/dashboard/charts';
 import httpClient from '@api/httpClient';
 import { useAuth } from '../../hooks/useAuth';
+import httpClient from '../../api/httpClient';
 import './UnifiedDashboardPage.css';
 
 export default function UnifiedDashboardPage() {
