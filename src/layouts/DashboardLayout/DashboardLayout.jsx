@@ -50,11 +50,13 @@ export function DashboardLayout() {
       <div className="dashboard-main" data-sidebar-collapsed={isCollapsed}>
         <Header user={user} onLogout={handleLogout} />
 
-        <ErrorBoundary resetKey={pathname}>
-          <Suspense fallback={<Loader message="Loading page…" />}>
-            <Outlet />
-          </Suspense>
-        </ErrorBoundary>
+        <div className="page-outlet">
+          <ErrorBoundary resetKey={pathname}>
+            <Suspense fallback={<Loader message="Loading page…" />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   );
