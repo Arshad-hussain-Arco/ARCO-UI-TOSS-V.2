@@ -216,6 +216,18 @@ export const leaveService = {
     const response = await httpClient.get(endpoints.manager.teamCalendar(managerId), { params });
     return response.data;
   },
+  getTeamPresentToday: async (managerId) => {
+    const response = await httpClient.get(endpoints.manager.teamPresentToday(managerId));
+    return response.data;
+  },
+  getTeamOnLeaveToday: async (managerId) => {
+    const response = await httpClient.get(endpoints.manager.teamOnLeaveToday(managerId));
+    return response.data;
+  },
+  getTeamOnWfhToday: async (managerId) => {
+    const response = await httpClient.get(endpoints.manager.teamOnWfhToday(managerId));
+    return response.data;
+  },
 
   // --- HR / Policy / Reports Endpoints ---
   getLeaveTypes: async (params) => {
