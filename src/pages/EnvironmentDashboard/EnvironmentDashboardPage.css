@@ -580,7 +580,7 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
   width: 100%;
   max-height: 280px;
   /* Compact height limits table size footprint */
-  overflow-y: auto;
+  overflow: auto;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   background-color: var(--surface-primary);
@@ -590,6 +590,7 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
 .env-tab-table-container .ui-admin-table-container {
   border: none;
   border-radius: 0;
+  overflow: visible !important; /* Let the outer container handle all scrolling */
 }
 
 .env-tab-table-container .ui-admin-table th {
@@ -608,6 +609,7 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
   height: 38px;
   /* Compact Row Height (40-44px max, 38px fits tight tables) */
   box-sizing: border-box;
+  white-space: nowrap;
 }
 
 /* Badges & Status Indicators */
