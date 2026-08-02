@@ -221,6 +221,7 @@ function TeamRequestsTab() {
   const [managerNote, setManagerNote] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [rejectErr, setRejectErr] = useState(false);
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
   useEffect(() => {
@@ -331,27 +332,56 @@ function TeamRequestsTab() {
       setShowConfirm(false);
     }, 240);
   }
-  function handleApprove() {
-    if (!drawerReq) return;
-    setShowConfirm(false);
-    setRequests((prev) =>
-      prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'approved' } : r)),
-    );
-    toast.success('Request approved successfully');
-    closeDrawer();
+  async function handleApprove() {
+    if (!drawerReq || isSubmittingAction) return;
+    try {
+      setIsSubmittingAction(true);
+      const payload = {
+        manager_id: user?.emp_id || user?.id || 1,
+        reason: managerNote || 'Approved'
+      };
+      await leaveService.approveLeave(drawerReq.id, payload);
+      setShowConfirm(false);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'approved' } : r)),
+      );
+      toast.success('Request approved successfully');
+      closeDrawer();
+    } catch (error) {
+      console.error('Approval failed:', error);
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to approve request';
+      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setIsSubmittingAction(false);
+    }
   }
-  function handleReject() {
-    if (!drawerReq) return;
+
+  async function handleReject() {
+    if (!drawerReq || isSubmittingAction) return;
     if (!managerNote.trim()) {
       setRejectErr(true);
       return;
     }
-    setShowConfirm(false);
-    setRequests((prev) =>
-      prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'rejected' } : r)),
-    );
-    toast.success('Request rejected successfully');
-    closeDrawer();
+    try {
+      setIsSubmittingAction(true);
+      const payload = {
+        manager_id: user?.emp_id || user?.id || 1,
+        reason: managerNote
+      };
+      await leaveService.rejectLeave(drawerReq.id, payload);
+      setShowConfirm(false);
+      setRequests((prev) =>
+        prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'rejected' } : r)),
+      );
+      toast.success('Request rejected successfully');
+      closeDrawer();
+    } catch (error) {
+      console.error('Rejection failed:', error);
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to reject request';
+      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    } finally {
+      setIsSubmittingAction(false);
+    }
   }
   function handleKpiClick(type) {
     setTypeF((prev) => (prev === type ? 'all' : type));
@@ -1012,9 +1042,13 @@ function TeamRequestsTab() {
                     <button className="tr-btn tr-btn-ghost" onClick={() => setShowConfirm(false)}>
                       Back
                     </button>
-                    <button className="tr-btn tr-btn-primary" onClick={handleApprove}>
+                    <button 
+                      className="tr-btn tr-btn-primary" 
+                      onClick={handleApprove}
+                      disabled={isSubmittingAction}
+                    >
                       <Check size={12} />
-                      Confirm Approval
+                      {isSubmittingAction ? 'Approving...' : 'Confirm Approval'}
                     </button>
                   </div>
                 </div>
@@ -1358,11 +1392,19 @@ function TeamRequestsTab() {
               </button>
               {liveReq.status === 'pending' && (
                 <>
-                  <button className="tr-btn tr-btn-danger" onClick={handleReject}>
+                  <button 
+                    className="tr-btn tr-btn-danger" 
+                    onClick={handleReject}
+                    disabled={isSubmittingAction}
+                  >
                     <X size={11} />
-                    Reject
+                    {isSubmittingAction ? 'Rejecting...' : 'Reject'}
                   </button>
-                  <button className="tr-btn tr-btn-primary" onClick={() => setShowConfirm(true)}>
+                  <button 
+                    className="tr-btn tr-btn-primary" 
+                    onClick={() => setShowConfirm(true)}
+                    disabled={isSubmittingAction}
+                  >
                     <Check size={11} />
                     Approve
                   </button>
