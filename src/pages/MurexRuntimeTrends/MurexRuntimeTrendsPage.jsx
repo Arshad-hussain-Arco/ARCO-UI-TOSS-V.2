@@ -689,7 +689,48 @@ export function MurexRuntimeTrendsPage() {
       if (matchingRun) {
         // Dispatch payload to backend with exact date label
         const payload = { script_name: script.name, label: matchingRun.date };
-        await murexService.fetchRuntimeDetails(payload);
+        try {
+          const response = await murexService.fetchRuntimeDetails(payload);
+          const processData = response.data?.[script.name];
+          if (processData && processData.labels && processData.steps) {
+            const runs = processData.labels.map((label, index) => {
+              const stepsData = processData.steps[index];
+              const formatDuration = (secs) => {
+                const h = Math.floor(secs / 3600).toString().padStart(2, '0');
+                const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+                const s = Math.floor(secs % 60).toString().padStart(2, '0');
+                return `${h}:${m}:${s}`;
+              };
+              
+              return {
+                id: `${script.id}-run-${index}`,
+                name: `Run ${index + 1} (${label})`,
+                duration: formatDuration(processData.time_duration[index]),
+                seconds: processData.time_duration[index],
+                isOutlier: false,
+                steps: stepsData.step.map((stepName, stepIndex) => ({
+                  name: stepName,
+                  dbTime: stepsData.db_time[stepIndex],
+                  cpuTime: stepsData.cpu_time[stepIndex],
+                  elapsed: stepsData.elapsed_time[stepIndex],
+                }))
+              };
+            });
+
+            setSelectedCellDetails({
+              ...details,
+              date: matchingRun.date,
+              totalRuns: runs.length,
+              avgDuration: runs.length > 0 
+                ? new Date((runs.reduce((acc, r) => acc + r.seconds, 0) / runs.length) * 1000).toISOString().substr(11, 8) 
+                : '00:00:00',
+              outliersCount: runs.filter(r => r.isOutlier).length,
+              runs: runs
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch exact run details:", err);
+        }
       }
     }
   };

@@ -18,8 +18,12 @@ import {
   Network,
   Download,
   FileText,
-  Settings
+  Settings,
+  FileSpreadsheet
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
@@ -48,6 +52,15 @@ export function EnvironmentDashboardPage() {
   // In-Memory Data Synchronization (Configs & Environments)
   const [configList, setConfigList] = useState([]);
   const [envList, setEnvList] = useState([]);
+  const [expandedConfigs, setExpandedConfigs] = useState({});
+
+  const toggleConfigRowAccordion = (configId) => {
+    setExpandedConfigs(prev => {
+      // If clicking the already open one, close it. Otherwise, open ONLY the clicked one.
+      if (prev[configId]) return {};
+      return { [configId]: true };
+    });
+  };
 
   useEffect(() => {
     if (data) {
@@ -65,6 +78,10 @@ export function EnvironmentDashboardPage() {
 
   // Search input queries for each Environment (keyed by env.id)
   const [envSearchQueries, setEnvSearchQueries] = useState({});
+  // Search input queries for each Config row (keyed by config.id)
+  const [configRowSearchQueries, setConfigRowSearchQueries] = useState({});
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(null);
+  const [globalExportDropdownOpen, setGlobalExportDropdownOpen] = useState(false);
 
   // Add Configuration Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -331,14 +348,67 @@ export function EnvironmentDashboardPage() {
               >
                 Add Config
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                leadingIcon={Download}
-                onClick={handleExportConfigs}
-              >
-                Export
-              </Button>
+              <div style={{ position: 'relative' }} onMouseLeave={() => setGlobalExportDropdownOpen(false)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leadingIcon={Download}
+                  onMouseEnter={() => setGlobalExportDropdownOpen(true)}
+                >
+                  Export
+                </Button>
+                
+                {globalExportDropdownOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => {
+                        if (filteredConfigs.length > 0) {
+                          const doc = new jsPDF('landscape');
+                          doc.text('Environment Configurations', 14, 15);
+                          const cols = ['Type', 'Version', 'File Name', 'File Size', 'Uploaded By', 'Upload Date', 'File Location'];
+                          const data = filteredConfigs.map(c => [
+                            c.featureType, c.version, c.fileName, c.size, c.uploadedBy, c.createdDate, c.storageLocation
+                          ]);
+                          doc.autoTable({ head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
+                          doc.save('environment_configurations.pdf');
+                          toast.success('Configurations exported to PDF.');
+                        } else {
+                          toast.error('No configurations to export.');
+                        }
+                        setGlobalExportDropdownOpen(false);
+                      }}
+                    >
+                      <FileText size={14} /> PDF
+                    </div>
+                    <div 
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => {
+                        if (filteredConfigs.length > 0) {
+                          const data = filteredConfigs.map(c => ({
+                            'Type': c.featureType, 'Version': c.version, 'File Name': c.fileName, 
+                            'File Size': c.size, 'Uploaded By': c.uploadedBy, 'Upload Date': c.createdDate, 'File Location': c.storageLocation
+                          }));
+                          const ws = XLSX.utils.json_to_sheet(data);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Configs");
+                          XLSX.writeFile(wb, 'environment_configurations.xlsx');
+                          toast.success('Configurations exported to Excel.');
+                        } else {
+                          toast.error('No configurations to export.');
+                        }
+                        setGlobalExportDropdownOpen(false);
+                      }}
+                    >
+                      <FileSpreadsheet size={14} /> Excel
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -487,16 +557,37 @@ export function EnvironmentDashboardPage() {
                   key: col,
                   label: col,
                   render: (item) => (
-                    <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '13px' }}>
                       {item[col] !== null && item[col] !== undefined ? String(item[col]) : '-'}
                     </span>
                   ),
                 }));
 
+                const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
+                const filteredRecords = searchQuery 
+                  ? fileData.records.filter(r => 
+                      Object.values(r).some(val => 
+                        val !== null && val !== undefined && String(val).toLowerCase().includes(searchQuery)
+                      )
+                    )
+                  : fileData.records;
+
                 return (
-                  <div key={config.id} className="config-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div key={config.id} className="config-card" style={{ flexShrink: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     {/* Header: Icon, Name, Search, Export */}
-                    <div className="env-tab-toolbar" style={{ borderBottom: '1px solid #e2e8f0', padding: '12px 20px', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div 
+                      className="env-tab-toolbar" 
+                      style={{ 
+                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none', 
+                        padding: '20px 20px', 
+                        background: '#f8fafc', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => toggleConfigRowAccordion(config.id)}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: '600', fontSize: '15px' }}>
                         <div style={{ background: '#e0e7ff', color: '#4f46e5', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Database size={16} />
@@ -504,41 +595,119 @@ export function EnvironmentDashboardPage() {
                         <span>{config.featureType || config.fileName}</span>
                       </div>
                       
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                          <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b' }} />
-                          <input
-                            type="text"
-                            placeholder="Search records..."
+                      <div style={{ display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b' }} />
+                            <input
+                              type="text"
+                              placeholder="Search records..."
+                              value={configRowSearchQueries[config.id] || ''}
+                              onChange={(e) => setConfigRowSearchQueries(prev => ({ ...prev, [config.id]: e.target.value }))}
+                              style={{ 
+                                padding: '6px 12px 6px 32px', 
+                                border: '1px solid #cbd5e1', 
+                                borderRadius: '6px', 
+                                fontSize: '13px', 
+                                width: '180px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                          <div 
+                            style={{ position: 'relative' }}
+                            onMouseLeave={() => setExportDropdownOpen(null)}
+                          >
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              leadingIcon={Download}
+                              onMouseEnter={() => setExportDropdownOpen(config.id)}
+                            >
+                              Export
+                            </Button>
+                            
+                            {exportDropdownOpen === config.id && (
+                              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                                <div 
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  onClick={() => {
+                                    if (filteredRecords.length > 0) {
+                                      const doc = new jsPDF('landscape');
+                                      doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
+                                      const headers = dynamicCols.map(c => c.label);
+                                      const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
+                                      doc.autoTable({ head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
+                                      doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
+                                      toast.success(`Exported ${filteredRecords.length} records to PDF.`);
+                                    } else {
+                                      toast.error('No records to export.');
+                                    }
+                                    setExportDropdownOpen(null);
+                                  }}
+                                >
+                                  <FileText size={14} /> PDF
+                                </div>
+                                <div 
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  onClick={() => {
+                                    if (filteredRecords.length > 0) {
+                                      const data = filteredRecords.map(r => {
+                                        const row = {};
+                                        dynamicCols.forEach(c => row[c.label] = r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-');
+                                        return row;
+                                      });
+                                      const ws = XLSX.utils.json_to_sheet(data);
+                                      const wb = XLSX.utils.book_new();
+                                      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                                      XLSX.writeFile(wb, `${config.featureType || config.fileName || 'export'}.xlsx`);
+                                      toast.success(`Exported ${filteredRecords.length} records to Excel.`);
+                                    } else {
+                                      toast.error('No records to export.');
+                                    }
+                                    setExportDropdownOpen(null);
+                                  }}
+                                >
+                                  <FileSpreadsheet size={14} /> Excel
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div 
+                          style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid #e2e8f0', height: '32px', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleConfigRowAccordion(config.id);
+                          }}
+                        >
+                          <ChevronDown 
+                            size={18} 
                             style={{ 
-                              padding: '6px 12px 6px 32px', 
-                              border: '1px solid #cbd5e1', 
-                              borderRadius: '6px', 
-                              fontSize: '13px', 
-                              width: '240px',
-                              outline: 'none'
-                            }}
+                              color: '#64748b', 
+                              transform: expandedConfigs[config.id] ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s ease',
+                            }} 
                           />
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          leadingIcon={Download}
-                        >
-                          Export
-                        </Button>
                       </div>
                     </div>
 
                     {/* Table */}
-                    <div style={{ overflowX: 'auto', width: '100%' }}>
-                      <AdminTable
-                        keyField="id"
-                        emptyText="No records available."
-                        columns={dynamicCols}
-                        data={fileData.records.map((r, i) => ({ ...r, id: `row-${i}` }))}
-                      />
-                    </div>
+                    {expandedConfigs[config.id] && (
+                      <div className="env-tab-table-container">
+                        <AdminTable
+                          keyField="id"
+                          emptyText="No records available."
+                          columns={dynamicCols}
+                          data={filteredRecords.map((r, i) => ({ ...r, id: `row-${i}` }))}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })
