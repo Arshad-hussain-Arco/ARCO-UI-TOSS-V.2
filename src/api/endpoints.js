@@ -118,7 +118,8 @@ const endpoints = {
     },
   },
   hr: {
-    leaveTypes: `/leaves/hr/leave-types/`,
+    leaveTypes: `/hr/leave-types/`,
+    leaveTypeDetail: (id) => `/hr/leave-types/${id}/`,
     allLeaveTypes: `/leaves/leave-types/all/`,
     gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`, // Note: using the path as provided, though noted as a possible typo
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
@@ -135,6 +136,7 @@ const endpoints = {
     holidays: `/leaves/hr/holidays/`,
     exportLeaves: `/leaves/hr/leaves/export/`,
     importLeaves: `/leaves/hr/leaves/import/`,
+    workScheduleOptions: `/leaves/hr/work-schedule-options/`,
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',
@@ -169,9 +171,22 @@ const endpoints = {
     computerLocations: '/employees/computer-locations/',
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
   },
+  documents: {
+    list: '/documents/get-documents/',
+    create: '/documents/create/',
+    update: (id) => `/documents/${id}/update/`,
+    delete: (id) => `/documents/${id}/delete/`,
+  },
   projectMonitoring: {
     capacityPlanning: '/capacity-planning/capacity-planning/',
     workOrderStatus: '/capacity-planning/work-order-status/',
+  },
+  envAdmin: {
+    dashboard: '/env-admin/env-dashboard/',
+    details: (envName) => `/env-admin/env-details/${envName}/`,
+    createConfig: '/env-admin/env-config/create/',
+    updateConfig: (id) => `/env-admin/env-config/${id}/update/`,
+    deleteConfig: (id) => `/env-admin/env-config/${id}/delete/`,
   },
 };
 

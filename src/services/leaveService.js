@@ -218,12 +218,32 @@ export const leaveService = {
   },
 
   // --- HR / Policy / Reports Endpoints ---
-  getActiveLeaveTypes: async () => {
-    const response = await httpClient.get(endpoints.hr.leaveTypes);
+  getLeaveTypes: async (params) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypes, { params });
     return response.data;
   },
-  getAllLeaveTypes: async () => {
-    const response = await httpClient.get(endpoints.hr.allLeaveTypes);
+  getLeaveType: async (id) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypeDetail(id));
+    return response.data;
+  },
+  createLeaveType: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.leaveTypes, payload);
+    return response.data;
+  },
+  updateLeaveType: async (id, payload) => {
+    const response = await httpClient.put(endpoints.hr.leaveTypeDetail(id), payload);
+    return response.data;
+  },
+  deactivateLeaveType: async (id) => {
+    const response = await httpClient.delete(endpoints.hr.leaveTypeDetail(id));
+    return response.data;
+  },
+  activateLeaveType: async (id) => {
+    const response = await httpClient.put(endpoints.hr.leaveTypeDetail(id), { is_active: true });
+    return response.data;
+  },
+  getWorkScheduleOptions: async () => {
+    const response = await httpClient.get(endpoints.hr.workScheduleOptions);
     return response.data;
   },
   getGradePolicies: async () => {
@@ -250,8 +270,8 @@ export const leaveService = {
     const response = await httpClient.post(endpoints.hr.employeeProfile(empId), payload);
     return response.data;
   },
-  bulkUpdateEmployeeProfiles: async (payload) => {
-    const response = await httpClient.post(endpoints.hr.bulkUpdateProfile, payload);
+  bulkUpdateEmployeeProfiles: async (payload, params) => {
+    const response = await httpClient.post(endpoints.hr.bulkUpdateProfile, payload, { params });
     return response.data;
   },
   adjustLeaveBalance: async (payload) => {
