@@ -71,6 +71,7 @@ const endpoints = {
   },
   scriptManager: {
     runtimeFile: '/script-manager/runtime-file/',
+    runtimeDetails: '/script-manager/runtime-details/',
     categories: {
       list: '/script-manager/categories/',
       create: '/script-manager/categories/create/',

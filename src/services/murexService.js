@@ -52,7 +52,8 @@ export const murexService = {
         if (maxRuntime > avgRuntimeMin * 2) health = 'Critical';
         else if (maxRuntime > avgRuntimeMin * 1.5) health = 'Warning';
 
-        const history = (processData.steps || []).map((runData, i) => {
+        const historyBase = processData.steps?.length ? processData.steps : labels;
+        const history = historyBase.map((runData, i) => {
           const runDurationMin = durationsInMinutes[i] || 0;
           let runStatus = 'success';
           if (runDurationMin > avgRuntimeMin * 2) runStatus = 'error';
@@ -63,12 +64,12 @@ export const murexService = {
           else if (runStatus === 'warning') runTitle = 'Runtime Threshold Exceeded';
 
           // Optional: we can include the breakdown of individual steps
-          const stepBreakdown = (runData.step || []).map((stepName, stepIndex) => ({
+          const stepBreakdown = processData.steps?.length ? (runData.step || []).map((stepName, stepIndex) => ({
              name: stepName,
              cpu_time: (runData.cpu_time || [])[stepIndex] || 0,
              db_time: (runData.db_time || [])[stepIndex] || 0,
              elapsed_time: (runData.elapsed_time || [])[stepIndex] || 0,
-          }));
+          })) : [];
 
           return {
             date: labels[i] || 'Unknown Date',
@@ -143,6 +144,15 @@ export const murexService = {
       // Fallback to mock data if API is not fully up or errors out
       const mock = await murexMocks.getRuntimeTrends();
       return mock;
+    }
+  },
+  fetchRuntimeDetails: async (params) => {
+    try {
+      const res = await api.get(endpoints.scriptManager.runtimeFile, { params });
+      return res.data;
+    } catch (err) {
+      console.error('Failed to fetch runtime details:', err);
+      return null;
     }
   },
   getCategories: async () => {
