@@ -102,6 +102,9 @@ const endpoints = {
     exportLeaves: (id) => `/leaves/manager/${id}/leaves/export/`,
     importLeaves: (id) => `/leaves/manager/${id}/leaves/import/`,
     teamCalendar: (id) => `/leaves/manager/${id}/team-calendar/`,
+    teamPresentToday: (id) => `/leaves/manager/${id}/team-present-today/`,
+    teamOnLeaveToday: (id) => `/leaves/manager/${id}/team-on-leave-today/`,
+    teamOnWfhToday: (id) => `/leaves/manager/${id}/team-on-wfh-today/`,
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',
