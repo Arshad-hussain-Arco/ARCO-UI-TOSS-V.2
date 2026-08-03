@@ -10,9 +10,13 @@ export function LifecycleProgress({ status, mode = 'business' }) {
   const bizInfo = getBusinessStageInfo(status);
   const devInfo = getDevelopmentStageInfo(status);
 
+  // Only project-level completed/closed statuses mark ALL stages as completed.
+  // Stage statuses like "Development Completed" or "UAT Completed" should NOT mark the whole project as completed.
+  const lowerStatus = (status || '').trim().toLowerCase();
   const isCompleted =
-    (status || '').toLowerCase().includes('completed') ||
-    (status || '').toLowerCase().includes('close');
+    lowerStatus === 'completed' ||
+    lowerStatus === 'closed' ||
+    lowerStatus === 'done';
 
   return (
     <div className={`pm-lifecycle-progress-container mode-${mode}`}>

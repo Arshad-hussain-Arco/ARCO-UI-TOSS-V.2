@@ -29,6 +29,7 @@ import LifecycleToggle from './components/LifecycleToggle';
 import StatusFilter from './components/StatusFilter';
 import ProjectRow from './components/ProjectRow';
 import { getStageInfo } from './utils/statusMapper';
+import { getBusinessStageInfo } from './utils/businessLifecycleMap';
 import {
   calculateCategoryCounts,
   filterByCategory,
@@ -437,6 +438,11 @@ export function ProjectMonitoringPage() {
     return calculateCategoryCounts(projectsList);
   }, [projectsList]);
 
+  // 0. Filter projects by selected Depends_On category pill tab (All, Budget, BAU, Service, BUD - PR Wait, Not Available)
+  const categoryProjects = useMemo(() => {
+    return projectsList.filter((p) => filterByCategory(p, selectedCategory));
+  }, [projectsList, selectedCategory]);
+
   // 2. Dynamic Team Role Breakdown Cards (Matches Image 1)
   const teamRoles = useMemo(() => {
     return [
@@ -449,24 +455,19 @@ export function ProjectMonitoringPage() {
       { id: 'additionalDev', title: 'Count By Additional Developer', field: 'additionalDev' },
     ].map((r) => ({
       ...r,
-      members: calculateTeamRoleCounts(projectsList, r.field),
+      members: calculateTeamRoleCounts(categoryProjects, r.field),
     }));
-  }, [projectsList]);
+  }, [categoryProjects]);
 
   // 3. Dynamic Breach Metrics (Matches Image 4)
   const breachMetrics = useMemo(() => {
-    return calculateBreachMetrics(projectsList);
-  }, [projectsList]);
+    return calculateBreachMetrics(categoryProjects);
+  }, [categoryProjects]);
 
   // Filtered projects list based on search, category chip, and dynamic status filter
   const filteredProjects = useMemo(() => {
-    return projectsList.filter((p) => {
-      // 1. Filter by dynamic Depends_On category pill tab
-      if (!filterByCategory(p, selectedCategory)) {
-        return false;
-      }
-
-      // 2. Search query filter
+    return categoryProjects.filter((p) => {
+      // 1. Search query filter
       const q = searchQuery.toLowerCase().trim();
       if (
         q &&
@@ -478,7 +479,7 @@ export function ProjectMonitoringPage() {
         return false;
       }
 
-      // 3. Status filter dropdown
+      // 2. Status filter dropdown
       if (statusFilter) {
         const stageInfo = getStageInfo(p.stage, lifecycleMode);
         const selectedStageInfo = getStageInfo(statusFilter, lifecycleMode);
@@ -488,12 +489,15 @@ export function ProjectMonitoringPage() {
       }
       return true;
     });
-  }, [projectsList, selectedCategory, searchQuery, statusFilter, lifecycleMode]);
+  }, [categoryProjects, searchQuery, statusFilter, lifecycleMode]);
 
   const maxVelocity = Math.max(...COMPLETED_DATA, ...TARGET_DATA);
 
+  // Dynamic Lifecycle Pipeline Overview stages (reflects active category pill tab selection)
   const dynamicPipelineStages = useMemo(() => {
     const stages = [
+      { key: 'inception', label: 'Inception', cls: 'pm-stage-inception', count: 0 },
+      { key: 'planning', label: 'Planning', cls: 'pm-stage-planning', count: 0 },
       { key: 'building', label: 'Building', cls: 'pm-stage-building', count: 0 },
       { key: 'testing', label: 'Testing', cls: 'pm-stage-testing', count: 0 },
       { key: 'release', label: 'Release Process', cls: 'pm-stage-release', count: 0 },
@@ -501,17 +505,26 @@ export function ProjectMonitoringPage() {
       { key: 'completed', label: 'Completed', cls: 'pm-stage-completed', count: 0 },
     ];
 
-    projectsList.forEach((p) => {
-      if (p.workOrderType === 'Project') {
-        const stageObj = stages.find((s) => s.key === p.stage.toLowerCase());
-        if (stageObj) stageObj.count++;
-      }
+    categoryProjects.forEach((p) => {
+      const stageInfo = getBusinessStageInfo(p.stage);
+      const stageObj = stages.find((s) => s.key === stageInfo.phase.key);
+      if (stageObj) stageObj.count++;
     });
 
     return stages;
-  }, [projectsList]);
+  }, [categoryProjects]);
 
-  const isAllCategory = selectedCategory === 'all';
+  const testingBlockedCount = useMemo(() => {
+    return categoryProjects.filter(
+      (p) => (p.stage || '').toLowerCase().includes('testing blocked') || (p.stage || '').toLowerCase().includes('blocked')
+    ).length;
+  }, [categoryProjects]);
+
+  const deferredCount = useMemo(() => {
+    return categoryProjects.filter(
+      (p) => (p.stage || '').toLowerCase().includes('deferred')
+    ).length;
+  }, [categoryProjects]);
 
   return (
     <div className="pm-shell">
@@ -605,12 +618,18 @@ export function ProjectMonitoringPage() {
                 role="button"
                 tabIndex={0}
                 style={{ cursor: 'pointer' }}
-                onClick={() => setDrilldownStage({ key: 'testing-blocked', label: 'Testing Blocked', count: 2 })}
+                onClick={() => setDrilldownStage({ key: 'testing-blocked', label: 'Testing Blocked', count: testingBlockedCount })}
               >
-                🚨 Testing Blocked — 2
+                🚨 Testing Blocked — {testingBlockedCount}
               </span>
-              <span className="pm-special-badge pm-badge-deferred">
-                ⏸️ Deferred — {isAllCategory ? 1 : 0}
+              <span
+                className="pm-special-badge pm-badge-deferred"
+                role="button"
+                tabIndex={0}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setDrilldownStage({ key: 'deferred', label: 'Deferred', count: deferredCount })}
+              >
+                ⏸️ Deferred — {deferredCount}
               </span>
             </div>
           </div>
@@ -940,7 +959,7 @@ export function ProjectMonitoringPage() {
         <DrilldownModal
           stage={drilldownStage}
           onClose={() => setDrilldownStage(null)}
-          projectsData={projectsList}
+          projectsData={categoryProjects}
         />
       )}
     </div>
