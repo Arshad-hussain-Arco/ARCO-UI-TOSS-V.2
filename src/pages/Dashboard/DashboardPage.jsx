@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { Download, Filter } from 'lucide-react';
+import { addDays, format } from 'date-fns';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -15,6 +16,9 @@ import { KpiStrip } from './sections/KpiStrip';
 import { LeaveSnapshotSection } from './sections/LeaveSnapshotSection';
 import { ProjectRiskSection } from './sections/ProjectRiskSection';
 import { SystemHealthSection } from './sections/SystemHealthSection';
+import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendChart';
+import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
+import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
 import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import './DashboardPage.css';
 
@@ -41,12 +45,21 @@ export function DashboardPage() {
   const [leaveUtilization, setLeaveUtilization] = useState([]);
   const [announcements, setAnnouncements] = useState({ banner: [], feed: [] });
   const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [capacityRecords, setCapacityRecords] = useState([]);
+  const [trendData, setTrendData] = useState(null);
+  const [departmentStats, setDepartmentStats] = useState([]);
+  const [onLeaveRecords, setOnLeaveRecords] = useState([]);
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const empId = user?.employee_id || user?.emp_id || user?.id;
+
+      const today = new Date();
+      const nextWeek = addDays(today, 7);
+      const startStr = format(today, 'yyyy-MM-dd');
+      const endStr = format(nextWeek, 'yyyy-MM-dd');
 
       const promises = [
         httpClient.get('/dashboard/summary/'),
@@ -55,6 +68,10 @@ export function DashboardPage() {
         httpClient.get('/employees/teams/'),
         httpClient.get('/employees/employees-list/'),
         httpClient.get('/dashboard/announcements/'),
+        httpClient.get('/capacity-planning/capacity-planning/'),
+        httpClient.get('/dashboard/leave-requests-trend/?days=7'),
+        httpClient.get('/dashboard/department-stats/'),
+        httpClient.get(`/dashboard/on-leave/?start_date=${startStr}&end_date=${endStr}`),
       ];
 
       if (empId) {
@@ -80,6 +97,19 @@ export function DashboardPage() {
       if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value.data);
       if (results[6]?.status === 'fulfilled') {
         const data = results[6].value.data;
+        setCapacityRecords(Array.isArray(data) ? data : data?.results || []);
+      }
+      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value.data);
+      if (results[8]?.status === 'fulfilled') {
+        const data = results[8].value.data;
+        setDepartmentStats(Array.isArray(data) ? data : data?.results || []);
+      }
+      if (results[9]?.status === 'fulfilled') {
+        const data = results[9].value.data;
+        setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
+      }
+      if (empId && results[10]?.status === 'fulfilled') {
+        const data = results[10].value.data;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -153,6 +183,21 @@ export function DashboardPage() {
       { label: 'On Leave', percentage: activeEmps ? Math.round((leaveEmps / activeEmps) * 100) : 0, count: leaveEmps }
     ];
 
+    const upcomingLeaves = onLeaveRecords.map(r => {
+      // Create a nice date string (e.g. Aug 05 - Aug 07 or just Aug 05)
+      const isSameDate = r.start_date === r.end_date;
+      const startFmt = r.start_date ? format(new Date(r.start_date), 'MMM dd') : '';
+      const endFmt = r.end_date ? format(new Date(r.end_date), 'MMM dd') : '';
+      const dateStr = isSameDate ? startFmt : `${startFmt} - ${endFmt}`;
+
+      return {
+        id: String(r.leave_id || r.id || Math.random()),
+        name: r.emp_name || 'Unknown',
+        date: dateStr,
+        type: r.leave_type || 'Leave'
+      };
+    });
+
     // 5. Alerts
     const alerts = [
       ...announcements.banner.map(a => ({ id: `a-${a.id}`, severity: 'warning', text: a.title, iconKey: 'alertCircle' })),
@@ -164,15 +209,35 @@ export function DashboardPage() {
       { id: 'qs2', label: 'Open Issues', value: '0', tone: 'green' }
     ];
 
+    // 6. Capacity By Team
+    // Group records by TeamName, sum Effort_in_MDs
+    const capacityMap = {};
+    capacityRecords.forEach(record => {
+      const team = record.TeamName || 'Unassigned';
+      if (!capacityMap[team]) {
+        capacityMap[team] = { team, used: 0, available: 100 }; // Mock available capacity to 100 MDs for demo
+      }
+      const effort = parseFloat(record.Effort_in_MDs) || 0;
+      capacityMap[team].used += effort;
+    });
+    
+    // Convert map to array and compute percentage
+    const capacityByTeam = Object.values(capacityMap).map(c => ({
+      team: c.team,
+      used: Math.round(c.used),
+      available: c.available,
+      percentage: Math.min(100, Math.round((c.used / c.available) * 100))
+    }));
+
     return {
       kpis,
       systemHealth,
       runtimeTrend,
       runtimeInsights,
       leaveDistribution,
-      upcomingLeaves: [],
+      upcomingLeaves,
       attendanceStatus,
-      capacityByTeam: [],
+      capacityByTeam,
       projectRisk: { total: 0, atRisk: 0, offTrack: 0 },
       projectsByStatus: [],
       documents: { total: 0, updated: 0, mostViewed: [] },
@@ -180,7 +245,7 @@ export function DashboardPage() {
       alerts,
       quickStats,
     };
-  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals]);
+  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords]);
 
   // 6. Team Headcount
   const mappedTeams = useMemo(() => {
@@ -234,27 +299,48 @@ export function DashboardPage() {
         ) : (
           <>
             <div className="dc-main">
-              <KpiStrip kpis={mappedSummary.kpis} />
+              {/* EOD Environment Status Strip */}
+              <EnvironmentStatusStrip eodRecords={eodRecords} />
 
-              <SystemHealthSection
-                systemHealth={mappedSummary.systemHealth}
-                runtimeTrend={mappedSummary.runtimeTrend}
-                insights={mappedSummary.runtimeInsights}
-              />
+              <div className="dc-layout-grid">
+                {/* LEFT COLUMN: System Health, Requests Trend, Capacity, Teams, Departments */}
+              <div className="dc-main-col">
+                <KpiStrip kpis={mappedSummary.kpis} />
 
-              <LeaveSnapshotSection
-                leaveDistribution={mappedSummary.leaveDistribution}
-                upcomingLeaves={mappedSummary.upcomingLeaves}
-                attendanceStatus={mappedSummary.attendanceStatus}
-              />
+                <SystemHealthSection 
+                  systemHealth={mappedSummary.systemHealth}
+                  runtimeTrend={mappedSummary.runtimeTrend}
+                  insights={mappedSummary.runtimeInsights}
+                />
 
-              {mappedSummary.capacityByTeam.length > 0 && (
-                <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
-              )}
+                {/* Requests Trend Chart */}
+                <section className="dc-section">
+                  <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
+                  <div className="dc-card">
+                    {trendData?.results && trendData.results.length > 0 ? (
+                      <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
+                    ) : (
+                      <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        No request trend data returned from API
+                      </div>
+                    )}
+                  </div>
+                </section>
 
-              {mappedTeams && mappedTeams.length > 0 && (
-                <TeamHeadcountSection teams={mappedTeams} />
-              )}
+                <LeaveSnapshotSection
+                  leaveDistribution={mappedSummary.leaveDistribution}
+                  upcomingLeaves={mappedSummary.upcomingLeaves}
+                  attendanceStatus={mappedSummary.attendanceStatus}
+                />
+
+                {mappedSummary.capacityByTeam.length > 0 && (
+                  <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
+                )}
+
+                {mappedTeams && mappedTeams.length > 0 && (
+                  <TeamHeadcountSection teams={mappedTeams} />
+                )}
+              </div>
 
               {mappedSummary.projectsByStatus.length > 0 && (
                 <ProjectRiskSection
@@ -270,10 +356,11 @@ export function DashboardPage() {
                 />
               )}
             </div>
+          </div>
 
-            <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
-          </>
-        )}
+          <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+        </>
+      )}
       </div>
     </div>
   );
