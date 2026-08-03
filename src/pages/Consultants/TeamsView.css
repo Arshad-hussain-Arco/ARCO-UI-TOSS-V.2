@@ -69,8 +69,8 @@
   font-weight: 700;
   color: var(--text-primary);
 }
-.tv-sc-val.leave { color: var(--brand-warning); }
-.tv-sc-val.wfh { color: var(--brand-info); }
+.tv-sc-val.leave { color: var(--status-warning); }
+.tv-sc-val.wfh { color: var(--status-info); }
 
 .tv-sc-lbl {
   font-size: 10px;
@@ -186,7 +186,7 @@
   transition: width 0.5s ease;
 }
 .tv-ah-progress-fill.pri { background-color: var(--brand-primary); }
-.tv-ah-progress-fill.add { background-color: var(--brand-info); }
+.tv-ah-progress-fill.add { background-color: var(--status-info); }
 
 .tv-ah-chevron {
   color: var(--text-tertiary);
@@ -333,9 +333,9 @@
   border-radius: 50%;
   border: 2px solid var(--surface-primary);
 }
-.tv-emp-status-dot.active { background-color: var(--brand-success); }
-.tv-emp-status-dot.leave { background-color: var(--brand-warning); }
-.tv-emp-status-dot.wfh { background-color: var(--brand-info); }
+.tv-emp-status-dot.active { background-color: var(--status-success); }
+.tv-emp-status-dot.leave { background-color: var(--status-warning); }
+.tv-emp-status-dot.wfh { background-color: var(--status-info); }
 
 .tv-emp-info {
   flex: 1;
