@@ -27,7 +27,7 @@ const endpoints = {
       create: '/important-links/link-data/create/',
       update: (id) => `/important-links/link-data/${id}/update/`,
       delete: (id) => `/important-links/link-data/${id}/delete/`,
-    }
+    },
   },
   systemSettings: {
     environmentConfig: '/env-admin/environment-config/',
@@ -44,7 +44,6 @@ const endpoints = {
     updateHomeData: (id) => `/dashboard/home-data/${id}/update/`,
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
   },
-  // Add other endpoints here as they get integrated
   me: {
     balance: (id) => `/leaves/me/${id}/balance/`,
     leaves: (id) => `/leaves/me/${id}/leaves/`,
@@ -127,8 +126,10 @@ const endpoints = {
     leaveTypesWithPolicy: `/hr/leave-types-with-policy/`,
     leaveTypeWithPolicyDetail: (code) => `/hr/leave-types-with-policy/${code}/`,
     allLeaveTypes: `/leaves/leave-types/all/`,
-    gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`, // Note: using the path as provided, though noted as a possible typo
+    gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`,
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
+    policies: `/hr/policies/`,
+    policyDetail: (id) => `/hr/policies/${id}/`,
     employeeProfile: (empId) => `/leaves/hr/employees/${empId}/profile/`,
     bulkUpdateProfile: `/leaves/hr/employees/profiles/bulk-update/`,
     balanceAdjust: `/leaves/hr/balance/adjust/`,
@@ -168,13 +169,16 @@ const endpoints = {
     activate: '/employees/activate/',
     roles: '/employees/roles/',
     teams: '/employees/teams/',
+    teamDetail: (id) => `/employees/teams/${id}/`,
     designationsTeams: '/employees/designation-teams/',
     photoUpload: (id) => `/employees/emp-photo/${id}/upload/`,
     photoDelete: (id) => `/employees/emp-photo/${id}/delete/`,
     teamHeadcount: '/employees/team-headcount/',
     designations: '/employees/designations/',
+    designationDetail: (id) => `/employees/designations/${id}/`,
     locations: '/employees/locations/',
     computerLocations: '/employees/computer-locations/',
+    computerLocationDetail: (id) => `/employees/computer-locations/${id}/`,
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
   },
   documents: {
@@ -193,6 +197,25 @@ const endpoints = {
     createConfig: '/env-admin/env-config/create/',
     updateConfig: (id) => `/env-admin/env-config/${id}/update/`,
     deleteConfig: (id) => `/env-admin/env-config/${id}/delete/`,
+  },
+  eodJobs: {
+    overview: '/eod-jobs/overview/',
+    records: '/eod-jobs/eod-records/',
+    createRecord: '/eod-jobs/eod-records/create/',
+    updateRecord: (id) => `/eod-jobs/eod-records/${id}/update/`,
+    deleteRecord: (id) => `/eod-jobs/eod-records/${id}/delete/`,
+    executeScript: '/eod-jobs/execute-script/',
+    status: (id) => `/eod-jobs/${id}/status/`,
+    liveUpdates: (id) => `/eod-jobs/${id}/live-updates/`,
+    findLog: '/eod-jobs/find-log/',
+    allJobs: (id) => `/eod-jobs/${id}/all-jobs/`,
+    copyReplace: (id) => `/eod-jobs/${id}/copy-replace/`,
+  },
+  eodSchedules: {
+    list: '/eod-schedules/eod-schedules/',
+    create: '/eod-schedules/eod-schedules/create/',
+    update: (id) => `/eod-schedules/eod-schedules/${id}/update/`,
+    delete: (id) => `/eod-schedules/eod-schedules/${id}/delete/`,
   },
 };
 
