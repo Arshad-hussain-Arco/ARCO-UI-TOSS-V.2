@@ -21,6 +21,8 @@ import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
 import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
+import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
+import { leaveService } from '@services/leaveService';
 import './DashboardPage.css';
 
 /**
@@ -50,6 +52,7 @@ export function DashboardPage() {
   const [trendData, setTrendData] = useState(null);
   const [departmentStats, setDepartmentStats] = useState([]);
   const [onLeaveRecords, setOnLeaveRecords] = useState([]);
+  const [upcomingHolidays, setUpcomingHolidays] = useState([]);
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
@@ -73,6 +76,7 @@ export function DashboardPage() {
         httpClient.get('/dashboard/leave-requests-trend/?days=7'),
         httpClient.get('/dashboard/department-stats/'),
         httpClient.get(`/dashboard/on-leave/?start_date=${startStr}&end_date=${endStr}`),
+        leaveService.getHolidays(),
       ];
 
       if (empId) {
@@ -109,8 +113,26 @@ export function DashboardPage() {
         const data = results[9].value.data;
         setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
       }
-      if (empId && results[10]?.status === 'fulfilled') {
+      if (results[10]?.status === 'fulfilled') {
         const data = results[10].value.data;
+        const holidaysArr = Array.isArray(data) ? data : data?.results || [];
+        
+        // Filter and sort for upcoming holidays only
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const upcoming = holidaysArr
+          .filter(h => {
+            const hDate = new Date(h.date || h.start_date || h.holiday_date);
+            return hDate >= today;
+          })
+          .sort((a, b) => new Date(a.date || a.start_date || a.holiday_date) - new Date(b.date || b.start_date || b.holiday_date))
+          .slice(0, 4); // Take top 4
+
+        setUpcomingHolidays(upcoming);
+      }
+      if (empId && results[11]?.status === 'fulfilled') {
+        const data = results[11].value.data;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -377,6 +399,8 @@ export function DashboardPage() {
           <aside className="dc-right-rail">
             <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
             
+            <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+
             {pendingApprovals && pendingApprovals.length > 0 && (
               <PendingApprovalsActionSection 
                 pendingApprovals={pendingApprovals} 
