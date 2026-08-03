@@ -21,6 +21,37 @@ import { leaveService } from '@services/leaveService';
 import { Loader } from '@components/feedback/Loader/Loader';
 import './LeaveConfigurationPage.css';
 
+// Static Work Schedule options (not sourced from the backend).
+const WORK_SCHEDULE_OPTIONS = {
+  schedules: [
+    { value: 'MON_FRI', label: 'Monday to Friday' },
+    { value: 'MON_SAT', label: 'Monday to Saturday' },
+    { value: 'SUN_THU', label: 'Sunday to Thursday' },
+    { value: 'CUSTOM', label: 'Custom' },
+  ],
+  custom_weekend_days: {
+    description: 'Weekday numbers used in custom_weekend_days (Mon=0 ... Sun=6).',
+    days: [
+      { value: 0, label: 'Monday' },
+      { value: 1, label: 'Tuesday' },
+      { value: 2, label: 'Wednesday' },
+      { value: 3, label: 'Thursday' },
+      { value: 4, label: 'Friday' },
+      { value: 5, label: 'Saturday' },
+      { value: 6, label: 'Sunday' },
+    ],
+  },
+};
+
+function getScheduleLabel(value) {
+  const match = WORK_SCHEDULE_OPTIONS.schedules.find((s) => s.value === value);
+  return match ? match.label : value;
+}
+
+function formatCustomWeekendDays(days) {
+  const dayMap = new Map(WORK_SCHEDULE_OPTIONS.custom_weekend_days.days.map((d) => [d.value, d.label]));
+  return (days || []).map((d) => dayMap.get(d) || d).join(', ');
+}
 
 /**
  * Format raw date string (e.g. '2026-02-22') into 'MMM DD, YYYY' (e.g. 'Feb 22, 2026').
@@ -344,51 +375,82 @@ export function LeaveConfigurationPage() {
   const [combinedLeaveTypes, setCombinedLeaveTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Work Schedule State
-  const [workScheduleOptions, setWorkScheduleOptions] = useState({ schedules: [], custom_weekend_days: { days: [] } });
-  const [selectedSchedule, setSelectedSchedule] = useState('');
+  // Work Schedule State — static options, not fetched from backend
+  const workScheduleOptions = WORK_SCHEDULE_OPTIONS;
   const [selectedCustomDays, setSelectedCustomDays] = useState([]);
+  const [workScheduleSummary, setWorkScheduleSummary] = useState(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
-  // Fetch API Data
+  // Reset Work Schedule selections when changing away from that tab
   useEffect(() => {
-    // Reset Work Schedule selections when changing tabs
     if (activeTab !== 'work-schedule') {
-      setSelectedSchedule('');
       setSelectedCustomDays([]);
     }
+  }, [activeTab]);
 
-    const fetchData = async () => {
+  // Fetch Holidays — runs once on mount, not gated to the active tab, so all
+  // tabs' data is ready as soon as the page loads.
+  useEffect(() => {
+    let active = true;
+    const fetchHolidays = async () => {
       setIsLoading(true);
       try {
-        if (activeTab === 'holidays') {
-          const hData = await leaveService.listHolidays();
-          // Adjust field names if backend returns something different (e.g., holiday_name vs name)
-          const mappedHolidays = (hData || []).map(h => ({
-            ...h,
-            id: h.id,
-            name: h.holiday_name || h.name,
-            date: h.date || (h.dates && h.dates[0]) || '',
-            day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
-            type: h.type || 'Public Holiday',
-            status: h.status || 'Upcoming',
-            description: h.description || '',
-          }));
-          setHolidays(mappedHolidays);
-        } else if (activeTab === 'work-schedule') {
-          const wsData = await leaveService.getWorkScheduleOptions();
-          if (wsData) {
-            setWorkScheduleOptions(wsData);
+        const hData = await leaveService.listHolidays();
+        // Adjust field names if backend returns something different (e.g., holiday_name vs name)
+        const mappedHolidays = (hData || []).map(h => ({
+          ...h,
+          id: h.id,
+          name: h.holiday_name || h.name,
+          date: h.date || (h.dates && h.dates[0]) || '',
+          day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
+          type: h.type || 'Public Holiday',
+          status: h.status || 'Upcoming',
+          description: h.description || '',
+        }));
+        if (active) setHolidays(mappedHolidays);
+      } catch (err) {
+        console.error('Failed to load holidays:', err);
+        if (active) toast.error('Error loading holidays');
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    };
+    fetchHolidays();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch Work Schedule Summary — org-wide/grouped current schedule assignment
+  useEffect(() => {
+    let active = true;
+    const fetchSummary = async () => {
+      setIsSummaryLoading(true);
+      try {
+        const data = await leaveService.getWorkScheduleSummary();
+        if (active) {
+          setWorkScheduleSummary(data);
+          // Pre-select the currently applied weekend days so the checkboxes reflect
+          // the org's current assignment as soon as the tab opens.
+          if (data?.meta?.distinct_schedules === 1) {
+            const group = data.results[0];
+            setSelectedCustomDays(
+              group.work_schedule === 'CUSTOM' ? group.custom_weekend_days || [] : [],
+            );
           }
         }
       } catch (err) {
-        console.error('Failed to load data:', err);
-        toast.error('Error loading data');
+        console.error('Failed to load work schedule summary:', err);
+        if (active) setWorkScheduleSummary(null);
       } finally {
-        setIsLoading(false);
+        if (active) setIsSummaryLoading(false);
       }
     };
-    fetchData();
-  }, [activeTab]);
+    fetchSummary();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -407,10 +469,10 @@ export function LeaveConfigurationPage() {
     }
   };
 
+  // Fetch Leave Types + Policies — runs once on mount alongside the other tabs' data.
   useEffect(() => {
     let active = true;
     const run = async () => {
-      if (activeTab !== 'leave-types-policies') return;
       setIsLoading(true);
       try {
         const res = await leaveService.getLeaveTypesWithPolicy();
@@ -426,7 +488,7 @@ export function LeaveConfigurationPage() {
     return () => {
       active = false;
     };
-  }, [activeTab]);
+  }, []);
 
   // ── Inline Edit State for Holidays ────────────────────────────────────────
   const [editingHolidayId, setEditingHolidayId] = useState(null);
@@ -592,18 +654,11 @@ export function LeaveConfigurationPage() {
 
   const handleApplyWorkSchedule = async () => {
     try {
-      if (!selectedSchedule) {
-        toast.error('Please select a standard work week');
+      if (selectedCustomDays.length === 0) {
+        toast.error('Please select at least one weekend day');
         return;
       }
-      if (selectedSchedule === 'CUSTOM' && selectedCustomDays.length === 0) {
-        toast.error('Please select at least one custom weekend day');
-        return;
-      }
-      const payload = { work_schedule: selectedSchedule };
-      if (selectedSchedule === 'CUSTOM') {
-        payload.custom_weekend_days = selectedCustomDays;
-      }
+      const payload = { work_schedule: 'CUSTOM', custom_weekend_days: selectedCustomDays };
 
       await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
       toast.success('Work schedule applied successfully!');
@@ -1127,53 +1182,71 @@ export function LeaveConfigurationPage() {
           <div className="lc-card-panel">
             <div style={{ padding: '24px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>Work Schedule Settings</h3>
+
+              {isSummaryLoading && (
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>Loading current schedule…</div>
+              )}
+
+              {!isSummaryLoading && workScheduleSummary?.meta?.distinct_schedules > 1 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px' }}>
+                    Employees are currently split across multiple schedules. Applying below will set everyone to the selected days.
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {workScheduleSummary.results.map((group, idx) => (
+                      <div
+                        key={`${group.work_schedule}-${idx}`}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                            {getScheduleLabel(group.work_schedule)}
+                          </span>
+                          {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
+                            <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
+                              ({formatCustomWeekendDays(group.custom_weekend_days)})
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                          {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="ss-modal-form-group">
-                  <label className="ss-modal-label">Standard Work Week</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-                    {(workScheduleOptions.schedules || []).map((schedule) => (
-                      <label key={schedule.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <label className="ss-modal-label">Select Weekend Days</label>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                    {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => (
+                      <label key={day.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                         <input
-                          type="radio"
-                          name="workSchedule"
-                          value={schedule.value}
-                          checked={selectedSchedule === schedule.value}
-                          onChange={() => setSelectedSchedule(schedule.value)}
+                          type="checkbox"
+                          checked={selectedCustomDays.includes(day.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCustomDays([...selectedCustomDays, day.value]);
+                            } else {
+                              setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
+                            }
+                          }}
                           style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
                         />
-                        <span style={{ fontSize: '14px', color: '#334155' }}>{schedule.label}</span>
+                        <span style={{ fontSize: '14px', color: '#334155' }}>{day.label}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-
-                {selectedSchedule === 'CUSTOM' && (
-                  <div className="ss-modal-form-group" style={{ paddingLeft: '24px', borderLeft: '2px solid #e2e8f0', marginLeft: '8px' }}>
-                    <label className="ss-modal-label">Select Custom Weekend Days</label>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
-                      {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                      {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => (
-                        <label key={day.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedCustomDays.includes(day.value)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedCustomDays([...selectedCustomDays, day.value]);
-                              } else {
-                                setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
-                              }
-                            }}
-                            style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
-                          />
-                          <span style={{ fontSize: '14px', color: '#334155' }}>{day.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>

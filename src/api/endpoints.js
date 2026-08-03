@@ -144,6 +144,7 @@ const endpoints = {
     exportLeaves: `/leaves/hr/leaves/export/`,
     importLeaves: `/leaves/hr/leaves/import/`,
     workScheduleOptions: `/leaves/hr/work-schedule-options/`,
+    workScheduleSummary: `/leaves/hr/employees/work-schedule/summary/`,
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',
