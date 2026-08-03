@@ -72,22 +72,29 @@
 }
 
 .admin-modal-close {
-  background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 5px;
-  padding: 5px;
-  cursor: pointer;
-  color: var(--text-secondary);
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: #374151;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  color: white;
   display: flex;
   align-items: center;
-  transition: all 0.12s ease;
-  flex-shrink: 0;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.15s ease, background 0.15s ease;
+  padding: 0;
 }
 
 .admin-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
+  background: #1f2937;
+  color: white;
+  border-color: white;
+  transform: scale(1.05);
 }
 
 .admin-modal-body {

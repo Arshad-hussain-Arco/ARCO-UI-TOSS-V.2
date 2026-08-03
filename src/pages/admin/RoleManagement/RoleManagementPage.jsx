@@ -95,7 +95,7 @@ const mapRole = (r) => {
   return {
     id: r.id,
     name: r.role_name,
-    description: 'System Role',
+    description: r.description || '-',
     isAdmin: r.isadmin === 1 || r.isadmin === true,
     permissions: perms,
   };
@@ -206,6 +206,7 @@ export function RoleManagementPage() {
     try {
       const payload = {
         name: newRoleName.trim(),
+        description: newRoleDesc,
         isAdmin: newRoleIsAdmin,
         permissions: newRoleMatrix,
       };
@@ -239,6 +240,7 @@ export function RoleManagementPage() {
       await roleService.updateRole(role.id, {
         name: role.name,
         isAdmin: role.isAdmin,
+        description: role.description === '-' ? '' : role.description,
         permissions: role.permissions,
       });
       toast.success('Role permissions updated successfully.');
@@ -272,6 +274,21 @@ export function RoleManagementPage() {
                 [actionKey]: nextVal,
               },
             },
+          };
+        }
+        return role;
+      })
+    );
+  };
+
+  // Update Role Description Inline
+  const handleInlineDescriptionChange = (roleId, newDescription) => {
+    setRoles((prev) =>
+      prev.map((role) => {
+        if (role.id === roleId) {
+          return {
+            ...role,
+            description: newDescription,
           };
         }
         return role;
@@ -471,11 +488,20 @@ export function RoleManagementPage() {
                                 <h3>Functions & Permission Matrix — {role.name}</h3>
                                 <p>Click any toggle button to switch between Allow and Deny.</p>
                               </div>
-                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px' }}>
+                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input
+                                  type="text"
+                                  className="ef-input"
+                                  style={{ padding: '6px 12px', height: '32px', fontSize: '13px', width: '250px' }}
+                                  value={role.description === '-' ? '' : role.description}
+                                  onChange={(e) => handleInlineDescriptionChange(role.id, e.target.value)}
+                                  placeholder="Role Description"
+                                />
                                 <button
                                   type="button"
                                   className="rm-btn-sm-close"
                                   disabled={isSaving}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
                                   {...activatable(() => setExpandedRoleId(null), {
                                     label: 'Cancel permission changes',
                                   })}
@@ -486,7 +512,7 @@ export function RoleManagementPage() {
                                   type="button"
                                   className="rm-btn-primary"
                                   disabled={isSaving}
-                                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
                                   {...activatable(() => handleUpdateRole(role), {
                                     label: 'Save permission changes',
                                   })}

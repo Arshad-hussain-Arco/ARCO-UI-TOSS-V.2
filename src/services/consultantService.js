@@ -95,12 +95,36 @@ export const consultantService = {
     const response = await httpClient.get(endpoints.consultants.teams);
     return response.data;
   },
+  createTeam: async (payload) => {
+    const response = await httpClient.post(endpoints.consultants.teams, payload);
+    return response.data;
+  },
+  updateTeam: async (id, payload) => {
+    const response = await httpClient.patch(endpoints.consultants.teamDetail(id), payload);
+    return response.data;
+  },
+  deleteTeam: async (id) => {
+    const response = await httpClient.delete(endpoints.consultants.teamDetail(id));
+    return response.data;
+  },
   getDesignationsAndTeams: async () => {
     const response = await httpClient.get(endpoints.consultants.designationsTeams);
     return response.data;
   },
   getDesignations: async () => {
     const response = await httpClient.get(endpoints.consultants.designations);
+    return response.data;
+  },
+  createDesignation: async (payload) => {
+    const response = await httpClient.post(endpoints.consultants.designations, payload);
+    return response.data;
+  },
+  updateDesignation: async (id, payload) => {
+    const response = await httpClient.patch(endpoints.consultants.designationDetail(id), payload);
+    return response.data;
+  },
+  deleteDesignation: async (id) => {
+    const response = await httpClient.delete(endpoints.consultants.designationDetail(id));
     return response.data;
   },
   getLocations: async () => {
@@ -113,6 +137,18 @@ export const consultantService = {
   },
   getComputerLocations: async () => {
     const response = await httpClient.get(endpoints.consultants.computerLocations);
+    return response.data;
+  },
+  createComputerLocation: async (payload) => {
+    const response = await httpClient.post(endpoints.consultants.computerLocations, payload);
+    return response.data;
+  },
+  updateComputerLocation: async (id, payload) => {
+    const response = await httpClient.patch(endpoints.consultants.computerLocationDetail(id), payload);
+    return response.data;
+  },
+  deleteComputerLocation: async (id) => {
+    const response = await httpClient.delete(endpoints.consultants.computerLocationDetail(id));
     return response.data;
   },
   getMyTeam: async (managerId) => {

@@ -43,18 +43,18 @@ export function AdminModal({
         aria-modal="true"
         aria-labelledby="admin-modal-title"
       >
+        <button
+          type="button"
+          className="admin-modal-close"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          <X size={15} />
+        </button>
         <div className="admin-modal-header">
           <h2 className="admin-modal-title" id="admin-modal-title">
             {title}
           </h2>
-          <button
-            type="button"
-            className="admin-modal-close"
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            <X size={15} />
-          </button>
         </div>
 
         <div className="admin-modal-body">{children}</div>
