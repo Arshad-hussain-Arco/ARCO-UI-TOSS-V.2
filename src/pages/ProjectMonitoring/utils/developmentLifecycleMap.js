@@ -1,25 +1,25 @@
 /**
- * 17 Development Lifecycle Phases (Technical View)
+ * 17 Development Lifecycle Phases (Technical View with Full Stage Names)
  */
 
 export const DEVELOPMENT_PHASES = [
-  { key: 'open', label: 'Open', shortLabel: 'Open', description: 'Ticket created and queued for business analysis.', color: '#64748b' },
-  { key: 'brd_analysis', label: 'BRD Analysis', shortLabel: 'BRD', description: 'Business Requirement Document review and scoping.', color: '#8b5cf6' },
-  { key: 'ssd_analysis', label: 'SSD Analysis', shortLabel: 'SSD', description: 'Software Specification Document technical assessment.', color: '#7c3aed' },
-  { key: 'in_design', label: 'In Design', shortLabel: 'Design', description: 'Technical architecture, API specification & UI mockups.', color: '#6366f1' },
-  { key: 'in_development', label: 'In Development', shortLabel: 'Dev', description: 'Active code implementation across frontend and backend services.', color: '#3b82f6' },
-  { key: 'dev_completed', label: 'Development Completed', shortLabel: 'Dev Done', description: 'Development work complete and unit test suite verified.', color: '#0284c7' },
-  { key: 'fat_testing', label: 'FAT Testing', shortLabel: 'FAT', description: 'Factory Acceptance Testing by core engineering team.', color: '#06b6d4' },
-  { key: 'sit_entry_checkpoint', label: 'SIT Entry Checkpoint', shortLabel: 'SIT Gate', description: 'Gate review verifying environment & code baseline for SIT.', color: '#0d9488' },
-  { key: 'smoke_testing', label: 'Smoke Testing', shortLabel: 'Smoke', description: 'Initial sanity testing of deployed build prior to full SIT.', color: '#14b8a6' },
-  { key: 'sit_in_progress', label: 'SIT In Progress', shortLabel: 'SIT', description: 'System Integration Testing across interconnected systems.', color: '#f59e0b' },
-  { key: 'uat_entry_checkpoint', label: 'UAT Entry Checkpoint', shortLabel: 'UAT Gate', description: 'Quality gate review before user acceptance testing.', color: '#d97706' },
-  { key: 'uat_in_progress', label: 'UAT In Progress', shortLabel: 'UAT', description: 'Business User Acceptance Testing & scenario execution.', color: '#ea580c' },
-  { key: 'uat_sign_off', label: 'UAT Sign Off', shortLabel: 'UAT Signoff', description: 'Formal business stakeholder UAT approval received.', color: '#f97316' },
-  { key: 'release_approval', label: 'Release Approval', shortLabel: 'Rel Appr', description: 'CAB and management change request release approval.', color: '#ec4899' },
-  { key: 'ready_for_production', label: 'Ready For Production', shortLabel: 'Ready Prod', description: 'Build packaged, tagged, and staged for production release.', color: '#10b981' },
-  { key: 'deployed', label: 'Deployed', shortLabel: 'Deployed', description: 'Successfully released to live production environment.', color: '#059669' },
-  { key: 'completed', label: 'Completed', shortLabel: 'Complete', description: 'Post-production monitoring complete and project closed.', color: '#047857' },
+  { key: 'open', label: 'Open', description: 'Ticket created and queued for business analysis.', color: '#64748b' },
+  { key: 'brd_analysis', label: 'BRD Analysis', description: 'Business Requirement Document review and scoping.', color: '#8b5cf6' },
+  { key: 'ssd_analysis', label: 'SSD Analysis', description: 'Software Specification Document technical assessment.', color: '#7c3aed' },
+  { key: 'in_design', label: 'In Design', description: 'Technical architecture, API specification & UI mockups.', color: '#6366f1' },
+  { key: 'in_development', label: 'In Development', description: 'Active code implementation across frontend and backend services.', color: '#3b82f6' },
+  { key: 'dev_completed', label: 'Development Completed', description: 'Development work complete and unit test suite verified.', color: '#0284c7' },
+  { key: 'fat_testing', label: 'FAT Testing', description: 'Factory Acceptance Testing by core engineering team.', color: '#06b6d4' },
+  { key: 'sit_entry_checkpoint', label: 'SIT Entry Checkpoint', description: 'Gate review verifying environment & code baseline for SIT.', color: '#0d9488' },
+  { key: 'smoke_testing', label: 'Smoke Testing', description: 'Initial sanity testing of deployed build prior to full SIT.', color: '#14b8a6' },
+  { key: 'sit_in_progress', label: 'SIT In Progress', description: 'System Integration Testing across interconnected systems.', color: '#f59e0b' },
+  { key: 'uat_entry_checkpoint', label: 'UAT Entry Checkpoint', description: 'Quality gate review before user acceptance testing.', color: '#d97706' },
+  { key: 'uat_in_progress', label: 'UAT In Progress', description: 'Business User Acceptance Testing & scenario execution.', color: '#ea580c' },
+  { key: 'uat_sign_off', label: 'UAT Sign Off', description: 'Formal business stakeholder UAT approval received.', color: '#f97316' },
+  { key: 'release_approval', label: 'Release Approval', description: 'CAB and management change request release approval.', color: '#ec4899' },
+  { key: 'ready_for_production', label: 'Ready For Production', description: 'Build packaged, tagged, and staged for production release.', color: '#10b981' },
+  { key: 'deployed', label: 'Deployed', description: 'Successfully released to live production environment.', color: '#059669' },
+  { key: 'completed', label: 'Completed', description: 'Post-production monitoring complete and project closed.', color: '#047857' },
 ];
 
 /**
@@ -29,7 +29,6 @@ export function getDevelopmentStageInfo(statusStr) {
   if (!statusStr) return { index: 0, phase: DEVELOPMENT_PHASES[0] };
   const lower = statusStr.trim().toLowerCase();
 
-  // Match exact labels first
   const exactIdx = DEVELOPMENT_PHASES.findIndex(
     (p) => p.label.toLowerCase() === lower || p.key.toLowerCase() === lower
   );
@@ -37,7 +36,6 @@ export function getDevelopmentStageInfo(statusStr) {
     return { index: exactIdx, phase: DEVELOPMENT_PHASES[exactIdx] };
   }
 
-  // Keyword matching
   if (lower === 'open') return { index: 0, phase: DEVELOPMENT_PHASES[0] };
   if (lower.includes('brd')) return { index: 1, phase: DEVELOPMENT_PHASES[1] };
   if (lower.includes('ssd')) return { index: 2, phase: DEVELOPMENT_PHASES[2] };
@@ -56,7 +54,6 @@ export function getDevelopmentStageInfo(statusStr) {
   if (lower.includes('deploy') || lower.includes('live')) return { index: 15, phase: DEVELOPMENT_PHASES[15] };
   if (lower.includes('complete') || lower.includes('close')) return { index: 16, phase: DEVELOPMENT_PHASES[16] };
 
-  // Fallback map based on generic stages
   if (lower.includes('plan')) return { index: 3, phase: DEVELOPMENT_PHASES[3] };
 
   return { index: 4, phase: DEVELOPMENT_PHASES[4] };

@@ -7,16 +7,15 @@ import ProgressTooltip from './ProgressTooltip';
 export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false }) {
   const [activeTooltip, setActiveTooltip] = useState(null);
 
-  const handleMouseEnter = (e, phase, state, idx) => {
+  const handleMouseEnter = (e, phase, state) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveTooltip({
       title: phase.label,
-      subtitle: `Stage ${idx + 1} of 17 — ${phase.shortLabel}`,
       description: phase.description,
       state,
       position: {
         x: rect.left + rect.width / 2 - 100,
-        y: rect.top - 70,
+        y: rect.top - 60,
       },
     });
   };
@@ -27,34 +26,20 @@ export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false 
 
   return (
     <div className="pm-lifecycle-wrapper pm-development-view">
-      <div className="pm-stepper-scroll-container">
-        <div className="pm-stepper-container pm-dev-stepper">
+      <div className="pm-chips-stepper-scroll-wrap">
+        <div className="pm-chips-stepper pm-dev-chips-stepper">
           {DEVELOPMENT_PHASES.map((phase, idx) => {
             const state = getStepState(idx, currentStageIdx, isCompleted);
-            const isFirst = idx === 0;
-            const isLast = idx === DEVELOPMENT_PHASES.length - 1;
 
             return (
               <div
                 key={phase.key}
-                className={`pm-step-item pm-dev-step-item state-${state} ${isFirst ? 'is-first' : ''} ${isLast ? 'is-last' : ''}`}
-                onMouseEnter={(e) => handleMouseEnter(e, phase, state, idx)}
+                className={`pm-lifecycle-chip state-${state}`}
+                onMouseEnter={(e) => handleMouseEnter(e, phase, state)}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="pm-step-segment">
-                  <div className="pm-step-icon-wrap">
-                    {state === 'completed' ? (
-                      <Check size={10} className="pm-step-check" />
-                    ) : (
-                      <span className="pm-step-number">{idx + 1}</span>
-                    )}
-                  </div>
-                  <span className="pm-step-label" title={phase.label}>
-                    {phase.shortLabel}
-                  </span>
-                </div>
-
-                {!isLast && <div className="pm-step-arrow-divider" />}
+                {state === 'completed' && <Check size={11} className="pm-chip-check-icon" />}
+                <span className="pm-chip-text">{phase.label}</span>
               </div>
             );
           })}
@@ -63,7 +48,6 @@ export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false 
 
       <ProgressTooltip
         title={activeTooltip?.title}
-        subtitle={activeTooltip?.subtitle}
         description={activeTooltip?.description}
         state={activeTooltip?.state}
         position={activeTooltip?.position}

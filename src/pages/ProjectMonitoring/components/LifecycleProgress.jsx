@@ -7,7 +7,6 @@ import { getDevelopmentStageInfo } from '../utils/developmentLifecycleMap';
 export function LifecycleProgress({ status, mode = 'business' }) {
   const isDev = mode === 'development';
 
-  // Get index and stage info dynamically from API status string
   const bizInfo = getBusinessStageInfo(status);
   const devInfo = getDevelopmentStageInfo(status);
 
@@ -29,14 +28,6 @@ export function LifecycleProgress({ status, mode = 'business' }) {
             isCompleted={isCompleted}
           />
         )}
-      </div>
-      <div className="pm-lifecycle-meta">
-        <span className="pm-meta-stage-text">
-          {isDev ? `${devInfo.index + 1}/17` : `${bizInfo.index + 1}/7`}
-        </span>
-        <span className="pm-meta-phase-label">
-          {isDev ? devInfo.phase.label : bizInfo.phase.label}
-        </span>
       </div>
     </div>
   );

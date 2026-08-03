@@ -5,8 +5,6 @@ import {
   Building2,
   Calendar,
   CheckCircle,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Download,
   FileSearch,
@@ -19,13 +17,11 @@ import {
   ShieldCheck,
   Users,
   X,
-  BarChart2,
-  TrendingUp,
 } from 'lucide-react';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import projectService from '@services/projectService';
-import capacityService from '@services/capacityService';
 import './ProjectMonitoringPage.css';
 
 // Import enterprise sub-components and utilities
@@ -33,130 +29,21 @@ import LifecycleToggle from './components/LifecycleToggle';
 import StatusFilter from './components/StatusFilter';
 import ProjectRow from './components/ProjectRow';
 import { getStageInfo } from './utils/statusMapper';
+import {
+  calculateCategoryCounts,
+  filterByCategory,
+  calculateTeamRoleCounts,
+  calculateBreachMetrics,
+  getDrilldownProjects,
+} from './utils/dataMapper';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   STATIC MOCK DATA — Preserved from existing implementation
+   STATIC MOCK FALLBACK DATA — Used only if backend is unreachable
    ═══════════════════════════════════════════════════════════════════════════ */
-
-const CATEGORY_CHIPS = [
-  { id: 'all', label: 'All Projects', count: 103 },
-  { id: 'budget', label: 'Budget', count: 30 },
-  { id: 'na', label: 'Not Available', count: 8 },
-  { id: 'bau', label: 'BAU', count: 4 },
-  { id: 'service', label: 'Service', count: 10 },
-  { id: 'bud-pr', label: 'BUD - PR Wait', count: 51 },
-];
-
-const LIFECYCLE_STAGES = [
-  { key: 'inception', label: 'Inception', countAll: 9, countSelected: 1, cls: 'pm-stage-inception' },
-  { key: 'planning', label: 'Planning', countAll: 25, countSelected: 4, cls: 'pm-stage-planning' },
-  { key: 'building', label: 'Building', countAll: 25, countSelected: 3, cls: 'pm-stage-building' },
-  { key: 'testing', label: 'Testing', countAll: 29, countSelected: 13, cls: 'pm-stage-testing' },
-  { key: 'release', label: 'Release Process', countAll: 2, countSelected: 1, cls: 'pm-stage-release' },
-  { key: 'deployed', label: 'Deployed', countAll: 5, countSelected: 5, cls: 'pm-stage-deployed' },
-  { key: 'completed', label: 'Completed', countAll: 5, countSelected: 1, cls: 'pm-stage-completed' },
-];
 
 const VELOCITY_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const COMPLETED_DATA = [1, 0, 2, 1, 3, 2, 2, 1, 5, 3, 2, 1];
 const TARGET_DATA = [2, 2, 2, 2, 3, 3, 3, 3, 4, 3, 2, 2];
-
-const ORG_ROLE_COUNTS = [
-  { role: 'ITDL', color: '#3b82f6', count: 76 },
-  { role: 'Product Owner', color: '#8b5cf6', count: 81 },
-  { role: 'Backup ITDL', color: '#06b6d4', count: 89 },
-  { role: 'SIT Lead', color: '#f59e0b', count: 85 },
-  { role: 'Developer', color: '#10b981', count: 98 },
-];
-
-const ITDL_TEAMS = [
-  {
-    headName: 'Adnan Sami Shaik',
-    totalProjects: 24,
-    members: [
-      { name: 'Mansoor Khan', count: 6 },
-      { name: 'Mohammad Faiz Shaik', count: 5 },
-      { name: 'Javeed Abdul', count: 4 },
-      { name: 'Ishaq Ali', count: 4 },
-      { name: 'Rahim Syed', count: 3 },
-      { name: 'Adnan Khan', count: 2 },
-    ],
-  },
-  {
-    headName: 'Mansoor Khan',
-    totalProjects: 20,
-    members: [
-      { name: 'Mohammad Faiz Shaik', count: 5 },
-      { name: 'Abdul Rahim Syed', count: 4 },
-      { name: 'Javeed Abdul', count: 4 },
-      { name: 'Ishaq Ali', count: 3 },
-      { name: 'Sami Shaik', count: 2 },
-      { name: 'Adnan Sami', count: 2 },
-    ],
-  },
-  {
-    headName: 'Mohammad Faiz Shaik',
-    totalProjects: 18,
-    members: [
-      { name: 'Mansoor Khan', count: 4 },
-      { name: 'Javeed Abdul', count: 4 },
-      { name: 'Adnan Sami Shaik', count: 3 },
-      { name: 'Abdul Rahim Syed', count: 3 },
-      { name: 'Ishaq Ali', count: 2 },
-      { name: 'Sami Shaik', count: 2 },
-    ],
-  },
-  {
-    headName: 'Javeed Abdul',
-    totalProjects: 16,
-    members: [
-      { name: 'Mansoor Khan', count: 4 },
-      { name: 'Adnan Sami Shaik', count: 3 },
-      { name: 'Mohammad Faiz Shaik', count: 3 },
-      { name: 'Abdul Rahim Syed', count: 2 },
-      { name: 'Ishaq Ali', count: 2 },
-      { name: 'Adnan Khan', count: 2 },
-    ],
-  },
-];
-
-function CountByOrganizationCard() {
-  const maxCount = 100;
-  return (
-    <div className="pm-chart-card pm-chart-card--compact-org">
-      <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
-        Count by Teams
-      </h3>
-      <div className="pm-compact-org-list">
-        {ORG_ROLE_COUNTS.map((item) => (
-          <div key={item.role} className="pm-compact-org-row">
-            <span className="pm-compact-org-name">{item.role}</span>
-            <div className="pm-compact-org-bar-wrap">
-              <div
-                className="pm-compact-org-bar-fill"
-                style={{
-                  width: `${(item.count / maxCount) * 100}%`,
-                  background: item.color,
-                }}
-              />
-            </div>
-            <div className="pm-compact-org-right">
-              <Users size={13} className="pm-compact-org-icon" />
-              <span className="pm-compact-org-count">{item.count}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const HORIZON_BUCKETS = [
-  { label: 'Next 15 Days', dev: 8, testing: 5, delivery: 3, total: 16 },
-  { label: 'Next 30 Days', dev: 14, testing: 10, delivery: 7, total: 31 },
-  { label: 'Next 45 Days', dev: 21, testing: 15, delivery: 10, total: 46 },
-  { label: 'Next 60 Days', dev: 28, testing: 20, delivery: 14, total: 62 },
-];
 
 const SAMPLE_PROJECTS = [
   {
@@ -281,27 +168,6 @@ const SAMPLE_PROJECTS = [
   },
 ];
 
-const BREACH_METRICS = {
-  sla: [
-    { id: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 },
-    { id: 'sla2', label: 'Project in Testing for More Than 15 Days', count: 2 },
-    { id: 'sla3', label: 'Project in BRD/SSD Stage for More Than 14 Days', count: 0 },
-    { id: 'sla4', label: 'Any CR Whose Due Date Has Passed', count: 0 },
-    { id: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 },
-    { id: 'sla6', label: 'CR in Open Stage, but WO Moved', count: 0 },
-  ],
-  dueDate: [
-    { id: 'dd1', label: 'Empty Planned Development Completion (Next 45 Days)', count: 0 },
-    { id: 'dd2', label: 'Due Date — Dev Completion < 2 Weeks', count: 1 },
-  ],
-  cr: [
-    { id: 'cr1', label: 'CR Due Date > WO Due Date', count: 0 },
-    { id: 'cr2', label: 'No Man Days in CR', count: 40 },
-    { id: 'cr3', label: 'No Start Date in CR', count: 1 },
-    { id: 'cr4', label: 'No Due Date in CR', count: 0 },
-  ],
-};
-
 const STAGE_COLORS = {
   inception: '#8b5cf6',
   planning: '#3b82f6',
@@ -326,11 +192,11 @@ const STAGE_LABELS = {
 
 function exportToCSV(rows, filename) {
   if (!rows.length) return;
-  const headers = ['Project Code', 'Summary', 'Stage', 'Start Date', 'ITDL', 'Backup ITDL', 'Product Owner', 'PMO'];
+  const headers = ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
   const lines = [
     headers.join(','),
     ...rows.map((p) =>
-      [p.code, `"${p.summary}"`, STAGE_LABELS[p.stage.toLowerCase()] || p.stage, p.startDate, p.itdl, p.backupItdl, p.po, p.pmo].join(',')
+      [p.code, p.id, `"${p.summary}"`, STAGE_LABELS[p.stage.toLowerCase()] || p.stage, p.itdl, p.backupItdl, p.po, p.pmo, `"${p.lastComment}"`].join(',')
     ),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -342,7 +208,8 @@ function exportToCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-function DrilldownModal({ stage, onClose }) {
+/* ── Dynamic Drilldown Modal (Matches Image 2 & Image 5) ────────────────── */
+function DrilldownModal({ stage, onClose, projectsData = [] }) {
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
 
@@ -357,36 +224,7 @@ function DrilldownModal({ stage, onClose }) {
 
   if (!stage) return null;
 
-  const stageInfo = LIFECYCLE_STAGES.find((s) => s.key === stage.key);
-  const totalCount = stageInfo ? stageInfo.countAll : stage.count || 0;
-  const stageColor = STAGE_COLORS[stage.key] || '#006838';
-
-  const projects = SAMPLE_PROJECTS.filter((p) => {
-    if (stage.type === 'member') {
-      const name = stage.label.toLowerCase();
-      return (
-        (p.itdl && p.itdl.toLowerCase().includes(name)) ||
-        (p.po && p.po.toLowerCase().includes(name)) ||
-        (p.pmo && p.pmo.toLowerCase().includes(name)) ||
-        (p.ownedBy && p.ownedBy.toLowerCase().includes(name))
-      );
-    }
-    if (stage.key === 'testing-blocked') return p.stage.toLowerCase() === 'testing';
-    if (stage.key === 'sla1') return p.stage.toLowerCase() !== 'completed';
-    if (stage.key === 'sla2') return p.stage.toLowerCase() === 'testing';
-    if (stage.key === 'sla5') return p.stage.toLowerCase() === 'testing';
-    if (stage.key === 'dd2') return p.stage.toLowerCase() === 'building';
-    if (stage.key === 'cr2') return p.workOrderType === 'CR';
-    if (stage.key === 'cr3') return p.workOrderType === 'CR';
-
-    if (p.stage.toLowerCase() === stage.key) return true;
-
-    if (stage.key && (stage.key.startsWith('sla') || stage.key.startsWith('dd') || stage.key.startsWith('cr'))) {
-      return p.stage.toLowerCase() !== 'completed';
-    }
-
-    return false;
-  }).filter((p) => {
+  const matchedProjects = getDrilldownProjects(projectsData, stage).filter((p) => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -398,11 +236,7 @@ function DrilldownModal({ stage, onClose }) {
     );
   });
 
-  const handleExport = () => {
-    exportToCSV(projects, `Projects_${stage.label.replace(/\s+/g, '_')}.csv`);
-  };
-
-  const isMemberType = stage.type === 'member';
+  const totalCount = stage.count || matchedProjects.length;
 
   return (
     <div className="pm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Projects - ${stage.label}`}>
@@ -410,7 +244,7 @@ function DrilldownModal({ stage, onClose }) {
         <div className="pm-modal-header">
           <div className="pm-modal-title-row">
             <h2 className="pm-modal-title">Projects — {stage.label}</h2>
-            <span className="pm-stage-pill" style={{ background: stageColor }}>
+            <span className="pm-stage-pill" style={{ background: '#006838' }}>
               {totalCount} Projects
             </span>
           </div>
@@ -434,9 +268,9 @@ function DrilldownModal({ stage, onClose }) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="pm-modal-result-count">
-              Showing <strong>{projects.length}</strong> of {totalCount}
+              Showing <strong>{matchedProjects.length}</strong> of {totalCount}
             </span>
-            <button type="button" className="pm-export-btn" onClick={handleExport}>
+            <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `Projects_${stage.label.replace(/\s+/g, '_')}.csv`)}>
               <Download size={14} /> Export
             </button>
           </div>
@@ -445,107 +279,54 @@ function DrilldownModal({ stage, onClose }) {
         <div className="pm-modal-table-container">
           <table className="pm-master-table">
             <thead>
-              {isMemberType ? (
-                <tr>
-                  <th>Project Code</th>
-                  <th>Project Name</th>
-                  <th>Status</th>
-                  <th>Current Lifecycle Stage</th>
-                  <th>Priority</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Product Owner</th>
-                  <th>Delivery Head</th>
-                  <th>Last Updated</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th>Project Code</th>
-                  <th>Project ID</th>
-                  <th>Summary</th>
-                  <th>Status</th>
-                  <th>IT Delivery Lead</th>
-                  <th>Backup ITDL</th>
-                  <th>Product Owner</th>
-                  <th>PMO Project Manager</th>
-                  <th>Last Comment</th>
-                </tr>
-              )}
+              <tr>
+                <th>Project Code</th>
+                <th>Project ID</th>
+                <th>Summary</th>
+                <th>Status</th>
+                <th>IT Delivery Lead</th>
+                <th>Backup ITDL</th>
+                <th>Product Owner</th>
+                <th>PMO Project Manager</th>
+                <th>Last Comment</th>
+              </tr>
             </thead>
             <tbody>
-              {projects.length === 0 ? (
+              {matchedProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={isMemberType ? 10 : 9}>
+                  <td colSpan={9}>
                     <div className="pm-empty-state">
                       <Search size={32} color="#cbd5e1" />
-                      <p>No projects found matching your search.</p>
+                      <p>No projects found matching your search criteria.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                projects.map((p) => (
+                matchedProjects.map((p) => (
                   <tr key={p.id}>
                     <td>
                       <span className="pm-project-code">{p.code}</span>
                     </td>
-                    {isMemberType ? (
-                      <>
-                        <td style={{ maxWidth: 200 }}>
-                          <span style={{ fontSize: 12, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
-                            {p.summary}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || stageColor }}>
-                            {STAGE_LABELS[p.stage.toLowerCase()] || p.stage}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{p.stageIdx + 1}/7</td>
-                        <td>
-                          <span
-                            className={`pm-stage-pill`}
-                            style={{
-                              background: p.priority === 'High' || p.priority === 'Critical' ? '#fef2f2' : '#f1f5f9',
-                              color: p.priority === 'High' || p.priority === 'Critical' ? '#ef4444' : '#64748b',
-                              border: '1px solid currentColor',
-                              textTransform: 'capitalize',
-                            }}
-                          >
-                            {p.priority}
-                          </span>
-                        </td>
-                        <td style={{ whiteSpace: 'nowrap', color: '#64748b', fontSize: 11 }}>{p.startDate}</td>
-                        <td style={{ whiteSpace: 'nowrap', color: '#64748b', fontSize: 11 }}>{p.endDate}</td>
-                        <td style={{ fontSize: 11, color: '#334155' }}>{p.po}</td>
-                        <td style={{ fontSize: 11, color: '#334155' }}>{p.itdl}</td>
-                        <td>
-                          <span className="pm-comment-text" title={p.lastComment}>{p.lastComment}</span>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td>
-                          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{p.id}</span>
-                        </td>
-                        <td style={{ maxWidth: 220 }}>
-                          <span style={{ fontSize: 12, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
-                            {p.summary}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || stageColor }}>
-                            {STAGE_LABELS[p.stage.toLowerCase()] || p.stage}
-                          </span>
-                        </td>
-                        <td style={{ fontSize: 11, color: '#334155' }}>{p.itdl}</td>
-                        <td style={{ fontSize: 11, color: '#64748b' }}>{p.backupItdl}</td>
-                        <td style={{ fontSize: 11, color: '#334155' }}>{p.po}</td>
-                        <td style={{ fontSize: 11, color: '#64748b' }}>{p.pmo}</td>
-                        <td>
-                          <span className="pm-comment-text" title={p.lastComment}>{p.lastComment}</span>
-                        </td>
-                      </>
-                    )}
+                    <td>
+                      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{p.id}</span>
+                    </td>
+                    <td style={{ maxWidth: 220 }}>
+                      <span style={{ fontSize: 12, color: '#334155', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
+                        {p.summary}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || '#006838' }}>
+                        {p.stage}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 11, color: '#334155' }}>{p.itdl}</td>
+                    <td style={{ fontSize: 11, color: '#64748b' }}>{p.backupItdl}</td>
+                    <td style={{ fontSize: 11, color: '#334155' }}>{p.po}</td>
+                    <td style={{ fontSize: 11, color: '#64748b' }}>{p.pmo}</td>
+                    <td>
+                      <span className="pm-comment-text" title={p.lastComment}>{p.lastComment || 'No comments'}</span>
+                    </td>
                   </tr>
                 ))
               )}
@@ -563,7 +344,7 @@ function DrilldownModal({ stage, onClose }) {
 export function ProjectMonitoringPage() {
   useDocumentTitle('Project Monitoring');
 
-  // Active view mode: 'business' (7 phases default) vs 'development' (17 phases toggle)
+  // View mode: 'business' (SDLC View 7 stages) vs 'development' (Tech View 17 stages)
   const [lifecycleMode, setLifecycleMode] = useState('business');
 
   // Navigation Tabs
@@ -578,8 +359,8 @@ export function ProjectMonitoringPage() {
   // Tab 2 — directory filters & expansion
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
   // Tab 3 — breaches
@@ -589,17 +370,14 @@ export function ProjectMonitoringPage() {
   const [loadingData, setLoadingData] = useState(true);
 
   // Toggle mode handler
-  const handleToggleLifecycleMode = () => {
-    setLifecycleMode((prev) => (prev === 'business' ? 'development' : 'business'));
+  const handleToggleLifecycleMode = (isDevMode) => {
+    setLifecycleMode(isDevMode ? 'development' : 'business');
   };
 
   const fetchData = useCallback(async () => {
     try {
       setLoadingData(true);
-      const [capacityRes, workOrderRes] = await Promise.all([
-        capacityService.getCapacityPlanning(),
-        projectService.getWorkOrderStatus(),
-      ]);
+      const workOrderRes = await projectService.getWorkOrderStatus();
 
       let allProjects = [];
 
@@ -609,6 +387,7 @@ export function ProjectMonitoringPage() {
         ipmNumber: wo.Ipm_Number || '',
         summary: wo.Summary || '',
         workOrderType: wo.Work_Order_Type || 'Project',
+        dependsOn: (wo.Depends_On || wo.DependsOn || '').trim(),
         priority: wo.Priority || 'Medium',
         startDate: wo.Start_Date || '',
         clarityFinishDate: wo.Clarity_Planned_Finish_Date || '',
@@ -627,32 +406,11 @@ export function ProjectMonitoringPage() {
         overdueDays: 0,
       });
 
-      const mapChangeRequest = (cr) => ({
-        id: cr.Id ? cr.Id.toString() : '',
-        code: cr.Wo_Id ? cr.Wo_Id.toString() : '',
-        ipmNumber: '',
-        summary: cr.Summary || '',
-        workOrderType: 'CR',
-        priority: cr.Priority || 'Medium',
-        startDate: cr.Start_Date || '',
-        endDate: cr.End_Date || '',
-        itdl: cr.Assigned_Developer || 'unassigned',
-        backupItdl: cr.Additional_Developers || 'unassigned',
-        po: 'unassigned',
-        pmo: 'unassigned',
-        ownedBy: cr.Assigned_Developer || 'unassigned',
-        stage: cr.Status ? cr.Status : 'Planning',
-        stageIdx: 0,
-        lastComment: '',
-        fullDesc: cr.Summary || '',
-        overdueDays: 0,
-      });
-
+      // Only workOrders are shown in Project Monitoring.
+      // changeRequests (CRs) are excluded — they have no Depends_On field
+      // and do not belong in the Project Monitoring directory.
       if (workOrderRes?.workOrders) {
         allProjects = [...allProjects, ...workOrderRes.workOrders.map(mapWorkOrder)];
-      }
-      if (workOrderRes?.changeRequests) {
-        allProjects = [...allProjects, ...workOrderRes.changeRequests.map(mapChangeRequest)];
       }
 
       setProjectsList(allProjects.length > 0 ? allProjects : SAMPLE_PROJECTS);
@@ -674,9 +432,41 @@ export function ProjectMonitoringPage() {
     fetchData();
   };
 
-  // Filtered projects list based on search and dynamic status filter
+  // 1. Dynamic Category Chips
+  const categoryChips = useMemo(() => {
+    return calculateCategoryCounts(projectsList);
+  }, [projectsList]);
+
+  // 2. Dynamic Team Role Breakdown Cards (Matches Image 1)
+  const teamRoles = useMemo(() => {
+    return [
+      { id: 'itdl', title: 'Count By IT Delivery Lead', field: 'itdl' },
+      { id: 'po', title: 'Count BY Product Owner', field: 'po' },
+      { id: 'backupItdl', title: 'Count By Backup ITDL', field: 'backupItdl' },
+      { id: 'sitLead', title: 'Count By SIT Lead', field: 'sitLead' },
+      { id: 'uatLead', title: 'Count By UAT Lead', field: 'uatLead' },
+      { id: 'developer', title: 'Count By Developer', field: 'developer' },
+      { id: 'additionalDev', title: 'Count By Additional Developer', field: 'additionalDev' },
+    ].map((r) => ({
+      ...r,
+      members: calculateTeamRoleCounts(projectsList, r.field),
+    }));
+  }, [projectsList]);
+
+  // 3. Dynamic Breach Metrics (Matches Image 4)
+  const breachMetrics = useMemo(() => {
+    return calculateBreachMetrics(projectsList);
+  }, [projectsList]);
+
+  // Filtered projects list based on search, category chip, and dynamic status filter
   const filteredProjects = useMemo(() => {
     return projectsList.filter((p) => {
+      // 1. Filter by dynamic Depends_On category pill tab
+      if (!filterByCategory(p, selectedCategory)) {
+        return false;
+      }
+
+      // 2. Search query filter
       const q = searchQuery.toLowerCase().trim();
       if (
         q &&
@@ -688,6 +478,7 @@ export function ProjectMonitoringPage() {
         return false;
       }
 
+      // 3. Status filter dropdown
       if (statusFilter) {
         const stageInfo = getStageInfo(p.stage, lifecycleMode);
         const selectedStageInfo = getStageInfo(statusFilter, lifecycleMode);
@@ -697,7 +488,7 @@ export function ProjectMonitoringPage() {
       }
       return true;
     });
-  }, [projectsList, searchQuery, statusFilter, lifecycleMode]);
+  }, [projectsList, selectedCategory, searchQuery, statusFilter, lifecycleMode]);
 
   const maxVelocity = Math.max(...COMPLETED_DATA, ...TARGET_DATA);
 
@@ -773,7 +564,7 @@ export function ProjectMonitoringPage() {
             </div>
 
             <div className="pm-pipeline-chips-container">
-              {CATEGORY_CHIPS.map((chip) => (
+              {categoryChips.map((chip) => (
                 <button
                   type="button"
                   key={chip.id}
@@ -879,66 +670,50 @@ export function ProjectMonitoringPage() {
               </div>
             </div>
 
-            <CountByOrganizationCard />
-          </div>
-
-          <div className="pm-horizon-card">
-            <h3 className="pm-card-title">
-              <Clock size={14} /> Integrated Milestone Completion Horizon
-            </h3>
-            <div className="pm-horizon-grid">
-              {HORIZON_BUCKETS.map((b, i) => {
-                const pct = Math.min((b.total / 62) * 100, 100);
-                const colors = ['#f59e0b', '#3b82f6', '#8b5cf6', '#006838'];
-                return (
-                  <div key={b.label} className="pm-horizon-bucket">
-                    <span className="pm-horizon-days">{b.label}</span>
-                    <span className="pm-horizon-count" style={{ color: colors[i] }}>
-                      {b.total}
-                    </span>
-                    <span className="pm-horizon-sublabel">Projects entering delivery window</span>
-                    <div className="pm-horizon-bar-wrap">
-                      <div className="pm-horizon-bar-fill" style={{ width: `${pct}%`, background: colors[i] }} />
+            {/* Dynamic Team Overview Cards (Matches Image 1) */}
+            <div className="pm-chart-card pm-chart-card--compact-org">
+              <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
+                <Users size={14} color="#006838" /> Team Overview Role Counts
+              </h3>
+              <div className="pm-compact-org-list">
+                {calculateTeamRoleCounts(projectsList, 'itdl').slice(0, 5).map((item) => (
+                  <div key={item.name} className="pm-compact-org-row" onClick={() => setDrilldownStage({ key: 'itdl', label: item.name, count: item.count, type: 'member' })}>
+                    <span className="pm-compact-org-name">{item.name}</span>
+                    <div className="pm-compact-org-bar-wrap">
+                      <div className="pm-compact-org-bar-fill" style={{ width: `${Math.min((item.count / 20) * 100, 100)}%`, background: '#006838' }} />
                     </div>
-                    <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                      {[['Dev', b.dev, '#3b82f6'], ['Test', b.testing, '#f59e0b'], ['Delivery', b.delivery, '#10b981']].map(([lbl, val, clr]) => (
-                        <span key={lbl} style={{ fontSize: 10, color: '#64748b' }}>
-                          <span style={{ color: clr, fontWeight: 700 }}>{val}</span> {lbl}
-                        </span>
-                      ))}
+                    <div className="pm-compact-org-right">
+                      <span className="pm-compact-org-count">{item.count}</span>
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
+          {/* Dynamic 7-Role Team Overview Section (Matches Image 1) */}
           <div className="pm-itdl-overview-section">
-            <h3 className="pm-section-subtitle">Team Overview</h3>
-            <div className="pm-itdl-grid">
-              {ITDL_TEAMS.map((team) => (
-                <div key={team.headName} className="pm-itdl-card">
+            <h3 className="pm-section-subtitle">Team Breakdown Cards</h3>
+            <div className="pm-itdl-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              {teamRoles.map((roleCard) => (
+                <div key={roleCard.id} className="pm-itdl-card">
                   <div className="pm-itdl-card-header">
                     <span className="pm-itdl-card-type-label">
-                      <Users size={14} className="pm-itdl-card-icon" /> IT Delivery Head
+                      <Users size={14} className="pm-itdl-card-icon" /> {roleCard.title}
                     </span>
-                    <span className="pm-itdl-card-badge">{team.totalProjects}</span>
                   </div>
                   <div className="pm-itdl-divider" />
                   <div className="pm-itdl-member-list">
-                    {team.members.map((member) => (
+                    {roleCard.members.map((member) => (
                       <div
                         key={member.name}
                         className="pm-itdl-member-row"
-                        onClick={() => setDrilldownStage({ key: 'member-name', label: member.name, count: member.count, type: 'member' })}
+                        onClick={() => setDrilldownStage({ key: roleCard.field, label: member.name, count: member.count, type: 'member' })}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'member-name', label: member.name, count: member.count, type: 'member' });
-                        }}
                       >
                         <span className="pm-itdl-member-name">{member.name}</span>
-                        <span className="pm-itdl-member-count">{member.count}</span>
+                        <span className="pm-itdl-member-count" style={{ background: '#006838', color: '#fff', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{member.count}</span>
                       </div>
                     ))}
                   </div>
@@ -955,7 +730,7 @@ export function ProjectMonitoringPage() {
           <div className="pm-card">
             <div className="pm-filter-card-body">
               <div className="pm-filter-row">
-                {CATEGORY_CHIPS.map((chip) => (
+                {categoryChips.map((chip) => (
                   <button
                     type="button"
                     key={chip.id}
@@ -968,7 +743,7 @@ export function ProjectMonitoringPage() {
                 ))}
               </div>
 
-              {/* Enhanced Toolbar with Mode Toggle & Dynamic Status Filter */}
+              {/* Enhanced Toolbar with App DatePicker & Reusable Toggle */}
               <div className="pm-toolbar">
                 <div className="pm-search-wrap">
                   <Search size={14} className="pm-search-icon-inner" />
@@ -981,31 +756,31 @@ export function ProjectMonitoringPage() {
                   />
                 </div>
 
-                {/* Dynamic Status Dropdown (7 Business vs 17 Development) */}
                 <StatusFilter
                   value={statusFilter}
                   onChange={setStatusFilter}
                   mode={lifecycleMode}
                 />
 
-                <input
-                  type="date"
-                  className="pm-date-input"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  title="Start Date"
-                />
-                <input
-                  type="date"
-                  className="pm-date-input"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  title="End Date"
-                />
+                <div className="pm-datepicker-wrap">
+                  <DatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="Start Date"
+                    width="140px"
+                  />
+                </div>
+                <div className="pm-datepicker-wrap">
+                  <DatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="End Date"
+                    width="140px"
+                  />
+                </div>
 
                 <div className="pm-toolbar-divider" />
 
-                {/* Mode Switch Toggle Button (Requirement 2 & 9) */}
                 <LifecycleToggle
                   mode={lifecycleMode}
                   onToggle={handleToggleLifecycleMode}
@@ -1018,8 +793,8 @@ export function ProjectMonitoringPage() {
                   onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('');
-                    setStartDate('');
-                    setEndDate('');
+                    setStartDate(null);
+                    setEndDate(null);
                     setSelectedCategory('all');
                   }}
                 >
@@ -1039,16 +814,16 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
 
-          {/* Master Table */}
-          <div className="pm-table-container">
+          {/* Sticky Master Table Container */}
+          <div className="pm-table-container pm-table-sticky-container">
             <table className="pm-master-table">
               <thead>
                 <tr>
-                  <th className="col-code">Project Code</th>
-                  <th className="col-summary">Summary / Description</th>
-                  <th className="col-owner">IT Delivery Lead</th>
+                  <th className="col-code pm-sticky-col pm-sticky-col-1">Project Code</th>
+                  <th className="col-summary pm-sticky-col pm-sticky-col-2">Summary / Description</th>
+                  <th className="col-owner pm-sticky-col pm-sticky-col-3">IT Delivery Lead</th>
                   <th className="col-lifecycle">
-                    Lifecycle Progress ({lifecycleMode === 'development' ? '17 Stages - Technical' : '7 Stages - Business'})
+                    Lifecycle Progress ({lifecycleMode === 'development' ? 'Tech View — 17 Stages' : 'SDLC View — 7 Stages'})
                   </th>
                 </tr>
               </thead>
@@ -1087,65 +862,9 @@ export function ProjectMonitoringPage() {
         </div>
       )}
 
-      {/* TAB 3: PROJECT BREACHES */}
+      {/* TAB 3: PROJECT BREACHES (Matches Image 4) */}
       {activeTab === 'breaches' && (
         <div className="pm-tab-content">
-          <div className="pm-risk-banners">
-            <div
-              className="pm-risk-banner critical"
-              onClick={() => setDrilldownStage({ key: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 })}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 });
-              }}
-            >
-              <div className="pm-risk-icon-container">
-                <AlertOctagon size={16} />
-              </div>
-              <div className="pm-risk-meta">
-                <span className="pm-risk-count">92</span>
-                <span className="pm-risk-desc">Unclosed Projects Started &gt; 60 Days</span>
-              </div>
-            </div>
-
-            <div
-              className="pm-risk-banner warning"
-              onClick={() => setDrilldownStage({ key: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 })}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 });
-              }}
-            >
-              <div className="pm-risk-icon-container">
-                <AlertTriangle size={16} />
-              </div>
-              <div className="pm-risk-meta">
-                <span className="pm-risk-count">41</span>
-                <span className="pm-risk-desc">CR in Progress but WO in Testing</span>
-              </div>
-            </div>
-
-            <div
-              className="pm-risk-banner info"
-              onClick={() => setDrilldownStage({ key: 'cr2', label: 'No Man Days in CR', count: 40 })}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'cr2', label: 'No Man Days in CR', count: 40 });
-              }}
-            >
-              <div className="pm-risk-icon-container">
-                <FileText size={16} />
-              </div>
-              <div className="pm-risk-meta">
-                <span className="pm-risk-count">40</span>
-                <span className="pm-risk-desc">No Man Days in CR</span>
-              </div>
-            </div>
-          </div>
-
           <div className="pm-governance-grid">
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
@@ -1153,18 +872,14 @@ export function ProjectMonitoringPage() {
                 <h3 className="pm-card-title">SLA &amp; Phase Breaches</h3>
               </div>
               <div className="pm-gov-card-body">
-                {BREACH_METRICS.sla.map((m) => (
+                {breachMetrics.sla.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
                     onClick={() => {
-                      setActiveBreachMetric((prev) => (prev === m.id ? null : m.id));
-                      if (m.count > 0) {
-                        setDrilldownStage({ key: m.id, label: m.label, count: m.count });
-                      }
+                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
                     }}
-                    disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
                     <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
@@ -1176,21 +891,17 @@ export function ProjectMonitoringPage() {
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
                 <Calendar size={14} className="pm-gov-card-icon text-amber" />
-                <h3 className="pm-card-title">Due Date Exceptions</h3>
+                <h3 className="pm-card-title">Due Dates</h3>
               </div>
               <div className="pm-gov-card-body">
-                {BREACH_METRICS.dueDate.map((m) => (
+                {breachMetrics.dueDate.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
                     onClick={() => {
-                      setActiveBreachMetric((prev) => (prev === m.id ? null : m.id));
-                      if (m.count > 0) {
-                        setDrilldownStage({ key: m.id, label: m.label, count: m.count });
-                      }
+                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
                     }}
-                    disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
                     <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
@@ -1202,21 +913,17 @@ export function ProjectMonitoringPage() {
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
                 <ShieldCheck size={14} className="pm-gov-card-icon text-emerald" />
-                <h3 className="pm-card-title">Change Request (CR) Data Hygiene</h3>
+                <h3 className="pm-card-title">CR Exceptions</h3>
               </div>
               <div className="pm-gov-card-body">
-                {BREACH_METRICS.cr.map((m) => (
+                {breachMetrics.cr.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
                     onClick={() => {
-                      setActiveBreachMetric((prev) => (prev === m.id ? null : m.id));
-                      if (m.count > 0) {
-                        setDrilldownStage({ key: m.id, label: m.label, count: m.count });
-                      }
+                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
                     }}
-                    disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
                     <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
@@ -1233,6 +940,7 @@ export function ProjectMonitoringPage() {
         <DrilldownModal
           stage={drilldownStage}
           onClose={() => setDrilldownStage(null)}
+          projectsData={projectsList}
         />
       )}
     </div>

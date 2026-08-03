@@ -3,8 +3,15 @@ import { ChevronRight, ChevronDown } from 'lucide-react';
 import ProjectSummary from './ProjectSummary';
 import LifecycleProgress from './LifecycleProgress';
 
+/** Renders a dash when the value is missing/unassigned */
+function val(v) {
+  if (!v || v === 'unassigned') return '—';
+  return v;
+}
+
 export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'business' }) {
-  const chart = project.chartData || { planning: 78, development: 75, testing: 7, delivered: 72 };
+  const chart = project.chartData || { planning: 0, development: 0, testing: 0, delivered: 0 };
+  const maxBar = 80;
 
   return (
     <>
@@ -13,126 +20,127 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
         onClick={onToggleExpand}
         style={{ cursor: 'pointer' }}
       >
-        {/* Column 1: Project ID / Code */}
-        <td className="pm-col-code">
+        {/* Sticky Column 1: Expand Icon + Project Code */}
+        <td className="pm-col-code pm-sticky-col pm-sticky-col-1">
           <div className="pm-code-cell">
             <span className="pm-expand-icon">
               {isExpanded ? (
-                <ChevronDown size={14} color="#64748b" />
+                <ChevronDown size={13} color="#64748b" />
               ) : (
-                <ChevronRight size={14} color="#64748b" />
+                <ChevronRight size={13} color="#64748b" />
               )}
             </span>
             <span className="pm-project-code">{project.code || project.id}</span>
           </div>
         </td>
 
-        {/* Column 2: Summary / Description */}
-        <td className="pm-col-summary">
-          <ProjectSummary
-            projectId={project.id}
-            code={project.code}
-            summary={project.summary}
-            mode={mode}
-          />
+        {/* Sticky Column 2: Summary / Description */}
+        <td className="pm-col-summary pm-sticky-col pm-sticky-col-2">
+          <ProjectSummary summary={project.summary} />
         </td>
 
-        {/* Column 3: Owner / IT Delivery Lead */}
-        <td className="pm-col-owner">
-          <span className="pm-owner-text">{project.itdl || 'unassigned'}</span>
+        {/* Sticky Column 3: IT Delivery Lead */}
+        <td className="pm-col-owner pm-sticky-col pm-sticky-col-3">
+          <span className="pm-owner-text">{val(project.itdl)}</span>
         </td>
 
-        {/* Column 4: Lifecycle Progress (Enterprise Connected Stepper) */}
+        {/* Column 4: Scrollable Lifecycle Progress */}
         <td className="pm-col-lifecycle">
           <LifecycleProgress status={project.stage} mode={mode} />
         </td>
       </tr>
 
-      {/* Expanded Detail Panel Row */}
+      {/* Expanded Detail Panel Row — identical layout in both SDLC and Tech view */}
       {isExpanded && (
         <tr className="pm-detail-row">
           <td colSpan={4}>
+            {/*
+              pm-expanded-detail-container is sticky-pinned to left:0, width:100%
+              so it never scrolls horizontally regardless of the lifecycle column width.
+              Only the lifecycle chips (Column 4) scroll.
+            */}
             <div className="pm-expanded-detail-container">
-              {/* 2-Column Key-Value Info Grid */}
+
+              {/* Key-Value Grid — 2 columns, all from API */}
               <div className="pm-kv-grid">
-                {/* Column 1 */}
                 <div className="pm-kv-col">
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Project Summary:</span>
-                    <span className="pm-kv-val">
-                      {project.code}- {project.summary}
-                    </span>
+                    <span className="pm-kv-val">{val(project.summary)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">IPM Number:</span>
-                    <span className="pm-kv-val">{project.ipmNumber || project.code}</span>
+                    <span className="pm-kv-val">{val(project.ipmNumber || project.code)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">IT Delivery Lead:</span>
-                    <span className="pm-kv-val">{project.itdl}</span>
+                    <span className="pm-kv-val">{val(project.itdl)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Product Owner:</span>
-                    <span className="pm-kv-val">{project.po}</span>
+                    <span className="pm-kv-val">{val(project.po)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Owned By:</span>
-                    <span className="pm-kv-val">{project.ownedBy || project.po}</span>
+                    <span className="pm-kv-val">{val(project.ownedBy)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Clarity Planned Finish Date:</span>
-                    <span className="pm-kv-val">{project.clarityFinishDate || 'Feb 28, 2025'}</span>
+                    <span className="pm-kv-val">{val(project.clarityFinishDate)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Start Date:</span>
-                    <span className="pm-kv-val">{project.startDate}</span>
+                    <span className="pm-kv-val">{val(project.startDate)}</span>
+                  </div>
+                  <div className="pm-kv-item">
+                    <span className="pm-kv-label">Depends On:</span>
+                    <span className="pm-kv-val">{val(project.dependsOn)}</span>
                   </div>
                 </div>
 
-                {/* Column 2 */}
                 <div className="pm-kv-col">
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Work Order Type:</span>
-                    <span className="pm-kv-val">{project.workOrderType || 'Project'}</span>
+                    <span className="pm-kv-val">{val(project.workOrderType)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Priority:</span>
-                    <span className="pm-kv-val">{project.priority || 'Medium'}</span>
+                    <span className="pm-kv-val">{val(project.priority)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Backup IT Delivery Lead:</span>
-                    <span className="pm-kv-val">{project.backupItdl}</span>
+                    <span className="pm-kv-val">{val(project.backupItdl)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">PMO Project Manager:</span>
-                    <span className="pm-kv-val">{project.pmo}</span>
+                    <span className="pm-kv-val">{val(project.pmo)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Last Comment:</span>
-                    <span className="pm-kv-val pm-kv-comment">{project.lastComment}</span>
+                    <span className="pm-kv-val pm-kv-comment">{val(project.lastComment)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Requestor Name:</span>
-                    <span className="pm-kv-val">{project.requestorName || 'Marwan'}</span>
+                    <span className="pm-kv-val">{val(project.requestorName)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">Planned Dev Completion Date:</span>
-                    <span className="pm-kv-val">{project.plannedDevDate || 'Apr 9, 2025'}</span>
+                    <span className="pm-kv-val">{val(project.plannedDevDate)}</span>
                   </div>
                   <div className="pm-kv-item">
                     <span className="pm-kv-label">End Date:</span>
-                    <span className="pm-kv-val">{project.endDate || 'Jul 31, 2025'}</span>
+                    <span className="pm-kv-val">{val(project.endDate)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Description Block */}
+              {/* Full description from API */}
               <div className="pm-desc-block">
                 <span className="pm-kv-label">Project Description:</span>
-                <span className="pm-desc-text">{project.fullDesc}</span>
+                <span className="pm-desc-text">{val(project.fullDesc)}</span>
               </div>
 
-              {/* Bottom Visual Cards */}
+              {/* Phase Allocation Chart + Status Overview — side by side */}
               <div className="pm-detail-bottom-row">
                 <div className="pm-detail-card pm-detail-card--chart">
                   <div className="pm-detail-card-header">
@@ -159,25 +167,25 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                       <div className="pm-histogram-bars">
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.planning / 80) * 100}%`, background: '#60a5fa' }} title={`Planning: ${chart.planning}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.planning / maxBar) * 100}%`, background: '#60a5fa' }} title={`Planning: ${chart.planning}`} />
                           </div>
                           <span className="pm-histo-label">Planning</span>
                         </div>
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.development / 80) * 100}%`, background: '#ef4444' }} title={`Development: ${chart.development}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.development / maxBar) * 100}%`, background: '#ef4444' }} title={`Development: ${chart.development}`} />
                           </div>
                           <span className="pm-histo-label">Development</span>
                         </div>
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.testing / 80) * 100}%`, background: '#ec4899' }} title={`Testing: ${chart.testing}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.testing / maxBar) * 100}%`, background: '#ec4899' }} title={`Testing: ${chart.testing}`} />
                           </div>
                           <span className="pm-histo-label">Testing</span>
                         </div>
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.delivered / 80) * 100}%`, background: '#10b981' }} title={`Delivered: ${chart.delivered}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.delivered / maxBar) * 100}%`, background: '#10b981' }} title={`Delivered: ${chart.delivered}`} />
                           </div>
                           <span className="pm-histo-label">Delivered</span>
                         </div>
@@ -192,7 +200,30 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                   </div>
                   <div className="pm-donut-body">
                     <div className="pm-timeline-status-alert">
-                      Status: <strong>{project.stage ? project.stage.toUpperCase() : 'PLANNING'}</strong> (Overdue for {project.overdueDays || 0} Days)
+                      Status: <strong>{project.stage ? project.stage.toUpperCase() : '—'}</strong>
+                      {project.overdueDays > 0 && ` (Overdue for ${project.overdueDays} Days)`}
+                    </div>
+
+                    {/* Additional key project status fields */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                      {project.dependsOn && (
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                          <span className="pm-kv-label">Category:</span>
+                          <span className="pm-kv-val" style={{ background: '#006838', color: '#fff', padding: '1px 8px', borderRadius: 10, fontSize: 10 }}>{project.dependsOn}</span>
+                        </div>
+                      )}
+                      {project.priority && (
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                          <span className="pm-kv-label">Priority:</span>
+                          <span className="pm-kv-val">{project.priority}</span>
+                        </div>
+                      )}
+                      {project.workOrderType && (
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                          <span className="pm-kv-label">Work Order Type:</span>
+                          <span className="pm-kv-val">{project.workOrderType}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
