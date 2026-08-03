@@ -1960,14 +1960,434 @@
   color: #006838;
 }
 
-@media (max-width: 1200px) {
-  .pm-itdl-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 768px) {
   .pm-itdl-grid {
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENTERPRISE LIFECYCLE STEPPER & UX ENHANCEMENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Lifecycle Mode Toggle Switch Button ──────────────────────────────────── */
+.pm-lifecycle-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.pm-lifecycle-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.pm-lifecycle-toggle-btn:hover {
+  border-color: #006838;
+  color: #006838;
+  background: #f0fdf4;
+}
+
+.pm-lifecycle-toggle-btn.is-dev {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.pm-lifecycle-toggle-btn.is-dev:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.pm-toggle-icon {
+  transition: transform 0.25s ease;
+}
+
+.pm-lifecycle-toggle-btn:hover .pm-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.pm-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Master Lifecycle Container & Smooth Mode Animator (200-250ms) ───────── */
+.pm-lifecycle-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.pm-lifecycle-animator {
+  transition: opacity 225ms cubic-bezier(0.4, 0, 0.2, 1), transform 225ms cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+}
+
+.pm-lifecycle-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.pm-meta-stage-text {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pm-meta-phase-label {
+  font-weight: 600;
+  color: #006838;
+}
+
+/* ── Enterprise Stepper Grid / Flow Component ───────────────────────────── */
+.pm-stepper-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.pm-stepper-scroll-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pm-stepper-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.pm-stepper-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 2px;
+  background: #f8fafc;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.pm-dev-stepper {
+  min-width: 580px; /* Ensures all 17 phases fit with internal scroll on small viewports */
+}
+
+.pm-step-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  position: relative;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.pm-step-segment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pm-step-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.pm-step-label {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-step-arrow-divider {
+  width: 4px;
+  height: 8px;
+  border-right: 1.5px solid #cbd5e1;
+  border-top: 1.5px solid #cbd5e1;
+  transform: rotate(45deg);
+  margin: 0 1px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* Step States */
+
+/* 1. Completed State */
+.pm-step-item.state-completed .pm-step-segment {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.pm-step-item.state-completed .pm-step-icon-wrap {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.pm-step-item.state-completed:hover .pm-step-segment {
+  background: rgba(16, 185, 129, 0.22);
+}
+
+/* 2. Current State (Highlighted Active Step) */
+.pm-step-item.state-current .pm-step-segment {
+  background: #006838;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 104, 56, 0.3);
+  transform: translateY(-1px);
+}
+
+.pm-step-item.state-current .pm-step-icon-wrap {
+  background: #ffffff;
+  color: #006838;
+}
+
+.pm-step-item.state-current .pm-step-label {
+  font-weight: 700;
+}
+
+/* 3. Future State */
+.pm-step-item.state-future .pm-step-segment {
+  background: #ffffff;
+  color: #94a3b8;
+  border: 1px solid #f1f5f9;
+}
+
+.pm-step-item.state-future .pm-step-icon-wrap {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.pm-step-item.state-future:hover .pm-step-segment {
+  background: #f8fafc;
+  color: #475569;
+}
+
+/* ── Smart Compact Summary Component (Requirement 5) ────────────────────── */
+.pm-summary-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+}
+
+.pm-summary-cell.is-compact {
+  max-width: 240px;
+}
+
+.pm-summary-compact-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pm-summary-header-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pm-project-id-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #1e293b;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.pm-summary-truncated-text {
+  font-size: 12px;
+  color: #334155;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+  display: block;
+}
+
+.pm-summary-normal-wrap {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ── Floating Hover Tooltip Component ─────────────────────────────────────── */
+.pm-progress-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.4;
+  animation: pm-fade-in 0.15s ease-out;
+}
+
+@keyframes pm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pm-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.pm-tooltip-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pm-tooltip-title {
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.pm-tooltip-state-tag {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.pm-tooltip-state-tag.state-completed {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.pm-tooltip-state-tag.state-current {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.pm-tooltip-state-tag.state-future {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+}
+
+.pm-tooltip-subtitle {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pm-tooltip-desc {
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+/* ── Status Badge Component ──────────────────────────────────────────────── */
+.pm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--badge-color, #3b82f6);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.pm-status-badge .pm-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--badge-color, #3b82f6);
+}
+
+/* ── Dynamic Status Filter Select ────────────────────────────────────────── */
+.pm-dynamic-status-select {
+  font-weight: 600;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* ── Skeleton Loading Rows ────────────────────────────────────────────────── */
+.pm-skeleton-row {
+  height: 48px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: pm-skeleton-pulse 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes pm-skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Table Alignment Improvements ───────────────────────────────────────── */
+.pm-master-table th.col-code {
+  width: 140px;
+}
+
+.pm-master-table th.col-summary {
+  width: auto;
+}
+
+.pm-master-table th.col-owner {
+  width: 160px;
+}
+
+.pm-master-table th.col-lifecycle {
+  width: 50%;
+}

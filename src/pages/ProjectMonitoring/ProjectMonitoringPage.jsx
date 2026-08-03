@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
-  ArrowLeftRight,
   Building2,
   Calendar,
   CheckCircle,
@@ -10,7 +9,6 @@ import {
   ChevronRight,
   Clock,
   Download,
-  Eye,
   FileSearch,
   FileText,
   Layers,
@@ -30,8 +28,14 @@ import projectService from '@services/projectService';
 import capacityService from '@services/capacityService';
 import './ProjectMonitoringPage.css';
 
+// Import enterprise sub-components and utilities
+import LifecycleToggle from './components/LifecycleToggle';
+import StatusFilter from './components/StatusFilter';
+import ProjectRow from './components/ProjectRow';
+import { getStageInfo } from './utils/statusMapper';
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   STATIC MOCK DATA — All numbers from the spec
+   STATIC MOCK DATA — Preserved from existing implementation
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const CATEGORY_CHIPS = [
@@ -57,7 +61,6 @@ const VELOCITY_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
 const COMPLETED_DATA = [1, 0, 2, 1, 3, 2, 2, 1, 5, 3, 2, 1];
 const TARGET_DATA = [2, 2, 2, 2, 3, 3, 3, 3, 4, 3, 2, 2];
 
-/* Count by Organization Data — Minimal enterprise list */
 const ORG_ROLE_COUNTS = [
   { role: 'ITDL', color: '#3b82f6', count: 76 },
   { role: 'Product Owner', color: '#8b5cf6', count: 81 },
@@ -76,8 +79,8 @@ const ITDL_TEAMS = [
       { name: 'Javeed Abdul', count: 4 },
       { name: 'Ishaq Ali', count: 4 },
       { name: 'Rahim Syed', count: 3 },
-      { name: 'Adnan Khan', count: 2 }
-    ]
+      { name: 'Adnan Khan', count: 2 },
+    ],
   },
   {
     headName: 'Mansoor Khan',
@@ -88,8 +91,8 @@ const ITDL_TEAMS = [
       { name: 'Javeed Abdul', count: 4 },
       { name: 'Ishaq Ali', count: 3 },
       { name: 'Sami Shaik', count: 2 },
-      { name: 'Adnan Sami', count: 2 }
-    ]
+      { name: 'Adnan Sami', count: 2 },
+    ],
   },
   {
     headName: 'Mohammad Faiz Shaik',
@@ -100,8 +103,8 @@ const ITDL_TEAMS = [
       { name: 'Adnan Sami Shaik', count: 3 },
       { name: 'Abdul Rahim Syed', count: 3 },
       { name: 'Ishaq Ali', count: 2 },
-      { name: 'Sami Shaik', count: 2 }
-    ]
+      { name: 'Sami Shaik', count: 2 },
+    ],
   },
   {
     headName: 'Javeed Abdul',
@@ -112,12 +115,11 @@ const ITDL_TEAMS = [
       { name: 'Mohammad Faiz Shaik', count: 3 },
       { name: 'Abdul Rahim Syed', count: 2 },
       { name: 'Ishaq Ali', count: 2 },
-      { name: 'Adnan Khan', count: 2 }
-    ]
-  }
+      { name: 'Adnan Khan', count: 2 },
+    ],
+  },
 ];
 
-/* ── Count by Organization Card (Enhanced compact layout) ──────────────── */
 function CountByOrganizationCard() {
   const maxCount = 100;
   return (
@@ -125,7 +127,6 @@ function CountByOrganizationCard() {
       <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
         Count by Teams
       </h3>
-
       <div className="pm-compact-org-list">
         {ORG_ROLE_COUNTS.map((item) => (
           <div key={item.role} className="pm-compact-org-row">
@@ -175,7 +176,7 @@ const SAMPLE_PROJECTS = [
     pmo: 'Adnan Sami Shaik Kallutla',
     ownedBy: 'Mohammad Faiz Shaik',
     requestorName: 'Marwan',
-    stage: 'testing',
+    stage: 'Testing',
     stageIdx: 3,
     lastComment: 'Last updated on Aug 07, 2025 08:17 AM by system',
     fullDesc: 'pr01268 — Murex Trade Reconciliation system enhancement focusing on T+1 settlement lifecycle and automated exception handling.',
@@ -199,7 +200,7 @@ const SAMPLE_PROJECTS = [
     pmo: 'Mohammad Faiz Shaik',
     ownedBy: 'Javeed Abdul',
     requestorName: 'Khalid',
-    stage: 'building',
+    stage: 'Building',
     stageIdx: 2,
     lastComment: 'Last updated on Jul 12, 2025 11:14 AM by system',
     fullDesc: 'pr01301 — Backend integration layer for risk engine data feeds including CR file matching logic and WO synchronization.',
@@ -223,7 +224,7 @@ const SAMPLE_PROJECTS = [
     pmo: 'Mansoor Khan',
     ownedBy: 'Abdul Rahim Syed',
     requestorName: 'Tariq',
-    stage: 'deployed',
+    stage: 'Deployed',
     stageIdx: 5,
     lastComment: 'Last updated on Jul 10, 2025 09:22 AM by system',
     fullDesc: 'pr01302 — Optimization of end-of-day batch runs, reducing processing time by 40% through parallel job scheduling.',
@@ -247,7 +248,7 @@ const SAMPLE_PROJECTS = [
     pmo: 'Javeed Abdul',
     ownedBy: 'Mansoor Khan',
     requestorName: 'Sami',
-    stage: 'planning',
+    stage: 'Planning',
     stageIdx: 1,
     lastComment: 'Last updated on Jul 08, 2025 03:45 PM by system',
     fullDesc: 'SD45526 — AI-driven incident classification and auto-routing system to reduce manual triage time from 4h to 15min.',
@@ -271,7 +272,7 @@ const SAMPLE_PROJECTS = [
     pmo: 'Adnan Sami Shaik Kallutla',
     ownedBy: 'Mohammad Faiz Shaik',
     requestorName: 'Youssef',
-    stage: 'inception',
+    stage: 'Inception',
     stageIdx: 0,
     lastComment: 'Last updated on Jul 07, 2025 10:58 AM by system',
     fullDesc: 'SD45529 — Real-time capacity data pipeline feeding the executive dashboard with live consultant utilization metrics.',
@@ -301,19 +302,6 @@ const BREACH_METRICS = {
   ],
 };
 
-const RESOLUTION_TABLE_DATA = [
-  { code: 'pr01268', itdl: 'Adnan Sami Shaik Kallutla', status: 'Testing', missingField: 'Man Days' },
-  { code: 'SD45526', itdl: 'Mansoor Khan', status: 'Planning', missingField: 'Man Days' },
-  { code: 'SD45529', itdl: 'Mohammad Faiz Shaik', status: 'Inception', missingField: 'Man Days' },
-  { code: 'SD45550', itdl: 'Adnan Sami Shaik Kallutla', status: 'Testing', missingField: 'Man Days' },
-  { code: 'pr01301', itdl: 'Javeed Abdul', status: 'Building', missingField: 'Man Days' },
-  { code: 'SD45554', itdl: 'Javeed Abdul', status: 'Release Process', missingField: 'Man Days' },
-];
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Utility helpers
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 const STAGE_COLORS = {
   inception: '#8b5cf6',
   planning: '#3b82f6',
@@ -336,25 +324,13 @@ const STAGE_LABELS = {
   completed: 'Completed',
 };
 
-const STAGE_TOTAL = 7;
-
-function getLifecyclePills(stageIdx, stageKey) {
-  return Array.from({ length: STAGE_TOTAL }, (_, i) => {
-    if (i < stageIdx) return 'pm-pill-completed';
-    if (i === stageIdx && stageKey !== 'completed') return 'pm-pill-current';
-    if (stageKey === 'completed') return 'pm-pill-completed';
-    return 'pm-pill-future';
-  });
-}
-
-/* CSV Export helper */
 function exportToCSV(rows, filename) {
   if (!rows.length) return;
   const headers = ['Project Code', 'Summary', 'Stage', 'Start Date', 'ITDL', 'Backup ITDL', 'Product Owner', 'PMO'];
   const lines = [
     headers.join(','),
     ...rows.map((p) =>
-      [p.code, `"${p.summary}"`, STAGE_LABELS[p.stage] || p.stage, p.startDate, p.itdl, p.backupItdl, p.po, p.pmo].join(',')
+      [p.code, `"${p.summary}"`, STAGE_LABELS[p.stage.toLowerCase()] || p.stage, p.startDate, p.itdl, p.backupItdl, p.po, p.pmo].join(',')
     ),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -366,18 +342,15 @@ function exportToCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Sub-components
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Drill-down Modal Overlay (Consistent App Component UI) ───────────── */
 function DrilldownModal({ stage, onClose }) {
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
-    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
@@ -385,11 +358,10 @@ function DrilldownModal({ stage, onClose }) {
   if (!stage) return null;
 
   const stageInfo = LIFECYCLE_STAGES.find((s) => s.key === stage.key);
-  const totalCount = stageInfo ? stageInfo.countAll : (stage.count || 0);
+  const totalCount = stageInfo ? stageInfo.countAll : stage.count || 0;
   const stageColor = STAGE_COLORS[stage.key] || '#006838';
 
   const projects = SAMPLE_PROJECTS.filter((p) => {
-    // If it's a team member drill-down
     if (stage.type === 'member') {
       const name = stage.label.toLowerCase();
       return (
@@ -399,22 +371,18 @@ function DrilldownModal({ stage, onClose }) {
         (p.ownedBy && p.ownedBy.toLowerCase().includes(name))
       );
     }
-
-    // If it's a breach stage key
-    if (stage.key === 'testing-blocked') return p.stage === 'testing';
-    if (stage.key === 'sla1') return p.stage !== 'completed';
-    if (stage.key === 'sla2') return p.stage === 'testing';
-    if (stage.key === 'sla5') return p.stage === 'testing';
-    if (stage.key === 'dd2') return p.stage === 'building';
+    if (stage.key === 'testing-blocked') return p.stage.toLowerCase() === 'testing';
+    if (stage.key === 'sla1') return p.stage.toLowerCase() !== 'completed';
+    if (stage.key === 'sla2') return p.stage.toLowerCase() === 'testing';
+    if (stage.key === 'sla5') return p.stage.toLowerCase() === 'testing';
+    if (stage.key === 'dd2') return p.stage.toLowerCase() === 'building';
     if (stage.key === 'cr2') return p.workOrderType === 'CR';
     if (stage.key === 'cr3') return p.workOrderType === 'CR';
 
-    // Standard stages
-    if (p.stage === stage.key) return true;
+    if (p.stage.toLowerCase() === stage.key) return true;
 
-    // Fallback if stage key is a general breach
     if (stage.key && (stage.key.startsWith('sla') || stage.key.startsWith('dd') || stage.key.startsWith('cr'))) {
-      return p.stage !== 'completed';
+      return p.stage.toLowerCase() !== 'completed';
     }
 
     return false;
@@ -439,8 +407,6 @@ function DrilldownModal({ stage, onClose }) {
   return (
     <div className="pm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Projects - ${stage.label}`}>
       <div className="pm-modal-panel" onClick={(e) => e.stopPropagation()}>
-
-        {/* Modal Header */}
         <div className="pm-modal-header">
           <div className="pm-modal-title-row">
             <h2 className="pm-modal-title">Projects — {stage.label}</h2>
@@ -453,7 +419,6 @@ function DrilldownModal({ stage, onClose }) {
           </button>
         </div>
 
-        {/* Modal Toolbar: App Standard Search Input & Export Button on same row */}
         <div className="pm-modal-toolbar">
           <div className="pm-search-wrap">
             <Search size={14} className="pm-search-icon-inner" />
@@ -477,7 +442,6 @@ function DrilldownModal({ stage, onClose }) {
           </div>
         </div>
 
-        {/* Modal Content Table */}
         <div className="pm-modal-table-container">
           <table className="pm-master-table">
             <thead>
@@ -532,13 +496,21 @@ function DrilldownModal({ stage, onClose }) {
                           </span>
                         </td>
                         <td>
-                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage] || stageColor }}>
-                            {STAGE_LABELS[p.stage] || p.stage}
+                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || stageColor }}>
+                            {STAGE_LABELS[p.stage.toLowerCase()] || p.stage}
                           </span>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{p.stageIdx + 1}/{STAGE_TOTAL}</td>
+                        <td style={{ fontWeight: 600 }}>{p.stageIdx + 1}/7</td>
                         <td>
-                          <span className={`pm-stage-pill`} style={{ background: p.priority === 'High' || p.priority === 'Critical' ? '#fef2f2' : '#f1f5f9', color: p.priority === 'High' || p.priority === 'Critical' ? '#ef4444' : '#64748b', border: '1px solid currentColor', textTransform: 'capitalize' }}>
+                          <span
+                            className={`pm-stage-pill`}
+                            style={{
+                              background: p.priority === 'High' || p.priority === 'Critical' ? '#fef2f2' : '#f1f5f9',
+                              color: p.priority === 'High' || p.priority === 'Critical' ? '#ef4444' : '#64748b',
+                              border: '1px solid currentColor',
+                              textTransform: 'capitalize',
+                            }}
+                          >
                             {p.priority}
                           </span>
                         </td>
@@ -561,8 +533,8 @@ function DrilldownModal({ stage, onClose }) {
                           </span>
                         </td>
                         <td>
-                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage] || stageColor }}>
-                            {STAGE_LABELS[p.stage] || p.stage}
+                          <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || stageColor }}>
+                            {STAGE_LABELS[p.stage.toLowerCase()] || p.stage}
                           </span>
                         </td>
                         <td style={{ fontSize: 11, color: '#334155' }}>{p.itdl}</td>
@@ -580,174 +552,57 @@ function DrilldownModal({ stage, onClose }) {
             </tbody>
           </table>
         </div>
-
-      </div>
-    </div>
-  );
-}
-
-/* ── Role Count Breakdown Card ──────────────────────────────────────────── */
-function RoleBreakdownCard() {
-  const [hoveredRole, setHoveredRole] = useState(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const maxTotal = 103;
-
-  const handleMouseMove = (e) => {
-    setTooltipPos({ x: e.clientX, y: e.clientY });
-  };
-
-  return (
-    <div className="pm-chart-card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <h3 className="pm-card-title" style={{ margin: 0 }}>
-          <BarChart2 size={14} color="#006838" /> Project Counts by Organisational Role
-        </h3>
-        <span className="pm-role-total-badge">
-          <TrendingUp size={11} /> {maxTotal} Total Projects
-        </span>
-      </div>
-
-      <div className="pm-role-breakdown">
-        {ROLE_BREAKDOWN.map((role) => {
-          const assignedPct = (role.assigned / maxTotal) * 100;
-          const isHovered = hoveredRole === role.role;
-          return (
-            <div
-              key={role.role}
-              className={`pm-role-row ${isHovered ? 'hovered' : ''}`}
-              onMouseEnter={() => setHoveredRole(role.role)}
-              onMouseLeave={() => setHoveredRole(null)}
-              onMouseMove={handleMouseMove}
-            >
-              {/* Role Label */}
-              <div className="pm-role-label-wrap">
-                <span className="pm-role-dot" style={{ background: role.color }} />
-                <span className="pm-role-name">{role.role}</span>
-              </div>
-
-              {/* Bar */}
-              <div className="pm-role-bar-track">
-                <div
-                  className="pm-role-bar-fill"
-                  style={{
-                    width: `${assignedPct}%`,
-                    background: `linear-gradient(90deg, ${role.color}cc, ${role.color})`,
-                  }}
-                />
-                {role.unassigned > 0 && (
-                  <div
-                    className="pm-role-bar-unassigned"
-                    style={{
-                      width: `${(role.unassigned / maxTotal) * 100}%`,
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Counts */}
-              <div className="pm-role-counts">
-                <span className="pm-role-assigned-count" style={{ color: role.color }}>{role.assigned}</span>
-                <span className="pm-role-sep">/</span>
-                <span className="pm-role-total-count">{maxTotal}</span>
-              </div>
-
-              {/* Pct badge */}
-              <span
-                className="pm-role-pct-badge"
-                style={{ background: role.colorLight, color: role.color, borderColor: `${role.color}30` }}
-              >
-                {Math.round(assignedPct)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Tooltip */}
-      {hoveredRole && (() => {
-        const role = ROLE_BREAKDOWN.find((r) => r.role === hoveredRole);
-        if (!role) return null;
-        return (
-          <div
-            className="pm-role-tooltip"
-            style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 8 }}
-          >
-            <div className="pm-role-tooltip-title" style={{ color: role.color }}>
-              {role.role}
-            </div>
-            <div className="pm-role-tooltip-meta">
-              <span>{role.assigned} Assigned</span>
-              <span className="pm-role-tooltip-sep">·</span>
-              <span style={{ color: '#94a3b8' }}>{role.unassigned} Unassigned</span>
-            </div>
-            <div className="pm-role-tooltip-members">
-              {role.members.map((m) => (
-                <div key={m.name} className="pm-role-tooltip-member">
-                  <span>{m.name}</span>
-                  <span style={{ fontWeight: 700, color: role.color }}>{m.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Legend */}
-      <div className="pm-role-legend">
-        <span className="pm-role-legend-item">
-          <span className="pm-role-legend-swatch" style={{ background: '#94a3b8' }} />
-          Assigned
-        </span>
-        <span className="pm-role-legend-item">
-          <span className="pm-role-legend-swatch" style={{ background: '#e2e8f0' }} />
-          Unassigned
-        </span>
       </div>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Main Component
+   MAIN PROJECT MONITORING PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
 export function ProjectMonitoringPage() {
   useDocumentTitle('Project Monitoring');
 
-  // Navigation
+  // Active view mode: 'business' (7 phases default) vs 'development' (17 phases toggle)
+  const [lifecycleMode, setLifecycleMode] = useState('business');
+
+  // Navigation Tabs
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [syncing, setSyncing] = useState(false);
 
-  // Tab 1 — chart timeframe
+  // Tab 1 — chart timeframe & drilldowns
   const [timeframe, setTimeframe] = useState('Monthly');
-
-  // Tab 1 — Lifecycle drill-down
   const [drilldownStage, setDrilldownStage] = useState(null);
 
-  // Tab 2 — filters & expansion
+  // Tab 2 — directory filters & expansion
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [expandedId, setExpandedId] = useState(null);
 
-  // Tab 3 — resolution table
+  // Tab 3 — breaches
   const [activeBreachMetric, setActiveBreachMetric] = useState(null);
 
   const [projectsList, setProjectsList] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Toggle mode handler
+  const handleToggleLifecycleMode = () => {
+    setLifecycleMode((prev) => (prev === 'business' ? 'development' : 'business'));
+  };
 
   const fetchData = useCallback(async () => {
     try {
       setLoadingData(true);
       const [capacityRes, workOrderRes] = await Promise.all([
         capacityService.getCapacityPlanning(),
-        projectService.getWorkOrderStatus()
+        projectService.getWorkOrderStatus(),
       ]);
 
       let allProjects = [];
 
-      // Helper to map work orders
       const mapWorkOrder = (wo) => ({
         id: wo.Wo_Id ? wo.Wo_Id.toString() : wo.Ipm_Number || '',
         code: wo.Ipm_Number || '',
@@ -765,14 +620,13 @@ export function ProjectMonitoringPage() {
         pmo: wo.PMO_Project_Manager || 'unassigned',
         ownedBy: wo.Owned_By || 'unassigned',
         requestorName: wo.Requestor_Name || 'unassigned',
-        stage: wo.Status ? wo.Status.toLowerCase() : 'planning',
+        stage: wo.Status ? wo.Status : 'Planning',
         stageIdx: 0,
         lastComment: wo.Last_Comment || '',
         fullDesc: wo.Description || wo.Summary || '',
         overdueDays: 0,
       });
 
-      // Helper to map change requests
       const mapChangeRequest = (cr) => ({
         id: cr.Id ? cr.Id.toString() : '',
         code: cr.Wo_Id ? cr.Wo_Id.toString() : '',
@@ -787,7 +641,7 @@ export function ProjectMonitoringPage() {
         po: 'unassigned',
         pmo: 'unassigned',
         ownedBy: cr.Assigned_Developer || 'unassigned',
-        stage: cr.Status ? cr.Status.toLowerCase() : 'planning',
+        stage: cr.Status ? cr.Status : 'Planning',
         stageIdx: 0,
         lastComment: '',
         fullDesc: cr.Summary || '',
@@ -801,10 +655,9 @@ export function ProjectMonitoringPage() {
         allProjects = [...allProjects, ...workOrderRes.changeRequests.map(mapChangeRequest)];
       }
 
-      // If the API hasn't returned anything yet, we can fallback to SAMPLE_PROJECTS for demo purposes
       setProjectsList(allProjects.length > 0 ? allProjects : SAMPLE_PROJECTS);
     } catch (err) {
-      console.error('Failed to fetch data:', err);
+      console.error('Failed to fetch project data:', err);
       setProjectsList(SAMPLE_PROJECTS);
     } finally {
       setLoadingData(false);
@@ -816,27 +669,35 @@ export function ProjectMonitoringPage() {
     fetchData();
   }, [fetchData]);
 
-  /* Handlers */
   const handleSync = () => {
     setSyncing(true);
     fetchData();
   };
 
-  const filteredProjects = projectsList.filter((p) => {
-    const q = searchQuery.toLowerCase();
-    if (q && !p.code.toLowerCase().includes(q) && !p.itdl.toLowerCase().includes(q) && !p.po.toLowerCase().includes(q) && !p.summary.toLowerCase().includes(q)) return false;
-    if (statusFilter && p.stage !== statusFilter) return false;
-    return true;
-  });
+  // Filtered projects list based on search and dynamic status filter
+  const filteredProjects = useMemo(() => {
+    return projectsList.filter((p) => {
+      const q = searchQuery.toLowerCase().trim();
+      if (
+        q &&
+        !p.code.toLowerCase().includes(q) &&
+        !p.itdl.toLowerCase().includes(q) &&
+        !p.po.toLowerCase().includes(q) &&
+        !p.summary.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
 
-  const handleBreachClick = (metricId, count) => {
-    if (count === 0) return;
-    setActiveBreachMetric((prev) => (prev === metricId ? null : metricId));
-  };
-
-  const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(projectsList.map((p) => p.stage))).filter(Boolean).sort();
-  }, [projectsList]);
+      if (statusFilter) {
+        const stageInfo = getStageInfo(p.stage, lifecycleMode);
+        const selectedStageInfo = getStageInfo(statusFilter, lifecycleMode);
+        if (stageInfo.index !== selectedStageInfo.index && p.stage.toLowerCase() !== statusFilter.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [projectsList, searchQuery, statusFilter, lifecycleMode]);
 
   const maxVelocity = Math.max(...COMPLETED_DATA, ...TARGET_DATA);
 
@@ -846,12 +707,12 @@ export function ProjectMonitoringPage() {
       { key: 'testing', label: 'Testing', cls: 'pm-stage-testing', count: 0 },
       { key: 'release', label: 'Release Process', cls: 'pm-stage-release', count: 0 },
       { key: 'deployed', label: 'Deployed', cls: 'pm-stage-deployed', count: 0 },
-      { key: 'completed', label: 'Completed', cls: 'pm-stage-completed', count: 0 }
+      { key: 'completed', label: 'Completed', cls: 'pm-stage-completed', count: 0 },
     ];
 
-    projectsList.forEach(p => {
+    projectsList.forEach((p) => {
       if (p.workOrderType === 'Project') {
-        const stageObj = stages.find(s => s.key === p.stage);
+        const stageObj = stages.find((s) => s.key === p.stage.toLowerCase());
         if (stageObj) stageObj.count++;
       }
     });
@@ -859,45 +720,49 @@ export function ProjectMonitoringPage() {
     return stages;
   }, [projectsList]);
 
-  /* ─── Lifecycle count depending on category ─── */
   const isAllCategory = selectedCategory === 'all';
 
   return (
     <div className="pm-shell">
-
-      {/* ── Tab Navigation + Sync Button ───────────────────────────────── */}
+      {/* Tab Navigation */}
       <div className="pm-tabs-nav" role="tablist" aria-label="Project tabs">
-        <button type="button" role="tab" aria-selected={activeTab === 'summary'}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'summary'}
           className={`pm-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
           onClick={() => setActiveTab('summary')}
         >
           <Layers size={15} /> Project Summary
         </button>
-        <button type="button" role="tab" aria-selected={activeTab === 'monitoring'}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'monitoring'}
           className={`pm-tab-btn ${activeTab === 'monitoring' ? 'active' : ''}`}
           onClick={() => setActiveTab('monitoring')}
         >
           <FileSearch size={15} /> Project Monitoring
         </button>
-        <button type="button" role="tab" aria-selected={activeTab === 'breaches'}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'breaches'}
           className={`pm-tab-btn ${activeTab === 'breaches' ? 'active' : ''}`}
           onClick={() => setActiveTab('breaches')}
         >
           <Shield size={15} /> Project Breaches
         </button>
-
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          TAB 1: PROJECT SUMMARY
-          ══════════════════════════════════════════════════════════════════ */}
+      {/* TAB 1: PROJECT SUMMARY */}
       {activeTab === 'summary' && (
         <div className="pm-tab-content">
-
-          {/* 1) Lifecycle Pipeline */}
           <div className="pm-pipeline-card">
             <div className="pm-pipeline-card-header">
-              <h3 className="pm-card-title"><Layers size={14} /> Lifecycle Pipeline Overview</h3>
+              <h3 className="pm-card-title">
+                <Layers size={14} /> Lifecycle Pipeline Overview
+              </h3>
               <button
                 type="button"
                 className={`pm-refresh-text-btn ${syncing ? 'spinning' : ''}`}
@@ -920,28 +785,29 @@ export function ProjectMonitoringPage() {
                 </button>
               ))}
             </div>
+
             <div className="pm-pipeline-track">
-              {dynamicPipelineStages.map((s) => {
-                const count = s.count;
-                return (
-                  <div key={s.key} className="pm-pipeline-stage">
-                    <div
-                      className={`pm-pipeline-block ${s.cls} clickable`}
-                      role="button"
-                      tabIndex={0}
-                      title={`View ${s.label} projects`}
-                      onClick={() => setDrilldownStage(s)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage(s); }}
-                    >
-                      <span className="pm-stage-label">{s.label}</span>
-                      <span className="pm-stage-count">{count}</span>
-                      <div className="pm-stage-bar" />
-                      <span className="pm-stage-click-hint">Click to explore →</span>
-                    </div>
+              {dynamicPipelineStages.map((s) => (
+                <div key={s.key} className="pm-pipeline-stage">
+                  <div
+                    className={`pm-pipeline-block ${s.cls} clickable`}
+                    role="button"
+                    tabIndex={0}
+                    title={`View ${s.label} projects`}
+                    onClick={() => setDrilldownStage(s)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') setDrilldownStage(s);
+                    }}
+                  >
+                    <span className="pm-stage-label">{s.label}</span>
+                    <span className="pm-stage-count">{s.count}</span>
+                    <div className="pm-stage-bar" />
+                    <span className="pm-stage-click-hint">Click to explore →</span>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
+
             <div className="pm-pipeline-badges">
               <span
                 className="pm-special-badge pm-badge-blocked"
@@ -958,10 +824,7 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
 
-          {/* 2) Charts Row */}
           <div className="pm-charts-row">
-
-            {/* Delivery Velocity Chart — fixed layout */}
             <div className="pm-chart-card pm-chart-card--velocity">
               <div className="pm-velocity-header">
                 <h3 className="pm-card-title" style={{ margin: 0 }}>
@@ -969,15 +832,18 @@ export function ProjectMonitoringPage() {
                 </h3>
                 <div className="pm-timeframe-controls">
                   {['Monthly', 'Quarterly', 'HalfYearly', 'Annually'].map((tf) => (
-                    <button key={tf} type="button"
+                    <button
+                      key={tf}
+                      type="button"
                       className={`pm-tf-btn ${timeframe === tf ? 'active' : ''}`}
                       onClick={() => setTimeframe(tf)}
-                    >{tf}</button>
+                    >
+                      {tf}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* Bar Chart — fills available space cleanly */}
               <div className="pm-velocity-chart-wrap">
                 <div className="pm-bar-chart">
                   {VELOCITY_MONTHS.map((m, i) => (
@@ -1013,13 +879,13 @@ export function ProjectMonitoringPage() {
               </div>
             </div>
 
-            {/* Count by Organization Card */}
             <CountByOrganizationCard />
           </div>
 
-          {/* 3) Milestone Horizon */}
           <div className="pm-horizon-card">
-            <h3 className="pm-card-title"><Clock size={14} /> Integrated Milestone Completion Horizon</h3>
+            <h3 className="pm-card-title">
+              <Clock size={14} /> Integrated Milestone Completion Horizon
+            </h3>
             <div className="pm-horizon-grid">
               {HORIZON_BUCKETS.map((b, i) => {
                 const pct = Math.min((b.total / 62) * 100, 100);
@@ -1027,7 +893,9 @@ export function ProjectMonitoringPage() {
                 return (
                   <div key={b.label} className="pm-horizon-bucket">
                     <span className="pm-horizon-days">{b.label}</span>
-                    <span className="pm-horizon-count" style={{ color: colors[i] }}>{b.total}</span>
+                    <span className="pm-horizon-count" style={{ color: colors[i] }}>
+                      {b.total}
+                    </span>
                     <span className="pm-horizon-sublabel">Projects entering delivery window</span>
                     <div className="pm-horizon-bar-wrap">
                       <div className="pm-horizon-bar-fill" style={{ width: `${pct}%`, background: colors[i] }} />
@@ -1045,7 +913,6 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
 
-          {/* 4) IT Delivery Heads Overview */}
           <div className="pm-itdl-overview-section">
             <h3 className="pm-section-subtitle">Team Overview</h3>
             <div className="pm-itdl-grid">
@@ -1057,9 +924,7 @@ export function ProjectMonitoringPage() {
                     </span>
                     <span className="pm-itdl-card-badge">{team.totalProjects}</span>
                   </div>
-
                   <div className="pm-itdl-divider" />
-
                   <div className="pm-itdl-member-list">
                     {team.members.map((member) => (
                       <div
@@ -1068,7 +933,9 @@ export function ProjectMonitoringPage() {
                         onClick={() => setDrilldownStage({ key: 'member-name', label: member.name, count: member.count, type: 'member' })}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'member-name', label: member.name, count: member.count, type: 'member' }); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'member-name', label: member.name, count: member.count, type: 'member' });
+                        }}
                       >
                         <span className="pm-itdl-member-name">{member.name}</span>
                         <span className="pm-itdl-member-count">{member.count}</span>
@@ -1079,22 +946,14 @@ export function ProjectMonitoringPage() {
               ))}
             </div>
           </div>
-
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          TAB 2: PROJECT MONITORING DIRECTORY
-          ══════════════════════════════════════════════════════════════════ */}
+      {/* TAB 2: PROJECT MONITORING DIRECTORY */}
       {activeTab === 'monitoring' && (
         <div className="pm-tab-content">
-
-          {/* Unified Project Filters Card */}
           <div className="pm-card">
-
-
             <div className="pm-filter-card-body">
-              {/* Pills row inside unified toolbar block */}
               <div className="pm-filter-row">
                 {CATEGORY_CHIPS.map((chip) => (
                   <button
@@ -1109,9 +968,8 @@ export function ProjectMonitoringPage() {
                 ))}
               </div>
 
-              {/* Inputs Toolbar Row */}
+              {/* Enhanced Toolbar with Mode Toggle & Dynamic Status Filter */}
               <div className="pm-toolbar">
-                {/* Search */}
                 <div className="pm-search-wrap">
                   <Search size={14} className="pm-search-icon-inner" />
                   <input
@@ -1123,33 +981,58 @@ export function ProjectMonitoringPage() {
                   />
                 </div>
 
-                {/* Status filter */}
-                <select className="pm-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="">All Status</option>
-                  {uniqueStatuses.map((st) => (
-                    <option key={st} value={st}>
-                      {STAGE_LABELS[st] || (st.charAt(0).toUpperCase() + st.slice(1))}
-                    </option>
-                  ))}
-                </select>
+                {/* Dynamic Status Dropdown (7 Business vs 17 Development) */}
+                <StatusFilter
+                  value={statusFilter}
+                  onChange={setStatusFilter}
+                  mode={lifecycleMode}
+                />
 
-                {/* Date range */}
-                <input type="date" className="pm-date-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} title="Start Date" />
-                <input type="date" className="pm-date-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} title="End Date" />
+                <input
+                  type="date"
+                  className="pm-date-input"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  title="Start Date"
+                />
+                <input
+                  type="date"
+                  className="pm-date-input"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  title="End Date"
+                />
 
                 <div className="pm-toolbar-divider" />
 
-                {/* Icon Actions */}
-                <button type="button" className="pm-icon-btn" title="Swap / Sort">
-                  <ArrowLeftRight size={15} />
-                </button>
-                <button type="button" className="pm-icon-btn" title="Reset Filters" onClick={() => { setSearchQuery(''); setStatusFilter(''); setStartDate(''); setEndDate(''); setSelectedCategory('all'); }}>
+                {/* Mode Switch Toggle Button (Requirement 2 & 9) */}
+                <LifecycleToggle
+                  mode={lifecycleMode}
+                  onToggle={handleToggleLifecycleMode}
+                />
+
+                <button
+                  type="button"
+                  className="pm-icon-btn"
+                  title="Reset Filters"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('');
+                    setStartDate('');
+                    setEndDate('');
+                    setSelectedCategory('all');
+                  }}
+                >
                   <RotateCcw size={15} />
                 </button>
 
                 <div className="pm-toolbar-divider" />
 
-                <button type="button" className="pm-export-btn" onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}>
+                <button
+                  type="button"
+                  className="pm-export-btn"
+                  onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}
+                >
                   <Download size={14} /> Export
                 </button>
               </div>
@@ -1161,15 +1044,26 @@ export function ProjectMonitoringPage() {
             <table className="pm-master-table">
               <thead>
                 <tr>
-                  <th className="sortable" style={{ width: '200px' }}>Project ID / Code</th>
-                  <th>Summary / Description</th>
-                  <th style={{ width: '340px' }}>Lifecycle Progress</th>
+                  <th className="col-code">Project Code</th>
+                  <th className="col-summary">Summary / Description</th>
+                  <th className="col-owner">IT Delivery Lead</th>
+                  <th className="col-lifecycle">
+                    Lifecycle Progress ({lifecycleMode === 'development' ? '17 Stages - Technical' : '7 Stages - Business'})
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredProjects.length === 0 ? (
+                {loadingData ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i}>
+                      <td colSpan={4}>
+                        <div className="pm-skeleton-row" />
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredProjects.length === 0 ? (
                   <tr>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <div className="pm-empty-state">
                         <Search size={32} color="#cbd5e1" />
                         <p>No projects match your filters. Try adjusting your search criteria.</p>
@@ -1177,243 +1071,15 @@ export function ProjectMonitoringPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProjects.flatMap((project) => {
-                    const pills = getLifecyclePills(project.stageIdx, project.stage);
-                    const isExpanded = expandedId === project.id;
-                    const chart = project.chartData || { planning: 78, development: 75, testing: 7, delivered: 72 };
-
-                    const rows = [
-                      <tr
-                        key={project.id}
-                        className={isExpanded ? 'expanded-row' : ''}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => setExpandedId(isExpanded ? null : project.id)}
-                      >
-                        <td>
-                          <div className="pm-code-cell">
-                            {isExpanded
-                              ? <ChevronDown size={14} color="#64748b" />
-                              : <ChevronRight size={14} color="#64748b" />
-                            }
-                            <span className="pm-project-code">{project.code}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
-                            {project.summary}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              {pills.map((cls, i) => (
-                                <div
-                                  key={i}
-                                  className={`pm-lifecycle-pill ${cls}`}
-                                  style={{ width: 28, flexShrink: 0 }}
-                                  title={LIFECYCLE_STAGES[i]?.label ?? `Stage ${i + 1}`}
-                                />
-                              ))}
-                            </div>
-                            <span className="pm-stage-progress-label">
-                              {project.stageIdx + 1}/{STAGE_TOTAL}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>,
-                    ];
-
-                    if (isExpanded) {
-                      rows.push(
-                        <tr key={`detail-${project.id}`} className="pm-detail-row">
-                          <td colSpan={3}>
-                            <div className="pm-expanded-detail-container">
-
-                              {/* 2-Column Key-Value Info Grid */}
-                              <div className="pm-kv-grid">
-
-                                {/* Column 1 */}
-                                <div className="pm-kv-col">
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Project Summary:</span>
-                                    <span className="pm-kv-val">
-                                      {project.code}- {project.summary}{' '}
-                                      <button type="button" className="pm-more-link" onClick={() => alert(project.summary)}>More</button>
-                                    </span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">IPM Number:</span>
-                                    <span className="pm-kv-val">{project.ipmNumber || project.code}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">IT Delivery Lead:</span>
-                                    <span className="pm-kv-val">{project.itdl}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Product Owner:</span>
-                                    <span className="pm-kv-val">{project.po}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Owned By:</span>
-                                    <span className="pm-kv-val">{project.ownedBy || project.po}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Clarity Planned Finish Date:</span>
-                                    <span className="pm-kv-val">{project.clarityFinishDate || 'Feb 28, 2025'}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Start Date:</span>
-                                    <span className="pm-kv-val">{project.startDate}</span>
-                                  </div>
-                                </div>
-
-                                {/* Column 2 */}
-                                <div className="pm-kv-col">
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Work Order Type:</span>
-                                    <span className="pm-kv-val">{project.workOrderType || 'Project'}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Priority:</span>
-                                    <span className="pm-kv-val">{project.priority || 'Medium'}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Backup IT Delivery Lead:</span>
-                                    <span className="pm-kv-val">{project.backupItdl}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">PMO Project Manager:</span>
-                                    <span className="pm-kv-val">{project.pmo}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Last Comment:</span>
-                                    <span className="pm-kv-val pm-kv-comment">{project.lastComment}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Requestor Name:</span>
-                                    <span className="pm-kv-val">{project.requestorName || 'Marwan'}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">Planned Dev Completion Date:</span>
-                                    <span className="pm-kv-val">{project.plannedDevDate || 'Apr 9, 2025'}</span>
-                                  </div>
-                                  <div className="pm-kv-item">
-                                    <span className="pm-kv-label">End Date:</span>
-                                    <span className="pm-kv-val">{project.endDate || 'Jul 31, 2025'}</span>
-                                  </div>
-                                </div>
-
-                              </div>
-
-                              {/* Project Description Section */}
-                              <div className="pm-desc-block">
-                                <span className="pm-kv-label">Project Description:</span>
-                                <span className="pm-desc-text">
-                                  {project.fullDesc}{' '}
-                                  <button type="button" className="pm-more-link" onClick={() => alert(project.fullDesc)}>More</button>
-                                </span>
-                              </div>
-
-                              {/* Visual Charts & Status Section (Bottom Panel Side-by-Side) */}
-                              <div className="pm-detail-bottom-row">
-
-                                {/* Left Side: Bar Chart / Histogram */}
-                                <div className="pm-detail-card pm-detail-card--chart">
-                                  <div className="pm-detail-card-header">
-                                    <h4 className="pm-detail-card-title">Chart</h4>
-                                  </div>
-
-                                  {/* Top Legend */}
-                                  <div className="pm-chart-legend">
-                                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#60a5fa' }} /> Planning</span>
-                                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#ef4444' }} /> Development</span>
-                                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#ec4899' }} /> Testing</span>
-                                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#10b981' }} /> Delivered</span>
-                                  </div>
-
-                                  {/* Histogram Bar Chart */}
-                                  <div className="pm-histogram-container">
-                                    <div className="pm-histogram-yaxis">
-                                      {[80, 70, 60, 50, 40, 30, 20, 10, 0].map((y) => (
-                                        <span key={y} className="pm-yaxis-label">{y}</span>
-                                      ))}
-                                    </div>
-
-                                    <div className="pm-histogram-canvas">
-                                      <div className="pm-grid-lines">
-                                        {[80, 70, 60, 50, 40, 30, 20, 10, 0].map((y) => (
-                                          <div key={y} className="pm-grid-line" />
-                                        ))}
-                                      </div>
-
-                                      <div className="pm-histogram-bars">
-                                        {/* Planning */}
-                                        <div className="pm-histo-col">
-                                          <div className="pm-histo-bar-wrap">
-                                            <div className="pm-histo-bar" style={{ height: `${(chart.planning / 80) * 100}%`, background: '#60a5fa' }} title={`Planning: ${chart.planning}`} />
-                                          </div>
-                                          <span className="pm-histo-label">Planning</span>
-                                        </div>
-
-                                        {/* Development */}
-                                        <div className="pm-histo-col">
-                                          <div className="pm-histo-bar-wrap">
-                                            <div className="pm-histo-bar" style={{ height: `${(chart.development / 80) * 100}%`, background: '#ef4444' }} title={`Development: ${chart.development}`} />
-                                          </div>
-                                          <span className="pm-histo-label">Development</span>
-                                        </div>
-
-                                        {/* Testing */}
-                                        <div className="pm-histo-col">
-                                          <div className="pm-histo-bar-wrap">
-                                            <div className="pm-histo-bar" style={{ height: `${(chart.testing / 80) * 100}%`, background: '#ec4899' }} title={`Testing: ${chart.testing}`} />
-                                          </div>
-                                          <span className="pm-histo-label">Testing</span>
-                                        </div>
-
-                                        {/* Delivered */}
-                                        <div className="pm-histo-col">
-                                          <div className="pm-histo-bar-wrap">
-                                            <div className="pm-histo-bar" style={{ height: `${(chart.delivered / 80) * 100}%`, background: '#10b981' }} title={`Delivered: ${chart.delivered}`} />
-                                          </div>
-                                          <span className="pm-histo-label">Delivered</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Right Side: Project Timeline (Donut Gauge) */}
-                                <div className="pm-detail-card pm-detail-card--timeline">
-                                  <div className="pm-detail-card-header">
-                                    <h4 className="pm-detail-card-title">Project Timeline</h4>
-                                  </div>
-
-                                  <div className="pm-donut-body">
-                                    <div className="pm-donut-wrap">
-                                      <svg viewBox="0 0 100 100" className="pm-donut-svg">
-                                        <circle cx="50" cy="50" r="38" className="pm-donut-bg" />
-                                        <circle cx="50" cy="50" r="38" className="pm-donut-fill" />
-                                      </svg>
-                                      <span className="pm-donut-text">-%</span>
-                                    </div>
-
-                                    <div className="pm-timeline-status-alert">
-                                      Status - Ready For Production ( Over Due for - {project.overdueDays || 364} Days)
-                                    </div>
-                                  </div>
-                                </div>
-
-                              </div>
-
-                            </div>
-                          </td>
-                        </tr>,
-                      );
-                    }
-
-                    return rows;
-                  })
+                  filteredProjects.map((project) => (
+                    <ProjectRow
+                      key={project.id}
+                      project={project}
+                      isExpanded={expandedId === project.id}
+                      onToggleExpand={() => setExpandedId(expandedId === project.id ? null : project.id)}
+                      mode={lifecycleMode}
+                    />
+                  ))
                 )}
               </tbody>
             </table>
@@ -1421,20 +1087,18 @@ export function ProjectMonitoringPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          TAB 3: PROJECT BREACHES
-          ══════════════════════════════════════════════════════════════════ */}
+      {/* TAB 3: PROJECT BREACHES */}
       {activeTab === 'breaches' && (
         <div className="pm-tab-content">
-
-          {/* Executive Risk Banners (KPI Cards) */}
           <div className="pm-risk-banners">
             <div
               className="pm-risk-banner critical"
               onClick={() => setDrilldownStage({ key: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 })}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 }); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla1', label: 'Unclosed Projects Started Before 60 Days', count: 92 });
+              }}
             >
               <div className="pm-risk-icon-container">
                 <AlertOctagon size={16} />
@@ -1450,7 +1114,9 @@ export function ProjectMonitoringPage() {
               onClick={() => setDrilldownStage({ key: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 })}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 }); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'sla5', label: 'CR in Progress Stage, but WO Moved to Testing', count: 41 });
+              }}
             >
               <div className="pm-risk-icon-container">
                 <AlertTriangle size={16} />
@@ -1466,7 +1132,9 @@ export function ProjectMonitoringPage() {
               onClick={() => setDrilldownStage({ key: 'cr2', label: 'No Man Days in CR', count: 40 })}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'cr2', label: 'No Man Days in CR', count: 40 }); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: 'cr2', label: 'No Man Days in CR', count: 40 });
+              }}
             >
               <div className="pm-risk-icon-container">
                 <FileText size={16} />
@@ -1478,10 +1146,7 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
 
-          {/* Governance Cards */}
           <div className="pm-governance-grid">
-
-            {/* Card A: SLA & Phase Breaches */}
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
                 <AlertTriangle size={14} className="pm-gov-card-icon text-red" />
@@ -1502,15 +1167,12 @@ export function ProjectMonitoringPage() {
                     disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>
-                      {m.count}
-                    </span>
+                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Card B: Due Date Exceptions */}
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
                 <Calendar size={14} className="pm-gov-card-icon text-amber" />
@@ -1531,15 +1193,12 @@ export function ProjectMonitoringPage() {
                     disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>
-                      {m.count}
-                    </span>
+                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Card C: CR Data Hygiene */}
             <div className="pm-gov-card">
               <div className="pm-gov-card-header">
                 <ShieldCheck size={14} className="pm-gov-card-icon text-emerald" />
@@ -1560,25 +1219,20 @@ export function ProjectMonitoringPage() {
                     disabled={m.count === 0}
                   >
                     <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>
-                      {m.count}
-                    </span>
+                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
-
-
         </div>
       )}
 
-      {/* ── Drill-down Modal Overlay ────────────────────────────────────── */}
+      {/* Drill-down Modal Overlay */}
       {drilldownStage && (
         <DrilldownModal
           stage={drilldownStage}
           onClose={() => setDrilldownStage(null)}
-          projectsData={projectsList}
         />
       )}
     </div>
