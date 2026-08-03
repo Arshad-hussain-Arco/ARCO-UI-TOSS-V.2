@@ -295,6 +295,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applyFor, setApplyFor] = useState('self');
   const [behalfEmp, setBehalfEmp] = useState(null);
+  const [requiresJustification, setRequiresJustification] = useState(false);
+  const [justificationText, setJustificationText] = useState('');
+  const [quotaInfo, setQuotaInfo] = useState(null);
   const [leaveType, setLeaveType] = useState(null);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -391,6 +394,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     setAttachments([]);
     setBehalfEmp(null);
     setApplyFor('self');
+    setRequiresJustification(false);
+    setJustificationText('');
+    setQuotaInfo(null);
   }
   function barClass() {
     const pct = avail > 0 ? remaining / avail : 1;
@@ -507,18 +513,36 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                   </span>
                 </div>
               )}
+              {requiresJustification && quotaInfo && (
+                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--c-danger-light, #fef2f2)', border: '1px solid var(--c-danger, #ef4444)', borderRadius: '6px' }}>
+                  <div className="al-confirm-row-label" style={{ marginBottom: 8, color: 'var(--c-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={14} />
+                    {quotaInfo.billing_note}
+                  </div>
+                  <textarea
+                    className="al-textarea"
+                    style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-primary)', fontSize: '13px' }}
+                    placeholder="Please provide a justification for this excess offshore work..."
+                    value={justificationText}
+                    onChange={(e) => setJustificationText(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="al-confirm-actions">
                 <button
                   type="button"
                   className="al-btn al-btn-ghost"
-                  onClick={() => setShowConfirm(false)}
+                  onClick={() => {
+                    setShowConfirm(false);
+                    setRequiresJustification(false);
+                  }}
                 >
                   Back
                 </button>
                 <button
                   type="button"
                   className="al-btn al-btn-primary"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (requiresJustification && !justificationText.trim())}
                   onClick={async () => {
                     try {
                       setIsSubmitting(true);
@@ -540,6 +564,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         reason: reason || (type === 'compoff' ? 'Comp-off / Weekend Work' : (type === 'offshore' ? 'Offshore Work' : '')),
                         duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
                       };
+
+                      if (type === 'offshore' && requiresJustification) {
+                        payload.justification = justificationText;
+                      }
                       
                       if (applyFor === 'behalf') {
                         payload.manager_id = user?.emp_id;
@@ -548,14 +576,34 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       if (applyFor === 'behalf') {
                         await leaveService.applyLeaveOnBehalf(payload);
                       } else {
-                        await leaveService.applyLeave(payload);
+                        if (type === 'offshore') {
+                          const res = await leaveService.applyOwLeave(payload);
+                          if (res?.requires_justification && !payload.justification) {
+                            setRequiresJustification(true);
+                            setQuotaInfo(res.quota_info);
+                            setIsSubmitting(false);
+                            return;
+                          }
+                        } else if (type === 'wfh') {
+                          await leaveService.requestWfh(payload);
+                        } else if (type === 'compoff' && claimType === 'compoff') {
+                          await leaveService.claimCompOff(payload);
+                        } else if (type === 'compoff' && claimType === 'weekend') {
+                          await leaveService.claimWeekend(payload);
+                        } else {
+                          await leaveService.applyLeave(payload);
+                        }
                       }
+
                       setShowConfirm(false);
                       setSubmitted(true);
                       toast.success(SUCCESS_TITLES[type]);
+                      setRequiresJustification(false);
+                      setJustificationText('');
+                      setQuotaInfo(null);
                     } catch (error) {
-                      const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to apply leave. Please try again.';
-                      toast.error(msg);
+                      const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to submit request. Please try again.';
+                      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
                     } finally {
                       setIsSubmitting(false);
                     }

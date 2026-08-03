@@ -20,6 +20,8 @@ import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalen
 import { TeamLeaveSummary } from '@components/data-display/TeamLeaveSummary/TeamLeaveSummary';
 
 import { ApplyLeaveModal } from './ApplyLeaveModal';
+import { EditLeaveModal } from './EditLeaveModal';
+import { CancelLeaveModal } from './CancelLeaveModal';
 import { TeamRequestsTab } from './TeamRequestsTab';
 import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -42,6 +44,8 @@ export function LeaveManagementPage() {
 
   const [activeTab, setActiveTab] = useState('my-leaves');
   const [modalType, setModalType] = useState(null);
+  const [editModalLeave, setEditModalLeave] = useState(null);
+  const [cancelModalLeave, setCancelModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -141,6 +145,28 @@ export function LeaveManagementPage() {
           }} 
           isAdmin={true} 
           type={modalType} 
+        />
+      )}
+
+      {editModalLeave && (
+        <EditLeaveModal
+          leave={editModalLeave}
+          onClose={() => setEditModalLeave(null)}
+          onSuccess={() => {
+            setEditModalLeave(null);
+            setRefreshKey(k => k + 1);
+          }}
+        />
+      )}
+
+      {cancelModalLeave && (
+        <CancelLeaveModal
+          leave={cancelModalLeave}
+          onClose={() => setCancelModalLeave(null)}
+          onSuccess={() => {
+            setCancelModalLeave(null);
+            setRefreshKey(k => k + 1);
+          }}
         />
       )}
       <div className="leave-management-tabs">
@@ -450,12 +476,24 @@ export function LeaveManagementPage() {
                               </td>
                               <td className="leave-table-cell" data-label="Action">
                                 <div className="leave-table-actions">
-                                  <button className="leave-table-action-button" title="Cancel Request">
-                                    <X className="leave-table-action-icon" />
-                                  </button>
-                                  <button className="leave-table-action-button" title="Edit Request">
-                                    <Edit className="leave-table-action-icon" />
-                                  </button>
+                                  {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
+                                    <>
+                                      <button 
+                                        className="leave-table-action-button" 
+                                        title="Cancel Request"
+                                        onClick={() => setCancelModalLeave(leave)}
+                                      >
+                                        <X className="leave-table-action-icon" />
+                                      </button>
+                                      <button 
+                                        className="leave-table-action-button" 
+                                        title="Edit Request"
+                                        onClick={() => setEditModalLeave(leave)}
+                                      >
+                                        <Edit className="leave-table-action-icon" />
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </td>
                             </tr>

@@ -18,8 +18,12 @@ import {
   Network,
   Download,
   FileText,
-  Settings
+  Settings,
+  FileSpreadsheet
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
@@ -48,6 +52,15 @@ export function EnvironmentDashboardPage() {
   // In-Memory Data Synchronization (Configs & Environments)
   const [configList, setConfigList] = useState([]);
   const [envList, setEnvList] = useState([]);
+  const [expandedConfigs, setExpandedConfigs] = useState({});
+
+  const toggleConfigRowAccordion = (configId) => {
+    setExpandedConfigs(prev => {
+      // If clicking the already open one, close it. Otherwise, open ONLY the clicked one.
+      if (prev[configId]) return {};
+      return { [configId]: true };
+    });
+  };
 
   useEffect(() => {
     if (data) {
@@ -65,6 +78,10 @@ export function EnvironmentDashboardPage() {
 
   // Search input queries for each Environment (keyed by env.id)
   const [envSearchQueries, setEnvSearchQueries] = useState({});
+  // Search input queries for each Config row (keyed by config.id)
+  const [configRowSearchQueries, setConfigRowSearchQueries] = useState({});
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(null);
+  const [globalExportDropdownOpen, setGlobalExportDropdownOpen] = useState(false);
 
   // Add Configuration Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -331,14 +348,67 @@ export function EnvironmentDashboardPage() {
               >
                 Add Config
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                leadingIcon={Download}
-                onClick={handleExportConfigs}
-              >
-                Export
-              </Button>
+              <div style={{ position: 'relative' }} onMouseLeave={() => setGlobalExportDropdownOpen(false)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leadingIcon={Download}
+                  onMouseEnter={() => setGlobalExportDropdownOpen(true)}
+                >
+                  Export
+                </Button>
+                
+                {globalExportDropdownOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => {
+                        if (filteredConfigs.length > 0) {
+                          const doc = new jsPDF('landscape');
+                          doc.text('Environment Configurations', 14, 15);
+                          const cols = ['Type', 'Version', 'File Name', 'File Size', 'Uploaded By', 'Upload Date', 'File Location'];
+                          const data = filteredConfigs.map(c => [
+                            c.featureType, c.version, c.fileName, c.size, c.uploadedBy, c.createdDate, c.storageLocation
+                          ]);
+                          doc.autoTable({ head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
+                          doc.save('environment_configurations.pdf');
+                          toast.success('Configurations exported to PDF.');
+                        } else {
+                          toast.error('No configurations to export.');
+                        }
+                        setGlobalExportDropdownOpen(false);
+                      }}
+                    >
+                      <FileText size={14} /> PDF
+                    </div>
+                    <div 
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => {
+                        if (filteredConfigs.length > 0) {
+                          const data = filteredConfigs.map(c => ({
+                            'Type': c.featureType, 'Version': c.version, 'File Name': c.fileName, 
+                            'File Size': c.size, 'Uploaded By': c.uploadedBy, 'Upload Date': c.createdDate, 'File Location': c.storageLocation
+                          }));
+                          const ws = XLSX.utils.json_to_sheet(data);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Configs");
+                          XLSX.writeFile(wb, 'environment_configurations.xlsx');
+                          toast.success('Configurations exported to Excel.');
+                        } else {
+                          toast.error('No configurations to export.');
+                        }
+                        setGlobalExportDropdownOpen(false);
+                      }}
+                    >
+                      <FileSpreadsheet size={14} /> Excel
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -471,232 +541,177 @@ export function EnvironmentDashboardPage() {
         </button>
 
         <div className="env-accordion-content">
-          {/* Legend Table Header Row above list cards */}
-          <div className="env-rows-header-legend">
-            <div className="env-legend-cell">Environment</div>
-            <div className="env-legend-cell">Status</div>
-            <div className="env-legend-cell">Team</div>
-            <div className="env-legend-cell">Servers</div>
-            <div className="env-legend-cell">DB Hosts</div>
-            <div className="env-legend-cell">RTBS Status</div>
-            <div className="env-legend-cell" style={{ justifyContent: 'flex-end' }}></div>
-          </div>
+          {/* No legend required, just raw environments as accordions */}
 
-          <div className="env-details-workspace">
-            {envList.map((env) => {
-              const isExpanded = expandedEnvironment === env.id;
-              const envQuery = getEnvSearchQuery(env.id);
+          <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px' }}>
+            {configList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                No configurations found.
+              </div>
+            ) : (
+              configList.map((config) => {
+                const fileData = config.fileData;
+                if (!fileData || !fileData.records || !fileData.columnNames) return null;
 
-              // Map & Filter Consolidated Items
-              const allComponents = env.components || [];
-              const filteredComponents = allComponents.filter((item) => {
-                if (!envQuery) return true;
-                const query = envQuery.toLowerCase().trim();
+                const dynamicCols = fileData.columnNames.map((col) => ({
+                  key: col,
+                  label: col,
+                  render: (item) => (
+                    <span style={{ fontSize: '13px' }}>
+                      {item[col] !== null && item[col] !== undefined ? String(item[col]) : '-'}
+                    </span>
+                  ),
+                }));
+
+                const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
+                const filteredRecords = searchQuery 
+                  ? fileData.records.filter(r => 
+                      Object.values(r).some(val => 
+                        val !== null && val !== undefined && String(val).toLowerCase().includes(searchQuery)
+                      )
+                    )
+                  : fileData.records;
+
                 return (
-                  item.name.toLowerCase().includes(query) ||
-                  item.type.toLowerCase().includes(query) ||
-                  item.endpoint.toLowerCase().includes(query) ||
-                  item.status.toLowerCase().includes(query)
-                );
-              });
-
-              // CSV Exporter for local table
-              const handleExportEnvTable = () => {
-                const cols = [
-                  { key: 'name', label: 'Component/Service Name' },
-                  { key: 'type', label: 'Type' },
-                  { key: 'endpoint', label: 'Endpoint/Address/Path' },
-                  { key: 'status', label: 'Status' },
-                ];
-                const fn = `${env.name.toLowerCase()}_components.csv`;
-                exportToCSV(filteredComponents, cols, fn);
-                toast.success(`Exported ${env.name} components to ${fn}`);
-              };
-
-              return (
-                <div key={env.id} className="env-detail-card">
-                  {/* Compact, Aligned Environment Header Row */}
-                  <button
-                    type="button"
-                    className="env-row-header"
-                    data-expanded={isExpanded}
-                    onClick={() => toggleEnvironmentRow(env.id)}
-                  >
-                    <div className="env-row-cell env-row-cell-title">
-                      <Settings size={14} className="text-secondary" />
-                      <span>{env.name}</span>
-                    </div>
-
-                    <div className="env-row-cell">
-                      <span className={`env-badge ${getEnvStatusBadgeClass(env.status)}`}>
-                        {env.status.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div className="env-row-cell" title={`Team Owner: ${env.team}`}>
-                      <Users size={14} className="text-tertiary" />
-                      <span>{env.team}</span>
-                    </div>
-
-                    <div className="env-row-cell env-row-cell-stat">
-                      <Server size={14} />
-                      <span>{env.servers_count} Servers</span>
-                    </div>
-
-                    <div className="env-row-cell env-row-cell-stat">
-                      <Database size={14} />
-                      <span>{env.db_hosts_count} DB Hosts</span>
-                    </div>
-
-                    <div className="env-row-cell">
-                      <Network size={14} className={env.rtbs_status && env.rtbs_status.toLowerCase().includes('not connected') ? 'text-danger' : 'text-success'} />
-                      <span className={env.rtbs_status && env.rtbs_status.toLowerCase().includes('not connected') ? 'text-danger font-semibold' : 'text-success font-semibold'}>
-                        {env.rtbs_status}
-                      </span>
-                    </div>
-
-                    <div className="env-row-cell" style={{ paddingRight: 0, justifyContent: 'flex-end' }}>
-                      <ChevronDown
-                        className="env-toggle-icon"
-                        size={14}
-                        style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Collapsible Card Body Workspace */}
-                  <div className="env-detail-card-body-wrapper" data-expanded={isExpanded}>
-                    <div className="env-row-body">
-                      {/* Search & Export Toolbar */}
-                      <div className="env-tab-toolbar">
-                        <div className="env-tab-toolbar-search">
-                          <Search className="env-search-icon" size={14} />
-                          <input
-                            type="text"
-                            placeholder="Search environment components..."
-                            className="env-search-input"
-                            value={envQuery}
-                            onChange={(e) => handleEnvSearchChange(env.id, e.target.value)}
+                  <div key={config.id} className="config-card" style={{ flexShrink: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    {/* Header: Icon, Name, Search, Export */}
+                    <div 
+                      className="env-tab-toolbar" 
+                      style={{ 
+                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none', 
+                        padding: '20px 20px', 
+                        background: '#f8fafc', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => toggleConfigRowAccordion(config.id)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: '600', fontSize: '15px' }}>
+                        <div style={{ background: '#e0e7ff', color: '#4f46e5', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Database size={16} />
+                        </div>
+                        <span>{config.featureType || config.fileName}</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b' }} />
+                            <input
+                              type="text"
+                              placeholder="Search records..."
+                              value={configRowSearchQueries[config.id] || ''}
+                              onChange={(e) => setConfigRowSearchQueries(prev => ({ ...prev, [config.id]: e.target.value }))}
+                              style={{ 
+                                padding: '6px 12px 6px 32px', 
+                                border: '1px solid #cbd5e1', 
+                                borderRadius: '6px', 
+                                fontSize: '13px', 
+                                width: '180px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                          <div 
+                            style={{ position: 'relative' }}
+                            onMouseLeave={() => setExportDropdownOpen(null)}
+                          >
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              leadingIcon={Download}
+                              onMouseEnter={() => setExportDropdownOpen(config.id)}
+                            >
+                              Export
+                            </Button>
+                            
+                            {exportDropdownOpen === config.id && (
+                              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                                <div 
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  onClick={() => {
+                                    if (filteredRecords.length > 0) {
+                                      const doc = new jsPDF('landscape');
+                                      doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
+                                      const headers = dynamicCols.map(c => c.label);
+                                      const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
+                                      doc.autoTable({ head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
+                                      doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
+                                      toast.success(`Exported ${filteredRecords.length} records to PDF.`);
+                                    } else {
+                                      toast.error('No records to export.');
+                                    }
+                                    setExportDropdownOpen(null);
+                                  }}
+                                >
+                                  <FileText size={14} /> PDF
+                                </div>
+                                <div 
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  onClick={() => {
+                                    if (filteredRecords.length > 0) {
+                                      const data = filteredRecords.map(r => {
+                                        const row = {};
+                                        dynamicCols.forEach(c => row[c.label] = r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-');
+                                        return row;
+                                      });
+                                      const ws = XLSX.utils.json_to_sheet(data);
+                                      const wb = XLSX.utils.book_new();
+                                      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                                      XLSX.writeFile(wb, `${config.featureType || config.fileName || 'export'}.xlsx`);
+                                      toast.success(`Exported ${filteredRecords.length} records to Excel.`);
+                                    } else {
+                                      toast.error('No records to export.');
+                                    }
+                                    setExportDropdownOpen(null);
+                                  }}
+                                >
+                                  <FileSpreadsheet size={14} /> Excel
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div 
+                          style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid #e2e8f0', height: '32px', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleConfigRowAccordion(config.id);
+                          }}
+                        >
+                          <ChevronDown 
+                            size={18} 
+                            style={{ 
+                              color: '#64748b', 
+                              transform: expandedConfigs[config.id] ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s ease',
+                            }} 
                           />
                         </div>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          leadingIcon={Download}
-                          onClick={handleExportEnvTable}
-                        >
-                          Export
-                        </Button>
                       </div>
+                    </div>
 
-                      {/* Unified Scrollable Table of Environment components */}
+                    {/* Table */}
+                    {expandedConfigs[config.id] && (
                       <div className="env-tab-table-container">
                         <AdminTable
                           keyField="id"
-                          emptyText="No components match search query."
-                          columns={[
-                            {
-                              key: 'name',
-                              label: 'Component / Service Name',
-                              width: '30%',
-                              render: (item) => (
-                                <span style={{ fontWeight: 600, fontSize: '12px' }}>
-                                  {item.name}
-                                </span>
-                              ),
-                            },
-                            {
-                              key: 'type',
-                              label: 'Type',
-                              width: '20%',
-                              render: (item) => (
-                                <span className="env-badge env-badge-version" style={{ fontSize: '10px' }}>
-                                  {item.type}
-                                </span>
-                              ),
-                            },
-                            {
-                              key: 'endpoint',
-                              label: 'Endpoint / Address / Path',
-                              width: '35%',
-                              render: (item) => (
-                                <div className="env-server-status-wrapper">
-                                  <code>{item.endpoint}</code>
-                                  {item.endpoint &&
-                                    !item.endpoint.startsWith('Connectivity:') &&
-                                    !item.endpoint.startsWith('Last Run:') &&
-                                    !item.endpoint.startsWith('Build:') && (
-                                      <button
-                                        type="button"
-                                        className="env-copy-table-btn"
-                                        onClick={() => copyToClipboard(item.endpoint)}
-                                        title="Copy address"
-                                      >
-                                        <Copy size={14} />
-                                      </button>
-                                    )}
-                                </div>
-                              ),
-                            },
-                            {
-                              key: 'status',
-                              label: 'Status',
-                              width: '15%',
-                              render: (item) => {
-                                const getStatusDotType = (status) => {
-                                  if (status === 'healthy' || status === 'active' || status === 'connected') {
-                                    return 'healthy';
-                                  }
-                                  if (status === 'warning') return 'warning';
-                                  return 'critical';
-                                };
-                                return (
-                                  <div className="env-server-status-wrapper">
-                                    <span
-                                      className="env-server-status-dot"
-                                      data-status={getStatusDotType(item.status)}
-                                    />
-                                    <span style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 600 }}>
-                                      {item.status}
-                                    </span>
-                                  </div>
-                                );
-                              },
-                            },
-                          ]}
-                          data={filteredComponents}
+                          emptyText="No records available."
+                          columns={dynamicCols}
+                          data={filteredRecords.map((r, i) => ({ ...r, id: `row-${i}` }))}
                         />
-
-                        {/* Raw Config Files Section */}
-                        {envDetailsData[env.id] && envDetailsData[env.id].length > 0 && (
-                          <div className="env-raw-configs-section" style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
-                            <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#334155' }}>Raw Configuration Mapping (SFTP)</h4>
-                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                              {envDetailsData[env.id].map((fileConfig) => (
-                                <div key={fileConfig.config_id} style={{ background: '#fff', padding: '12px', borderRadius: '6px', border: '1px solid #e2e8f0', flex: '1 1 300px' }}>
-                                  <div style={{ fontWeight: '600', fontSize: '12px', marginBottom: '8px', color: '#0f172a' }}>
-                                    {fileConfig.file_name} <span style={{ color: '#64748b', fontWeight: 'normal' }}>({fileConfig.feature})</span>
-                                  </div>
-                                  <div style={{ fontSize: '11px', display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 12px' }}>
-                                    {Object.entries(fileConfig.data || {}).map(([key, value]) => (
-                                      <React.Fragment key={key}>
-                                        <span style={{ color: '#64748b' }}>{key}:</span>
-                                        <span style={{ color: '#334155', wordBreak: 'break-all' }}>{String(value)}</span>
-                                      </React.Fragment>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
