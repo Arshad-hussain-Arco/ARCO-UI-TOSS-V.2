@@ -22,14 +22,26 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
 
   const [liveLog, setLiveLog] = useState(env.logs || []);
   const [currentStepName, setCurrentStepName] = useState(env.currentStep || 'Idle');
-  const [runningJobNo, setRunningJobNo] = useState(env.runningJobNo || 0);
-  const [runningJobName, setRunningJobName] = useState(env.runningJobName || '');
-  const [nextJobName, setNextJobName] = useState(env.nextJobName || '');
+  const [liveRunningJobName, setLiveRunningJobName] = useState(env.runningJobName || '');
+  const [liveRunningJobNo, setLiveRunningJobNo] = useState(env.runningJobNo || 0);
+  const [liveNextJobName, setLiveNextJobName] = useState(env.nextJobName || '');
+  const [liveStepsDone, setLiveStepsDone] = useState(env.stepsDone || 0);
+  const [liveStepsTotal, setLiveStepsTotal] = useState(env.stepsTotal || 0);
+  const [liveProgress, setLiveProgress] = useState(env.progress || 0);
+  const [wsConnected, setWsConnected] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [heartbeatMs, setHeartbeatMs] = useState(3000);
-  const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
   const logEndRef = useRef(null);
+
+  useEffect(() => {
+    if (env.runningJobName !== undefined) setLiveRunningJobName(env.runningJobName);
+    if (env.runningJobNo !== undefined) setLiveRunningJobNo(env.runningJobNo);
+    if (env.nextJobName !== undefined) setLiveNextJobName(env.nextJobName);
+    if (env.stepsDone !== undefined) setLiveStepsDone(env.stepsDone);
+    if (env.stepsTotal !== undefined) setLiveStepsTotal(env.stepsTotal);
+    if (env.progress !== undefined) setLiveProgress(env.progress);
+  }, [env.runningJobName, env.runningJobNo, env.nextJobName, env.stepsDone, env.stepsTotal, env.progress]);
 
   // Fetch eodHeartbeatInterval from system settings (app module)
   useEffect(() => {
@@ -76,20 +88,19 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
           const data = JSON.parse(event.data);
           if (data.logs) setLiveLog(data.logs);
           if (data.currentStep) setCurrentStepName(data.currentStep);
-          if (data.runningJobNo !== undefined) setRunningJobNo(data.runningJobNo);
-          if (data.runningJobName !== undefined) setRunningJobName(data.runningJobName);
-          if (data.nextJobName !== undefined) setNextJobName(data.nextJobName);
+          if (data.runningJobName !== undefined) setLiveRunningJobName(data.runningJobName);
+          if (data.runningJobNo !== undefined) setLiveRunningJobNo(data.runningJobNo);
+          if (data.nextJobName !== undefined) setLiveNextJobName(data.nextJobName);
+          if (data.stepsDone !== undefined) setLiveStepsDone(data.stepsDone);
+          if (data.stepsTotal !== undefined) setLiveStepsTotal(data.stepsTotal);
+          if (data.progress !== undefined) setLiveProgress(data.progress);
         } catch (e) {
           console.warn('WS message parse error:', e);
         }
       };
 
-      ws.onerror = () => {
-        setWsConnected(false);
-      };
-    } catch (e) {
-      setWsConnected(false);
-    }
+      ws.onerror = () => {};
+    } catch (e) {}
 
     pollInterval = setInterval(async () => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -98,9 +109,12 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
           if (update) {
             if (update.logs && update.logs.length > 0) setLiveLog(update.logs);
             if (update.currentStep) setCurrentStepName(update.currentStep);
-            if (update.runningJobNo !== undefined) setRunningJobNo(update.runningJobNo);
-            if (update.runningJobName !== undefined) setRunningJobName(update.runningJobName);
-            if (update.nextJobName !== undefined) setNextJobName(update.nextJobName);
+            if (update.runningJobName !== undefined) setLiveRunningJobName(update.runningJobName);
+            if (update.runningJobNo !== undefined) setLiveRunningJobNo(update.runningJobNo);
+            if (update.nextJobName !== undefined) setLiveNextJobName(update.nextJobName);
+            if (update.stepsDone !== undefined) setLiveStepsDone(update.stepsDone);
+            if (update.stepsTotal !== undefined) setLiveStepsTotal(update.stepsTotal);
+            if (update.progress !== undefined) setLiveProgress(update.progress);
           }
         } catch (e) {
           // Silent catch for polling
@@ -115,6 +129,17 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
   }, [isRunning, env.id, heartbeatMs]);
 
   const displayTime = env.duration || '—';
+  const totalJobs = liveStepsTotal || env.stepsTotal || 0;
+  const currentJobNo = isCompleted 
+    ? totalJobs 
+    : (liveRunningJobNo || env.runningJobNo || liveStepsDone || env.stepsDone || (isRunning ? 1 : 0));
+  const currentJobName = isCompleted 
+    ? 'All Jobs Completed' 
+    : (liveRunningJobName || env.runningJobName || currentStepName || '—');
+  const nextJobName = isCompleted 
+    ? '—' 
+    : (liveNextJobName || env.nextJobName || 'None');
+  const currentProgress = liveProgress !== undefined ? liveProgress : (env.progress || 0);
 
   return (
     <>
@@ -184,16 +209,17 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
           </button>
         </div>
 
-        {/* Progress & Live Timer */}
+        {/* Progress & Live Execution Info */}
         {(isRunning || isPaused || isCompleted || isFailed) && (
           <div className="eod-ctrl-exec">
             <div className="eod-ctrl-exec-top">
-              <span className="eod-ctrl-exec-label">
-                Job {runningJobNo || env.stepsDone || 0} of {env.stepsTotal || 12}
+              <span className="eod-ctrl-exec-label" style={{ fontWeight: 600, letterSpacing: '0.5px' }}>
+                JOB {currentJobNo} OF {totalJobs}
               </span>
               <span
                 className="eod-ctrl-exec-pct"
                 style={{
+                  fontWeight: 700,
                   color: isFailed
                     ? 'var(--c-danger)'
                     : isCompleted
@@ -201,14 +227,14 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
                       : 'var(--c-primary)',
                 }}
               >
-                {env.progress || 0}%
+                {currentProgress}%
               </span>
             </div>
             <div className="eod-ctrl-exec-bar">
               <div
                 className="eod-ctrl-exec-fill"
                 style={{
-                  width: `${env.progress || 0}%`,
+                  width: `${currentProgress}%`,
                   background: isFailed
                     ? 'var(--c-danger)'
                     : isCompleted
@@ -218,23 +244,44 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
                 }}
               />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+
+            {/* Detailed Job Queue Section */}
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
+              {/* Current Job Name */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="eod-ctrl-exec-step" style={{ fontWeight: 600 }}>
-                  Current: {runningJobName || currentStepName}
+                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Current Job:</span>
+                <span style={{ 
+                  color: isCompleted ? '#10b981' : isFailed ? '#ef4444' : '#000000', 
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace'
+                }}>
+                  {currentJobName}
                 </span>
-                <span className="eod-ctrl-exec-time" style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+              </div>
+
+              {/* Next Job Name in Queue */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>Next Job:</span>
+                <span style={{ 
+                  color: isCompleted ? '#64748b' : '#6366f1', 
+                  fontWeight: 600,
+                  fontFamily: 'monospace'
+                }}>
+                  {nextJobName}
+                </span>
+              </div>
+
+              {/* Live Timer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '4px', borderTop: '1px dashed rgba(0,0,0,0.1)' }}>
+                <span style={{ color: '#64748b', fontSize: '11px' }}>Elapsed Time:</span>
+                <span className="eod-ctrl-exec-time" style={{ fontWeight: 600, fontFamily: 'monospace', color: '#475569' }}>
                   <Clock size={11} style={{ verticalAlign: '-1px', marginRight: '4px', opacity: 0.7 }} />
                   {displayTime}
                 </span>
               </div>
-              {nextJobName && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="eod-ctrl-exec-step" style={{ color: '#888', fontSize: '11px' }}>
-                    Next: {nextJobName}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         )}

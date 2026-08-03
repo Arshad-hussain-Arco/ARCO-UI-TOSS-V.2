@@ -70,14 +70,20 @@ export function OverviewSection() {
             </div>
             <span className="eod-live-banner-timer">{runningEnv.duration}</span>
           </div>
-          <div className="eod-live-banner-body">
-            <span className="eod-live-banner-step">
-              Step {runningEnv.stepsDone}/{runningEnv.stepsTotal} — {runningEnv.currentStep}
+          <div className="eod-live-banner-body" style={{ flexWrap: 'wrap', gap: '8px' }}>
+            <span className="eod-live-banner-step" style={{ fontWeight: 600 }}>
+              JOB {runningEnv.runningJobNo || runningEnv.stepsDone || 1} OF {runningEnv.stepsTotal || 0}
             </span>
-            <div className="eod-live-banner-track">
+            <div className="eod-live-banner-track" style={{ flex: 1, minWidth: '150px' }}>
               <div className="eod-inline-fill" style={{ width: `${runningEnv.progress}%` }} />
             </div>
             <span className="eod-live-banner-pct">{runningEnv.progress}%</span>
+          </div>
+          <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '11px', color: '#64748b' }}>
+            <span>Current: <strong style={{ color: '#000000', fontFamily: 'monospace' }}>{runningEnv.runningJobName || runningEnv.currentStep || '—'}</strong></span>
+            {runningEnv.nextJobName && (
+              <span>Next: <strong style={{ color: '#6366f1', fontFamily: 'monospace' }}>{runningEnv.nextJobName}</strong></span>
+            )}
           </div>
         </div>
       )}

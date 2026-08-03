@@ -30,9 +30,11 @@ export const eodService = {
       else if (isCompleted) derivedStatus = 'completed';
 
       let elapsedSeconds = 0;
+      let startedAtMs = null;
       if ((isRunning || isPaused) && item.modified) {
         const startedTime = new Date(item.modified).getTime();
         if (!isNaN(startedTime)) {
+          startedAtMs = startedTime;
           const diff = Math.floor((Date.now() - startedTime) / 1000);
           elapsedSeconds = diff > 0 ? diff : 0;
         }
@@ -63,15 +65,19 @@ export const eodService = {
         modified: item.modified || '',
         // Dynamic Presentation fields derived from last_run_script and start timestamp
         status: derivedStatus,
+        startedAtMs,
         elapsedSeconds,
-        progress: isRunning ? 45 : isCompleted ? 100 : 0,
-        color: isRunning ? '#6366f1' : isPaused ? '#f59e0b' : isCompleted ? '#10b981' : '#64748b',
-        logs: isRunning ? [`[${new Date().toLocaleTimeString()}] [INFO] ${item.environment} batch execution active...`] : [],
-        stepsDone: isRunning ? 3 : isCompleted ? 12 : 0,
-        stepsTotal: 12,
-        currentStep: isRunning ? 'Processing Batch Jobs...' : isPaused ? 'Paused' : isCompleted ? 'Completed' : 'Idle',
+        progress: item.progress !== undefined ? item.progress : (isRunning ? 45 : isCompleted ? 100 : 0),
+        color: derivedStatus === 'running' ? '#6366f1' : derivedStatus === 'paused' ? '#f59e0b' : derivedStatus === 'completed' ? '#10b981' : '#64748b',
+        logs: item.logs || [],
+        stepsDone: item.stepsDone !== undefined ? item.stepsDone : 0,
+        stepsTotal: item.stepsTotal !== undefined ? item.stepsTotal : 0,
+        runningJobName: item.runningJobName || '',
+        runningJobNo: item.runningJobNo || 0,
+        nextJobName: item.nextJobName || '',
+        currentStep: item.currentStep || '',
         duration: formattedDuration,
-        lastRun: item.modified || '—',
+        lastRun: item.modified ? new Date(item.modified).toLocaleString() : '—',
         nextRun: '—',
       };
     });
