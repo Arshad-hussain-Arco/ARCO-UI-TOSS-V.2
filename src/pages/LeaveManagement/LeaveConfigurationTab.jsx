@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Search, ArrowUpDown, Edit2, Check, X, Users } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { activatable } from '@utils/interactive';
+import { Loader } from '@components/feedback/Loader/Loader';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
@@ -258,6 +259,13 @@ export function LeaveConfigurationTab() {
 
   return (
     <div className="lc-container">
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+          <Loader size="md" />
+          <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>Loading configuration...</p>
+        </div>
+      ) : (
+        <>
       {/* ── Top Filter Bar (Search + Team) ─────────────────────────────────── */}
       <div className="lc-filter-panel">
         <div className="lc-filter-row">
@@ -514,6 +522,8 @@ export function LeaveConfigurationTab() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }

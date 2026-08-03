@@ -407,22 +407,26 @@ export function LeaveRequestDrawer({
         </button>
         {liveReq.status === 'pending' && (
           <>
-            <button 
-              className="tr-btn tr-btn-danger" 
-              onClick={onReject}
-              disabled={isSubmittingAction}
-            >
-              <X size={11} />
-              {isSubmittingAction ? 'Rejecting...' : 'Reject'}
-            </button>
-            <button 
-              className="tr-btn tr-btn-primary" 
-              onClick={() => setShowConfirm(true)}
-              disabled={isSubmittingAction}
-            >
-              <Check size={11} />
-              Approve
-            </button>
+            {(drawerAction === 'view' || drawerAction === 'reject') && (
+              <button 
+                className="tr-btn tr-btn-danger" 
+                onClick={onReject}
+                disabled={isSubmittingAction}
+              >
+                <X size={11} />
+                {isSubmittingAction ? 'Rejecting...' : 'Reject'}
+              </button>
+            )}
+            {(drawerAction === 'view' || drawerAction === 'approve') && (
+              <button 
+                className="tr-btn tr-btn-primary" 
+                onClick={() => setShowConfirm(true)}
+                disabled={isSubmittingAction}
+              >
+                <Check size={11} />
+                Approve
+              </button>
+            )}
           </>
         )}
       </div>

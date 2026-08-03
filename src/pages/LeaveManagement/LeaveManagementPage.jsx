@@ -170,7 +170,7 @@ export function LeaveManagementPage() {
         />
       )}
       <div className="leave-management-tabs">
-        {ALL_TABS.filter(tab => !tab.adminOnly || user?.isAdmin === 1 || user?.roleName?.includes('HR')).map((tab) => {
+        {ALL_TABS.filter(tab => !tab.adminOnly || user?.isAdmin === 1 || user?.isAdmin === true || user?.role === 'admin' || user?.roleName?.includes('HR') || user?.role?.toLowerCase()?.includes('admin')).map((tab) => {
           const Icon = tab.icon;
           return (
             <button
