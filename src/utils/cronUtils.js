@@ -51,6 +51,27 @@ export function formToCron(form) {
     return `${min} ${hour} * * ${dowStr}`;
   }
 
+  if (form.recurrence === 'Monthly') {
+    // Run on a specific day of every month (default day 1)
+    const dom = form.selectedDayOfMonth || 1;
+    return `${min} ${hour} ${dom} * *`;
+  }
+
+  if (form.recurrence === 'Quarterly') {
+    // Run on selected quarters (subset of {1,4,7,10}) on a specific day of month
+    const quarters = (form.selectedQuarters || [1, 4, 7, 10]).sort((a, b) => a - b);
+    const dom = form.selectedDayOfMonth || 1;
+    return `${min} ${hour} ${dom} ${quarters.join(',')} *`;
+  }
+
+  if (form.recurrence === 'Annually') {
+    // Run once a year on a specific date
+    const dateObj = form.selectedDate ? new Date(form.selectedDate) : new Date();
+    const dom = dateObj.getDate();
+    const mon = dateObj.getMonth() + 1;
+    return `${min} ${hour} ${dom} ${mon} *`;
+  }
+
   if (form.recurrence === 'Custom / One-time') {
     const dateObj = form.selectedDate ? new Date(form.selectedDate) : new Date();
     const dom = dateObj.getDate();
@@ -107,8 +128,49 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
     };
   }
 
-  if (domStr !== '*' && monStr !== '*') {
-    // Custom / One-time
+  const QUARTER_MONTHS = new Set([1, 4, 7, 10]);
+
+  // Detect Quarterly: dom is set, all month values are a subset of {1,4,7,10}, no DOW
+  if (domStr !== '*' && dowStr === '*') {
+    const monValues = monStr.split(',').map((n) => parseInt(n, 10));
+    const isQuarterly = monValues.length >= 1 && monValues.every((m) => QUARTER_MONTHS.has(m));
+    if (isQuarterly) {
+      const quarterLabels = monValues.map((m) => {
+        if (m === 1)  return 'Q1';
+        if (m === 4)  return 'Q2';
+        if (m === 7)  return 'Q3';
+        if (m === 10) return 'Q4';
+        return '';
+      }).join(', ');
+      return {
+        recurrence: 'Quarterly',
+        time,
+        dateGroup: `Quarterly – ${quarterLabels} (day ${domStr})`,
+        selectedDays: ['Monday'],
+        selectedDayOfMonth: parseInt(domStr, 10),
+        selectedQuarters: monValues,
+        cronExpression: cronStr,
+      };
+    }
+  }
+
+  if (domStr !== '*' && monStr === '*') {
+    // Monthly — dom set, month is wildcard
+    return {
+      recurrence: 'Monthly',
+      time,
+      dateGroup: `Monthly (day ${domStr})`,
+      selectedDays: ['Monday'],
+      selectedDayOfMonth: parseInt(domStr, 10),
+      cronExpression: cronStr,
+    };
+  }
+
+  if (domStr !== '*' && monStr !== '*' && !monStr.includes(',')) {
+    // Could be Annually or Custom / One-time — distinguish by year context
+    // We store both as one-time/annually; cronToHuman can't know which,
+    // so we label based on the form that saved it. Default to Custom / One-time
+    // for backward-compat; Annually produces the same cron pattern.
     const currentYear = new Date().getFullYear();
     const dateObj = new Date(currentYear, parseInt(monStr, 10) - 1, parseInt(domStr, 10));
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
