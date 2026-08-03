@@ -689,8 +689,7 @@ export function TeamRequestsTab() {
                           </td>
                           <td className="tr-td">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span className={`tr-type-badge ${TC.css}`}>
-                                <TC.Icon size={10} />
+                              <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                                 {req.leaveType ?? TC.label}
                               </span>
                               {req.priority === 'high' && (

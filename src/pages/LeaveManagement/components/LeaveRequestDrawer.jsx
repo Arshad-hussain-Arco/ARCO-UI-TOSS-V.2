@@ -166,10 +166,8 @@ export function LeaveRequestDrawer({
                     ? 'Reason for WFH'
                     : 'Reason'}
               </span>
-              <span
-                className="tr-drow-value"
-                style={{ maxWidth: 220, textAlign: 'right', lineHeight: 1.5 }}
-              >
+              <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type]?.css}`} style={{ maxWidth: 220 }}>
+                {TYPE_CONFIG[liveReq.type]?.Icon && React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
                 {liveReq.reason}
               </span>
             </div>
