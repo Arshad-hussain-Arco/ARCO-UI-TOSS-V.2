@@ -300,8 +300,6 @@ export function DashboardPage() {
           <>
             <div className="dc-main">
               {/* EOD Environment Status Strip */}
-              <EnvironmentStatusStrip eodRecords={eodRecords} />
-
               <div className="dc-layout-grid">
                 {/* LEFT COLUMN / FULL WIDTH ITEMS */}
                 <div className="dc-main-col">
@@ -309,20 +307,24 @@ export function DashboardPage() {
                     <KpiStrip kpis={mappedSummary.kpis} />
                   </div>
 
-                  <div className="dc-span-7">
-                    <SystemHealthSection 
-                      systemHealth={mappedSummary.systemHealth}
-                      runtimeTrend={mappedSummary.runtimeTrend}
-                      insights={mappedSummary.runtimeInsights}
-                    />
+                  <div className="dc-span-12">
+                    <EnvironmentStatusStrip eodRecords={eodRecords} />
                   </div>
 
+                  <SystemHealthSection 
+                    systemHealth={mappedSummary.systemHealth}
+                    runtimeTrend={mappedSummary.runtimeTrend}
+                    insights={mappedSummary.runtimeInsights}
+                  />
+
                   {/* Requests Trend Chart */}
-                  <div className="dc-span-5">
-                    <section className="dc-card dc-trend-card">
+                  <div className="dc-span-4">
+                    <section className="dc-card dc-trend-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                       <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
                       {trendData?.results && trendData.results.length > 0 ? (
-                        <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
+                        </div>
                       ) : (
                         <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
                           No request trend data returned from API

@@ -413,10 +413,6 @@
 
 /* Runtime chart */
 .dc-health-right {
-  background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 7px;
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
