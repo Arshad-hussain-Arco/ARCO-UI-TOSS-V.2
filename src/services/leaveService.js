@@ -307,6 +307,10 @@ export const leaveService = {
     const response = await httpClient.get(endpoints.hr.workScheduleOptions);
     return response.data;
   },
+  getWorkScheduleSummary: async () => {
+    const response = await httpClient.get(endpoints.hr.workScheduleSummary);
+    return response.data;
+  },
   getGradePolicies: async () => {
     const response = await httpClient.get(endpoints.hr.gradePolicies);
     return response.data;
