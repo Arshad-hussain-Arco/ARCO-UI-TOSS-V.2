@@ -35,9 +35,7 @@ export function Sidebar() {
     [],
   );
 
-  // Navigating away closes any open submenu and, on mobile, the whole drawer.
   const handleNavigate = useCallback(() => {
-    setExpandedId(null);
     collapseOnMobile();
   }, [collapseOnMobile]);
 

@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Users, Briefcase, Mail, Phone, ChevronDown, Copy } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { Users, Briefcase, ChevronDown, Copy, Plus, Edit2, Trash2 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -10,6 +10,7 @@ import { useToast } from '@hooks/useToast';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import './TeamsView.css';
 
 const MOCK_AVATAR = (name) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
@@ -53,7 +54,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete }) {
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
     const list = hc?.members || hc?.employees || hc?.consultants || hc?.users || [];
@@ -105,7 +106,26 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
               <div className="tv-ah-progress-fill add" style={{ width: `${addDev}%` }} />
             </div>
           </div>
-          <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} />
+          
+          <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
+            <button 
+              className="tv-icon-btn edit" 
+              title="Edit Team"
+              onClick={(e) => { e.stopPropagation(); onEdit(team); }}
+            >
+              <Edit2 size={16} />
+            </button>
+            <button 
+              className="tv-icon-btn delete" 
+              title="Delete Team"
+              style={{ color: '#ef4444' }}
+              onClick={(e) => { e.stopPropagation(); onDelete(team); }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+
+          <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} style={{ marginLeft: '16px' }} />
         </div>
       </div>
 
@@ -161,6 +181,68 @@ export function TeamsView({ onProfileView }) {
 
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamMembersCache, setTeamMembersCache] = useState({});
+  const toast = useToast();
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [form, setForm] = useState({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const openAddModal = () => {
+    setEditingTeam(null);
+    setForm({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (team) => {
+    setEditingTeam(team);
+    setForm({
+      name: team.name || team.team_name || '',
+      pri_dev_contr_per: team.pri_dev_contr_per || '',
+      add_dev_contr_per: team.add_dev_contr_per || ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSaveTeam = async () => {
+    if (!form.name.trim()) {
+      toast.error('Team Name is required');
+      return;
+    }
+    try {
+      const payload = {
+        name: form.name.trim(),
+        pri_dev_contr_per: form.pri_dev_contr_per ? parseFloat(form.pri_dev_contr_per) : null,
+        add_dev_contr_per: form.add_dev_contr_per ? parseFloat(form.add_dev_contr_per) : null
+      };
+      if (editingTeam) {
+        await consultantService.updateTeam(editingTeam.id, payload);
+        toast.success('Team updated successfully');
+      } else {
+        await consultantService.createTeam(payload);
+        toast.success('Team added successfully');
+      }
+      setIsModalOpen(false);
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save team');
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await consultantService.deleteTeam(deleteTarget.id);
+      toast.success('Team deleted successfully');
+      setDeleteTarget(null);
+      refetch();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete team');
+    }
+  };
 
   if (error) {
     return <ErrorState title="Teams could not be loaded" description={error.message} onRetry={refetch} />;
@@ -222,6 +304,13 @@ export function TeamsView({ onProfileView }) {
         })}
       </div>
 
+      <div className="teams-tab-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '0px' }}>
+        <button className="tv-add-btn" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '32px', backgroundColor: '#005028', color: '#ffffff', borderRadius: '6px', fontSize: '13px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease', whiteSpace: 'nowrap' }}>
+          <Plus size={16} />
+          <span>Add Team</span>
+        </button>
+      </div>
+
       {/* Accordions */}
       <div className="tv-accordions-list">
         {teamsData.map((team) => (
@@ -234,10 +323,105 @@ export function TeamsView({ onProfileView }) {
               cache={teamMembersCache}
               setCache={setTeamMembersCache}
               headcountMap={headcountMap}
+              onEdit={openEditModal}
+              onDelete={setDeleteTarget}
             />
           </div>
         ))}
       </div>
+
+      {/* Add / Edit Modal */}
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingTeam ? 'Edit Team' : 'Add Team'}
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              onClick={handleSaveTeam}
+            >
+              {editingTeam ? 'Update' : 'Add Team'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Team Name</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.pri_dev_contr_per}
+              onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.add_dev_contr_per}
+              onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+            />
+          </div>
+        </div>
+      </AdminModal>
+
+      {/* Confirm Delete Modal */}
+      <AdminModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirm Deletion"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e2e8f0', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}
+              onClick={() => setDeleteTarget(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              onClick={executeDelete}
+            >
+              Delete
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '14px', color: '#334155' }}>
+          Are you sure you want to delete the team <strong>{deleteTarget?.name || deleteTarget?.team_name}</strong>?
+        </div>
+      </AdminModal>
+
     </div>
   );
 }
