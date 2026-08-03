@@ -1,3 +1,5 @@
+import { getBusinessStageInfo } from './businessLifecycleMap';
+
 /**
  * Dynamic calculation and data mapping utilities for Project Monitoring
  */
@@ -141,26 +143,55 @@ export function getDrilldownProjects(projectsList = [], stageInfo) {
   if (!stageInfo) return [];
 
   const { key, label, type } = stageInfo;
-  const q = (label || '').toLowerCase();
+  const q = (label || '').trim().toLowerCase();
 
   return projectsList.filter((p) => {
     if (type === 'member') {
+      if (key === 'itdl') {
+        return (p.itdl || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'po') {
+        return (p.po || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'backupItdl') {
+        return (p.backupItdl || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'sitLead') {
+        return (p.sitLead || p.pmo || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'uatLead') {
+        return (p.uatLead || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'developer') {
+        return (p.ownedBy || p.itdl || 'unassigned').trim().toLowerCase() === q;
+      }
+      if (key === 'additionalDev') {
+        return (p.backupItdl || 'unassigned').trim().toLowerCase() === q;
+      }
+
       return (
-        (p.itdl && p.itdl.toLowerCase().includes(q)) ||
-        (p.po && p.po.toLowerCase().includes(q)) ||
-        (p.backupItdl && p.backupItdl.toLowerCase().includes(q)) ||
-        (p.pmo && p.pmo.toLowerCase().includes(q)) ||
-        (p.ownedBy && p.ownedBy.toLowerCase().includes(q))
+        (p.itdl && p.itdl.toLowerCase().trim() === q) ||
+        (p.po && p.po.toLowerCase().trim() === q) ||
+        (p.backupItdl && p.backupItdl.toLowerCase().trim() === q) ||
+        (p.pmo && p.pmo.toLowerCase().trim() === q) ||
+        (p.ownedBy && p.ownedBy.toLowerCase().trim() === q)
       );
     }
 
     if (key === 'sla1') return (p.stage || '').toLowerCase() !== 'completed';
-    if (key === 'sla2' || key === 'testing-blocked') return (p.stage || '').toLowerCase().includes('testing');
+    if (key === 'sla2') return (p.stage || '').toLowerCase().includes('testing');
+    if (key === 'testing-blocked') return (p.stage || '').toLowerCase().includes('testing blocked') || (p.stage || '').toLowerCase().includes('blocked');
+    if (key === 'deferred') return (p.stage || '').toLowerCase().includes('deferred');
     if (key === 'sla5') return p.workOrderType === 'CR';
     if (key === 'cr2') return p.workOrderType === 'CR';
     if (key === 'cr3') return p.workOrderType === 'CR' && !p.startDate;
     if (key === 'dd2') return (p.stage || '').toLowerCase().includes('building') || (p.stage || '').toLowerCase().includes('dev');
 
-    return (p.stage || '').toLowerCase().includes((key || '').toLowerCase());
+    const bizInfo = getBusinessStageInfo(p.stage);
+    if (!bizInfo || !bizInfo.phase) return false;
+    return (
+      bizInfo.phase.key === key ||
+      bizInfo.phase.label.toLowerCase() === (label || '').toLowerCase()
+    );
   });
 }

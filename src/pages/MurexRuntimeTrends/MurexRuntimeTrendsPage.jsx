@@ -250,7 +250,7 @@ function JobCard({ script, onOpenDetail }) {
 
   const healthColor =
     script.health === 'Healthy' ? '#10b981' :
-    script.health === 'Warning' ? '#f59e0b' : '#ef4444';
+      script.health === 'Warning' ? '#f59e0b' : '#ef4444';
 
   return (
     <div className="murex-job-card">
@@ -410,14 +410,14 @@ function JobCard({ script, onOpenDetail }) {
 /* ─── Heatmap & Gantt Data Generators ─────────────────────────── */
 function getScriptHeatmapSpec(script) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  
+
   // Extract all runs and map to ISO week and day
   const runs = (script.history || [])
     .filter(run => run.date && run.date !== 'Unknown Date')
     .map(run => {
       const dateObj = parseISO(run.date);
       if (isNaN(dateObj)) return null;
-      
+
       const week = getISOWeek(dateObj);
       // getDay() returns 0 for Sunday, 1 for Monday. We want 0 for Mon, 6 for Sun.
       const jsDay = getDay(dateObj);
@@ -460,10 +460,10 @@ function getScriptHeatmapSpec(script) {
             yanchor: 'top',
           });
         }
-        
+
         // Outlier in the top-left corner
         if (run.isOutlier) {
-           annotations.push({
+          annotations.push({
             x: wIdx - 0.47, // left edge
             y: run.dayIndex - 0.47, // top edge
             text: '⚠️',
@@ -575,7 +575,7 @@ function getCellExecutionDetails(script, weekLabel, dayLabel) {
 function getRunGanttSpec(run) {
   const steps = run.steps.map((s) => s.name);
   steps.push('Total CPU', 'Total DB');
-  
+
   const baseTimes = [];
   const dbTimes = [];
   const cpuTimes = [];
@@ -592,7 +592,7 @@ function getRunGanttSpec(run) {
     cpuTimes.push(step.cpuTime);
     totalCpuTimes.push(0);
     totalDbTimes.push(0);
-    
+
     totalDb += step.dbTime;
     totalCpu += step.cpuTime;
     currentStart += (step.dbTime + step.cpuTime); // waterfall flows continuously
@@ -732,7 +732,7 @@ export function MurexRuntimeTrendsPage() {
     () =>
       (data?.scripts ?? []).map((script) => {
         // Find explicit remote category that contains this script
-        const matchingCategory = remoteCategories.find(c => 
+        const matchingCategory = remoteCategories.find(c =>
           c.scripts && c.scripts.some(s => s.script_name === script.name)
         );
         return {
@@ -783,12 +783,12 @@ export function MurexRuntimeTrendsPage() {
       setSelectedCellDetails(details);
       setExpandedRunGanttIds(new Set());
       setIsGanttLoading(true);
-      
+
       // Find the exact date corresponding to this cell
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const ptDayIndex = days.indexOf(pt.y);
       const ptWeek = parseInt(pt.x, 10);
-      
+
       const matchingRun = (script.history || []).find(run => {
         if (!run.date || run.date === 'Unknown Date') return false;
         const dateObj = parseISO(run.date);
@@ -814,7 +814,7 @@ export function MurexRuntimeTrendsPage() {
                 const s = Math.floor(secs % 60).toString().padStart(2, '0');
                 return `${h}:${m}:${s}`;
               };
-              
+
               return {
                 id: `${script.id}-run-${index}`,
                 name: `Run ${index + 1} (${label})`,
@@ -834,8 +834,8 @@ export function MurexRuntimeTrendsPage() {
               ...details,
               date: matchingRun.date,
               totalRuns: runs.length,
-              avgDuration: runs.length > 0 
-                ? new Date((runs.reduce((acc, r) => acc + r.seconds, 0) / runs.length) * 1000).toISOString().substr(11, 8) 
+              avgDuration: runs.length > 0
+                ? new Date((runs.reduce((acc, r) => acc + r.seconds, 0) / runs.length) * 1000).toISOString().substr(11, 8)
                 : '00:00:00',
               outliersCount: runs.filter(r => r.isOutlier).length,
               runs: runs
@@ -952,21 +952,21 @@ export function MurexRuntimeTrendsPage() {
     if (!categoryFormName.trim()) return;
     try {
       const originalScripts = (editingCategory?.scripts || []).map(s => s.script_name);
-      
+
       const payload = {
         name: categoryFormName.trim(),
         description: categoryFormDescription.trim(),
         assign_scripts: categoryFormScripts.filter(name => !originalScripts.includes(name)),
         unassign_scripts: originalScripts.filter(name => !categoryFormScripts.includes(name))
       };
-      
+
       let res;
       if (editingCategory) {
         res = await murexService.updateCategory(editingCategory.id, payload);
       } else {
         res = await murexService.createCategory(payload);
       }
-      
+
       if (res?.categories) {
         setRemoteCategoriesData(res.categories);
       } else {
@@ -1035,68 +1035,7 @@ export function MurexRuntimeTrendsPage() {
 
   return (
     <div className="murex-runtime-page">
-      {/* Page Header */}
-      <div className="murex-header">
-        <div className="murex-header-left">
-          <h1 className="murex-title">Murex Runtime Monitoring</h1>
-          <p className="murex-subtitle">Last updated: 2026-02-03 10:30:45</p>
-        </div>
-        <div className="murex-header-actions">
-          <button className="murex-action-btn">
-            <RefreshCw size={12} />
-            <span>Refresh</span>
-          </button>
-          <button className="murex-action-btn">
-            <Download size={12} />
-            <span>Export</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Global Filters */}
-      <div className="murex-filter-bar">
-        <div className="murex-filter-group">
-          <Select
-            value={scriptFilter}
-            onChange={setScriptFilter}
-            placeholder="All Scripts"
-            options={[
-              { value: '', label: 'All Scripts' },
-              { value: 'ETL_PROCESS_01', label: 'ETL_PROCESS_01' },
-              { value: 'BACKUP_DAILY_02', label: 'BACKUP_DAILY_02' },
-              { value: 'ALERT_CHECK_03', label: 'ALERT_CHECK_03' },
-            ]}
-            width="project"
-          />
-
-          <div className="murex-time-toggle">
-            <button
-              className={`murex-time-btn ${timeRange === '7d' ? 'active' : ''}`}
-              onClick={() => setTimeRange('7d')}
-            >
-              7d
-            </button>
-            <button
-              className={`murex-time-btn ${timeRange === '15d' ? 'active' : ''}`}
-              onClick={() => setTimeRange('15d')}
-            >
-              15d
-            </button>
-            <button
-              className={`murex-time-btn ${timeRange === '30d' ? 'active' : ''}`}
-              onClick={() => setTimeRange('30d')}
-            >
-              30d
-            </button>
-          </div>
-
-          <div className="murex-threshold-inputs">
-            <input type="number" placeholder="Min" className="murex-threshold-input" />
-            <span className="murex-threshold-separator">–</span>
-            <input type="number" placeholder="Max" className="murex-threshold-input" />
-          </div>
-        </div>
-      </div>
 
       {/* Tabs */}
       <div className="murex-tabs">
@@ -1171,15 +1110,15 @@ export function MurexRuntimeTrendsPage() {
                     </button>
                     {category.id !== null && (
                       <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
-                        <button 
-                          className="murex-icon-btn" 
+                        <button
+                          className="murex-icon-btn"
                           title="Edit Category"
                           onClick={(e) => handleEditCategory(category, e)}
                         >
                           <Edit size={12} />
                         </button>
-                        <button 
-                          className="murex-icon-btn error" 
+                        <button
+                          className="murex-icon-btn error"
                           title="Delete Category"
                           onClick={(e) => handleDeleteCategory(category, e)}
                           style={{ color: 'var(--error-color)' }}
@@ -1343,89 +1282,89 @@ export function MurexRuntimeTrendsPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Summary Stats Grid */}
-            <div className="murex-modal-summary-grid">
-              <div className="murex-modal-summary-card">
-                <span className="murex-modal-card-label">Week</span>
-                <span className="murex-modal-card-val">{selectedCellDetails.week}</span>
+              {/* Summary Stats Grid */}
+              <div className="murex-modal-summary-grid">
+                <div className="murex-modal-summary-card">
+                  <span className="murex-modal-card-label">Week</span>
+                  <span className="murex-modal-card-val">{selectedCellDetails.week}</span>
+                </div>
+                <div className="murex-modal-summary-card">
+                  <span className="murex-modal-card-label">Day</span>
+                  <span className="murex-modal-card-val">{selectedCellDetails.day}</span>
+                </div>
+                <div className="murex-modal-summary-card">
+                  <span className="murex-modal-card-label">Date</span>
+                  <span className="murex-modal-card-val">{selectedCellDetails.date}</span>
+                </div>
+                <div className="murex-modal-summary-card">
+                  <span className="murex-modal-card-label">Avg Duration</span>
+                  <span className="murex-modal-card-val">{selectedCellDetails.avgDuration}</span>
+                </div>
+                <div className="murex-modal-summary-card">
+                  <span className="murex-modal-card-label">Total Runs</span>
+                  <span className="murex-modal-card-val">{selectedCellDetails.totalRuns}</span>
+                </div>
+                <div className={`murex-modal-summary-card ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
+                  <span className="murex-modal-card-label">Outliers</span>
+                  <span className={`murex-modal-card-val ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
+                    {selectedCellDetails.outliersCount > 0 ? `⚠️ ${selectedCellDetails.outliersCount}` : '0'}
+                  </span>
+                </div>
               </div>
-              <div className="murex-modal-summary-card">
-                <span className="murex-modal-card-label">Day</span>
-                <span className="murex-modal-card-val">{selectedCellDetails.day}</span>
-              </div>
-              <div className="murex-modal-summary-card">
-                <span className="murex-modal-card-label">Date</span>
-                <span className="murex-modal-card-val">{selectedCellDetails.date}</span>
-              </div>
-              <div className="murex-modal-summary-card">
-                <span className="murex-modal-card-label">Avg Duration</span>
-                <span className="murex-modal-card-val">{selectedCellDetails.avgDuration}</span>
-              </div>
-              <div className="murex-modal-summary-card">
-                <span className="murex-modal-card-label">Total Runs</span>
-                <span className="murex-modal-card-val">{selectedCellDetails.totalRuns}</span>
-              </div>
-              <div className={`murex-modal-summary-card ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
-                <span className="murex-modal-card-label">Outliers</span>
-                <span className={`murex-modal-card-val ${selectedCellDetails.outliersCount > 0 ? 'warning' : ''}`}>
-                  {selectedCellDetails.outliersCount > 0 ? `⚠️ ${selectedCellDetails.outliersCount}` : '0'}
-                </span>
-              </div>
-            </div>
 
-            {/* All Run Durations Section */}
-            <div className="murex-modal-runs-section">
-              <h4 className="murex-modal-runs-title">All Run Durations</h4>
-              {selectedCellDetails.runs.map((run) => {
-                const isGanttOpen = expandedRunGanttIds.has(run.id);
-                const ganttSpec = getRunGanttSpec(run);
-                const totalDb = run.steps.reduce((a, b) => a + b.dbTime, 0);
-                const totalCpu = run.steps.reduce((a, b) => a + b.cpuTime, 0);
+              {/* All Run Durations Section */}
+              <div className="murex-modal-runs-section">
+                <h4 className="murex-modal-runs-title">All Run Durations</h4>
+                {selectedCellDetails.runs.map((run) => {
+                  const isGanttOpen = expandedRunGanttIds.has(run.id);
+                  const ganttSpec = getRunGanttSpec(run);
+                  const totalDb = run.steps.reduce((a, b) => a + b.dbTime, 0);
+                  const totalCpu = run.steps.reduce((a, b) => a + b.cpuTime, 0);
 
-                return (
-                  <div key={run.id} className={`murex-run-item ${run.isOutlier ? 'outlier' : ''}`}>
-                    <div className="murex-run-item-header">
-                      <div className="murex-run-info-left">
-                        <span className="murex-run-name">{run.name}</span>
-                        <span className="murex-run-dur">{run.duration}</span>
-                        {run.isOutlier && (
-                          <span className="murex-run-badge-outlier">
-                            <AlertTriangle size={10} /> Outlier
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        className="murex-gantt-toggle-btn"
-                        onClick={() => toggleRunGantt(run.id)}
-                      >
-                        {isGanttOpen ? (
-                          <>Hide Gantt <ChevronUp size={12} /></>
-                        ) : (
-                          <>Show Gantt <ChevronDown size={12} /></>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Gantt Chart Container */}
-                    {isGanttOpen && (
-                      <div className="murex-gantt-chart-container">
-                        <div className="murex-gantt-summary-bar">
-                          <span className="murex-gantt-step-count">{run.steps.length} Steps</span>
-                          <span>Total DB: <strong>{totalDb.toLocaleString()}s</strong></span>
-                          <span>Total CPU: <strong>{totalCpu.toLocaleString()}s</strong></span>
-                          <span>Total Duration: <strong>{run.seconds.toLocaleString()}s</strong></span>
+                  return (
+                    <div key={run.id} className={`murex-run-item ${run.isOutlier ? 'outlier' : ''}`}>
+                      <div className="murex-run-item-header">
+                        <div className="murex-run-info-left">
+                          <span className="murex-run-name">{run.name}</span>
+                          <span className="murex-run-dur">{run.duration}</span>
+                          {run.isOutlier && (
+                            <span className="murex-run-badge-outlier">
+                              <AlertTriangle size={10} /> Outlier
+                            </span>
+                          )}
                         </div>
 
-                        <PlotlyChart data={ganttSpec.data} layout={ganttSpec.layout} />
+                        <button
+                          type="button"
+                          className="murex-gantt-toggle-btn"
+                          onClick={() => toggleRunGantt(run.id)}
+                        >
+                          {isGanttOpen ? (
+                            <>Hide Gantt <ChevronUp size={12} /></>
+                          ) : (
+                            <>Show Gantt <ChevronDown size={12} /></>
+                          )}
+                        </button>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      {/* Gantt Chart Container */}
+                      {isGanttOpen && (
+                        <div className="murex-gantt-chart-container">
+                          <div className="murex-gantt-summary-bar">
+                            <span className="murex-gantt-step-count">{run.steps.length} Steps</span>
+                            <span>Total DB: <strong>{totalDb.toLocaleString()}s</strong></span>
+                            <span>Total CPU: <strong>{totalCpu.toLocaleString()}s</strong></span>
+                            <span>Total Duration: <strong>{run.seconds.toLocaleString()}s</strong></span>
+                          </div>
+
+                          <PlotlyChart data={ganttSpec.data} layout={ganttSpec.layout} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
           )}
         </AdminModal>
       )}
@@ -1449,19 +1388,19 @@ export function MurexRuntimeTrendsPage() {
         <div className="murex-category-form-grid" style={{ display: 'grid', gridTemplateColumns: editingCategory ? '1fr 1fr' : '1fr', gap: '20px' }}>
           <div className="murex-form-group">
             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Category Name *</label>
-            <input 
-              type="text" 
-              value={categoryFormName} 
-              onChange={e => setCategoryFormName(e.target.value)} 
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }} 
+            <input
+              type="text"
+              value={categoryFormName}
+              onChange={e => setCategoryFormName(e.target.value)}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
             />
           </div>
           <div className="murex-form-group">
             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Description</label>
-            <textarea 
-              value={categoryFormDescription} 
-              onChange={e => setCategoryFormDescription(e.target.value)} 
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }} 
+            <textarea
+              value={categoryFormDescription}
+              onChange={e => setCategoryFormDescription(e.target.value)}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
             />
           </div>
         </div>
@@ -1473,9 +1412,9 @@ export function MurexRuntimeTrendsPage() {
               <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Available Scripts ({renderedAvailableScripts.length})</h4>
               <div style={{ position: 'relative', marginBottom: '10px' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                <input 
-                  type="text" 
-                  placeholder="Search available scripts..." 
+                <input
+                  type="text"
+                  placeholder="Search available scripts..."
                   value={availableSearch}
                   onChange={(e) => setAvailableSearch(e.target.value)}
                   style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
@@ -1500,9 +1439,9 @@ export function MurexRuntimeTrendsPage() {
               <h4 style={{ fontSize: '0.9rem', marginBottom: '10px', color: 'var(--text-primary)' }}>Category Scripts ({renderedAssignedScripts.length})</h4>
               <div style={{ position: 'relative', marginBottom: '10px' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                <input 
-                  type="text" 
-                  placeholder="Search category scripts..." 
+                <input
+                  type="text"
+                  placeholder="Search category scripts..."
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
                   style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
@@ -1524,7 +1463,7 @@ export function MurexRuntimeTrendsPage() {
           </div>
         )}
       </AdminModal>
-      
+
       {/* Delete Confirmation Modal */}
       <AdminModal
         isOpen={!!deletingCategory}
