@@ -76,7 +76,7 @@ export function DashboardPage() {
         httpClient.get('/dashboard/leave-requests-trend/?days=7'),
         httpClient.get('/dashboard/department-stats/'),
         httpClient.get(`/dashboard/on-leave/?start_date=${startStr}&end_date=${endStr}`),
-        leaveService.getHolidays(),
+        leaveService.listHolidays(),
       ];
 
       if (empId) {
@@ -114,7 +114,8 @@ export function DashboardPage() {
         setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[10]?.status === 'fulfilled') {
-        const data = results[10].value.data;
+        // listHolidays already returns response.data directly
+        const data = results[10].value;
         const holidaysArr = Array.isArray(data) ? data : data?.results || [];
         
         // Filter and sort for upcoming holidays only
