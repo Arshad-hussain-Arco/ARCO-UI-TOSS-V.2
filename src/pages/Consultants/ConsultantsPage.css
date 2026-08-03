@@ -351,6 +351,19 @@
 }
 
 /* ── Right-side drawer (replaces all modal overlays) ─────────── */
+.con-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 499;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s;
+}
+.con-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
 .con-drawer {
   position: fixed;
   top: 0;
@@ -397,21 +410,26 @@
   margin: 0;
 }
 .con-drawer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--surface-primary, #ffffff);
+  color: var(--text-secondary, #666666);
+  border: 1px solid var(--border-primary, #eaeaea);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border-primary, #eaeaea);
-  background: transparent;
-  border-radius: 5px;
-  color: var(--text-secondary, #666666);
   cursor: pointer;
-  transition: all 0.15s;
+  z-index: 10;
+  transition: all 0.2s;
 }
 .con-drawer-close:hover {
-  background: var(--bg-hover, #f5f5f5);
+  background: var(--bg-hover, #f3f4f6);
   color: var(--text-primary, #111111);
+  transform: none;
 }
 
 /* Drawer inner tabs */
@@ -685,22 +703,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 16px;
+  margin-bottom: 8px;
 }
 .ef-section-label {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-tertiary);
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
   font-family: var(--font-family);
 }
 .ef-section-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border-primary);
+  display: none;
 }
 
 /* ── Field grid ────────────────────────────────────────────── */

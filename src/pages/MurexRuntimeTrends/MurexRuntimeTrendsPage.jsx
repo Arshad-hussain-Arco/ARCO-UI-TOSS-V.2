@@ -17,6 +17,7 @@ import {
   BarChart3,
   Edit,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -432,6 +433,10 @@ function getScriptHeatmapSpec(script) {
   // Initialize zMatrix and textMatrix
   const zMatrix = Array(7).fill(0).map(() => Array(weeks.length).fill(null));
   const textMatrix = Array(7).fill('').map(() => Array(weeks.length).fill(''));
+  const annotations = [];
+
+  // Helper for formatting date strings
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // Group runs by day and week
   runs.forEach(run => {
@@ -440,8 +445,35 @@ function getScriptHeatmapSpec(script) {
       if (zMatrix[run.dayIndex][wIdx] === null) {
         zMatrix[run.dayIndex][wIdx] = run.durationMin;
         textMatrix[run.dayIndex][wIdx] = run.durationFormatted;
+
+        // Add date annotation perfectly in the top-right corner of the cell
+        const dateObj = parseISO(run.date);
+        if (!isNaN(dateObj)) {
+          const dateString = `${monthNames[dateObj.getMonth()]} ${dateObj.getDate()}`;
+          annotations.push({
+            x: wIdx + 0.47, // right edge
+            y: run.dayIndex - 0.47, // top edge (because y is reversed)
+            text: dateString,
+            showarrow: false,
+            font: { size: 10, color: '#334155' },
+            xanchor: 'right',
+            yanchor: 'top',
+          });
+        }
+        
+        // Outlier in the top-left corner
+        if (run.isOutlier) {
+           annotations.push({
+            x: wIdx - 0.47, // left edge
+            y: run.dayIndex - 0.47, // top edge
+            text: '⚠️',
+            showarrow: false,
+            font: { size: 12 },
+            xanchor: 'left',
+            yanchor: 'top',
+          });
+        }
       } else {
-        // Average the z value and append text for multiple runs
         zMatrix[run.dayIndex][wIdx] = (zMatrix[run.dayIndex][wIdx] + run.durationMin) / 2;
         textMatrix[run.dayIndex][wIdx] += `<br>${run.durationFormatted}`;
       }
@@ -478,14 +510,15 @@ function getScriptHeatmapSpec(script) {
       },
     ],
     layout: {
-      margin: { t: 25, r: 90, b: 40, l: 50 },
-      height: 300,
+      margin: { t: 25, r: 90, b: 60, l: 50 },
+      height: 550,
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: '#334155', size: 11, family: 'Inter, system-ui, sans-serif' },
       xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: '#64748b' } }, type: 'category' },
       yaxis: { title: { text: 'Day of Week', font: { size: 11, color: '#64748b' } }, autorange: 'reversed' },
+      annotations: annotations,
     },
   };
 }
@@ -504,27 +537,35 @@ function getCellExecutionDetails(script, weekLabel, dayLabel) {
       {
         id: `${script.id}-run-1`,
         name: 'Run 1',
-        duration: '40:04:52',
-        seconds: 144292,
+        duration: '26:31:51',
+        seconds: 95511,
         isOutlier: false,
         steps: [
-          { name: 'Step 1: DB Extraction', dbTime: 4200, cpuTime: 1800, elapsed: 48000 },
-          { name: 'Step 2: Validation Engine', dbTime: 8100, cpuTime: 3400, elapsed: 54000 },
-          { name: 'Step 3: GL Reconciliation', dbTime: 3200, cpuTime: 1400, elapsed: 28000 },
-          { name: 'Step 4: Archival & Clean', dbTime: 900, cpuTime: 400, elapsed: 14292 },
+          { name: 'Checking', dbTime: 1000, cpuTime: 2000 },
+          { name: 'Step 1/7 [BACKUP]', dbTime: 13011, cpuTime: 1500 },
+          { name: 'Step 2/7 [COMPUTE]', dbTime: 6293, cpuTime: 1200 },
+          { name: 'Step 3/7 [TRANSFORM]', dbTime: 7563, cpuTime: 1500 },
+          { name: 'Step 4/7 [SORT]', dbTime: 18152, cpuTime: 8125 },
+          { name: 'Step 5/7 [OPTIMIZE]', dbTime: 12005, cpuTime: 4329 },
+          { name: 'Step 6/7 [JOIN]', dbTime: 6245, cpuTime: 2000 },
+          { name: 'Step 7/7 [FINALIZE]', dbTime: 6065, cpuTime: 4523 },
         ],
       },
       {
         id: `${script.id}-run-2`,
         name: 'Run 2',
-        duration: '59:15:28',
-        seconds: 213328,
+        duration: '31:09:49',
+        seconds: 112189,
         isOutlier: true,
         steps: [
-          { name: 'Step 1: DB Extraction', dbTime: 9200, cpuTime: 3800, elapsed: 68000 },
-          { name: 'Step 2: Validation Engine', dbTime: 14100, cpuTime: 6400, elapsed: 84000 },
-          { name: 'Step 3: GL Reconciliation', dbTime: 6200, cpuTime: 2400, elapsed: 42000 },
-          { name: 'Step 4: Archival & Clean', dbTime: 1900, cpuTime: 800, elapsed: 19328 },
+          { name: 'Checking', dbTime: 1500, cpuTime: 2500 },
+          { name: 'Step 1/7 [BACKUP]', dbTime: 15011, cpuTime: 2000 },
+          { name: 'Step 2/7 [COMPUTE]', dbTime: 8293, cpuTime: 1500 },
+          { name: 'Step 3/7 [TRANSFORM]', dbTime: 9563, cpuTime: 1800 },
+          { name: 'Step 4/7 [SORT]', dbTime: 21152, cpuTime: 9125 },
+          { name: 'Step 5/7 [OPTIMIZE]', dbTime: 14005, cpuTime: 5329 },
+          { name: 'Step 6/7 [JOIN]', dbTime: 8245, cpuTime: 2500 },
+          { name: 'Step 7/7 [FINALIZE]', dbTime: 7065, cpuTime: 2601 },
         ],
       },
     ],
@@ -533,39 +574,109 @@ function getCellExecutionDetails(script, weekLabel, dayLabel) {
 
 function getRunGanttSpec(run) {
   const steps = run.steps.map((s) => s.name);
-  const dbTimes = run.steps.map((s) => s.dbTime);
-  const cpuTimes = run.steps.map((s) => s.cpuTime);
+  steps.push('Total CPU', 'Total DB');
+  
+  const baseTimes = [];
+  const dbTimes = [];
+  const cpuTimes = [];
+  const totalCpuTimes = [];
+  const totalDbTimes = [];
+
+  let currentStart = 0;
+  let totalDb = 0;
+  let totalCpu = 0;
+
+  run.steps.forEach(step => {
+    baseTimes.push(currentStart);
+    dbTimes.push(step.dbTime);
+    cpuTimes.push(step.cpuTime);
+    totalCpuTimes.push(0);
+    totalDbTimes.push(0);
+    
+    totalDb += step.dbTime;
+    totalCpu += step.cpuTime;
+    currentStart += (step.dbTime + step.cpuTime); // waterfall flows continuously
+  });
+
+  // For Total CPU bar
+  baseTimes.push(0);
+  dbTimes.push(0);
+  cpuTimes.push(0);
+  totalCpuTimes.push(totalCpu);
+  totalDbTimes.push(0);
+
+  // For Total DB bar
+  baseTimes.push(0);
+  dbTimes.push(0);
+  cpuTimes.push(0);
+  totalCpuTimes.push(0);
+  totalDbTimes.push(totalDb);
+
+  const formatNum = (num) => num > 0 ? num.toLocaleString() + 's' : '';
 
   return {
     data: [
       {
-        y: steps,
-        x: dbTimes,
-        name: 'Total Database Time (s)',
+        x: steps,
+        y: baseTimes,
         type: 'bar',
-        orientation: 'h',
-        marker: { color: '#005A36' },
+        marker: { color: 'rgba(0,0,0,0)' },
+        hoverinfo: 'none',
+        showlegend: false,
       },
       {
-        y: steps,
-        x: cpuTimes,
-        name: 'Total CPU Time (s)',
+        x: steps,
+        y: dbTimes,
+        name: 'Database Time',
         type: 'bar',
-        orientation: 'h',
-        marker: { color: '#2563eb' },
+        marker: { color: '#5c8aea' }, // cornflower blue
+        text: dbTimes.map(formatNum),
+        textposition: 'inside',
+        textfont: { color: 'white' },
+      },
+      {
+        x: steps,
+        y: cpuTimes,
+        name: 'CPU Time',
+        type: 'bar',
+        marker: { color: '#637081' }, // slate gray
+        text: cpuTimes.map(formatNum),
+        textposition: 'inside',
+        textfont: { color: 'white' },
+      },
+      {
+        x: steps,
+        y: totalCpuTimes,
+        name: 'Total CPU Time',
+        type: 'bar',
+        marker: { color: '#637081' },
+        text: totalCpuTimes.map(formatNum),
+        textposition: 'auto',
+        textfont: { color: 'white' },
+      },
+      {
+        x: steps,
+        y: totalDbTimes,
+        name: 'Total DB Time',
+        type: 'bar',
+        marker: { color: '#5c8aea' },
+        text: totalDbTimes.map(formatNum),
+        textposition: 'auto',
+        textfont: { color: 'white' },
       },
     ],
     layout: {
       barmode: 'stack',
-      margin: { t: 10, r: 25, b: 35, l: 150 },
-      height: 170,
+      margin: { t: 40, r: 20, b: 120, l: 60 },
+      height: 400,
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: '#334155', size: 10 },
-      xaxis: { title: { text: 'Duration (seconds)', font: { size: 10 } } },
-      yaxis: { autorange: 'reversed' },
-      legend: { orientation: 'h', y: -0.3, font: { size: 10 } },
+      yaxis: { title: { text: 'Time (s)', font: { size: 10 } }, tickformat: ',' },
+      xaxis: { tickangle: -45 },
+      showlegend: true,
+      legend: { orientation: 'h', y: 1.15, x: 0.5, xanchor: 'center' }
     },
   };
 }
@@ -644,6 +755,7 @@ export function MurexRuntimeTrendsPage() {
   const [expandedScriptIds, setExpandedScriptIds] = useState(() => new Set());
   const [selectedCellDetails, setSelectedCellDetails] = useState(null);
   const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
+  const [isGanttLoading, setIsGanttLoading] = useState(false);
 
   const toggleExpandScript = (scriptId, e) => {
     e?.stopPropagation();
@@ -670,6 +782,7 @@ export function MurexRuntimeTrendsPage() {
       const details = getCellExecutionDetails(script, pt.x, pt.y);
       setSelectedCellDetails(details);
       setExpandedRunGanttIds(new Set());
+      setIsGanttLoading(true);
       
       // Find the exact date corresponding to this cell
       const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -730,7 +843,11 @@ export function MurexRuntimeTrendsPage() {
           }
         } catch (err) {
           console.error("Failed to fetch exact run details:", err);
+        } finally {
+          setIsGanttLoading(false);
         }
+      } else {
+        setIsGanttLoading(false);
       }
     }
   };
@@ -1219,7 +1336,13 @@ export function MurexRuntimeTrendsPage() {
           }
           size="lg"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {isGanttLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px', color: 'var(--text-tertiary)' }}>
+              <Loader2 className="spin" size={32} style={{ color: 'var(--primary-color)' }} />
+              <p>Fetching Job Execution Details...</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Summary Stats Grid */}
             <div className="murex-modal-summary-grid">
               <div className="murex-modal-summary-card">
@@ -1303,6 +1426,7 @@ export function MurexRuntimeTrendsPage() {
               })}
             </div>
           </div>
+          )}
         </AdminModal>
       )}
       {/* Category Management Modal */}

@@ -71,23 +71,28 @@
   margin: 0;
 }
 
+.admin-modal-subtitle {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin: 3px 0 0;
+}
+
 .admin-modal-close {
   background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 5px;
-  padding: 5px;
-  cursor: pointer;
-  color: var(--text-secondary);
+  border: none;
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
-  transition: all 0.12s ease;
-  flex-shrink: 0;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .admin-modal-close:hover {
-  background: var(--bg-hover);
+  background: var(--bg-secondary);
   color: var(--text-primary);
-  border-color: var(--border-secondary);
 }
 
 .admin-modal-body {
@@ -109,4 +114,70 @@
   background: var(--surface-primary);
   flex-shrink: 0;
   gap: 8px;
+}
+
+/* ── Panel variant: full-height slide-over anchored to the right edge ───── */
+.admin-modal-overlay.variant-panel {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+
+.admin-modal-shell.variant-panel {
+  max-height: 100vh;
+  height: 100vh;
+  border-radius: 0;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.18);
+  animation: am-slide-in-right 0.2s ease;
+}
+
+.admin-modal-shell.variant-panel.size-sm { max-width: 420px; }
+.admin-modal-shell.variant-panel.size-md { max-width: 520px; }
+.admin-modal-shell.variant-panel.size-lg { max-width: 620px; }
+.admin-modal-shell.variant-panel.size-xl { max-width: 680px; }
+
+@keyframes am-slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-modal-shell.variant-panel {
+    animation: none;
+  }
+}
+
+.admin-modal-header:has(.admin-modal-close.variant-panel) {
+  align-items: flex-start;
+  padding: 18px 20px;
+}
+
+.admin-modal-close.variant-panel {
+  position: static;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.admin-modal-close.variant-panel:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .admin-modal-shell.variant-panel {
+    max-width: 100vw;
+  }
 }

@@ -13,6 +13,7 @@ export const roleService = {
       role_name: data.name,
       permissions: [data.permissions], // Wrap dict in array
       isadmin: data.isAdmin,
+      description: data.description,
     };
     const response = await httpClient.post(endpoints.roles.create, payload);
     return response?.data;
@@ -24,6 +25,7 @@ export const roleService = {
       role_name: data.name,
       permissions: [data.permissions], // Wrap dict in array
       isadmin: data.isAdmin,
+      description: data.description,
     };
     const response = await httpClient.put(endpoints.roles.update(id), payload);
     return response?.data;

@@ -174,7 +174,8 @@ function TeamRequestsTab() {
             employeeName: req.emp_name,
             team: req.team_name,
             type: type,
-            leaveType: req.leave_reason || req.leave_type, // Using reason as it's more descriptive in the payload (e.g., "Annual Leave")
+            leaveType: req.leave_type,
+            reason: req.leave_reason,
             startDate: req.start_date,
             endDate: req.end_date,
             duration: req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
@@ -675,8 +676,7 @@ function TeamRequestsTab() {
                           </td>
                           <td className="tr-td">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span className={`tr-type-badge ${TC.css}`}>
-                                <TC.Icon size={10} />
+                              <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                                 {req.leaveType ?? TC.label}
                               </span>
                               {req.priority === 'high' && (
@@ -1095,11 +1095,25 @@ function TeamRequestsTab() {
                 <div className="tr-dsec-title">Request Information</div>
                 <div className="tr-drow">
                   <span className="tr-drow-label">Request Type</span>
-                  <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type].css}`}>
-                    {React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+                  <span className="tr-drow-value">
                     {liveReq.leaveType ?? TYPE_CONFIG[liveReq.type].label}
                   </span>
                 </div>
+                {liveReq.reason && liveReq.type !== 'offshore' && (
+                  <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+                    <span className="tr-drow-label">
+                      {liveReq.type === 'compoff'
+                        ? 'Claim Reason'
+                        : liveReq.type === 'wfh'
+                          ? 'Reason for WFH'
+                          : 'Leave Reason'}
+                    </span>
+                    <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type].css}`} style={{ maxWidth: 220 }}>
+                      {React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+                      {liveReq.reason}
+                    </span>
+                  </div>
+                )}
                 {liveReq.type === 'compoff' && (
                   <div className="tr-drow">
                     <span className="tr-drow-label">Claim Type</span>
@@ -1140,23 +1154,6 @@ function TeamRequestsTab() {
                   <span className="tr-drow-label">Applied On</span>
                   <span className="tr-drow-value">{fmtDate(liveReq.requestedOn)}</span>
                 </div>
-                {liveReq.reason && liveReq.type !== 'offshore' && (
-                  <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
-                    <span className="tr-drow-label">
-                      {liveReq.type === 'compoff'
-                        ? 'Claim Reason'
-                        : liveReq.type === 'wfh'
-                          ? 'Reason for WFH'
-                          : 'Reason'}
-                    </span>
-                    <span
-                      className="tr-drow-value"
-                      style={{ maxWidth: 220, textAlign: 'right', lineHeight: 1.5 }}
-                    >
-                      {liveReq.reason}
-                    </span>
-                  </div>
-                )}
                 <div className="tr-drow">
                   <span className="tr-drow-label">Status</span>
                   <span className={`tr-status-badge tr-status-${liveReq.status}`}>
@@ -1392,22 +1389,26 @@ function TeamRequestsTab() {
               </button>
               {liveReq.status === 'pending' && (
                 <>
-                  <button 
-                    className="tr-btn tr-btn-danger" 
-                    onClick={handleReject}
-                    disabled={isSubmittingAction}
-                  >
-                    <X size={11} />
-                    {isSubmittingAction ? 'Rejecting...' : 'Reject'}
-                  </button>
-                  <button 
-                    className="tr-btn tr-btn-primary" 
-                    onClick={() => setShowConfirm(true)}
-                    disabled={isSubmittingAction}
-                  >
-                    <Check size={11} />
-                    Approve
-                  </button>
+                  {(drawerAction === 'view' || drawerAction === 'reject') && (
+                    <button 
+                      className="tr-btn tr-btn-danger" 
+                      onClick={handleReject}
+                      disabled={isSubmittingAction}
+                    >
+                      <X size={11} />
+                      {isSubmittingAction ? 'Rejecting...' : 'Reject'}
+                    </button>
+                  )}
+                  {(drawerAction === 'view' || drawerAction === 'approve') && (
+                    <button 
+                      className="tr-btn tr-btn-primary" 
+                      onClick={() => setShowConfirm(true)}
+                      disabled={isSubmittingAction}
+                    >
+                      <Check size={11} />
+                      Approve
+                    </button>
+                  )}
                 </>
               )}
             </div>

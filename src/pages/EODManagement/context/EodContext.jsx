@@ -21,13 +21,16 @@ export function EodProvider({ children }) {
     setError(null);
     try {
       const records = await eodService.getEodRecords();
-      // Initialize elapsedSeconds starting from 0 if running
+      // Store server-provided startedAtMs for timestamp-based elapsed calculation
       const initializedRecords = records.map((item) => {
         const isRunning = item.status === 'running';
         const isPaused = item.status === 'paused';
-        const initialSecs = isRunning || isPaused ? item.elapsedSeconds || 0 : 0;
+        // Use startedAtMs from service (derived from item.modified); fall back to now
+        const startedAtMs = (isRunning || isPaused) && item.startedAtMs ? item.startedAtMs : null;
+        const initialSecs = startedAtMs ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)) : 0;
         return {
           ...item,
+          startedAtMs,
           elapsedSeconds: initialSecs,
           duration: isRunning || isPaused ? formatSeconds(initialSecs) : '—',
         };
@@ -45,16 +48,20 @@ export function EodProvider({ children }) {
     fetchEnvironments(true);
   }, [fetchEnvironments]);
 
-  // Global live timer ticker for all running environments
+  // Global live timer ticker — derives elapsed from server startedAtMs so all tabs stay in sync
   useEffect(() => {
     const timer = setInterval(() => {
       setEnvironments((prevEnvs) => {
         const hasRunning = prevEnvs.some((e) => e.status === 'running');
         if (!hasRunning) return prevEnvs;
 
+        const now = Date.now();
         return prevEnvs.map((e) => {
           if (e.status === 'running') {
-            const nextSecs = (e.elapsedSeconds || 0) + 1;
+            // Derive elapsed from the server anchor timestamp so every tab stays in sync
+            const nextSecs = e.startedAtMs
+              ? Math.max(0, Math.floor((now - e.startedAtMs) / 1000))
+              : (e.elapsedSeconds || 0) + 1;
             return {
               ...e,
               elapsedSeconds: nextSecs,
@@ -81,6 +88,7 @@ export function EodProvider({ children }) {
               stepsDone: 1,
               currentStep: 'Executing start script...',
               color: '#6366f1',
+              startedAtMs: Date.now(),
               elapsedSeconds: 0,
               duration: '00:00:00',
             }

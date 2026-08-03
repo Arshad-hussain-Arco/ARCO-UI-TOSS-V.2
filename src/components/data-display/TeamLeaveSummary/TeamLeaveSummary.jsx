@@ -15,6 +15,7 @@ import { Select } from '@components/forms/Select/Select';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
+import { Loader } from '@components/feedback/Loader/Loader';
 
 import './TeamLeaveSummary.css';
 import { activatable } from '@utils/interactive';
@@ -270,7 +271,12 @@ function TeamLeaveSummary() {
   }, [summaryLeaveType]);
   return (
     <div className="team-summary-container">
-      {loading && <div className="team-summary-loading" style={{ padding: '20px', textAlign: 'center' }}>Loading summary...</div>}
+      {loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+          <Loader size="md" />
+          <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>Loading summary...</p>
+        </div>
+      )}
       {!loading && (
         <>
       {/* ── Shared Filter Bar ── */}
