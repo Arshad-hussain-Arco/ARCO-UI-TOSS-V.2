@@ -455,6 +455,9 @@ export function LeaveConfigurationPage() {
   const [editingCombinedCode, setEditingCombinedCode] = useState(null); // null = create
   const [combinedCodeError, setCombinedCodeError] = useState('');
   const [combinedForm, setCombinedForm] = useState(emptyCombinedForm());
+  // Client-side required-field errors, keyed by field name (code, name, entitled_days).
+  // Mirrors what the backend actually requires — see combinedFormToPayload/validateCombinedForm.
+  const [combinedFieldErrors, setCombinedFieldErrors] = useState({});
 
   // ── Section 1: Holiday Handlers ─────────────────────────────────────────────
   const openAddHolidayModal = () => {
@@ -625,6 +628,7 @@ export function LeaveConfigurationPage() {
   const openAddCombinedModal = () => {
     setEditingCombinedCode(null);
     setCombinedCodeError('');
+    setCombinedFieldErrors({});
     setCombinedForm(emptyCombinedForm());
     setIsCombinedModalOpen(true);
   };
@@ -632,19 +636,33 @@ export function LeaveConfigurationPage() {
   const openEditCombinedModal = (row) => {
     setEditingCombinedCode(row.code);
     setCombinedCodeError('');
+    setCombinedFieldErrors({});
     setCombinedForm(combinedRowToForm(row));
     setIsCombinedModalOpen(true);
   };
 
+  // Required on the backend: code, name, entitled_days (see hr_admin serializers/views).
+  // Everything else has a default or is genuinely optional.
+  const validateCombinedForm = (form) => {
+    const errors = {};
+    if (!form.code.trim()) errors.code = 'Code is required.';
+    if (!form.name.trim()) errors.name = 'Name is required.';
+    if (form.entitled_days === '' || form.entitled_days === null) {
+      errors.entitled_days = 'Entitled Days is required.';
+    } else if (Number.isNaN(Number(form.entitled_days))) {
+      errors.entitled_days = 'Entitled Days must be a number.';
+    }
+    return errors;
+  };
+
   const handleSaveCombined = async () => {
-    if (!combinedForm.code.trim() || !combinedForm.name.trim()) {
-      toast.error('Please enter a code and name');
+    const errors = validateCombinedForm(combinedForm);
+    if (Object.keys(errors).length > 0) {
+      setCombinedFieldErrors(errors);
+      toast.error('Please fill in the required fields.');
       return;
     }
-    if (combinedForm.entitled_days === '' || combinedForm.entitled_days === null) {
-      toast.error('Entitled Days is required');
-      return;
-    }
+    setCombinedFieldErrors({});
 
     const payload = combinedFormToPayload(combinedForm);
 
@@ -1327,7 +1345,9 @@ export function LeaveConfigurationPage() {
         isOpen={isCombinedModalOpen}
         onClose={() => setIsCombinedModalOpen(false)}
         title={editingCombinedCode ? `Edit ${combinedForm.name || 'Leave Type'}` : 'Add Leave Type & Policy'}
-        size="xl"
+        subtitle="Creates the leave type and its entitlement policy in a single save."
+        size="lg"
+        variant="panel"
         footer={
           <>
             <button
@@ -1344,6 +1364,7 @@ export function LeaveConfigurationPage() {
           </>
         }
       >
+        <div className="lc-combined-form">
         {/* Section: Basic Info */}
         <div className="lc-form-section">
           <div className="lc-form-section-title">Basic Info</div>
@@ -1361,18 +1382,20 @@ export function LeaveConfigurationPage() {
                   <input
                     id="lt-code"
                     type="text"
-                    className="ss-input"
-                    style={{ textTransform: 'uppercase', borderColor: combinedCodeError ? '#ef4444' : undefined }}
+                    className={`ss-input ${(combinedCodeError || combinedFieldErrors.code) ? 'has-error' : ''}`}
+                    style={{ textTransform: 'uppercase' }}
                     value={combinedForm.code}
                     placeholder="e.g. PAT"
+                    aria-invalid={!!(combinedCodeError || combinedFieldErrors.code)}
                     onChange={(e) => {
                       setCombinedCodeError('');
+                      setCombinedFieldErrors((prev) => ({ ...prev, code: undefined }));
                       setCombinedForm((prev) => ({ ...prev, code: e.target.value }));
                     }}
                   />
-                  {combinedCodeError && (
-                    <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
-                      {combinedCodeError}
+                  {(combinedCodeError || combinedFieldErrors.code) && (
+                    <div className="lc-field-error">
+                      {combinedCodeError || combinedFieldErrors.code}
                     </div>
                   )}
                 </div>
@@ -1386,11 +1409,18 @@ export function LeaveConfigurationPage() {
               <input
                 id="lt-name"
                 type="text"
-                className="ss-input"
+                className={`ss-input ${combinedFieldErrors.name ? 'has-error' : ''}`}
                 value={combinedForm.name}
                 placeholder="e.g. Paternity Leave"
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, name: e.target.value }))}
+                aria-invalid={!!combinedFieldErrors.name}
+                onChange={(e) => {
+                  setCombinedFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  setCombinedForm((prev) => ({ ...prev, name: e.target.value }));
+                }}
               />
+              {combinedFieldErrors.name && (
+                <div className="lc-field-error">{combinedFieldErrors.name}</div>
+              )}
             </div>
 
             <div className="ss-modal-form-group lc-modal-grid-span-2">
@@ -1472,11 +1502,18 @@ export function LeaveConfigurationPage() {
               <input
                 id="lt-entitled"
                 type="number"
-                className="ss-input"
+                className={`ss-input ${combinedFieldErrors.entitled_days ? 'has-error' : ''}`}
                 placeholder="e.g. 10"
                 value={combinedForm.entitled_days}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }))}
+                aria-invalid={!!combinedFieldErrors.entitled_days}
+                onChange={(e) => {
+                  setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
+                  setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }));
+                }}
               />
+              {combinedFieldErrors.entitled_days && (
+                <div className="lc-field-error">{combinedFieldErrors.entitled_days}</div>
+              )}
             </div>
 
             <div className="ss-modal-form-group">
@@ -1655,23 +1692,24 @@ export function LeaveConfigurationPage() {
           <div className="lc-modal-grid" style={{ marginBottom: '6px' }}>
             <div className="ss-modal-form-group">
               <label className="ss-modal-label" htmlFor="lt-eff-from">Effective From</label>
-              <input
+              <DatePicker
                 id="lt-eff-from"
-                type="date"
-                className="ss-input"
-                value={combinedForm.effective_from}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, effective_from: e.target.value }))}
+                value={parseDateValue(combinedForm.effective_from)}
+                onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_from: toDateInputValue(value) }))}
+                placeholder="Select date"
+                width="100%"
+                showClear={false}
               />
             </div>
             <div className="ss-modal-form-group">
               <label className="ss-modal-label" htmlFor="lt-eff-to">Effective To</label>
-              <input
+              <DatePicker
                 id="lt-eff-to"
-                type="date"
-                className="ss-input"
+                value={parseDateValue(combinedForm.effective_to)}
+                onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_to: toDateInputValue(value) }))}
                 placeholder="Blank = ongoing"
-                value={combinedForm.effective_to}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, effective_to: e.target.value }))}
+                width="100%"
+                showClear={true}
               />
             </div>
           </div>
@@ -1723,6 +1761,7 @@ export function LeaveConfigurationPage() {
               />
             </div>
           </div>
+        </div>
         </div>
       </AdminModal>
     </div>
