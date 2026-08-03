@@ -124,10 +124,16 @@ export function DashboardPage() {
         
         const upcoming = holidaysArr
           .filter(h => {
-            const hDate = new Date(h.date || h.start_date || h.holiday_date);
+            const dateStr = h.dates && h.dates.length > 0 ? h.dates[0] : (h.date || h.start_date || h.holiday_date);
+            if (!dateStr) return false;
+            const hDate = new Date(dateStr);
             return hDate >= today;
           })
-          .sort((a, b) => new Date(a.date || a.start_date || a.holiday_date) - new Date(b.date || b.start_date || b.holiday_date))
+          .sort((a, b) => {
+            const aDate = a.dates && a.dates.length > 0 ? a.dates[0] : (a.date || a.start_date || a.holiday_date);
+            const bDate = b.dates && b.dates.length > 0 ? b.dates[0] : (b.date || b.start_date || b.holiday_date);
+            return new Date(aDate) - new Date(bDate);
+          })
           .slice(0, 4); // Take top 4
 
         setUpcomingHolidays(upcoming);

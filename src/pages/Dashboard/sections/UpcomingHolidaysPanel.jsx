@@ -18,7 +18,7 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
 
       <div className="dc-alerts-list">
         {holidays.map((holiday, idx) => {
-          let dateStr = holiday.date || holiday.start_date || holiday.holiday_date;
+          let dateStr = holiday.dates && holiday.dates.length > 0 ? holiday.dates[0] : (holiday.date || holiday.start_date || holiday.holiday_date);
           let displayDate = dateStr;
           try {
             const d = new Date(dateStr);
