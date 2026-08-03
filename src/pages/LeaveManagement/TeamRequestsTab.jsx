@@ -167,7 +167,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
       employeeName: req.emp_name,
       team: req.team_name,
       type: type,
-      leaveType: req.leave_reason || req.leave_type,
+      leaveType: req.leave_type,
       startDate: req.start_date,
       endDate: req.end_date,
       duration: req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
