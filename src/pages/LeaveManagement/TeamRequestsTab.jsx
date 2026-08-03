@@ -1095,8 +1095,7 @@ function TeamRequestsTab() {
                 <div className="tr-dsec-title">Request Information</div>
                 <div className="tr-drow">
                   <span className="tr-drow-label">Request Type</span>
-                  <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type].css}`}>
-                    {React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+                  <span className="tr-drow-value">
                     {liveReq.leaveType ?? TYPE_CONFIG[liveReq.type].label}
                   </span>
                 </div>
@@ -1390,22 +1389,26 @@ function TeamRequestsTab() {
               </button>
               {liveReq.status === 'pending' && (
                 <>
-                  <button 
-                    className="tr-btn tr-btn-danger" 
-                    onClick={handleReject}
-                    disabled={isSubmittingAction}
-                  >
-                    <X size={11} />
-                    {isSubmittingAction ? 'Rejecting...' : 'Reject'}
-                  </button>
-                  <button 
-                    className="tr-btn tr-btn-primary" 
-                    onClick={() => setShowConfirm(true)}
-                    disabled={isSubmittingAction}
-                  >
-                    <Check size={11} />
-                    Approve
-                  </button>
+                  {(drawerAction === 'view' || drawerAction === 'reject') && (
+                    <button 
+                      className="tr-btn tr-btn-danger" 
+                      onClick={handleReject}
+                      disabled={isSubmittingAction}
+                    >
+                      <X size={11} />
+                      {isSubmittingAction ? 'Rejecting...' : 'Reject'}
+                    </button>
+                  )}
+                  {(drawerAction === 'view' || drawerAction === 'approve') && (
+                    <button 
+                      className="tr-btn tr-btn-primary" 
+                      onClick={() => setShowConfirm(true)}
+                      disabled={isSubmittingAction}
+                    >
+                      <Check size={11} />
+                      Approve
+                    </button>
+                  )}
                 </>
               )}
             </div>

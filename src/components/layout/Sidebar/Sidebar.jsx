@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -19,8 +19,26 @@ export function Sidebar() {
   const { isCollapsed, toggle, collapseOnMobile } = useSidebar();
   const { pathname } = useLocation();
 
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedId, setExpandedId] = useState(() => {
+    // Initialise with whichever group has an active child
+    const active = SIDEBAR_NAVIGATION.find(
+      (item) => item.children && item.children.some((child) => window.location.pathname === child.to)
+    );
+    return active ? active.id : null;
+  });
   const tooltip = useHoverTooltip(isCollapsed);
+
+  // Keep the submenu in sync with navigation — open when on a child route, close otherwise
+  useEffect(() => {
+    const activeGroup = SIDEBAR_NAVIGATION.find(
+      (item) => item.children && item.children.some((child) => pathname === child.to)
+    );
+    if (activeGroup) {
+      setExpandedId(activeGroup.id);
+    } else {
+      setExpandedId(null);
+    }
+  }, [pathname]);
 
   const isChildActive = useCallback((to) => pathname === to, [pathname]);
 
