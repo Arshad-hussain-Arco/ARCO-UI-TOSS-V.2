@@ -107,16 +107,22 @@
 }
 
 .dc-layout-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 20px;
 }
 
 .dc-main-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: contents; /* Let children participate directly in the grid */
 }
+
+/* Grid Span Helpers */
+.dc-span-12 { grid-column: span 12; }
+.dc-span-8  { grid-column: span 8; }
+.dc-span-7  { grid-column: span 7; }
+.dc-span-6  { grid-column: span 6; }
+.dc-span-5  { grid-column: span 5; }
+.dc-span-4  { grid-column: span 4; }
 
 /* Shared section wrapper */
 .dc-section {
@@ -132,14 +138,15 @@
 .dc-card {
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-radius: 10px;
-  padding: 18px 22px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  height: 100%;
 }
 
 .dc-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
   transform: translateY(-2px);
 }
 

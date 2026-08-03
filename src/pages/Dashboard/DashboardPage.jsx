@@ -303,57 +303,73 @@ export function DashboardPage() {
               <EnvironmentStatusStrip eodRecords={eodRecords} />
 
               <div className="dc-layout-grid">
-                {/* LEFT COLUMN: System Health, Requests Trend, Capacity, Teams, Departments */}
-              <div className="dc-main-col">
-                <KpiStrip kpis={mappedSummary.kpis} />
+                {/* LEFT COLUMN / FULL WIDTH ITEMS */}
+                <div className="dc-main-col">
+                  <div className="dc-span-12">
+                    <KpiStrip kpis={mappedSummary.kpis} />
+                  </div>
 
-                <SystemHealthSection 
-                  systemHealth={mappedSummary.systemHealth}
-                  runtimeTrend={mappedSummary.runtimeTrend}
-                  insights={mappedSummary.runtimeInsights}
-                />
+                  <div className="dc-span-7">
+                    <SystemHealthSection 
+                      systemHealth={mappedSummary.systemHealth}
+                      runtimeTrend={mappedSummary.runtimeTrend}
+                      insights={mappedSummary.runtimeInsights}
+                    />
+                  </div>
 
-                {/* Requests Trend Chart */}
-                <section className="dc-card dc-trend-card">
-                  <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
-                  {trendData?.results && trendData.results.length > 0 ? (
-                    <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
-                  ) : (
-                    <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      No request trend data returned from API
+                  {/* Requests Trend Chart */}
+                  <div className="dc-span-5">
+                    <section className="dc-card dc-trend-card">
+                      <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
+                      {trendData?.results && trendData.results.length > 0 ? (
+                        <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
+                      ) : (
+                        <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          No request trend data returned from API
+                        </div>
+                      )}
+                    </section>
+                  </div>
+
+                  <div className="dc-span-12">
+                    <LeaveSnapshotSection
+                      leaveDistribution={mappedSummary.leaveDistribution}
+                      upcomingLeaves={mappedSummary.upcomingLeaves}
+                      attendanceStatus={mappedSummary.attendanceStatus}
+                    />
+                  </div>
+
+                  {mappedSummary.capacityByTeam.length > 0 && (
+                    <div className="dc-span-6">
+                      <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
                     </div>
                   )}
-                </section>
 
-                <LeaveSnapshotSection
-                  leaveDistribution={mappedSummary.leaveDistribution}
-                  upcomingLeaves={mappedSummary.upcomingLeaves}
-                  attendanceStatus={mappedSummary.attendanceStatus}
-                />
+                  {mappedTeams && mappedTeams.length > 0 && (
+                    <div className="dc-span-6">
+                      <TeamHeadcountSection teams={mappedTeams} />
+                    </div>
+                  )}
+                </div>
 
-                {mappedSummary.capacityByTeam.length > 0 && (
-                  <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
+                {mappedSummary.projectsByStatus.length > 0 && (
+                  <div className="dc-span-6">
+                    <ProjectRiskSection
+                      projectRisk={mappedSummary.projectRisk}
+                      projectsByStatus={mappedSummary.projectsByStatus}
+                    />
+                  </div>
                 )}
 
-                {mappedTeams && mappedTeams.length > 0 && (
-                  <TeamHeadcountSection teams={mappedTeams} />
+                {mappedSummary.documents.total > 0 && (
+                  <div className="dc-span-6">
+                    <DocumentsActivitySection
+                      documents={mappedSummary.documents}
+                      recentActivity={mappedSummary.recentActivity}
+                    />
+                  </div>
                 )}
               </div>
-
-              {mappedSummary.projectsByStatus.length > 0 && (
-                <ProjectRiskSection
-                  projectRisk={mappedSummary.projectRisk}
-                  projectsByStatus={mappedSummary.projectsByStatus}
-                />
-              )}
-
-              {mappedSummary.documents.total > 0 && (
-                <DocumentsActivitySection
-                  documents={mappedSummary.documents}
-                  recentActivity={mappedSummary.recentActivity}
-                />
-              )}
-            </div>
           </div>
 
           <aside className="dc-right-rail">
