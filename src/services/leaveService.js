@@ -254,6 +254,28 @@ export const leaveService = {
     const response = await httpClient.put(endpoints.hr.leaveTypeDetail(id), { is_active: true });
     return response.data;
   },
+
+  // Leave Type + Policy (combined) — one save creates/updates both rows
+  getLeaveTypesWithPolicy: async (params) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypesWithPolicy, { params });
+    return response.data;
+  },
+  getLeaveTypeWithPolicy: async (code) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypeWithPolicyDetail(code));
+    return response.data;
+  },
+  createLeaveTypeWithPolicy: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.leaveTypesWithPolicy, payload);
+    return response.data;
+  },
+  updateLeaveTypeWithPolicy: async (code, payload) => {
+    const response = await httpClient.put(endpoints.hr.leaveTypeWithPolicyDetail(code), payload);
+    return response.data;
+  },
+  deleteLeaveTypeWithPolicy: async (code) => {
+    const response = await httpClient.delete(endpoints.hr.leaveTypeWithPolicyDetail(code));
+    return response.data;
+  },
   getWorkScheduleOptions: async () => {
     const response = await httpClient.get(endpoints.hr.workScheduleOptions);
     return response.data;

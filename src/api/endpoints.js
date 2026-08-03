@@ -124,6 +124,8 @@ const endpoints = {
   hr: {
     leaveTypes: `/hr/leave-types/`,
     leaveTypeDetail: (id) => `/hr/leave-types/${id}/`,
+    leaveTypesWithPolicy: `/hr/leave-types-with-policy/`,
+    leaveTypeWithPolicyDetail: (code) => `/hr/leave-types-with-policy/${code}/`,
     allLeaveTypes: `/leaves/leave-types/all/`,
     gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`, // Note: using the path as provided, though noted as a possible typo
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
