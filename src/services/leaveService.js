@@ -254,6 +254,31 @@ export const leaveService = {
     const response = await httpClient.put(endpoints.hr.leaveTypeDetail(id), { is_active: true });
     return response.data;
   },
+
+  // Leave Type + Policy (combined) — one save creates/updates both rows
+  getLeaveTypesWithPolicy: async (params) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypesWithPolicy, { params });
+    return response.data;
+  },
+  getLeaveTypeWithPolicy: async (code) => {
+    const response = await httpClient.get(endpoints.hr.leaveTypeWithPolicyDetail(code));
+    return response.data;
+  },
+  createLeaveTypeWithPolicy: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.leaveTypesWithPolicy, payload);
+    return response.data;
+  },
+  updateLeaveTypeWithPolicy: async (code, payload) => {
+    const response = await httpClient.put(endpoints.hr.leaveTypeWithPolicyDetail(code), payload);
+    return response.data;
+  },
+  deleteLeaveTypeWithPolicy: async (code) => {
+    const response = await httpClient.delete(endpoints.hr.leaveTypeWithPolicyDetail(code));
+    return response.data;
+  },
+
+  // Standalone Organization Leave Policy CRUD (kept for other consumers; the
+  // admin Leave Configurations page uses the combined functions above)
   getPolicies: async (params) => {
     const response = await httpClient.get(endpoints.hr.policies, { params });
     return response.data;
