@@ -106,19 +106,41 @@
   gap: 14px;
 }
 
-/* Shared section card */
-.dc-section {
-  background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 7px;
-  padding: 14px 16px;
+.dc-layout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
+.dc-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Shared section wrapper */
+.dc-section {
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Common white card container */
 .dc-card {
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-radius: 7px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dc-card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 .dc-section-title {
@@ -126,8 +148,8 @@
   font-weight: 700;
   color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0 0 12px;
+  letter-spacing: 0.06em;
+  margin: 0 0 16px 0;
 }
 
 /* ── KPI Strip ── */
@@ -1110,8 +1132,8 @@
   color: var(--text-tertiary);
 }
 
-/* ── Alerts Panel ── */
-.dc-alerts-panel {
+/* ── Right Rail ── */
+.dc-right-rail {
   width: 280px;
   flex-shrink: 0;
   border-left: 1px solid var(--border-primary);
@@ -1119,8 +1141,14 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.dc-alerts-panel {
+  display: flex;
+  flex-direction: column;
   padding: 14px;
   gap: 10px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .dc-alerts-header {
@@ -1577,4 +1605,133 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ═══════════════════════════════════════════════
+   PENDING APPROVALS ACTION SECTION
+═══════════════════════════════════════════════ */
+.dc-pa-section {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dc-pa-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border-primary);
+}
+
+.dc-pa-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dc-pa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dc-pa-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dc-pa-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface-primary);
+}
+
+.dc-pa-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dc-pa-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dc-pa-dept {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.dc-pa-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.dc-pa-type {
+  background: var(--surface-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.dc-pa-sla-warning {
+  color: var(--status-critical);
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.dc-pa-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.dc-pa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #fff;
+}
+
+.dc-pa-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dc-pa-approve {
+  background: var(--status-success);
+}
+.dc-pa-approve:not(:disabled):hover {
+  background: #15803d; /* darker green */
+  transform: scale(1.05);
+}
+
+.dc-pa-reject {
+  background: var(--status-critical);
+}
+.dc-pa-reject:not(:disabled):hover {
+  background: #991b1b; /* darker red */
+  transform: scale(1.05);
 }

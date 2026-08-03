@@ -11,7 +11,9 @@ function EnvironmentStatusStripComponent({ eodRecords }) {
   if (!eodRecords || eodRecords.length === 0) return null;
 
   return (
-    <section className="dc-env-strip">
+    <section className="dc-section">
+      <h2 className="dc-section-title">ACTIVE EOD BATCH JOBS</h2>
+      <div className="dc-env-strip">
       {eodRecords.map((env) => {
         const isActive = env.is_active === 'Yes' || env.is_active === 1 || env.is_active === true;
 
@@ -41,6 +43,7 @@ function EnvironmentStatusStripComponent({ eodRecords }) {
           </div>
         );
       })}
+      </div>
     </section>
   );
 }

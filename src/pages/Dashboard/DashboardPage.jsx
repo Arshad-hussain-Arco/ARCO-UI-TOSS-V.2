@@ -20,6 +20,7 @@ import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendCh
 import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
 import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
+import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import './DashboardPage.css';
 
 /**
@@ -200,8 +201,7 @@ export function DashboardPage() {
 
     // 5. Alerts
     const alerts = [
-      ...announcements.banner.map(a => ({ id: `a-${a.id}`, severity: 'warning', text: a.title, iconKey: 'alertCircle' })),
-      ...pendingApprovals.map(p => ({ id: `p-${p.id}`, severity: 'info', text: `Pending approval for ${p.employee_name || p.emp_name}`, iconKey: 'clock' }))
+      ...announcements.banner.map(a => ({ id: `a-${a.id}`, severity: 'warning', text: a.title, iconKey: 'alertCircle' }))
     ];
 
     const quickStats = [
@@ -314,17 +314,15 @@ export function DashboardPage() {
                 />
 
                 {/* Requests Trend Chart */}
-                <section className="dc-section">
+                <section className="dc-card dc-trend-card">
                   <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
-                  <div className="dc-card">
-                    {trendData?.results && trendData.results.length > 0 ? (
-                      <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
-                    ) : (
-                      <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        No request trend data returned from API
-                      </div>
-                    )}
-                  </div>
+                  {trendData?.results && trendData.results.length > 0 ? (
+                    <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
+                  ) : (
+                    <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      No request trend data returned from API
+                    </div>
+                  )}
                 </section>
 
                 <LeaveSnapshotSection
@@ -358,7 +356,16 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+          <aside className="dc-right-rail">
+            <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+            
+            {pendingApprovals && pendingApprovals.length > 0 && (
+              <PendingApprovalsActionSection 
+                pendingApprovals={pendingApprovals} 
+                onActionComplete={fetchLiveDashboardData} 
+              />
+            )}
+          </aside>
         </>
       )}
       </div>
