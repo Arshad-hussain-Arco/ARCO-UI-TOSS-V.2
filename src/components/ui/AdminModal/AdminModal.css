@@ -72,29 +72,21 @@
 }
 
 .admin-modal-close {
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  background: #374151;
-  border: 2px solid white;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  color: white;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
-  transition: transform 0.15s ease, background 0.15s ease;
-  padding: 0;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .admin-modal-close:hover {
-  background: #1f2937;
-  color: white;
-  border-color: white;
-  transform: scale(1.05);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .admin-modal-body {
