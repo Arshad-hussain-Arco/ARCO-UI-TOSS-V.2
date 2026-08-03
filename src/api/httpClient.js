@@ -5,7 +5,7 @@ import endpoints from './endpoints';
 
 // Create base instance
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.179:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
   timeout: parseInt(import.meta.env.VITE_API_TIMEOUT, 10) || 30000,
   headers: {
     'Content-Type': 'application/json',
