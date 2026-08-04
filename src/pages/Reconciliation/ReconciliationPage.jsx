@@ -371,13 +371,7 @@ export function ReconciliationPage() {
 
   return (
     <div className="rwiz-page">
-      {/* Top Bar / Header Breadcrumb */}
-      <div className="rwiz-page-header">
-        <h1 className="rwiz-page-title">File Reconciliation System</h1>
-        <button type="button" className="rwiz-page-guide-btn">
-          User Guide <ArrowUpRight size={14} />
-        </button>
-      </div>
+
 
       {/* Stepper (Outside Card) */}
       <StepperBar currentStep={step} />
