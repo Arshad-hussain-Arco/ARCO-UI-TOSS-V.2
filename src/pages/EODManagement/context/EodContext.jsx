@@ -55,16 +55,39 @@ export function EodProvider({ children }) {
       const initializedControls = data.map((item) => {
         const isRunning = item.status === 'running';
         const isPaused = item.status === 'paused';
-        const startedAtMs = (isRunning || isPaused) && item.startedAtMs ? item.startedAtMs : ((isRunning || isPaused) && item.modified ? new Date(item.modified).getTime() : null);
+        const startedAtMs = (isRunning || isPaused) && item.startedAtMs
+          ? item.startedAtMs
+          : ((isRunning || isPaused) && item.modified ? new Date(item.modified).getTime() : null);
         const initialSecs = startedAtMs ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)) : (item.elapsedSeconds || 0);
+        const durationStr = (isRunning || isPaused) ? formatSeconds(initialSecs) : item.duration || '—';
         return {
           ...item,
           startedAtMs,
           elapsedSeconds: initialSecs,
-          duration: (isRunning || isPaused) ? formatSeconds(initialSecs) : item.duration || '—',
+          duration: durationStr,
         };
       });
+
       setControlsEnvs(initializedControls);
+
+      // Synchronize Overview environments with exact controls duration & status
+      setEnvironments((prevEnvs) =>
+        prevEnvs.map((env) => {
+          const matchingControl = initializedControls.find((c) => c.id === env.id);
+          if (matchingControl) {
+            return {
+              ...env,
+              status: matchingControl.status,
+              progress: matchingControl.progress,
+              duration: matchingControl.duration,
+              elapsedSeconds: matchingControl.elapsedSeconds,
+              startedAtMs: matchingControl.startedAtMs,
+              color: matchingControl.color,
+            };
+          }
+          return env;
+        })
+      );
     } catch (err) {
       console.error('Failed to fetch EOD controls data:', err);
       setControlsError(err?.message || 'Failed to load control panel');
@@ -77,17 +100,17 @@ export function EodProvider({ children }) {
     fetchEnvironments(true);
   }, [fetchEnvironments]);
 
-  // Global live timer ticker — derives elapsed from server startedAtMs so all tabs stay in sync
+  // Synchronized 1-second timer ticker for Overview and Controls
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
 
-      // Tick Overview Environments
+      // Tick Overview Environments (only running)
       setEnvironments((prevEnvs) => {
-        const hasActiveRun = prevEnvs.some((e) => e.status === 'running' || e.status === 'paused');
-        if (!hasActiveRun) return prevEnvs;
+        const hasRunning = prevEnvs.some((e) => e.status === 'running');
+        if (!hasRunning) return prevEnvs;
         return prevEnvs.map((e) => {
-          if (e.status === 'running' || e.status === 'paused') {
+          if (e.status === 'running') {
             const nextSecs = e.startedAtMs
               ? Math.max(0, Math.floor((now - e.startedAtMs) / 1000))
               : (e.elapsedSeconds || 0) + 1;
@@ -101,12 +124,12 @@ export function EodProvider({ children }) {
         });
       });
 
-      // Tick Controls Environments
+      // Tick Controls Environments (only running)
       setControlsEnvs((prevEnvs) => {
-        const hasActiveRun = prevEnvs.some((e) => e.status === 'running' || e.status === 'paused');
-        if (!hasActiveRun) return prevEnvs;
+        const hasRunning = prevEnvs.some((e) => e.status === 'running');
+        if (!hasRunning) return prevEnvs;
         return prevEnvs.map((e) => {
-          if (e.status === 'running' || e.status === 'paused') {
+          if (e.status === 'running') {
             const nextSecs = e.startedAtMs
               ? Math.max(0, Math.floor((now - e.startedAtMs) / 1000))
               : (e.elapsedSeconds || 0) + 1;
@@ -126,37 +149,19 @@ export function EodProvider({ children }) {
 
   const handleStartEOD = useCallback(async (id) => {
     const nowMs = Date.now();
-    setEnvironments((prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              status: 'running',
-              lastRunScript: 'start',
-              progress: 5,
-              color: '#6366f1',
-              startedAtMs: nowMs,
-              elapsedSeconds: 0,
-              duration: '00:00:00',
-            }
-          : e
-      )
-    );
-    setControlsEnvs((prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              status: 'running',
-              progress: 5,
-              color: '#6366f1',
-              startedAtMs: nowMs,
-              elapsedSeconds: 0,
-              duration: '00:00:00',
-            }
-          : e
-      )
-    );
+    const patch = {
+      status: 'running',
+      lastRunScript: 'start',
+      progress: 5,
+      color: '#6366f1',
+      startedAtMs: nowMs,
+      elapsedSeconds: 0,
+      duration: '00:00:00',
+    };
+
+    setEnvironments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setControlsEnvs((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+
     try {
       await eodService.executeEodScript(id, 'start');
     } catch (err) {
@@ -166,52 +171,61 @@ export function EodProvider({ children }) {
 
   const handlePauseEOD = useCallback(async (id) => {
     let jobType = 'pause';
-    const updateFn = (prev) =>
-      prev.map((e) => {
-        if (e.id === id) {
-          const isCurrentlyPaused = e.status === 'paused';
-          jobType = isCurrentlyPaused ? 'resume' : 'pause';
-          const nextStatus = isCurrentlyPaused ? 'running' : 'paused';
-          return {
-            ...e,
-            status: nextStatus,
-            lastRunScript: jobType,
-            color: nextStatus === 'running' ? '#6366f1' : '#f59e0b',
-          };
-        }
-        return e;
-      });
+    const nowMs = Date.now();
 
-    setEnvironments(updateFn);
-    setControlsEnvs(updateFn);
+    // Determine current status & duration
+    let isCurrentlyPaused = false;
+    let currentSecs = 0;
+    let currentStartedAt = nowMs;
+
+    setControlsEnvs((prev) => {
+      const target = prev.find((e) => e.id === id) || environments.find((e) => e.id === id);
+      if (target) {
+        isCurrentlyPaused = target.status === 'paused';
+        currentSecs = target.elapsedSeconds || 0;
+        currentStartedAt = target.startedAtMs || nowMs;
+      }
+      return prev;
+    });
+
+    jobType = isCurrentlyPaused ? 'resume' : 'pause';
+    const nextStatus = isCurrentlyPaused ? 'running' : 'paused';
+    const newStartedAt = isCurrentlyPaused ? nowMs - currentSecs * 1000 : currentStartedAt;
+    const frozenDuration = formatSeconds(currentSecs);
+
+    const patch = {
+      status: nextStatus,
+      lastRunScript: jobType,
+      color: nextStatus === 'running' ? '#6366f1' : '#f59e0b',
+      startedAtMs: newStartedAt,
+      elapsedSeconds: currentSecs,
+      duration: frozenDuration,
+    };
+
+    setEnvironments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setControlsEnvs((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
 
     try {
       await eodService.executeEodScript(id, jobType);
     } catch (err) {
       console.error(`Failed to trigger ${jobType} script:`, err);
     }
-  }, []);
+  }, [environments]);
 
   const handleStopEOD = useCallback(async (id) => {
-    const updateFn = (prev) =>
-      prev.map((e) =>
-        e.id === id
-          ? {
-              ...e,
-              status: 'stopped',
-              lastRunScript: 'stop',
-              progress: 0,
-              stepsDone: 0,
-              currentStep: 'Stopped',
-              color: '#64748b',
-              elapsedSeconds: 0,
-              duration: '—',
-            }
-          : e
-      );
+    const patch = {
+      status: 'stopped',
+      lastRunScript: 'stop',
+      progress: 0,
+      stepsDone: 0,
+      currentStep: 'Stopped',
+      color: '#64748b',
+      elapsedSeconds: 0,
+      duration: '—',
+    };
 
-    setEnvironments(updateFn);
-    setControlsEnvs(updateFn);
+    setEnvironments((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setControlsEnvs((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
 
     try {
       await eodService.executeEodScript(id, 'stop');
