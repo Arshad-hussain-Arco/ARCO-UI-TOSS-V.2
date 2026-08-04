@@ -1,7 +1,7 @@
 .lc-redesign-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px); /* explicitly constrain to viewport to force internal scroll */
+  height: 100%;
   width: 100%;
   background-color: var(--bg-secondary, #f8fafc);
   overflow: hidden;
@@ -88,11 +88,18 @@
   color: #006838;
 }
 
+/* Override layout PageContent scrollbar when leave configuration page is active */
+.page-content:has(.lc-redesign-container) {
+  overflow-y: hidden !important;
+}
+
 /* Content Area */
 .lc-tab-content {
   padding: 24px 32px;
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Card Container */
@@ -102,6 +109,10 @@
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Card Toolbar */
@@ -170,6 +181,23 @@
 .lc-btn-primary:hover {
   background-color: #00522c;
   transform: translateY(-1px);
+}
+
+/* Scrollable Table Wrapper — sits inside .lc-card-panel */
+.lc-table-responsive {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1; /* fills remaining card height */
+}
+
+/* Sticky column headers */
+.lc-table-responsive .lc-data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #f8fafc;
+  /* cover cell borders beneath */
+  box-shadow: 0 1px 0 #e2e8f0;
 }
 
 /* Modern Data Table */
