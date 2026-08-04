@@ -16,7 +16,8 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
   const isCompleted = env.status === 'completed';
   const isFailed = env.status === 'failed';
   const isPaused = env.status === 'paused';
-  const canStart = env.status === 'idle' || env.status === 'failed';
+  const isStopped = env.status === 'stopped' || env.status === 'idle';
+  const canStart = env.status === 'idle' || env.status === 'failed' || env.status === 'stopped' || env.status === 'completed';
   const canPause = isRunning;
   const canStop = isRunning || isPaused;
 

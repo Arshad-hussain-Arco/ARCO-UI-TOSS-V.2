@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Search, Copy, Check, RefreshCw,
   ChevronUp, ChevronDown, Download, WrapText,
-  Maximize2, Minimize2, ExternalLink,
+  Maximize2, Minimize2, ExternalLink, FileText,
 } from 'lucide-react';
 import { eodService } from '../../../services/eodService';
 
@@ -425,7 +425,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
             </div>
           ) : !currentContent && !isLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#555', fontStyle: 'italic', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '28px', opacity: 0.4 }}>📄</span>
+              <FileText size={28} style={{ opacity: 0.4 }} />
               <span>No content available for this {activeView} file.</span>
             </div>
           ) : (

@@ -13,34 +13,63 @@ const formatSeconds = (totalSecs) => {
 
 export function EodProvider({ children }) {
   const [environments, setEnvironments] = useState([]);
+  const [controlsEnvs, setControlsEnvs] = useState([]);
+  const [backendMetrics, setBackendMetrics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingControls, setIsLoadingControls] = useState(true);
   const [error, setError] = useState(null);
+  const [controlsError, setControlsError] = useState(null);
 
   const fetchEnvironments = useCallback(async (showLoader = true) => {
     if (showLoader) setIsLoading(true);
     setError(null);
     try {
-      const records = await eodService.getEodRecords();
-      // Store server-provided startedAtMs for timestamp-based elapsed calculation
+      const { environments: records, metrics: apiMetrics } = await eodService.getEodOverview();
       const initializedRecords = records.map((item) => {
         const isRunning = item.status === 'running';
         const isPaused = item.status === 'paused';
-        // Use startedAtMs from service (derived from item.modified); fall back to now
-        const startedAtMs = (isRunning || isPaused) && item.startedAtMs ? item.startedAtMs : null;
-        const initialSecs = startedAtMs ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)) : 0;
+        const startedAtMs = (isRunning || isPaused) && item.startedAtMs ? item.startedAtMs : ((isRunning || isPaused) && item.lastRun && item.lastRun !== '—' ? new Date(item.lastRun).getTime() : null);
+        const initialSecs = startedAtMs ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)) : (item.elapsedSeconds || 0);
         return {
           ...item,
           startedAtMs,
           elapsedSeconds: initialSecs,
-          duration: isRunning || isPaused ? formatSeconds(initialSecs) : '—',
+          duration: (isRunning || isPaused) ? formatSeconds(initialSecs) : item.duration || '—',
         };
       });
       setEnvironments(initializedRecords);
+      setBackendMetrics(apiMetrics);
     } catch (err) {
       console.error('Failed to fetch EOD environment state:', err);
       setError(err?.message || 'Failed to load EOD environments');
     } finally {
       if (showLoader) setIsLoading(false);
+    }
+  }, []);
+
+  const fetchControlsData = useCallback(async (showLoader = true) => {
+    if (showLoader) setIsLoadingControls(true);
+    setControlsError(null);
+    try {
+      const data = await eodService.getEodControls();
+      const initializedControls = data.map((item) => {
+        const isRunning = item.status === 'running';
+        const isPaused = item.status === 'paused';
+        const startedAtMs = (isRunning || isPaused) && item.startedAtMs ? item.startedAtMs : ((isRunning || isPaused) && item.modified ? new Date(item.modified).getTime() : null);
+        const initialSecs = startedAtMs ? Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)) : (item.elapsedSeconds || 0);
+        return {
+          ...item,
+          startedAtMs,
+          elapsedSeconds: initialSecs,
+          duration: (isRunning || isPaused) ? formatSeconds(initialSecs) : item.duration || '—',
+        };
+      });
+      setControlsEnvs(initializedControls);
+    } catch (err) {
+      console.error('Failed to fetch EOD controls data:', err);
+      setControlsError(err?.message || 'Failed to load control panel');
+    } finally {
+      if (showLoader) setIsLoadingControls(false);
     }
   }, []);
 
@@ -51,14 +80,33 @@ export function EodProvider({ children }) {
   // Global live timer ticker — derives elapsed from server startedAtMs so all tabs stay in sync
   useEffect(() => {
     const timer = setInterval(() => {
-      setEnvironments((prevEnvs) => {
-        const hasRunning = prevEnvs.some((e) => e.status === 'running');
-        if (!hasRunning) return prevEnvs;
+      const now = Date.now();
 
-        const now = Date.now();
+      // Tick Overview Environments
+      setEnvironments((prevEnvs) => {
+        const hasActiveRun = prevEnvs.some((e) => e.status === 'running' || e.status === 'paused');
+        if (!hasActiveRun) return prevEnvs;
         return prevEnvs.map((e) => {
-          if (e.status === 'running') {
-            // Derive elapsed from the server anchor timestamp so every tab stays in sync
+          if (e.status === 'running' || e.status === 'paused') {
+            const nextSecs = e.startedAtMs
+              ? Math.max(0, Math.floor((now - e.startedAtMs) / 1000))
+              : (e.elapsedSeconds || 0) + 1;
+            return {
+              ...e,
+              elapsedSeconds: nextSecs,
+              duration: formatSeconds(nextSecs),
+            };
+          }
+          return e;
+        });
+      });
+
+      // Tick Controls Environments
+      setControlsEnvs((prevEnvs) => {
+        const hasActiveRun = prevEnvs.some((e) => e.status === 'running' || e.status === 'paused');
+        if (!hasActiveRun) return prevEnvs;
+        return prevEnvs.map((e) => {
+          if (e.status === 'running' || e.status === 'paused') {
             const nextSecs = e.startedAtMs
               ? Math.max(0, Math.floor((now - e.startedAtMs) / 1000))
               : (e.elapsedSeconds || 0) + 1;
@@ -77,6 +125,7 @@ export function EodProvider({ children }) {
   }, []);
 
   const handleStartEOD = useCallback(async (id) => {
+    const nowMs = Date.now();
     setEnvironments((prev) =>
       prev.map((e) =>
         e.id === id
@@ -85,10 +134,23 @@ export function EodProvider({ children }) {
               status: 'running',
               lastRunScript: 'start',
               progress: 5,
-              stepsDone: 1,
-              currentStep: 'Executing start script...',
               color: '#6366f1',
-              startedAtMs: Date.now(),
+              startedAtMs: nowMs,
+              elapsedSeconds: 0,
+              duration: '00:00:00',
+            }
+          : e
+      )
+    );
+    setControlsEnvs((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              status: 'running',
+              progress: 5,
+              color: '#6366f1',
+              startedAtMs: nowMs,
               elapsedSeconds: 0,
               duration: '00:00:00',
             }
@@ -104,7 +166,7 @@ export function EodProvider({ children }) {
 
   const handlePauseEOD = useCallback(async (id) => {
     let jobType = 'pause';
-    setEnvironments((prev) =>
+    const updateFn = (prev) =>
       prev.map((e) => {
         if (e.id === id) {
           const isCurrentlyPaused = e.status === 'paused';
@@ -118,8 +180,11 @@ export function EodProvider({ children }) {
           };
         }
         return e;
-      })
-    );
+      });
+
+    setEnvironments(updateFn);
+    setControlsEnvs(updateFn);
+
     try {
       await eodService.executeEodScript(id, jobType);
     } catch (err) {
@@ -128,12 +193,12 @@ export function EodProvider({ children }) {
   }, []);
 
   const handleStopEOD = useCallback(async (id) => {
-    setEnvironments((prev) =>
+    const updateFn = (prev) =>
       prev.map((e) =>
         e.id === id
           ? {
               ...e,
-              status: 'idle',
+              status: 'stopped',
               lastRunScript: 'stop',
               progress: 0,
               stepsDone: 0,
@@ -143,8 +208,11 @@ export function EodProvider({ children }) {
               duration: '—',
             }
           : e
-      )
-    );
+      );
+
+    setEnvironments(updateFn);
+    setControlsEnvs(updateFn);
+
     try {
       await eodService.executeEodScript(id, 'stop');
     } catch (err) {
@@ -153,27 +221,52 @@ export function EodProvider({ children }) {
   }, []);
 
   const metrics = useMemo(() => {
-    const total = environments.length;
+    const total = backendMetrics?.total !== undefined ? backendMetrics.total : environments.length;
     const running = environments.filter((e) => e.status === 'running').length;
     const completed = environments.filter((e) => e.status === 'completed').length;
     const failed = environments.filter((e) => e.status === 'failed').length;
-    const runningEnv = environments.find((e) => e.status === 'running');
+
+    const liveRunningEnv = environments.find((e) => e.status === 'running');
+    const runningEnv = liveRunningEnv
+      ? {
+          ...(backendMetrics?.runningEnv || {}),
+          ...liveRunningEnv,
+          duration: liveRunningEnv.duration,
+        }
+      : null;
 
     return { total, running, completed, failed, runningEnv };
-  }, [environments]);
+  }, [environments, backendMetrics]);
 
   const value = useMemo(
     () => ({
       environments,
+      controlsEnvs,
       isLoading,
+      isLoadingControls,
       error,
+      controlsError,
       refreshEnvironments: () => fetchEnvironments(false),
+      fetchControlsData,
       handleStartEOD,
       handlePauseEOD,
       handleStopEOD,
       metrics,
     }),
-    [environments, isLoading, error, fetchEnvironments, handleStartEOD, handlePauseEOD, handleStopEOD, metrics]
+    [
+      environments,
+      controlsEnvs,
+      isLoading,
+      isLoadingControls,
+      error,
+      controlsError,
+      fetchEnvironments,
+      fetchControlsData,
+      handleStartEOD,
+      handlePauseEOD,
+      handleStopEOD,
+      metrics,
+    ]
   );
 
   return <EodContext.Provider value={value}>{children}</EodContext.Provider>;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, Plus } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
@@ -20,21 +20,62 @@ const QUARTERS = [
   { label: 'Q4', months: 10, range: 'Oct – Dec' },
 ];
 
+const MONTHS = [
+  { value: 1, label: 'January', days: 31 },
+  { value: 2, label: 'February', days: 29 },
+  { value: 3, label: 'March', days: 31 },
+  { value: 4, label: 'April', days: 30 },
+  { value: 5, label: 'May', days: 31 },
+  { value: 6, label: 'June', days: 30 },
+  { value: 7, label: 'July', days: 31 },
+  { value: 8, label: 'August', days: 31 },
+  { value: 9, label: 'September', days: 30 },
+  { value: 10, label: 'October', days: 31 },
+  { value: 11, label: 'November', days: 30 },
+  { value: 12, label: 'December', days: 31 },
+];
+
+
 export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave }) {
+  const initialDate = schedule?.selectedDate ? new Date(schedule.selectedDate) : new Date();
+
   const [form, setForm] = useState({
-    id: schedule.id || '',
-    envId: schedule.envId || environments[0]?.id || '',
-    selectedDate: schedule.selectedDate || new Date(),
-    selectedDays: Array.isArray(schedule.selectedDays)
+    id: schedule?.id || '',
+    envId: schedule?.envId || environments[0]?.id || '',
+    selectedDate: schedule?.selectedDate || new Date(),
+    selectedMonth: schedule?.selectedMonth || (initialDate.getMonth() + 1),
+    selectedDayOfMonth: schedule?.selectedDayOfMonth !== undefined ? schedule.selectedDayOfMonth : (initialDate.getDate() || 1),
+    selectedDays: Array.isArray(schedule?.selectedDays)
       ? schedule.selectedDays
-      : (schedule.dayOfWeek ? [schedule.dayOfWeek] : ['Monday']),
-    selectedDayOfMonth: schedule.selectedDayOfMonth || 1,
-    selectedQuarters: Array.isArray(schedule.selectedQuarters)
+      : (schedule?.dayOfWeek ? [schedule.dayOfWeek] : ['Monday']),
+    selectedQuarters: Array.isArray(schedule?.selectedQuarters)
       ? schedule.selectedQuarters
       : [1, 4, 7, 10], // default: all quarters
-    time: schedule.time || '22:00',
-    recurrence: schedule.recurrence || 'Daily',
+    time: schedule?.time || '22:00',
+    recurrence: schedule?.recurrence || 'Daily',
   });
+
+  useEffect(() => {
+    if (isOpen && schedule) {
+      const initDate = schedule.selectedDate ? new Date(schedule.selectedDate) : new Date();
+      setForm({
+        id: schedule.id || '',
+        envId: schedule.envId || environments[0]?.id || '',
+        selectedDate: schedule.selectedDate || new Date(),
+        selectedMonth: schedule.selectedMonth || (initDate.getMonth() + 1),
+        selectedDayOfMonth: schedule.selectedDayOfMonth !== undefined ? schedule.selectedDayOfMonth : (initDate.getDate() || 1),
+        selectedDays: Array.isArray(schedule.selectedDays)
+          ? schedule.selectedDays
+          : (schedule.dayOfWeek ? [schedule.dayOfWeek] : ['Monday']),
+        selectedQuarters: Array.isArray(schedule.selectedQuarters)
+          ? schedule.selectedQuarters
+          : [1, 4, 7, 10],
+        time: schedule.time || '22:00',
+        recurrence: schedule.recurrence || 'Daily',
+      });
+      setErrors({});
+    }
+  }, [isOpen, schedule, environments]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -73,8 +114,16 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
     if (form.recurrence === 'Custom / One-time' && !form.selectedDate) {
       errs.selectedDate = 'Schedule Date is required';
     }
-    if (form.recurrence === 'Annually' && !form.selectedDate) {
-      errs.selectedDate = 'Schedule Date is required';
+    if (form.recurrence === 'Annually') {
+      const monObj = MONTHS.find((m) => m.value === form.selectedMonth);
+      const maxDays = monObj ? monObj.days : 31;
+      if (!form.selectedMonth || form.selectedMonth < 1 || form.selectedMonth > 12) {
+        errs.selectedMonth = 'Select a valid month';
+      }
+      if (form.selectedDayOfMonth !== 'L' &&
+          (!form.selectedDayOfMonth || form.selectedDayOfMonth < 1 || form.selectedDayOfMonth > maxDays)) {
+        errs.selectedDayOfMonth = `Enter a day between 1 and ${maxDays}`;
+      }
     }
     if (form.recurrence === 'Weekly' && (!form.selectedDays || form.selectedDays.length === 0)) {
       errs.selectedDays = 'At least one day of week is required';
@@ -83,8 +132,9 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
       errs.selectedQuarters = 'Select at least one quarter';
     }
     if ((form.recurrence === 'Monthly' || form.recurrence === 'Quarterly') &&
-        (!form.selectedDayOfMonth || form.selectedDayOfMonth < 1 || form.selectedDayOfMonth > 28)) {
-      errs.selectedDayOfMonth = 'Enter a valid day (1–28)';
+        form.selectedDayOfMonth !== 'L' &&
+        (!form.selectedDayOfMonth || form.selectedDayOfMonth < 1 || form.selectedDayOfMonth > 31)) {
+      errs.selectedDayOfMonth = 'Enter a valid day (1–31)';
     }
     if (!form.time) errs.time = 'Schedule Time is required';
     setErrors(errs);
@@ -95,10 +145,16 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
     e.preventDefault();
     if (!validate()) return;
 
+    const currYear = new Date().getFullYear();
+    const annualDate = form.recurrence === 'Annually'
+      ? new Date(currYear, (form.selectedMonth || 1) - 1, form.selectedDayOfMonth || 1)
+      : form.selectedDate;
+
     setIsSaving(true);
     setTimeout(() => {
       onSave({
         ...form,
+        selectedDate: annualDate,
         dayOfWeek: (form.selectedDays || []).join(', '),
       });
       setIsSaving(false);
@@ -262,21 +318,43 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
           {form.recurrence === 'Monthly' && (
             <div className="eod-modal-row2">
               <div className="eod-modal-field">
-                <label className="eod-modal-label">
-                  Day of Month <span className="req">*</span>
-                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4, fontSize: 11 }}>(1–28)</span>
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={28}
-                  className={`eod-modal-input ${errors.selectedDayOfMonth ? 'error' : ''}`}
-                  value={form.selectedDayOfMonth}
-                  onChange={(e) => {
-                    setForm({ ...form, selectedDayOfMonth: parseInt(e.target.value, 10) || 1 });
-                    if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
-                  }}
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="eod-modal-label">
+                    Day of Month <span className="req">*</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#005a36', cursor: 'pointer', fontWeight: 500 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.selectedDayOfMonth === 'L'}
+                      onChange={(e) => {
+                        setForm({ ...form, selectedDayOfMonth: e.target.checked ? 'L' : 1 });
+                        if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                      }}
+                    />
+                    <span>Last Day of Month (L)</span>
+                  </label>
+                </div>
+                {form.selectedDayOfMonth === 'L' ? (
+                  <input
+                    type="text"
+                    className="eod-modal-input"
+                    value="Last Day of Month (L)"
+                    disabled
+                    style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    className={`eod-modal-input ${errors.selectedDayOfMonth ? 'error' : ''}`}
+                    value={form.selectedDayOfMonth}
+                    onChange={(e) => {
+                      setForm({ ...form, selectedDayOfMonth: parseInt(e.target.value, 10) || 1 });
+                      if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                    }}
+                  />
+                )}
                 {errors.selectedDayOfMonth && <span className="eod-field-error">{errors.selectedDayOfMonth}</span>}
               </div>
 
@@ -347,21 +425,43 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
               {/* Day of month + time */}
               <div className="eod-modal-row2">
                 <div className="eod-modal-field">
-                  <label className="eod-modal-label">
-                    Day of Month <span className="req">*</span>
-                    <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 4, fontSize: 11 }}>(1–28)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={28}
-                    className={`eod-modal-input ${errors.selectedDayOfMonth ? 'error' : ''}`}
-                    value={form.selectedDayOfMonth}
-                    onChange={(e) => {
-                      setForm({ ...form, selectedDayOfMonth: parseInt(e.target.value, 10) || 1 });
-                      if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
-                    }}
-                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="eod-modal-label">
+                      Day of Month <span className="req">*</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#005a36', cursor: 'pointer', fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.selectedDayOfMonth === 'L'}
+                        onChange={(e) => {
+                          setForm({ ...form, selectedDayOfMonth: e.target.checked ? 'L' : 1 });
+                          if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                        }}
+                      />
+                      <span>Last Day of Month (L)</span>
+                    </label>
+                  </div>
+                  {form.selectedDayOfMonth === 'L' ? (
+                    <input
+                      type="text"
+                      className="eod-modal-input"
+                      value="Last Day of Quarter (L)"
+                      disabled
+                      style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      className={`eod-modal-input ${errors.selectedDayOfMonth ? 'error' : ''}`}
+                      value={form.selectedDayOfMonth}
+                      onChange={(e) => {
+                        setForm({ ...form, selectedDayOfMonth: parseInt(e.target.value, 10) || 1 });
+                        if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                      }}
+                    />
+                  )}
                   {errors.selectedDayOfMonth && <span className="eod-field-error">{errors.selectedDayOfMonth}</span>}
                 </div>
 
@@ -384,26 +484,78 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
             </div>
           )}
 
-          {/* Annually — specific date each year + time */}
+          {/* Annually — Month + Day of Month + Time */}
           {form.recurrence === 'Annually' && (
-            <div className="eod-modal-row2">
-              <div className="eod-modal-field">
-                <label className="eod-modal-label">
-                  Date of Year <span className="req">*</span>
-                </label>
-                <DatePicker
-                  value={form.selectedDate}
-                  onChange={(d) => {
-                    setForm({ ...form, selectedDate: d });
-                    if (errors.selectedDate) setErrors({ ...errors, selectedDate: null });
-                  }}
-                  placeholder="Select annual date"
-                  width="100%"
-                />
-                {errors.selectedDate && <span className="eod-field-error">{errors.selectedDate}</span>}
-                <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>
-                  Runs once a year on this date
-                </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="eod-modal-row2">
+                <div className="eod-modal-field">
+                  <label className="eod-modal-label">
+                    Month <span className="req">*</span>
+                  </label>
+                  <select
+                    className={`eod-modal-input ${errors.selectedMonth ? 'error' : ''}`}
+                    value={form.selectedMonth}
+                    onChange={(e) => {
+                      const mon = parseInt(e.target.value, 10);
+                      const monObj = MONTHS.find((m) => m.value === mon);
+                      const maxDays = monObj ? monObj.days : 31;
+                      setForm({
+                        ...form,
+                        selectedMonth: mon,
+                        selectedDayOfMonth: Math.min(form.selectedDayOfMonth || 1, maxDays),
+                      });
+                      if (errors.selectedMonth) setErrors({ ...errors, selectedMonth: null });
+                    }}
+                  >
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.selectedMonth && <span className="eod-field-error">{errors.selectedMonth}</span>}
+                </div>
+
+                <div className="eod-modal-field">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="eod-modal-label">
+                      Day of Month <span className="req">*</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#005a36', cursor: 'pointer', fontWeight: 500 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.selectedDayOfMonth === 'L'}
+                        onChange={(e) => {
+                          setForm({ ...form, selectedDayOfMonth: e.target.checked ? 'L' : 1 });
+                          if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                        }}
+                      />
+                      <span>Last Day of Month (L)</span>
+                    </label>
+                  </div>
+                  {form.selectedDayOfMonth === 'L' ? (
+                    <input
+                      type="text"
+                      className="eod-modal-input"
+                      value={`Last Day of ${MONTHS.find((m) => m.value === form.selectedMonth)?.label || 'Month'} (L)`}
+                      disabled
+                      style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min={1}
+                      max={MONTHS.find((m) => m.value === form.selectedMonth)?.days || 31}
+                      className={`eod-modal-input ${errors.selectedDayOfMonth ? 'error' : ''}`}
+                      value={form.selectedDayOfMonth}
+                      onChange={(e) => {
+                        setForm({ ...form, selectedDayOfMonth: parseInt(e.target.value, 10) || 1 });
+                        if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                      }}
+                    />
+                  )}
+                  {errors.selectedDayOfMonth && <span className="eod-field-error">{errors.selectedDayOfMonth}</span>}
+                </div>
               </div>
 
               <div className="eod-modal-field">
@@ -420,6 +572,9 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                   }}
                 />
                 {errors.time && <span className="eod-field-error">{errors.time}</span>}
+                <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>
+                  Runs once a year on {form.selectedDayOfMonth === 'L' ? `Last Day of ${MONTHS.find((m) => m.value === form.selectedMonth)?.label}` : `${MONTHS.find((m) => m.value === form.selectedMonth)?.label} ${form.selectedDayOfMonth}`}
+                </span>
               </div>
             </div>
           )}
