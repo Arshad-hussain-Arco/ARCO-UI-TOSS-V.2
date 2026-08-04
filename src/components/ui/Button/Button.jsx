@@ -9,7 +9,7 @@ import styles from './Button.module.css';
  * The single button primitive for the application.
  *
  * @param {Object} props
- * @param {'primary'|'secondary'|'outline'|'ghost'|'danger'|'success'|'warning'|'info'|'link'} [props.variant='primary']
+ * @param {'primary'|'secondary'|'outline'|'ghost'|'danger'|'link'} [props.variant='primary']
  * @param {'sm'|'md'|'lg'|'iconOnly'} [props.size='md']
  * @param {import('react').ComponentType} [props.leadingIcon]
  * @param {import('react').ComponentType} [props.trailingIcon]
