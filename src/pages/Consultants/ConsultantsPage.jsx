@@ -345,47 +345,55 @@ export function ConsultantsPage() {
 
   return (
     <div className="consultants-page">
-      {/* Page tabs */}
-      <div className="consultants-tabs">
-        {pageTabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className="consultants-tab"
-            data-active={activeTab === t.id}
-          >
-            <span className="consultants-tab-label">{t.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* Page content — wrapped so it can be visually suppressed when drawer is open */}
+      <div
+        className="consultants-page-body"
+        data-drawer-open={drawerOpen || undefined}
+        inert={drawerOpen ? '' : undefined}
+        aria-hidden={drawerOpen || undefined}
+      >
+        {/* Page tabs */}
+        <div className="consultants-tabs">
+          {pageTabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className="consultants-tab"
+              data-active={activeTab === t.id}
+            >
+              <span className="consultants-tab-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
 
-      {/* Content */}
-      <div className="consultants-content">
-        {activeTab === 'consultants' && (
-          <ActiveConsultants
-            onAdd={handleAdd}
-            onEdit={handleEdit}
-            onPassword={handlePw}
-            onDelete={handleDelete}
-            onProfileView={setViewProfileId}
-            employeesData={employeesData}
-            designationsData={dynamicDesignations}
-            teamsData={dynamicTeams}
-            isLoading={isEmployeesLoading}
-            error={employeesError}
-            refetch={loadEmployees}
-          />
-        )}
-        {activeTab === 'inactive' && (
-          <InactiveConsultants
-            onEdit={handleEdit}
-            onPassword={handlePw}
-            onDelete={handleDelete}
-            onProfileView={setViewProfileId}
-            designationsData={dynamicDesignations}
-            teamsData={dynamicTeams}
-          />
-        )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} />}
+        {/* Content */}
+        <div className="consultants-content">
+          {activeTab === 'consultants' && (
+            <ActiveConsultants
+              onAdd={handleAdd}
+              onEdit={handleEdit}
+              onPassword={handlePw}
+              onDelete={handleDelete}
+              onProfileView={setViewProfileId}
+              employeesData={employeesData}
+              designationsData={dynamicDesignations}
+              teamsData={dynamicTeams}
+              isLoading={isEmployeesLoading}
+              error={employeesError}
+              refetch={loadEmployees}
+            />
+          )}
+          {activeTab === 'inactive' && (
+            <InactiveConsultants
+              onEdit={handleEdit}
+              onPassword={handlePw}
+              onDelete={handleDelete}
+              onProfileView={setViewProfileId}
+              designationsData={dynamicDesignations}
+              teamsData={dynamicTeams}
+            />
+          )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} />}
+        </div>
       </div>
 
       {viewProfileId && (
@@ -648,87 +656,6 @@ export function ConsultantsPage() {
                 )}
 
                 {formTab === 'user-info' && (
-                  <div className="ef-form">
-                <EfSection label="Personal Details" />
-                <div className="ef-grid">
-                  <EfField label="Full Name" required>
-                    <input
-                      type="text"
-                      className="ef-input"
-                      value={formData.name || ''}
-                      onChange={(e) => patch({ name: e.target.value })}
-                    />
-                  </EfField>
-                  <EfField label="Email Address" required>
-                    <input
-                      type="email"
-                      className="ef-input"
-                      value={formData.email || ''}
-                      onChange={(e) => patch({ email: e.target.value })}
-                    />
-                  </EfField>
-                  <EfField label="Gender">
-                    <Select
-                      value={formData.gender || ''}
-                      onChange={(v) => patch({ gender: v })}
-                      options={[{ value: '', label: 'Select gender' }, ...STATIC_GENDERS.map(g => ({ value: g, label: g }))]}
-                    />
-                  </EfField>
-                  <EfField label="Mobile Number" required>
-                    <input
-                      type="text"
-                      className="ef-input"
-                      value={formData.mobileNumber || ''}
-                      onChange={(e) => patch({ mobileNumber: e.target.value })}
-                    />
-                  </EfField>
-                </div>
-
-                <EfSection label="Professional Details" />
-                <div className="ef-grid">
-                  <EfField label="Date of Joining" required>
-                    <DatePicker
-                      value={formData.doj ? new Date(formData.doj) : null}
-                      onChange={(d) => patch({ doj: d ? d.toISOString().split('T')[0] : '' })}
-                    />
-                  </EfField>
-                  <EfField label="Designation" required>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <Select
-                        value={formData.designation || ''}
-                        onChange={(v) => patch({ designation: v })}
-                        options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: d.name || d.designation, label: d.name || d.designation }))]}
-                      />
-                      <button
-                        type="button"
-                        className="ef-input-action"
-                        style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
-                        onClick={() => setIsAddDesignationModalOpen(true)}
-                        title="Add Designation"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </EfField>
-                  <EfField label="Team" required>
-                    <Select
-                      value={formData.team || ''}
-                      onChange={(v) => patch({ team: v })}
-                      options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: t.name || t.teamName, label: t.name || t.teamName }))]}
-                    />
-                  </EfField>
-                  <EfField label="Manager">
-                    <Select
-                      value={formData.manager || ''}
-                      onChange={(v) => patch({ manager: v })}
-                      options={[{ value: '', label: 'Select manager' }, ...dynamicEmployees.map(e => ({ value: e.id, label: e.name }))]}
-                    />
-                  </EfField>
-                </div>
-              </div>
-            )}
-
-            {formTab === 'user-info' && (
               <div className="ef-form">
                 <EfSection label="Account Identity" />
                 <div className="ef-grid">

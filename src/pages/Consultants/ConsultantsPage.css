@@ -12,6 +12,20 @@
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+/* Page body wrapper — fills container, suppressed when drawer is open */
+.consultants-page-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+.consultants-page-body[data-drawer-open] {
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Tab Navigation */
 .consultants-tabs {
   display: flex;
@@ -354,11 +368,13 @@
 .con-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 499;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.24s;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 .con-drawer-backdrop.open {
   opacity: 1;

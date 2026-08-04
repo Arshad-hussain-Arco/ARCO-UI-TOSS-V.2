@@ -50,6 +50,10 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
                 src={photoUrl}
                 alt={consultant.name}
                 className="consultant-avatar-img"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  setPhotoUrl(''); // Clear so initials fallback renders
+                }}
               />
             ) : (
               <div className="consultant-avatar-initials">{getInitials(consultant.name)}</div>

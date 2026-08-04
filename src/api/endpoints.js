@@ -123,6 +123,8 @@ const endpoints = {
   hr: {
     leaveTypes: `/hr/leave-types/`,
     leaveTypeDetail: (id) => `/hr/leave-types/${id}/`,
+    leaveTypesWithPolicy: `/hr/leave-types-with-policy/`,
+    leaveTypeWithPolicyDetail: (code) => `/hr/leave-types-with-policy/${code}/`,
     allLeaveTypes: `/leaves/leave-types/all/`,
     gradePolicies: `/leaves/hr/grad/hr/policiese-policies/`,
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
@@ -142,6 +144,7 @@ const endpoints = {
     exportLeaves: `/leaves/hr/leaves/export/`,
     importLeaves: `/leaves/hr/leaves/import/`,
     workScheduleOptions: `/leaves/hr/work-schedule-options/`,
+    workScheduleSummary: `/leaves/hr/employees/work-schedule/summary/`,
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',

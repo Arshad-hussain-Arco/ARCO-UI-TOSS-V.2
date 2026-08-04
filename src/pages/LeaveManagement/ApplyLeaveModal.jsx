@@ -425,13 +425,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             <p className="al-success-sub">
               Your request has been submitted and is pending approval from your reporting manager.
             </p>
-            <div className="al-success-ref">
-              <span className="al-success-ref-label">Reference</span>
-              <span className="al-success-ref-value">{refNum}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-secondary)' }}>
-                {leaveType?.label}
-              </span>
-            </div>
+
             <div className="al-success-badge">
               <Clock size={10} />
               Pending Approval
@@ -598,6 +592,12 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       setShowConfirm(false);
                       setSubmitted(true);
                       toast.success(SUCCESS_TITLES[type]);
+                      // On-behalf leaves: the backend sends a notification to the
+                      // employee's WS channel, not the manager's. Refresh our
+                      // notifications list via REST so the manager sees it too.
+                      if (applyFor === 'behalf') {
+                        window.dispatchEvent(new Event('notification:refresh'));
+                      }
                       setRequiresJustification(false);
                       setJustificationText('');
                       setQuotaInfo(null);

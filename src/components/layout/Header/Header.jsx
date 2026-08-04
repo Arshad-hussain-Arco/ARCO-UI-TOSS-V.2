@@ -9,6 +9,9 @@ import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useSidebar } from '@hooks/useSidebar';
 import { useTheme } from '@hooks/useTheme';
+import { useAuth } from '@hooks/useAuth';
+import { useNotifications } from '@hooks/useNotifications';
+import { NotificationsDropdown } from './NotificationsDropdown';
 
 import { ProfileMenu } from './ProfileMenu';
 import './Header.css';
@@ -26,11 +29,26 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
   const { toggle: toggleSidebar } = useSidebar();
   const { isDarkMode, toggleTheme } = useTheme();
   const { pinnedLinks } = usePinnedLinks();
+  const { user: authUser } = useAuth();
 
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
   const navMenuRef = useRef(null);
 
+  const empId = authUser?.emp_id ?? null;
+
+  const {
+    notifications,
+    unreadCount,
+    wsStatus,
+    markRead,
+    markAllRead,
+  } = useNotifications(empId);
+
   const closeNavMenu = useCallback(() => setIsNavMenuOpen(false), []);
+  const closeNotif   = useCallback(() => setIsNotifOpen(false), []);
+
   useOnClickOutside(navMenuRef, closeNavMenu, isNavMenuOpen);
 
   return (
@@ -137,14 +155,34 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
           )}
         </button>
 
+        {/* ── Notification Bell ── */}
         <button
           type="button"
-          className="header-icon-button header-notification"
-          aria-label="Notifications"
+          id="header-notifications-btn"
+          className={`header-icon-button header-notification ${isNotifOpen ? 'header-notif-active' : ''}`}
+          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+          aria-haspopup="dialog"
+          aria-expanded={isNotifOpen}
+          onClick={() => setIsNotifOpen((o) => !o)}
         >
           <Bell className="header-icon" aria-hidden="true" />
-          <span className="header-notification-badge" />
+          {unreadCount > 0 && (
+            <span className="header-notification-badge" aria-hidden="true">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </button>
+
+        {/* Dropdown panel */}
+        <NotificationsDropdown
+          isOpen={isNotifOpen}
+          onClose={closeNotif}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          wsStatus={wsStatus}
+          onMarkRead={markRead}
+          onMarkAllRead={markAllRead}
+        />
 
         <div className="header-divider" />
 

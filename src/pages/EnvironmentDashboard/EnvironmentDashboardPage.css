@@ -410,9 +410,7 @@
   display: flex;
   flex-direction: column;
   background-color: var(--surface-primary);
-  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  box-shadow: var(--shadow-sm);
 }
 
 /* Grid layout Columns: Env Name | Status | Team | Servers | DB Hosts | RTBS Status | Toggle Icon */
@@ -578,28 +576,66 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
 /* Consolidated Table scroll & visual consistency */
 .env-tab-table-container {
   width: 100%;
-  max-height: 280px;
-  /* Compact height limits table size footprint */
+  max-height: 360px;
   overflow: auto;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   background-color: var(--surface-primary);
   box-sizing: border-box;
+  /* Essential for sticky positioning to work inside this container */
+  position: relative;
 }
 
 .env-tab-table-container .ui-admin-table-container {
   border: none;
   border-radius: 0;
-  overflow: visible !important; /* Let the outer container handle all scrolling */
+  overflow: visible !important;
+  /* Let the outer container handle all scrolling */
 }
 
+/* ── Sticky Table Header (vertical scroll) ── */
 .env-tab-table-container .ui-admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;                              /* above body cells */
   padding: 8px 12px;
   font-size: 11px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);   /* solid bg so body rows don't bleed through */
+  border-bottom: 2px solid var(--border-primary);
   height: 36px;
   box-sizing: border-box;
+  white-space: nowrap;
+}
+
+/* ── Sticky First Column — header cell (top-left corner, highest z-index) ── */
+.env-tab-table-container .ui-admin-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;                              /* above both sticky header and sticky col body cells */
+  background-color: var(--bg-secondary);
+  box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Sticky First Column — body cells ── */
+.env-tab-table-container .ui-admin-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;                              /* above normal body cells, below sticky header */
+  background-color: var(--surface-primary);
+  box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Hover: keep first column background consistent with row highlight */
+.env-tab-table-container .ui-admin-table tr:hover td:first-child {
+  background-color: var(--bg-secondary);
+}
+
+/* border-collapse:collapse blocks position:sticky on cells — override here */
+.env-tab-table-container .ui-admin-table {
+  border-collapse: separate;
+  border-spacing: 0;            /* no gaps between cells */
 }
 
 .env-tab-table-container .ui-admin-table td {
@@ -607,7 +643,6 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
   font-size: 12px;
   border-bottom: 1px solid var(--border-primary);
   height: 38px;
-  /* Compact Row Height (40-44px max, 38px fits tight tables) */
   box-sizing: border-box;
   white-space: nowrap;
 }
