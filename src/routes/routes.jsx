@@ -50,6 +50,10 @@ const ReconciliationPage = lazyPage(
   () => import('@pages/Reconciliation/ReconciliationPage'),
   'ReconciliationPage',
 );
+const ReconciliationUserGuidePage = lazyPage(
+  () => import('@pages/Reconciliation/ReconciliationUserGuidePage'),
+  'ReconciliationUserGuidePage',
+);
 const ProjectMonitoringPage = lazyPage(
   () => import('@pages/ProjectMonitoring/ProjectMonitoringPage'),
   'ProjectMonitoringPage',
@@ -84,6 +88,7 @@ const SystemSettingsPage = lazyPage(
  * @type {import('react-router-dom').RouteObject[]}
  */
 export const routes = [
+  { path: ROUTES.RECONCILIATION_USER_GUIDE, element: <ReconciliationUserGuidePage /> },
   {
     path: ROUTES.ROOT,
     element: <Navigate to={ROUTES.DASHBOARD} replace />,

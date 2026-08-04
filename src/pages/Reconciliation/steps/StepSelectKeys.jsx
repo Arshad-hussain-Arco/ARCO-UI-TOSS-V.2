@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-
+import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 import { useToast } from '@hooks/useToast';
 import { generatePreviewRows } from '@mocks/data/reconciliation';
 
@@ -12,14 +12,19 @@ function ColumnList({ title, columns, selected, onToggle }) {
       </div>
       <div className="rsk-column-list">
         {columns.map((col) => {
-          const checked = selected.includes(col);
+          const checkedIndex = selected.indexOf(col);
+          const checked = checkedIndex > -1;
           return (
             <label key={col} className={`rsk-column-item${checked ? ' rsk-column-item--checked' : ''}`}>
+              {checked && (
+                <span className="rsk-column-badge">{checkedIndex + 1}</span>
+              )}
               <input
                 type="checkbox"
                 className="rsk-column-checkbox"
                 checked={checked}
                 onChange={() => onToggle(col)}
+                style={{ display: checked ? 'none' : 'block' }}
               />
               <span className="rsk-column-name">{col}</span>
             </label>
@@ -34,7 +39,6 @@ function PreviewTable({ columns, rows, title }) {
   if (!columns.length) return null;
   return (
     <div className="rsk-preview">
-      <div className="rsk-preview-title">{title} — Data Preview (first 5 rows)</div>
       <div className="rsk-preview-scroll">
         <table className="rsk-preview-table">
           <thead>
@@ -59,7 +63,7 @@ function PreviewTable({ columns, rows, title }) {
   );
 }
 
-export function StepSelectKeys({ files, keyColumns, onKeyColumnsChange, onBack, onNext }) {
+export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumnsChange, onBack, onNext }) {
   const toast = useToast();
 
   const file1Cols = useMemo(() => files[0]?.columns ?? [], [files]);
@@ -107,8 +111,16 @@ export function StepSelectKeys({ files, keyColumns, onKeyColumnsChange, onBack, 
         </div>
       </div>
 
-      <div className="rwiz-step-body">
-        {/* Live count mismatch hint */}
+      <div className="rwiz-step-body" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        {(processingFiles?.[0] || processingFiles?.[1]) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: '#6b7280' }}>
+            <DotsLoader size={32} color="#4b5563" />
+            <p style={{ marginTop: '16px', fontSize: '13px' }}>Processing file... detecting columns.</p>
+            <p style={{ marginTop: '4px', fontSize: '12px' }}>This may take a few moments for large files.</p>
+          </div>
+        ) : (
+          <>
+            {/* Live count mismatch hint */}
         {showCountHint && (
           <div className="rwiz-warning-banner">
             File 1 has <strong>{sel1.length}</strong> key(s) selected, File 2 has <strong>{sel2.length}</strong>. Counts must match.
@@ -136,6 +148,7 @@ export function StepSelectKeys({ files, keyColumns, onKeyColumnsChange, onBack, 
           columns={file1Cols}
           rows={preview1Rows}
         />
+        </>)}
 
         <div className="rwiz-step-footer">
           <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={onBack}>
@@ -145,6 +158,7 @@ export function StepSelectKeys({ files, keyColumns, onKeyColumnsChange, onBack, 
             type="button"
             className="rwiz-btn rwiz-btn-primary"
             onClick={handleNext}
+            disabled={processingFiles?.[0] || processingFiles?.[1]}
           >
             Next →
           </button>

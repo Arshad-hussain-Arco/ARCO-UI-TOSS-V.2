@@ -151,9 +151,8 @@ function DropZone({ index, fileInfo, onFile, onRemove, isProcessing, onProcessin
   );
 }
 
-export function StepUpload({ files, onFilesChange, onNext }) {
+export function StepUpload({ files, processingFiles, onProcessingChange, onFilesChange, onNext }) {
   const toast = useToast();
-  const [processingFiles, setProcessingFiles] = useState([false, false]);
 
   const setFile = useCallback(
     (index, fileInfo) => {
@@ -177,16 +176,11 @@ export function StepUpload({ files, onFilesChange, onNext }) {
     [onFilesChange],
   );
 
-  const updateProcessing = useCallback((index, value) => {
-    setProcessingFiles((current) => {
-      const next = [...current];
-      next[index] = value;
-      return next;
-    });
-  }, []);
 
-  const bothLoaded = files[0] !== null && files[1] !== null;
-  const formatMismatch = bothLoaded && files[0].ext !== files[1].ext;
+
+  const bothLoaded = (files[0] !== null || processingFiles[0]) && (files[1] !== null || processingFiles[1]);
+  // We can only check format mismatch if both are fully parsed
+  const formatMismatch = files[0] !== null && files[1] !== null && files[0].ext !== files[1].ext;
 
   const handleNext = useCallback(() => {
     if (!bothLoaded) {
@@ -229,7 +223,7 @@ export function StepUpload({ files, onFilesChange, onNext }) {
             onFile={(info) => setFile(0, info)}
             onRemove={() => removeFile(0)}
             isProcessing={processingFiles[0]}
-            onProcessingChange={updateProcessing}
+            onProcessingChange={onProcessingChange}
           />
           <div className="rfz-zones-divider">
             <span>VS</span>
@@ -240,7 +234,7 @@ export function StepUpload({ files, onFilesChange, onNext }) {
             onFile={(info) => setFile(1, info)}
             onRemove={() => removeFile(1)}
             isProcessing={processingFiles[1]}
-            onProcessingChange={updateProcessing}
+            onProcessingChange={onProcessingChange}
           />
         </div>
 

@@ -76,7 +76,7 @@ function WeekendConfigPanelComponent() {
   return (
     <div className="ss-form-card">
       <div className="ss-panel-header">
-        <h2 className="ss-panel-title">📅 Weekend Configuration</h2>
+        <h2 className="ss-panel-title">Weekend Configuration</h2>
       </div>
 
       <form

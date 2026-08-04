@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { Check, ArrowUpRight, AlertTriangle } from 'lucide-react';
+import { Check, ArrowUpRight, AlertTriangle, FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { DotsLoader } from '../../components/ui/DotsLoader/DotsLoader';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -11,6 +12,7 @@ import { StepUpload } from './steps/StepUpload';
 import { StepSelectKeys } from './steps/StepSelectKeys';
 import { StepMapColumns } from './steps/StepMapColumns';
 import { StepResults } from './steps/StepResults';
+import { ROUTES } from '@constants/routes';
 import './ReconciliationPage.css';
 
 const STEPS = [
@@ -172,6 +174,7 @@ export function ReconciliationPage() {
 
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState([null, null]);
+  const [processingFiles, setProcessingFiles] = useState([false, false]);
   const [keyColumns, setKeyColumns] = useState({ file1: [], file2: [] });
   const [colMappings, setColMappings] = useState(() =>
     buildInitialMappings(MOCK_FILE1_COLUMNS, []),
@@ -209,6 +212,14 @@ export function ReconciliationPage() {
         }, 0);
       }
       return updated;
+    });
+  }, []);
+
+  const handleProcessingChange = useCallback((index, value) => {
+    setProcessingFiles((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
     });
   }, []);
 
@@ -317,11 +328,20 @@ export function ReconciliationPage() {
   const stepContent = useMemo(() => {
     switch (step) {
       case 1:
-        return <StepUpload files={files} onFilesChange={handleFilesChange} onNext={goToStep2} />;
+        return (
+          <StepUpload
+            files={files}
+            processingFiles={processingFiles}
+            onProcessingChange={handleProcessingChange}
+            onFilesChange={handleFilesChange}
+            onNext={goToStep2}
+          />
+        );
       case 2:
         return (
           <StepSelectKeys
             files={files}
+            processingFiles={processingFiles}
             keyColumns={keyColumns}
             onKeyColumnsChange={setKeyColumns}
             onBack={() => setStep(1)}
@@ -360,7 +380,9 @@ export function ReconciliationPage() {
     keyColumns,
     colMappings,
     results,
+    processingFiles,
     handleFilesChange,
+    handleProcessingChange,
     goToStep2,
     goToStep3,
     runReconciliation,
@@ -373,10 +395,15 @@ export function ReconciliationPage() {
     <div className="rwiz-page">
       {/* Top Bar / Header Breadcrumb */}
       <div className="rwiz-page-header">
-        <h1 className="rwiz-page-title">File Reconciliation System</h1>
-        <button type="button" className="rwiz-page-guide-btn">
-          User Guide <ArrowUpRight size={14} />
-        </button>
+        <div className="rwiz-page-title-wrap">
+          <FileText className="rwiz-page-title-icon" size={24} />
+          <h1 className="rwiz-page-title">File Reconciliation System</h1>
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
+        </div>
       </div>
 
       {/* Stepper (Outside Card) */}

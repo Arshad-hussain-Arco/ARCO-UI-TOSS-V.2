@@ -135,11 +135,7 @@ function MatchedTable({ rows, mappings, file1Name, file2Name }) {
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
-            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Source {file1Name ? `(${file1Name})` : ''}</th>
-            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Destination {file2Name ? `(${file2Name})` : ''}</th>
-          </tr>
-          <tr>
+            <th className="rrs-th rrs-th-key">Key</th>
             {mappings.map((m) => <th key={`src_${m.src}`} className="rrs-th">{m.src}</th>)}
             {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
           </tr>
@@ -161,19 +157,16 @@ function MatchedTable({ rows, mappings, file1Name, file2Name }) {
 function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
   if (!rows.length) return <div className="rrs-empty">No mismatched records.</div>;
   const cols = mappings.map((m) => m.src);
+
   return (
     <div className="rrs-table-scroll">
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
-            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Source {file1Name ? `(${file1Name})` : ''}</th>
-            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Destination {file2Name ? `(${file2Name})` : ''}</th>
-            <th className="rrs-th rrs-th-diff" rowSpan={2}>Differences</th>
-          </tr>
-          <tr>
-            {mappings.map((m) => <th key={`src_${m.src}`} className="rrs-th">{m.src}</th>)}
+            <th className="rrs-th rrs-th-key">Key</th>
+            {cols.map((c) => <th key={`src_${c}`} className="rrs-th">{c}</th>)}
             {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
+            <th className="rrs-th rrs-th-diff">Differences</th>
           </tr>
         </thead>
         <tbody>
@@ -248,7 +241,6 @@ function DuplicateTable({ rows }) {
         <tbody>
           {rows.map((r, i) => {
             const data = r.row || r;
-            const count = r.duplicateCount ?? r._count ?? 2;
             return (
               <tr key={i} className="rrs-tr rrs-tr--duplicate">
                 <td className="rrs-td rrs-td-key">{renderValue(r._key)}</td>

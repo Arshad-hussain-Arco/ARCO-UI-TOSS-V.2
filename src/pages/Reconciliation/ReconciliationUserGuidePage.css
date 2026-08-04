@@ -1,0 +1,161 @@
+.ru-guide-page {
+  padding: 40px;
+  background-color: #f1f5f9;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.ru-guide-document {
+  background: #fff;
+  width: 100%;
+  max-width: 900px;
+  padding: 60px 80px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.ru-doc-title {
+  text-align: center;
+  background-color: #ffff00;
+  color: #000;
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ru-doc-section {
+  margin-bottom: 40px;
+}
+
+.ru-doc-section h2 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  color: #000;
+}
+
+.ru-doc-section h3 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: #000;
+}
+
+.ru-doc-section h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+.ru-doc-section p {
+  margin-bottom: 12px;
+}
+
+.ru-doc-section ul,
+.ru-doc-section ol {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.ru-doc-section li {
+  margin-bottom: 8px;
+}
+
+.ru-doc-note {
+  background-color: #ffff00;
+  padding: 2px 6px;
+  display: inline-block;
+  margin: 16px 0;
+  color: #000;
+}
+
+.ru-doc-highlight {
+  background-color: #ffff00;
+  padding: 2px 6px;
+  display: inline-block;
+  margin: 16px 0;
+  font-weight: 600;
+  color: #000;
+}
+
+.ru-doc-thankyou {
+  text-align: center;
+  font-weight: 400 !important;
+  background: transparent !important;
+  font-size: 20px !important;
+  margin-top: 60px !important;
+}
+
+.ru-doc-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 24px auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+code {
+  background-color: #f1f5f9;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: #0f172a;
+}
+
+/* Math Equation Styles */
+.ru-math-equation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.ru-math-label {
+  white-space: nowrap;
+}
+
+.ru-math-fraction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.ru-math-numerator {
+  padding: 4px 8px;
+  border-bottom: 2px solid #1e293b;
+  width: 100%;
+}
+
+.ru-math-denominator {
+  padding: 4px 8px;
+}
+
+.ru-math-multiplier {
+  white-space: nowrap;
+}

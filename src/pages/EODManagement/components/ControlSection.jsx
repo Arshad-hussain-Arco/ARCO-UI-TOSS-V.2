@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Play, RefreshCw } from 'lucide-react';
 import { CardGridSkeleton } from '@components/feedback/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -7,25 +7,29 @@ import { CtrlCard } from './CtrlCard';
 
 export function ControlSection() {
   const {
-    environments,
-    isLoading,
-    error,
-    refreshEnvironments,
+    controlsEnvs,
+    isLoadingControls,
+    controlsError,
+    fetchControlsData,
     handleStartEOD,
     handlePauseEOD,
     handleStopEOD,
   } = useEodContext();
 
-  if (isLoading) {
-    return <CardGridSkeleton count={4} minWidth={220} />;
+  useEffect(() => {
+    fetchControlsData(true);
+  }, [fetchControlsData]);
+
+  if (isLoadingControls) {
+    return <Loader message="Loading batch control panel…" />;
   }
 
-  if (error) {
+  if (controlsError) {
     return (
       <ErrorState
         title="Control panel could not be loaded"
-        description={error}
-        onRetry={refreshEnvironments}
+        description={controlsError}
+        onRetry={() => fetchControlsData(true)}
       />
     );
   }
@@ -37,7 +41,7 @@ export function ControlSection() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="eod-add-btn"
-            onClick={refreshEnvironments}
+            onClick={() => fetchControlsData(false)}
             style={{
               background: 'transparent',
               color: 'var(--c-primary)',
@@ -49,8 +53,10 @@ export function ControlSection() {
           <button
             className="eod-add-btn"
             onClick={() =>
-              environments.forEach((e) => {
-                if (e.status === 'idle') handleStartEOD(e.id);
+              controlsEnvs.forEach((e) => {
+                if (e.status !== 'running' && e.status !== 'paused') {
+                  handleStartEOD(e.id);
+                }
               })
             }
           >
@@ -59,15 +65,17 @@ export function ControlSection() {
         </div>
       </div>
       <div className="eod-control-grid">
-        {environments.map((env) => (
-          <CtrlCard
-            key={env.id}
-            env={env}
-            onStart={handleStartEOD}
-            onPause={handlePauseEOD}
-            onStop={handleStopEOD}
-          />
-        ))}
+        {controlsEnvs
+          .filter((env) => env.isActive !== false)
+          .map((env) => (
+            <CtrlCard
+              key={env.id}
+              env={env}
+              onStart={handleStartEOD}
+              onPause={handlePauseEOD}
+              onStop={handleStopEOD}
+            />
+          ))}
       </div>
     </div>
   );

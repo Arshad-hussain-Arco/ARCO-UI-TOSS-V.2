@@ -21,6 +21,7 @@ export const ROUTES = Object.freeze({
   ATTENDANCE: '/attendance',
   CAPACITY_PLANNING: '/capacity-planning',
   RECONCILIATION: '/reconciliation',
+  RECONCILIATION_USER_GUIDE: '/reconciliation/user-guide',
   PROJECT_MONITORING: '/project-monitoring',
   IMPORTANT_LINKS: '/important-links',
   DOCUMENTS: '/documents',
