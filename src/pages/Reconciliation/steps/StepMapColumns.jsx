@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { RefreshCw, Wand2, AlertTriangle, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { RefreshCw, Wand2, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 
 import { useToast } from '@hooks/useToast';
@@ -97,6 +97,7 @@ function MappingRow({ mapping, dstOptions, onUpdate }) {
 
 export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack, onRun, isReconciling, reconcileError, onClearError }) {
   const toast = useToast();
+  const [showAutoMapConfirm, setShowAutoMapConfirm] = useState(false);
 
   const srcCols = useMemo(() => files[0]?.columns ?? [], [files]);
   const dstCols = useMemo(() => files[1]?.columns ?? [], [files]);
@@ -112,6 +113,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
       return { ...m, dst: match ?? m.dst };
     });
     onColMappingsChange(updated);
+    setShowAutoMapConfirm(false);
   }, [colMappings, dstCols, onColMappingsChange]);
 
   const resetAll = useCallback(() => {
@@ -174,6 +176,15 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
     onRun();
   }, [hasAnyMapping, onRun, toast]);
 
+  const handleAutoMapClick = useCallback(() => {
+    const hasModifiedType = colMappings.some(m => m.dataType !== 'Categorical');
+    if (hasModifiedType) {
+      setShowAutoMapConfirm(true);
+    } else {
+      autoMap();
+    }
+  }, [colMappings, autoMap]);
+
   return (
     <>
       <div className="rwiz-step-header">
@@ -186,7 +197,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
             <RefreshCw size={13} />
             Reset All Settings
           </button>
-          <button type="button" className="rwiz-btn rwiz-btn-primary" onClick={autoMap}>
+          <button type="button" className="rwiz-btn rwiz-btn-primary" onClick={handleAutoMapClick}>
             <Wand2 size={13} />
             Auto-Map Matching Columns
           </button>
@@ -284,6 +295,44 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
             )}
           </button>
         </div>
+
+        {/* Auto-Map Confirmation Modal */}
+        {showAutoMapConfirm && (
+          <div
+            className="rrs-modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm Auto-Map"
+            onClick={() => setShowAutoMapConfirm(false)}
+          >
+            <div className="rrs-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rrs-modal-header">
+                <h3 className="rrs-modal-title">Confirm Auto-Map</h3>
+                <button type="button" className="rrs-modal-close" onClick={() => setShowAutoMapConfirm(false)} aria-label="Close">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="rrs-modal-body">
+                <p className="rrs-modal-desc">
+                  Are you sure you want to auto-map matching columns? This will match columns by name and overwrite existing mappings. Your data type settings will be preserved.
+                </p>
+              </div>
+              <div className="rrs-modal-footer">
+                <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={() => setShowAutoMapConfirm(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rwiz-btn rwiz-btn-primary"
+                  onClick={autoMap}
+                >
+                  <CheckCircle2 size={14} style={{marginRight: '4px'}} />
+                  Confirm Auto-Map
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

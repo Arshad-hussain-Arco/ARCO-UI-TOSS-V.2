@@ -43,6 +43,8 @@ export const reconciliationService = {
     columnMeta,
     columnPathMap1,
     columnPathMap2,
+    page,
+    pageSize,
   }) => {
     const formData = new FormData();
 
@@ -80,6 +82,8 @@ export const reconciliationService = {
     if (columnPathMap2) {
       formData.append('columnPathMap2', JSON.stringify(columnPathMap2));
     }
+    if (page) formData.append('page', page);
+    if (pageSize) formData.append('pageSize', pageSize);
 
     const response = await httpClient.post(endpoints.reconciliation.reconcile, formData, {
       headers: {

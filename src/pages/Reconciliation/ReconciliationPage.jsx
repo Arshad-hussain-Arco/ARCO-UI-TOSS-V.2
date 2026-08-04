@@ -214,7 +214,7 @@ export function ReconciliationPage() {
 
   const goToStep2 = useCallback(() => setStep(2), []);
   const goToStep3 = useCallback(() => setStep(3), []);
-  const runReconciliation = useCallback(async () => {
+  const runReconciliation = useCallback(async (page = 1) => {
     setIsReconciling(true);
     setReconcileError(null);
     try {
@@ -248,23 +248,43 @@ export function ReconciliationPage() {
         }, {}),
         columnPathMap1: files[0]?.columnPathMap ?? null,
         columnPathMap2: files[1]?.columnPathMap ?? null,
+        page,
+        pageSize: 50,
       });
 
       const transformedResults = {
         stats: {
-          matched: resultData.matched?.length ?? 0,
-          mismatched: resultData.mismatched?.length ?? 0,
-          missing: (resultData.onlyInFile1?.length ?? 0) + (resultData.onlyInFile2?.length ?? 0),
-          duplicates: (resultData.duplicatesInFile1?.length ?? 0) + (resultData.duplicatesInFile2?.length ?? 0),
+          matched: resultData.matched?.total ?? 0,
+          mismatched: resultData.mismatched?.total ?? 0,
+          missing: (resultData.onlyInFile1?.total ?? 0) + (resultData.onlyInFile2?.total ?? 0),
+          duplicates: (resultData.duplicatesInFile1?.total ?? 0) + (resultData.duplicatesInFile2?.total ?? 0),
           total: (resultData.totalFile1 ?? 0) + (resultData.totalFile2 ?? 0),
           matchRate: resultData.matchRate ?? 0,
         },
-        matched: (resultData.matched ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1)),
-        mismatched: (resultData.mismatched ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1)),
-        missingInDst: (resultData.onlyInFile1 ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1)),
-        missingInSrc: (resultData.onlyInFile2 ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file2)),
-        dupSrc: (resultData.duplicatesInFile1 ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1)),
-        dupDst: (resultData.duplicatesInFile2 ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file2)),
+        matched: {
+          ...resultData.matched,
+          records: (resultData.matched?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1))
+        },
+        mismatched: {
+          ...resultData.mismatched,
+          records: (resultData.mismatched?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1))
+        },
+        missingInDst: {
+          ...resultData.onlyInFile1,
+          records: (resultData.onlyInFile1?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1))
+        },
+        missingInSrc: {
+          ...resultData.onlyInFile2,
+          records: (resultData.onlyInFile2?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file2))
+        },
+        dupSrc: {
+          ...resultData.duplicatesInFile1,
+          records: (resultData.duplicatesInFile1?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file1))
+        },
+        dupDst: {
+          ...resultData.duplicatesInFile2,
+          records: (resultData.duplicatesInFile2?.records ?? []).map((r) => normalizeRow(r, activeMappings, keyColumns.file2))
+        },
         activeMappings,
         rawResults: resultData,
       };
@@ -315,7 +335,7 @@ export function ReconciliationPage() {
             colMappings={colMappings}
             onColMappingsChange={setColMappings}
             onBack={() => setStep(2)}
-            onRun={runReconciliation}
+            onRun={() => runReconciliation(1)}
             isReconciling={isReconciling}
             reconcileError={reconcileError}
             onClearError={() => setReconcileError(null)}
@@ -328,6 +348,7 @@ export function ReconciliationPage() {
             file1Name={files[0]?.name || ''}
             file2Name={files[1]?.name || ''}
             onReset={reset}
+            onPageChange={(page) => runReconciliation(page)}
           />
         ) : null;
       default:
