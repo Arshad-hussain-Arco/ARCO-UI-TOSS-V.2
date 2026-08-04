@@ -1,23 +1,33 @@
 export const normalizeConsultant = (c, isActive = true) => {
   if (!c) return null;
 
-  let avatarUrl = c.photo || c.avatar || c.profile_image || '';
+  let avatarUrl = c.photo || c.avatar || c.profile_image || c.photo_url || '';
   if (avatarUrl && typeof avatarUrl === 'string') {
     avatarUrl = avatarUrl.replace(/\s+/g, ''); // strip newlines/spaces
-    if (avatarUrl.startsWith('ZGF0Y') || 
-        avatarUrl.startsWith('Lzlq') || 
-        avatarUrl.startsWith('aVZCT') || 
-        avatarUrl.startsWith('UjBs') ||
-        avatarUrl.startsWith('VWtsR') ||
-        avatarUrl.startsWith('UWtN')) {
+
+    if (!avatarUrl) {
+      avatarUrl = '';
+    } else if (avatarUrl.startsWith('data:image')) {
+      // Already a valid data URI — use as-is
+    } else if (
+      avatarUrl.startsWith('http://') ||
+      avatarUrl.startsWith('https://') ||
+      avatarUrl.startsWith('blob:')
+    ) {
+      // Absolute URL — use as-is
+    } else if (avatarUrl.startsWith('/')) {
+      // Relative URL path from the API server — prepend API origin
+      const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
+        .replace(/\/api\/?$/, '');
+      avatarUrl = `${apiOrigin}${avatarUrl}`;
+    } else {
+      // Assume it's raw base64 data — try to detect common base64 JPEG/PNG headers
       try {
-        avatarUrl = atob(avatarUrl);
+        avatarUrl = `data:image/jpeg;base64,${avatarUrl}`;
       } catch (e) {
-        console.warn('Failed to decode base64 avatar');
+        console.warn('Invalid avatar data');
+        avatarUrl = '';
       }
-    }
-    if (avatarUrl && !avatarUrl.startsWith('data:image')) {
-      avatarUrl = `data:image/jpeg;base64,${avatarUrl}`;
     }
   }
 

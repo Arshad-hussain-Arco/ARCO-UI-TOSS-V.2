@@ -407,7 +407,7 @@
   padding-right: 4px;
 }
 
-.consultant-card {
+.cp-team-panel .consultant-card {
   background-color: #ffffff;
   border: 1px solid var(--border-primary, #e2e8f0);
   border-radius: 12px;
@@ -416,18 +416,18 @@
   transition: box-shadow 0.2s ease;
 }
 
-.consultant-card:hover {
+.cp-team-panel .consultant-card:hover {
   box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
 }
 
-.consultant-info-header {
+.cp-team-panel .consultant-info-header {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.consultant-avatar {
+.cp-team-panel .consultant-avatar {
   width: 40px;
   height: 40px;
   background-color: #006838;
@@ -438,22 +438,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.consultant-name {
+.cp-team-panel .consultant-name {
   font-size: 15px;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
 }
 
-.consultant-role {
+.cp-team-panel .consultant-role {
   font-size: 12px;
   color: var(--text-secondary, #64748b);
   margin: 2px 0 0 0;
 }
 
-.consultant-kpi-grid {
+.cp-team-panel .consultant-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
