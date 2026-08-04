@@ -9,8 +9,7 @@ import {
 } from 'lucide-react';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { TableSkeleton } from '@components/feedback/Skeleton';
-import { Tabs } from '@components/common';
+import { Loader } from '@components/feedback/Loader/Loader';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
@@ -123,19 +122,32 @@ export function SystemSettingsPage() {
   }
 
   if (isLoading || !draft) {
-    return (
-      <div className="ss-container">
-        <div className="ss-main-content">
-          <TableSkeleton rows={5} columns={2} />
-        </div>
-      </div>
-    );
+    return <Loader message="Loading settings…" />;
   }
 
   return (
     <div className="ss-container">
       {/* ── Navigation Tabs ── */}
-      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <div className="ss-tabs-container" role="tablist" aria-label="System Settings Navigation">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              className={`ss-tab ${isActive ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <Icon className="ss-tab-icon" aria-hidden="true" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ── Main Content ── */}
       <div className="ss-main-content">

@@ -11,7 +11,7 @@ import {
   RefreshCw,
   FolderOpen,
 } from 'lucide-react';
-import { TableSkeleton } from '@components/feedback/Skeleton';
+import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { eodService } from '@services/eodService';
@@ -141,7 +141,7 @@ export function ConfigSection() {
   });
 
   if (isLoading) {
-    return <TableSkeleton rows={6} columns={4} />;
+    return <Loader message="Loading environment configurations…" />;
   }
 
   if (error) {

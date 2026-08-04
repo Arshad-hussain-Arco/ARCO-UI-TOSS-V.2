@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { colors } from "../../styles/tokens";
 import { StatCard, Pill, ProgressBar, AlertRow, Avatar } from "../../components/ui";
-import { Tabs } from "../../components/common";
 import ApprovalRow from "../../components/dashboard/ApprovalRow";
 import { RequestsTrendChart, LeaveDistributionDonut, DepartmentBarChart } from "../../components/dashboard/charts";
 import "./LmsDashboard.css";
