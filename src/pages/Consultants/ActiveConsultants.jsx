@@ -104,7 +104,9 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoComplete="off"
-              name="consultantSearch"
+              name="search_consultants_filter"
+              id="consultants-search-field"
+              data-form-type="other"
             />
           </div>
           <div className="consultants-filter-group">

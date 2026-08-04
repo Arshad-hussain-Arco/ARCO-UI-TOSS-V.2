@@ -6,6 +6,23 @@ export function parseDate(val) {
   return d;
 }
 
+// Resolve a photo field (base64 or relative/absolute URL) into a usable src string
+export function resolvePhotoUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const v = raw.replace(/\s+/g, '');
+  if (!v) return '';
+  if (v.startsWith('data:image')) return v;
+  if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('blob:')) return v;
+  if (v.startsWith('/')) {
+    const apiOrigin = (typeof import.meta !== 'undefined'
+      ? (import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
+      : 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+    return `${apiOrigin}${v}`;
+  }
+  // Assume raw base64
+  return `data:image/jpeg;base64,${v}`;
+}
+
 export function isWeekend(date, weekendDays = [5, 6]) {
   const day = date.getDay();
   return weekendDays.includes(day);
@@ -125,6 +142,7 @@ export function processCapacityData(assignments, weekendDays = [5, 6], reference
       employeesMap.set(primaryEmpId, {
         id: primaryEmpId,
         name: primaryName,
+        photo: resolvePhotoUrl(item.Photo_URL || item.EmpPhoto || item.EmployeePhoto || item.photo || ''),
         teamId,
         teamName,
         role: isProg ? 'Primary Developer' : 'Tester',

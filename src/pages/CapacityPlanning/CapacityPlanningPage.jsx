@@ -614,8 +614,32 @@ export function CapacityPlanningPage() {
             {activeSubtabConsultants.map(c => (
               <div key={c.id} className="consultant-card">
                 <div className="consultant-info-header">
-                  <div className="consultant-avatar">
-                    {c.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                  <div className="consultant-avatar" style={{ overflow: 'hidden', flexShrink: 0 }}>
+                    {c.photo ? (
+                      <img
+                        src={c.photo}
+                        alt={c.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      style={{
+                        display: c.photo ? 'none' : 'flex',
+                        width: '100%',
+                        height: '100%',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        color: 'inherit'
+                      }}
+                    >
+                      {c.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                    </span>
                   </div>
                   <div>
                     <h3 className="consultant-name">{c.name}</h3>
