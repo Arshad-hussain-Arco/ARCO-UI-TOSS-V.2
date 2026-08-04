@@ -10,7 +10,7 @@ import { useOnClickOutside } from '@hooks/useOnClickOutside';
  * @param {import('@services/authService').AuthUser} props.user
  * @param {() => void} props.onLogout
  */
-export function ProfileMenu({ user, onLogout }) {
+export function ProfileMenu({ user, onLogout, onOpenProfileSettings }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -38,7 +38,15 @@ export function ProfileMenu({ user, onLogout }) {
 
       {isOpen ? (
         <div className="header-profile-menu" role="menu">
-          <button type="button" className="header-profile-menu-item" role="menuitem">
+          <button
+            type="button"
+            className="header-profile-menu-item"
+            role="menuitem"
+            onClick={() => {
+              close();
+              if (onOpenProfileSettings) onOpenProfileSettings();
+            }}
+          >
             <span className="header-profile-menu-text">Profile Settings</span>
           </button>
           <button type="button" className="header-profile-menu-item" role="menuitem">
@@ -57,9 +65,9 @@ export function ProfileMenu({ user, onLogout }) {
             <LogOut className="header-profile-menu-icon" aria-hidden="true" />
             <span className="header-profile-menu-text">Sign Out</span>
           </button>
-          
+
           <div className="header-profile-menu-version" style={{ fontSize: '10px', color: 'var(--text-tertiary)', padding: '8px 12px 4px', textAlign: 'center' }}>
-            v.2.0.0
+            TOSS v.2.0.0
           </div>
         </div>
       ) : null}

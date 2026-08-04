@@ -32,11 +32,11 @@ import './DashboardPage.css';
  * Adapter logic morphs the raw real-time data into the prop shapes expected by the layout.
  */
 export function DashboardPage() {
-  useDocumentTitle('Operations Dashboard');
+  useDocumentTitle('Dashboard');
   const { user } = useAuth();
 
   const [dateFilter, setDateFilter] = useState('today');
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -117,11 +117,11 @@ export function DashboardPage() {
         // listHolidays already returns response.data directly
         const data = results[10].value;
         const holidaysArr = Array.isArray(data) ? data : data?.results || [];
-        
+
         // Filter and sort for upcoming holidays only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const upcoming = holidaysArr
           .filter(h => {
             const dateStr = h.dates && h.dates.length > 0 ? h.dates[0] : (h.date || h.start_date || h.holiday_date);
@@ -249,7 +249,7 @@ export function DashboardPage() {
       const effort = parseFloat(record.Effort_in_MDs) || 0;
       capacityMap[team].used += effort;
     });
-    
+
     // Convert map to array and compute percentage
     const capacityByTeam = Object.values(capacityMap).map(c => ({
       team: c.team,
@@ -296,12 +296,14 @@ export function DashboardPage() {
   }, [teams, employees]);
 
 
+  const userName = user?.name || user?.username || 'User';
+
   return (
     <div className="dc-root">
       <div className="dc-page-header">
         <div>
-          <h1 className="dc-page-title">Operations Dashboard</h1>
-          <p className="dc-page-sub">Real-time overview of system health and team performance</p>
+          <h1 className="dc-page-title">Welcome, {userName}!</h1>
+          <p className="dc-page-sub">Here is your real-time overview of system health, team performance, and key operational metrics.</p>
         </div>
 
         <div className="dc-header-actions">
@@ -340,27 +342,13 @@ export function DashboardPage() {
                     <EnvironmentStatusStrip eodRecords={eodRecords} />
                   </div>
 
-                  <SystemHealthSection 
+                  <SystemHealthSection
                     systemHealth={mappedSummary.systemHealth}
                     runtimeTrend={mappedSummary.runtimeTrend}
                     insights={mappedSummary.runtimeInsights}
                   />
 
-                  {/* Requests Trend Chart */}
-                  <div className="dc-span-4">
-                    <section className="dc-card dc-trend-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                      <h2 className="dc-section-title">REQUESTS TREND — LAST 7 DAYS</h2>
-                      {trendData?.results && trendData.results.length > 0 ? (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                          <RequestsTrendChart data={trendData.results} slaThreshold={trendData.sla_threshold || 10} />
-                        </div>
-                      ) : (
-                        <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                          No request trend data returned from API
-                        </div>
-                      )}
-                    </section>
-                  </div>
+
 
                   <div className="dc-span-12">
                     <LeaveSnapshotSection
@@ -401,22 +389,22 @@ export function DashboardPage() {
                   </div>
                 )}
               </div>
-          </div>
+            </div>
 
-          <aside className="dc-right-rail">
-            <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
-            
-            <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+            <aside className="dc-right-rail">
+              <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
 
-            {pendingApprovals && pendingApprovals.length > 0 && (
-              <PendingApprovalsActionSection 
-                pendingApprovals={pendingApprovals} 
-                onActionComplete={fetchLiveDashboardData} 
-              />
-            )}
-          </aside>
-        </>
-      )}
+              <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+
+              {pendingApprovals && pendingApprovals.length > 0 && (
+                <PendingApprovalsActionSection
+                  pendingApprovals={pendingApprovals}
+                  onActionComplete={fetchLiveDashboardData}
+                />
+              )}
+            </aside>
+          </>
+        )}
       </div>
     </div>
   );
