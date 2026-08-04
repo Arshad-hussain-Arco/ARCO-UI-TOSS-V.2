@@ -31,7 +31,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;        /* right-align all children    */
+  align-items: flex-end;
+  /* right-align all children    */
   justify-content: center;
   padding: 32px 48px;
   box-sizing: border-box;
@@ -41,11 +42,13 @@
 
 /* ── Logo ────────────────────────────────────────────────────── */
 .login-logo-fixed {
+  position: absolute;
+  top: 36px;
+  right: 48px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin-bottom: 20px;
-  width: 100%;
+  z-index: 30;
 }
 
 .login-logo-img {
@@ -61,11 +64,10 @@
   gap: 12px;
   margin-bottom: 20px;
   width: 100%;
-  justify-content: flex-end;
 }
 
 .brand-accent-text {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: #00664F;
   text-transform: uppercase;
@@ -73,12 +75,7 @@
   margin: 0;
 }
 
-.brand-accent-line {
-  width: 32px;
-  height: 1px;
-  background-color: #00664F;
-  opacity: 0.6;
-}
+
 
 /* ── Brand Title Reveal ──────────────────────────────────────── */
 .brand-title-reveal-wrapper {
@@ -87,7 +84,6 @@
   line-height: 1.1;
   margin-bottom: 6px;
   width: 100%;
-  text-align: right;
 }
 
 .brand-title-reveal-line {
@@ -214,15 +210,15 @@
   margin: 0;
 }
 
-.login-input:focus ~ .login-form-label,
-.login-input:not(:placeholder-shown) ~ .login-form-label,
-.login-input:-webkit-autofill ~ .login-form-label {
+.login-input:focus~.login-form-label,
+.login-input:not(:placeholder-shown)~.login-form-label,
+.login-input:-webkit-autofill~.login-form-label {
   transform: translateY(-13px) scale(0.82);
   color: var(--text-secondary);
   font-weight: 500;
 }
 
-.login-input:focus ~ .login-form-label {
+.login-input:focus~.login-form-label {
   color: var(--c-primary);
 }
 
@@ -290,8 +286,8 @@
   position: absolute;
   bottom: 14px;
   right: 20px;
-  font-size: 10px;
-  color: var(--text-tertiary, #999999);
+  font-size: 15px;
+  color: #fff;
   text-align: right;
   letter-spacing: 0.02em;
   margin: 0;
