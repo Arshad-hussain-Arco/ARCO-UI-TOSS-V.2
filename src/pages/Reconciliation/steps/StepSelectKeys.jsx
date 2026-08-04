@@ -34,7 +34,6 @@ function PreviewTable({ columns, rows, title }) {
   if (!columns.length) return null;
   return (
     <div className="rsk-preview">
-      <div className="rsk-preview-title">{title} — Data Preview (first 5 rows)</div>
       <div className="rsk-preview-scroll">
         <table className="rsk-preview-table">
           <thead>
