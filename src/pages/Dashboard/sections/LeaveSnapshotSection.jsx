@@ -48,49 +48,7 @@ function LeaveSnapshotSectionComponent({ leaveDistribution, upcomingLeaves, atte
   }, [leaveDistribution, totalOnLeave]);
 
   return (
-    <section className="dc-three-col">
-      <div className="dc-card">
-        <h2 className="dc-section-title">Leave Distribution</h2>
-
-        <div className="dc-donut-wrap">
-          <svg
-            viewBox="0 0 100 100"
-            className="dc-donut-svg"
-            role="img"
-            aria-label="Leave distribution"
-          >
-            {arcs.map((arc) => (
-              <circle
-                key={arc.type}
-                cx="50"
-                cy="50"
-                r={DONUT_RADIUS}
-                fill="none"
-                stroke={arc.color}
-                strokeWidth="11"
-                strokeDasharray={`${(arc.sweep / 360) * DONUT_CIRCUMFERENCE} ${DONUT_CIRCUMFERENCE}`}
-                transform={`rotate(${arc.startAngle - 90} 50 50)`}
-              />
-            ))}
-            <text x="50" y="48" textAnchor="middle" className="dc-donut-num">
-              {totalOnLeave}
-            </text>
-            <text x="50" y="58" textAnchor="middle" className="dc-donut-sub-text">
-              on leave
-            </text>
-          </svg>
-        </div>
-
-        <div className="dc-legend">
-          {leaveDistribution.map((item) => (
-            <div key={item.type} className="dc-legend-row">
-              <span className="dc-legend-dot" style={{ background: item.color }} />
-              <span className="dc-legend-label">{item.type}</span>
-              <span className="dc-legend-val">{item.count}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <section className="dc-two-col">
 
       <div className="dc-card">
         <h2 className="dc-section-title">Upcoming Leaves (7 Days)</h2>

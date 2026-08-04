@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-import logoUrl from '@assets/images/logo.png';
+import logoExpandedUrl from '@assets/images/logo-expanded.png';
+import iconCollapseUrl from '@assets/images/icon-collapse.png';
 import { APP_NAME } from '@constants/app';
 import { SIDEBAR_NAVIGATION } from '@constants/navigation';
 import { useSidebar } from '@hooks/useSidebar';
@@ -61,18 +62,20 @@ export function Sidebar() {
     <div className="sidebar" data-collapsed={isCollapsed}>
       <div className="sidebar-header">
         {isCollapsed ? (
-          <div className="sidebar-logo-collapsed">
+          <div className="sidebar-logo-container collapsed" key="collapsed">
             <img
-              src={logoUrl}
+              src={iconCollapseUrl}
               alt={APP_NAME}
-              className="sidebar-logo-img sidebar-logo-img-collapsed"
+              className="sidebar-logo-img sidebar-logo-collapsed-img"
             />
           </div>
         ) : (
-          <div className="sidebar-logo-wrapper">
-            <div className="sidebar-logo">
-              <img src={logoUrl} alt={APP_NAME} className="sidebar-logo-img" />
-            </div>
+          <div className="sidebar-logo-container expanded" key="expanded">
+            <img
+              src={logoExpandedUrl}
+              alt={APP_NAME}
+              className="sidebar-logo-img sidebar-logo-expanded-img"
+            />
           </div>
         )}
       </div>

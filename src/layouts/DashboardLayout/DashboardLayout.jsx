@@ -1,4 +1,4 @@
-import { Suspense, useCallback } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ErrorBoundary } from '@components/common/ErrorBoundary/ErrorBoundary';
@@ -6,6 +6,7 @@ import { ScrollToTop } from '@components/common/ScrollToTop/ScrollToTop';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Header } from '@components/layout/Header/Header';
 import { Sidebar } from '@components/layout/Sidebar/Sidebar';
+import { ProfileSettingsModal } from '@components/profile/ProfileSettingsModal';
 import { ROUTES } from '@constants/routes';
 import { useAuth } from '@hooks/useAuth';
 import { useSidebar } from '@hooks/useSidebar';
@@ -25,6 +26,8 @@ export function DashboardLayout() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -48,7 +51,11 @@ export function DashboardLayout() {
       <Sidebar />
 
       <div className="dashboard-main" data-sidebar-collapsed={isCollapsed}>
-        <Header user={user} onLogout={handleLogout} />
+        <Header
+          user={user}
+          onLogout={handleLogout}
+          onOpenProfileSettings={() => setIsProfileModalOpen(true)}
+        />
 
         <div className="page-outlet">
           <ErrorBoundary resetKey={pathname}>
@@ -58,6 +65,12 @@ export function DashboardLayout() {
           </ErrorBoundary>
         </div>
       </div>
+
+      <ProfileSettingsModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        user={user}
+      />
     </div>
   );
 }

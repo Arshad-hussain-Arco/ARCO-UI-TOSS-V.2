@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, ExternalLink, Menu, Moon, MoreVertical, Pin, Sun } from 'lucide-react';
 
-import logoUrl from '@assets/images/logo.png';
+import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
 import { HEADER_NAVIGATION } from '@constants/navigation';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
@@ -23,8 +23,9 @@ import './Header.css';
  * @param {Object} props
  * @param {import('@services/authService').AuthUser} props.user
  * @param {() => void} props.onLogout
+ * @param {() => void} props.onOpenProfileSettings
  */
-export function Header({ user, onLogout }) {
+export function Header({ user, onLogout, onOpenProfileSettings }) {
   const { toggle: toggleSidebar } = useSidebar();
   const { isDarkMode, toggleTheme } = useTheme();
   const { pinnedLinks } = usePinnedLinks();
@@ -185,7 +186,11 @@ export function Header({ user, onLogout }) {
 
         <div className="header-divider" />
 
-        <ProfileMenu user={user} onLogout={onLogout} />
+        <ProfileMenu
+          user={user}
+          onLogout={onLogout}
+          onOpenProfileSettings={onOpenProfileSettings}
+        />
       </div>
     </header>
   );
