@@ -397,10 +397,9 @@
 
 .rfz-remove-btn {
   background: transparent;
-  border: 1px solid var(--border-secondary);
+  border:  1px solid var(--c-primary);
   border-radius: 4px;
-  padding: 3px 5px;
-  color: var(--text-tertiary);
+  padding: 3px 5px; 
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -962,6 +961,25 @@
   z-index: 1;
 }
 
+.rrs-th-grouped {
+  text-align: center;
+  border-bottom: 2px solid var(--border-primary);
+  border-right: 1px solid var(--border-tertiary);
+}
+
+.rrs-th-grouped-top {
+  text-align: center;
+  border-bottom: 1px solid var(--border-tertiary);
+  border-right: 1px solid var(--border-tertiary);
+}
+
+.rrs-th-key {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-secondary);
+}
+
 .rrs-th-diff { min-width: 200px; }
 
 .rrs-tr:hover { background: var(--bg-hover); }
@@ -981,7 +999,16 @@
   font-weight: 700;
   color: var(--c-primary);
   white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-primary);
 }
+
+.rrs-tr:hover .rrs-td-key {
+  background: var(--bg-hover);
+}
+ 
 
 .rrs-td-diff {
   font-size: 10px;

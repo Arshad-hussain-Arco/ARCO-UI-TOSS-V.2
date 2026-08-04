@@ -2,6 +2,35 @@ import { useCallback, useState } from 'react';
 import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X } from 'lucide-react';
 import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
 import { useToast } from '@hooks/useToast';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+function Pagination({ page, pages, onPageChange }) {
+  if (!pages || pages <= 1) return null;
+
+  return (
+    <div className="rrs-pagination" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '16px', padding: '0 8px' }}>
+      <button
+        className="rwiz-btn rwiz-btn-outline"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        style={{ padding: '4px 8px' }}
+      >
+        <ChevronLeft size={14} />
+      </button>
+      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+        Page {page} of {pages}
+      </span>
+      <button
+        className="rwiz-btn rwiz-btn-outline"
+        disabled={page >= pages}
+        onClick={() => onPageChange(page + 1)}
+        style={{ padding: '4px 8px' }}
+      >
+        <ChevronRight size={14} />
+      </button>
+    </div>
+  );
+}
 
 // ─── KPI Stat Card ────────────────────────────────────────────────────────────
 
@@ -98,7 +127,7 @@ const renderValue = (val) => {
   return String(val);
 };
 
-function MatchedTable({ rows, mappings }) {
+function MatchedTable({ rows, mappings, file1Name, file2Name }) {
   if (!rows.length) return <div className="rrs-empty">No matched records.</div>;
   const cols = mappings.map((m) => m.src);
   return (
@@ -106,9 +135,13 @@ function MatchedTable({ rows, mappings }) {
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th">Key</th>
-            {cols.map((c) => <th key={c} className="rrs-th">{c} (Src)</th>)}
-            {cols.map((c) => <th key={c} className="rrs-th">{c} (Dst)</th>)}
+            <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
+            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Source {file1Name ? `(${file1Name})` : ''}</th>
+            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Destination {file2Name ? `(${file2Name})` : ''}</th>
+          </tr>
+          <tr>
+            {mappings.map((m) => <th key={`src_${m.src}`} className="rrs-th">{m.src}</th>)}
+            {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -125,25 +158,30 @@ function MatchedTable({ rows, mappings }) {
   );
 }
 
-function MismatchedTable({ rows }) {
+function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
   if (!rows.length) return <div className="rrs-empty">No mismatched records.</div>;
+  const cols = mappings.map((m) => m.src);
   return (
     <div className="rrs-table-scroll">
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th">Key</th>
-            <th className="rrs-th">Source Values</th>
-            <th className="rrs-th">Target Values</th>
-            <th className="rrs-th rrs-th-diff">Differences</th>
+            <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
+            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Source {file1Name ? `(${file1Name})` : ''}</th>
+            <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Destination {file2Name ? `(${file2Name})` : ''}</th>
+            <th className="rrs-th rrs-th-diff" rowSpan={2}>Differences</th>
+          </tr>
+          <tr>
+            {mappings.map((m) => <th key={`src_${m.src}`} className="rrs-th">{m.src}</th>)}
+            {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr rrs-tr--mismatch">
               <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_src_')).map(([k, v]) => `${k.replace('_src_', '')}: ${renderValue(v)}`).join(' | ')}</td>
-              <td className="rrs-td">{Object.entries(row).filter(([k]) => k.startsWith('_dst_')).map(([k, v]) => `${k.replace('_dst_', '')}: ${renderValue(v)}`).join(' | ')}</td>
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_src_${c}`])}</td>)}
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_dst_${c}`])}</td>)}
               <td className="rrs-td rrs-td-diff">
                 {Array.isArray(row._differences)
                   ? row._differences.map((d) => `${d.column}: "${renderValue(d.file1Value)}" → "${renderValue(d.file2Value)}"`).join(' | ')
@@ -159,23 +197,31 @@ function MismatchedTable({ rows }) {
 
 function MissingTable({ rows }) {
   if (!rows.length) return <div className="rrs-empty">No records in this category.</div>;
-  const cols = Object.keys(rows[0] ?? {}).filter((k) => !k.startsWith('_'));
+
+  // Find the keys to show: we prefer the keys inside `row.row` if it exists, otherwise top-level keys excluding meta
+  const sampleRow = rows[0] ?? {};
+  const dataObj = sampleRow.row || sampleRow;
+  const cols = Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key');
+
   return (
     <div className="rrs-table-scroll">
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th">Key</th>
-            {cols.slice(0, 5).map((c) => <th key={c} className="rrs-th">{c}</th>)}
+            <th className="rrs-th rrs-th-key">Key</th>
+            {cols.map((c) => <th key={c} className="rrs-th">{c}</th>)}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="rrs-tr rrs-tr--missing">
-              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-              {cols.slice(0, 5).map((c) => <td key={c} className="rrs-td">{renderValue(row[c])}</td>)}
-            </tr>
-          ))}
+          {rows.map((r, i) => {
+            const data = r.row || r;
+            return (
+              <tr key={i} className="rrs-tr rrs-tr--missing">
+                <td className="rrs-td rrs-td-key">{renderValue(r._key)}</td>
+                {cols.map((c) => <td key={c} className="rrs-td">{renderValue(data[c])}</td>)}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -184,25 +230,35 @@ function MissingTable({ rows }) {
 
 function DuplicateTable({ rows }) {
   if (!rows.length) return <div className="rrs-empty">No duplicate records found.</div>;
-  const extraCols = Object.keys(rows[0] ?? {}).filter((k) => !k.startsWith('_'));
+
+  const sampleRow = rows[0] ?? {};
+  const dataObj = sampleRow.row || sampleRow;
+  const extraCols = Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key' && k !== 'duplicateCount');
+
   return (
     <div className="rrs-table-scroll">
       <table className="rrs-table">
         <thead>
           <tr>
-            <th className="rrs-th">Key</th>
+            <th className="rrs-th rrs-th-key">Key</th>
             <th className="rrs-th">Count</th>
             {extraCols.map((c) => <th key={c} className="rrs-th">{c}</th>)}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="rrs-tr rrs-tr--duplicate">
-              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-              <td className="rrs-td"><span className="rrs-dup-badge">×{row._count}</span></td>
-              {extraCols.map((c) => <td key={c} className="rrs-td">{renderValue(row[c])}</td>)}
-            </tr>
-          ))}
+          {rows.map((r, i) => {
+            const data = r.row || r;
+            const count = r.duplicateCount ?? r._count ?? 2;
+            return (
+              <tr key={i} className="rrs-tr rrs-tr--duplicate">
+                <td className="rrs-td rrs-td-key">{renderValue(r._key)}</td>
+                <td className="rrs-td">
+                  <span className="rrs-dup-badge">{r.duplicateCount || r._count || data.duplicateCount || 1}</span>
+                </td>
+                {extraCols.map((c) => <td key={c} className="rrs-td">{renderValue(data[c])}</td>)}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -213,7 +269,7 @@ function DuplicateTable({ rows }) {
 
 const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
-export function StepResults({ results, file1Name, file2Name, onReset }) {
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');
@@ -276,27 +332,27 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         const separatorHeader = '||';
 
         const getSourceCols = () => {
-          if (raw.matched?.length && raw.matched[0].row1) {
-            return Object.keys(raw.matched[0].row1);
+          if (raw.matched?.records?.length && raw.matched.records[0].row1) {
+            return Object.keys(raw.matched.records[0].row1);
           }
-          if (raw.onlyInFile1?.length && raw.onlyInFile1[0].row) {
-            return Object.keys(raw.onlyInFile1[0].row);
+          if (raw.onlyInFile1?.records?.length && raw.onlyInFile1.records[0].row) {
+            return Object.keys(raw.onlyInFile1.records[0].row);
           }
-          if (raw.duplicatesInFile1?.length && raw.duplicatesInFile1[0].row) {
-            return Object.keys(raw.duplicatesInFile1[0].row);
+          if (raw.duplicatesInFile1?.records?.length && raw.duplicatesInFile1.records[0].row) {
+            return Object.keys(raw.duplicatesInFile1.records[0].row);
           }
           return [];
         };
 
         const getDestinationCols = () => {
-          if (raw.matched?.length && raw.matched[0].row2) {
-            return Object.keys(raw.matched[0].row2);
+          if (raw.matched?.records?.length && raw.matched.records[0].row2) {
+            return Object.keys(raw.matched.records[0].row2);
           }
-          if (raw.onlyInFile2?.length && raw.onlyInFile2[0].row) {
-            return Object.keys(raw.onlyInFile2[0].row);
+          if (raw.onlyInFile2?.records?.length && raw.onlyInFile2.records[0].row) {
+            return Object.keys(raw.onlyInFile2.records[0].row);
           }
-          if (raw.duplicatesInFile2?.length && raw.duplicatesInFile2[0].row) {
-            return Object.keys(raw.duplicatesInFile2[0].row);
+          if (raw.duplicatesInFile2?.records?.length && raw.duplicatesInFile2.records[0].row) {
+            return Object.keys(raw.duplicatesInFile2.records[0].row);
           }
           return [];
         };
@@ -304,8 +360,8 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         const srcCols = getSourceCols();
         const dstCols = getDestinationCols();
 
-        const duplicatesInFile1Count = raw.duplicatesInFile1?.length ?? 0;
-        const duplicatesInFile2Count = raw.duplicatesInFile2?.length ?? 0;
+        const duplicatesInFile1Count = raw.duplicatesInFile1?.total ?? 0;
+        const duplicatesInFile2Count = raw.duplicatesInFile2?.total ?? 0;
         const totalDuplicateRecords = duplicatesInFile1Count + duplicatesInFile2Count;
 
         // SUMMARY SHEET
@@ -317,10 +373,10 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
           ['Total Records in File 1', raw.totalFile1 ?? 0],
           ['Total Records in File 2', raw.totalFile2 ?? 0],
           ['', ''],
-          ['Matched Records', raw.matched?.length ?? 0],
-          ['Mismatched Records', raw.mismatched?.length ?? 0],
-          ['Only in source', raw.onlyInFile1?.length ?? 0],
-          ['Only in destination', raw.onlyInFile2?.length ?? 0],
+          ['Matched Records', raw.matched?.total ?? 0],
+          ['Mismatched Records', raw.mismatched?.total ?? 0],
+          ['Only in source', raw.onlyInFile1?.total ?? 0],
+          ['Only in destination', raw.onlyInFile2?.total ?? 0],
           ['Duplicate Records (in File 1)', duplicatesInFile1Count],
           ['Duplicate Records (in File 2)', duplicatesInFile2Count],
           ['Total Duplicate Records', totalDuplicateRecords],
@@ -371,8 +427,8 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         };
 
         // MATCHED RECORDS
-        if (raw.matched && raw.matched.length > 0) {
-          const matchedRows = raw.matched.map((m) =>
+        if (raw.matched?.records && raw.matched.records.length > 0) {
+          const matchedRows = raw.matched.records.map((m) =>
             buildCombinedRow({
               srcRow: m.row1,
               dstRow: m.row2,
@@ -397,7 +453,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         // MISMATCHED RECORDS
         const mismatchedHeaders = [...combinedHeaders, 'Differences'];
 
-        const mismatchedRows = (raw.mismatched || []).map((m) => {
+        const mismatchedRows = (raw.mismatched?.records || []).map((m) => {
           const baseRow = buildCombinedRow({
             srcRow: m.row1,
             dstRow: m.row2,
@@ -415,9 +471,9 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         const mismatchedSheet =
           mismatchedRows.length > 0
             ? XLSX.utils.json_to_sheet(mismatchedRows, {
-                header: mismatchedHeaders,
-                skipHeader: false,
-              })
+              header: mismatchedHeaders,
+              skipHeader: false,
+            })
             : XLSX.utils.aoa_to_sheet([mismatchedHeaders]);
 
         XLSX.utils.book_append_sheet(wb, mismatchedSheet, 'Mismatched_Records');
@@ -428,7 +484,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         missingAoA.push(['Missing in Destination (Records only in Source)']);
         missingAoA.push(srcCols.map((c) => `${c}${srcSuffix}`));
 
-        (raw.onlyInFile1 || []).forEach((item) => {
+        (raw.onlyInFile1?.records || []).forEach((item) => {
           const row = item.row || {};
           missingAoA.push(srcCols.map((col) => (row[col] != null ? String(row[col]) : '')));
         });
@@ -439,7 +495,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         missingAoA.push(['Missing in Source (Records only in Destination)']);
         missingAoA.push(dstCols.map((c) => `${c}${dstSuffix}`));
 
-        (raw.onlyInFile2 || []).forEach((item) => {
+        (raw.onlyInFile2?.records || []).forEach((item) => {
           const row = item.row || {};
           missingAoA.push(dstCols.map((col) => (row[col] != null ? String(row[col]) : '')));
         });
@@ -448,14 +504,14 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
 
         // DUPLICATE RECORDS
         const srcDupCountMap = {};
-        (raw.duplicatesInFile1 || []).forEach((d) => {
+        (raw.duplicatesInFile1?.records || []).forEach((d) => {
           const k = d.key != null ? String(d.key) : '';
           if (!k) return;
           srcDupCountMap[k] = (srcDupCountMap[k] || 0) + 1;
         });
 
         const dstDupCountMap = {};
-        (raw.duplicatesInFile2 || []).forEach((d) => {
+        (raw.duplicatesInFile2?.records || []).forEach((d) => {
           const k = d.key != null ? String(d.key) : '';
           if (!k) return;
           dstDupCountMap[k] = (dstDupCountMap[k] || 0) + 1;
@@ -466,7 +522,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         dupAoA.push([`Duplicates in Source (${file1Name || 'File1'})`]);
         dupAoA.push([...srcCols.map((c) => `${c}${srcSuffix}`), `DuplicateCount${srcSuffix}`]);
 
-        (raw.duplicatesInFile1 || []).forEach((item) => {
+        (raw.duplicatesInFile1?.records || []).forEach((item) => {
           const row = item.row || {};
           const keyStr = item.key != null ? String(item.key) : '';
           const count = keyStr ? srcDupCountMap[keyStr] ?? '' : '';
@@ -480,7 +536,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
         dupAoA.push([`Duplicates in Destination (${file2Name || 'File2'})`]);
         dupAoA.push([...dstCols.map((c) => `${c}${dstSuffix}`), `DuplicateCount${dstSuffix}`]);
 
-        (raw.duplicatesInFile2 || []).forEach((item) => {
+        (raw.duplicatesInFile2?.records || []).forEach((item) => {
           const row = item.row || {};
           const keyStr = item.key != null ? String(item.key) : '';
           const count = keyStr ? dstDupCountMap[keyStr] ?? '' : '';
@@ -597,9 +653,9 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
               <span>Loading data...</span>
             </div>
           ) : activeTab === 'Matched' ? (
-            <MatchedTable rows={matched} mappings={activeMappings} />
+            <MatchedTable rows={matched?.records || []} mappings={activeMappings} file1Name={file1Name} file2Name={file2Name} />
           ) : activeTab === 'Mismatched' ? (
-            <MismatchedTable rows={mismatched} />
+            <MismatchedTable rows={mismatched?.records || []} mappings={activeMappings} file1Name={file1Name} file2Name={file2Name} />
           ) : activeTab === 'Missing' ? (
             <>
               <div className="rrs-sub-tabs">
@@ -608,7 +664,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                   className={`rrs-sub-tab${missingSubTab === 'src' ? ' rrs-sub-tab--active' : ''}`}
                   onClick={() => handleMissingSubTabChange('src')}
                 >
-                  Missing in Source
+                  Missing in {file1Name || 'Source'}
                   <span className="rrs-tab-badge">{missingInSrc.length}</span>
                 </button>
                 <button
@@ -616,13 +672,13 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                   className={`rrs-sub-tab${missingSubTab === 'dst' ? ' rrs-sub-tab--active' : ''}`}
                   onClick={() => handleMissingSubTabChange('dst')}
                 >
-                  Missing in Destination
+                  Missing in {file2Name || 'Destination'}
                   <span className="rrs-tab-badge">{missingInDst.length}</span>
                 </button>
               </div>
               {missingSubTab === 'src'
-                ? <MissingTable rows={missingInSrc} />
-                : <MissingTable rows={missingInDst} />
+                ? <MissingTable rows={missingInSrc?.records || []} />
+                : <MissingTable rows={missingInDst?.records || []} />
               }
             </>
           ) : activeTab === 'Duplicates' ? (
@@ -633,7 +689,7 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                   className={`rrs-sub-tab${dupSubTab === 'src' ? ' rrs-sub-tab--active' : ''}`}
                   onClick={() => handleDupSubTabChange('src')}
                 >
-                  Duplicates in Source
+                  Duplicates in {file1Name || 'Source'}
                   <span className="rrs-tab-badge">{dupSrc.length}</span>
                 </button>
                 <button
@@ -641,16 +697,24 @@ export function StepResults({ results, file1Name, file2Name, onReset }) {
                   className={`rrs-sub-tab${dupSubTab === 'dst' ? ' rrs-sub-tab--active' : ''}`}
                   onClick={() => handleDupSubTabChange('dst')}
                 >
-                  Duplicates in Destination
+                  Duplicates in {file2Name || 'Destination'}
                   <span className="rrs-tab-badge">{dupDst.length}</span>
                 </button>
               </div>
               {dupSubTab === 'src'
-                ? <DuplicateTable rows={dupSrc} />
-                : <DuplicateTable rows={dupDst} />
+                ? <DuplicateTable rows={dupSrc?.records || []} />
+                : <DuplicateTable rows={dupDst?.records || []} />
               }
             </>
           ) : null}
+          {/* Active Bucket Pagination */}
+          {(() => {
+            let activeBucket = matched;
+            if (activeTab === 'Mismatched') activeBucket = mismatched;
+            if (activeTab === 'Missing') activeBucket = missingSubTab === 'src' ? missingInSrc : missingInDst;
+            if (activeTab === 'Duplicates') activeBucket = dupSubTab === 'src' ? dupSrc : dupDst;
+            return <Pagination page={activeBucket?.page} pages={activeBucket?.pages} onPageChange={onPageChange} />;
+          })()}
         </div>
 
         {/* Export Modal */}
