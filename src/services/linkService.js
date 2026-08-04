@@ -18,7 +18,8 @@ export const linkService = {
       description: l.content || '',
       sharedFolder: null,
       comments: l.content || '',
-      pinToHeader: !!(l.isHeader || l.is_header),
+      pinToHeader: l.isHeader === true || l.isHeader === 1 || String(l.isHeader) === '1' || String(l.isHeader).toLowerCase() === 'true' || 
+                   l.is_header === true || l.is_header === 1 || String(l.is_header) === '1' || String(l.is_header).toLowerCase() === 'true',
       tag: null,
       files: l.file || l.file_name ? [{ name: l.file_name || l.file, url: l.file }] : [],
       groupId: l.group,

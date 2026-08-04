@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { linkService } from '@services/linkService';
 
 /**
  * Holds the list of resources pinned to the application header by the
@@ -10,10 +11,33 @@ const PinnedLinksContext = createContext(null);
 export function PinnedLinksProvider({ children }) {
   const [pinnedLinks, setPinnedLinks] = useState([]);
 
+  useEffect(() => {
+    linkService.getLinkCategories()
+      .then(categories => {
+        const headerLinks = [];
+        categories.forEach(cat => {
+          cat.links.forEach(link => {
+            if (link.pinToHeader) {
+              headerLinks.push({
+                id: link.id,
+                group: cat.title,
+                label: link.label,
+                url: link.url
+              });
+            }
+          });
+        });
+        setPinnedLinks(headerLinks);
+      })
+      .catch(err => console.error("Failed to fetch pinned links:", err));
+  }, []);
+
   const pinLink = useCallback((link) => {
     setPinnedLinks((prev) => {
-      // Avoid duplicates by id
-      if (prev.some((p) => p.id === link.id)) return prev;
+      const exists = prev.some((p) => p.id === link.id);
+      if (exists) {
+        return prev.map((p) => (p.id === link.id ? { ...p, ...link } : p));
+      }
       return [...prev, link];
     });
   }, []);

@@ -162,14 +162,14 @@ export function SystemSettingsPage() {
         {activeTab === 'cr-columns' ? (
           <ColumnMappingPanel
             type="CR"
-            title="📄 CR Column Names"
+            title="CR Column Names"
           />
         ) : null}
 
         {activeTab === 'wo-columns' ? (
           <ColumnMappingPanel
             type="WO"
-            title="📄 WO Column Names"
+            title="WO Column Names"
           />
         ) : null}
 

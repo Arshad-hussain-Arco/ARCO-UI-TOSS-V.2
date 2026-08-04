@@ -52,23 +52,22 @@ export function formToCron(form) {
   }
 
   if (form.recurrence === 'Monthly') {
-    // Run on a specific day of every month (default day 1)
-    const dom = form.selectedDayOfMonth || 1;
+    // Run on a specific day of every month (default day 1 or 'L' for Last Day)
+    const dom = form.selectedDayOfMonth === 'L' ? 'L' : (form.selectedDayOfMonth || 1);
     return `${min} ${hour} ${dom} * *`;
   }
 
   if (form.recurrence === 'Quarterly') {
-    // Run on selected quarters (subset of {1,4,7,10}) on a specific day of month
+    // Run on selected quarters (subset of {1,4,7,10}) on a specific day of month or 'L'
     const quarters = (form.selectedQuarters || [1, 4, 7, 10]).sort((a, b) => a - b);
-    const dom = form.selectedDayOfMonth || 1;
+    const dom = form.selectedDayOfMonth === 'L' ? 'L' : (form.selectedDayOfMonth || 1);
     return `${min} ${hour} ${dom} ${quarters.join(',')} *`;
   }
 
   if (form.recurrence === 'Annually') {
-    // Run once a year on a specific date
-    const dateObj = form.selectedDate ? new Date(form.selectedDate) : new Date();
-    const dom = dateObj.getDate();
-    const mon = dateObj.getMonth() + 1;
+    // Run once a year on a specific month and day (or 'L')
+    const mon = form.selectedMonth || (form.selectedDate ? new Date(form.selectedDate).getMonth() + 1 : 1);
+    const dom = form.selectedDayOfMonth === 'L' ? 'L' : (form.selectedDayOfMonth || (form.selectedDate ? new Date(form.selectedDate).getDate() : 1));
     return `${min} ${hour} ${dom} ${mon} *`;
   }
 
@@ -130,7 +129,7 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
 
   const QUARTER_MONTHS = new Set([1, 4, 7, 10]);
 
-  // Detect Quarterly: dom is set, all month values are a subset of {1,4,7,10}, no DOW
+  // Detect Quarterly: dom is set or 'L', all month values are a subset of {1,4,7,10}, no DOW
   if (domStr !== '*' && dowStr === '*') {
     const monValues = monStr.split(',').map((n) => parseInt(n, 10));
     const isQuarterly = monValues.length >= 1 && monValues.every((m) => QUARTER_MONTHS.has(m));
@@ -142,12 +141,13 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
         if (m === 10) return 'Q4';
         return '';
       }).join(', ');
+      const domLabel = domStr === 'L' ? 'Last Day' : `day ${domStr}`;
       return {
         recurrence: 'Quarterly',
         time,
-        dateGroup: `Quarterly – ${quarterLabels} (day ${domStr})`,
+        dateGroup: `Quarterly – ${quarterLabels} (${domLabel})`,
         selectedDays: ['Monday'],
-        selectedDayOfMonth: parseInt(domStr, 10),
+        selectedDayOfMonth: domStr === 'L' ? 'L' : parseInt(domStr, 10),
         selectedQuarters: monValues,
         cronExpression: cronStr,
       };
@@ -155,35 +155,40 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
   }
 
   if (domStr !== '*' && monStr === '*') {
-    // Monthly — dom set, month is wildcard
+    // Monthly — dom set (numeric or 'L'), month is wildcard
+    const domLabel = domStr === 'L' ? 'Last Day' : `day ${domStr}`;
     return {
       recurrence: 'Monthly',
       time,
-      dateGroup: `Monthly (day ${domStr})`,
+      dateGroup: `Monthly (${domLabel})`,
       selectedDays: ['Monday'],
-      selectedDayOfMonth: parseInt(domStr, 10),
+      selectedDayOfMonth: domStr === 'L' ? 'L' : parseInt(domStr, 10),
       cronExpression: cronStr,
     };
   }
 
   if (domStr !== '*' && monStr !== '*' && !monStr.includes(',')) {
-    // Could be Annually or Custom / One-time — distinguish by year context
-    // We store both as one-time/annually; cronToHuman can't know which,
-    // so we label based on the form that saved it. Default to Custom / One-time
-    // for backward-compat; Annually produces the same cron pattern.
+    const monthNum = parseInt(monStr, 10);
+    const dayNum = domStr === 'L' ? 'L' : parseInt(domStr, 10);
     const currentYear = new Date().getFullYear();
-    const dateObj = new Date(currentYear, parseInt(monStr, 10) - 1, parseInt(domStr, 10));
+    const dateObj = domStr === 'L'
+      ? new Date(currentYear, monthNum, 0)
+      : new Date(currentYear, monthNum - 1, dayNum);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    const formatted = `${dayNames[dateObj.getDay()]} ${dateObj.getDate()} ${monthNames[dateObj.getMonth()]}`;
+    const formatted = domStr === 'L'
+      ? `Last Day of ${monthNames[monthNum - 1]}`
+      : `${dayNames[dateObj.getDay()]} ${dateObj.getDate()} ${monthNames[dateObj.getMonth()]}`;
     return {
-      recurrence: 'Custom / One-time',
+      recurrence: 'Annually',
       time,
       dateGroup: formatted,
       selectedDays: ['Monday'],
       selectedDate: dateObj,
+      selectedMonth: monthNum,
+      selectedDayOfMonth: dayNum,
       cronExpression: cronStr,
     };
   }

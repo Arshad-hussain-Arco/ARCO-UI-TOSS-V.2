@@ -75,40 +75,21 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
 
       {/* Right group: navigation + actions */}
       <div className="header-right-group">
-        <nav className="header-nav-links" aria-label="Secondary navigation">
-          {HEADER_NAVIGATION.map((item) => (
-            <Link key={item.id} to={item.to} className="header-nav-link">
-              {item.label}
-            </Link>
+        <nav className="header-pinned-links" aria-label="Pinned links">
+          {pinnedLinks.map((link) => (
+            <a
+              key={link.id}
+              href={link.url}
+              className="header-pinned-item"
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`${link.group} · ${link.label}`}
+            >
+              {link.label}
+              <ExternalLink size={12} aria-hidden="true" style={{ marginLeft: '4px' }} />
+            </a>
           ))}
         </nav>
-
-        {/* Pinned quick-access links */}
-        {pinnedLinks.length > 0 && (
-          <>
-            <div className="header-divider" />
-            <div className="header-pinned-links" aria-label="Pinned resources">
-              <span className="header-pinned-label">
-                <Pin size={11} aria-hidden="true" />
-                Quick Links
-              </span>
-              {pinnedLinks.map((link) => (
-                <a
-                  key={link.id}
-                  href={link.url}
-                  className="header-pinned-item"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${link.group} · ${link.label}`}
-                >
-                  {link.label}
-                  <ExternalLink size={10} aria-hidden="true" />
-                </a>
-              ))}
-            </div>
-            <div className="header-divider" />
-          </>
-        )}
 
         <div className="header-mobile-nav-wrapper" ref={navMenuRef}>
           <button
@@ -122,18 +103,20 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
             <MoreVertical className="header-icon" aria-hidden="true" />
           </button>
 
-          {isNavMenuOpen ? (
+          {isNavMenuOpen && pinnedLinks.length > 0 ? (
             <div className="header-mobile-nav-menu" role="menu">
-              {HEADER_NAVIGATION.map((item) => (
-                <Link
-                  key={item.id}
-                  to={item.to}
+              {pinnedLinks.map((link) => (
+                <a
+                  key={link.id}
+                  href={link.url}
                   className="header-mobile-nav-item"
                   role="menuitem"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={closeNavMenu}
                 >
-                  {item.label}
-                </Link>
+                  {link.label}
+                </a>
               ))}
             </div>
           ) : null}

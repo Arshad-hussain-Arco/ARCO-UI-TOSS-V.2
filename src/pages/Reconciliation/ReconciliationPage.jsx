@@ -174,6 +174,7 @@ export function ReconciliationPage() {
 
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState([null, null]);
+  const [processingFiles, setProcessingFiles] = useState([false, false]);
   const [keyColumns, setKeyColumns] = useState({ file1: [], file2: [] });
   const [colMappings, setColMappings] = useState(() =>
     buildInitialMappings(MOCK_FILE1_COLUMNS, []),
@@ -211,6 +212,14 @@ export function ReconciliationPage() {
         }, 0);
       }
       return updated;
+    });
+  }, []);
+
+  const handleProcessingChange = useCallback((index, value) => {
+    setProcessingFiles((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
     });
   }, []);
 
@@ -319,11 +328,20 @@ export function ReconciliationPage() {
   const stepContent = useMemo(() => {
     switch (step) {
       case 1:
-        return <StepUpload files={files} onFilesChange={handleFilesChange} onNext={goToStep2} />;
+        return (
+          <StepUpload
+            files={files}
+            processingFiles={processingFiles}
+            onProcessingChange={handleProcessingChange}
+            onFilesChange={handleFilesChange}
+            onNext={goToStep2}
+          />
+        );
       case 2:
         return (
           <StepSelectKeys
             files={files}
+            processingFiles={processingFiles}
             keyColumns={keyColumns}
             onKeyColumnsChange={setKeyColumns}
             onBack={() => setStep(1)}
@@ -362,7 +380,9 @@ export function ReconciliationPage() {
     keyColumns,
     colMappings,
     results,
+    processingFiles,
     handleFilesChange,
+    handleProcessingChange,
     goToStep2,
     goToStep3,
     runReconciliation,

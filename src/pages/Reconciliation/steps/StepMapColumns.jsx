@@ -97,7 +97,7 @@ function MappingRow({ mapping, dstOptions, onUpdate }) {
 
 export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack, onRun, isReconciling, reconcileError, onClearError }) {
   const toast = useToast();
-  const [showAutoMapConfirm, setShowAutoMapConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const srcCols = useMemo(() => files[0]?.columns ?? [], [files]);
   const dstCols = useMemo(() => files[1]?.columns ?? [], [files]);
@@ -113,7 +113,6 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
       return { ...m, dst: match ?? m.dst };
     });
     onColMappingsChange(updated);
-    setShowAutoMapConfirm(false);
   }, [colMappings, dstCols, onColMappingsChange]);
 
   const resetAll = useCallback(() => {
@@ -126,6 +125,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
       exclude: false,
     }));
     onColMappingsChange(reset);
+    setShowResetConfirm(false);
   }, [colMappings, onColMappingsChange]);
 
   const updateRow = useCallback((index, patch) => {
@@ -177,13 +177,8 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   }, [hasAnyMapping, onRun, toast]);
 
   const handleAutoMapClick = useCallback(() => {
-    const hasModifiedType = colMappings.some(m => m.dataType !== 'Categorical');
-    if (hasModifiedType) {
-      setShowAutoMapConfirm(true);
-    } else {
-      autoMap();
-    }
-  }, [colMappings, autoMap]);
+    autoMap();
+  }, [autoMap]);
 
   return (
     <>
@@ -193,7 +188,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           <p className="rwiz-step-subtitle">Map columns from source file to corresponding columns in destination file.</p>
         </div>
         <div className="rwiz-step-header-actions">
-          <button type="button" className="rwiz-btn rwiz-btn-outline" onClick={resetAll}>
+          <button type="button" className="rwiz-btn rwiz-btn-outline" onClick={() => setShowResetConfirm(true)}>
             <RefreshCw size={13} />
             Reset All Settings
           </button>
@@ -296,38 +291,40 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           </button>
         </div>
 
-        {/* Auto-Map Confirmation Modal */}
-        {showAutoMapConfirm && (
+        {/* Reset Confirmation Modal */}
+        {showResetConfirm && (
           <div
             className="rrs-modal-overlay"
             role="dialog"
             aria-modal="true"
-            aria-label="Confirm Auto-Map"
-            onClick={() => setShowAutoMapConfirm(false)}
+            aria-label="Reset All Settings"
+            onClick={() => setShowResetConfirm(false)}
           >
-            <div className="rrs-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="rrs-modal-header">
-                <h3 className="rrs-modal-title">Confirm Auto-Map</h3>
-                <button type="button" className="rrs-modal-close" onClick={() => setShowAutoMapConfirm(false)} aria-label="Close">
-                  <X size={16} />
-                </button>
+            <div className="rrs-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+              <div className="rrs-modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                <h3 className="rrs-modal-title" style={{ fontSize: '18px', color: '#111827' }}>Reset All Settings?</h3>
               </div>
-              <div className="rrs-modal-body">
-                <p className="rrs-modal-desc">
-                  Are you sure you want to auto-map matching columns? This will match columns by name and overwrite existing mappings. Your data type settings will be preserved.
+              <div className="rrs-modal-body" style={{ padding: '16px 20px' }}>
+                <p className="rrs-modal-desc" style={{ fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>
+                  This will reset all column mappings, data types, tolerance values, rounding settings, and exclusions to their default values. This action cannot be undone.
                 </p>
               </div>
-              <div className="rrs-modal-footer">
-                <button type="button" className="rwiz-btn rwiz-btn-ghost" onClick={() => setShowAutoMapConfirm(false)}>
+              <div className="rrs-modal-footer" style={{ borderTop: 'none', paddingTop: 0, justifyContent: 'center', gap: '12px' }}>
+                <button 
+                  type="button" 
+                  className="rwiz-btn rwiz-btn-outline" 
+                  onClick={() => setShowResetConfirm(false)}
+                  style={{ width: '120px', justifyContent: 'center' }}
+                >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="rwiz-btn rwiz-btn-primary"
-                  onClick={autoMap}
+                  onClick={resetAll}
+                  style={{ width: '140px', justifyContent: 'center', backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#fff' }}
                 >
-                  <CheckCircle2 size={14} style={{marginRight: '4px'}} />
-                  Confirm Auto-Map
+                  Reset Everything
                 </button>
               </div>
             </div>
