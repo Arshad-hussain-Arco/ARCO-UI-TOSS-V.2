@@ -21,12 +21,20 @@
   overflow-y: auto;
 }
 
+.rwiz-page-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
+.rwiz-page-title-icon {
+  color: #1e3a8a; /* Dark blue matching title */
+}
 
 .rwiz-page-title {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #1e3a8a; /* Dark blue */
   margin: 0;
   letter-spacing: -0.01em;
 }
@@ -37,17 +45,19 @@
   gap: 4px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--c-primary);
-  background: var(--c-primary-light);
+  color: #475569;
+  background: #ffffff;
   padding: 4px 10px;
   border-radius: 12px;
-  border: 1px solid rgba(0, 102, 51, 0.15);
+  border: 1px solid #cbd5e1;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .rwiz-page-guide-btn:hover {
-  background: rgba(0, 102, 51, 0.15);
+  background: #f1f5f9;
+  border-color: #94a3b8;
 }
 
 /* ─── Stepper (Outside Card) ─────────────────────────────────────────────── */
