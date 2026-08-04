@@ -147,149 +147,52 @@ function HomeManagementPanelComponent() {
 
   if (loading && cards.length === 0) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      <div className="hm-loading">
+        <Loader2 size={24} className="animate-spin" />
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* 3. Top Header Bar & Action Alignment */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <LayoutGrid size={22} style={{ color: '#006838' }} />
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Home Management
-          </h2>
+      <div className="hm-header">
+        <div className="hm-header-title">
+          <LayoutGrid size={22} className="hm-header-icon" />
+          <h2>Home Management</h2>
         </div>
 
-        <button
-          type="button"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            height: '38px',
-            padding: '0 20px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#ffffff',
-            background: '#006838',
-            border: 'none',
-            borderRadius: '6px',
-            boxShadow: '0 2px 4px rgba(0, 104, 56, 0.2)',
-            cursor: 'pointer',
-            transition: 'background 0.15s ease',
-          }}
-          onClick={handleOpenAddModal}
-        >
+        <button type="button" className="ss-btn-update" onClick={handleOpenAddModal}>
           <Plus size={16} />
           Add Home Card
         </button>
       </div>
 
-      {/* 2. Responsive Card Grid Layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '24px',
-        }}
-      >
+      <div className="hm-grid">
         {cards.map((card) => {
           const plainText = stripHtml(card.description);
           const displayPhotoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
 
           return (
-            <div
-              key={card.id}
-              style={{
-                background: 'var(--surface-primary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-              }}
-            >
-              {/* Header/Media: Top Image Banner or Centered Placeholder */}
-              <div
-                style={{
-                  height: '160px',
-                  width: '100%',
-                  background: 'var(--bg-secondary)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+            <div key={card.id} className="hm-card">
+              <div className="hm-card-media">
                 {displayPhotoUrl ? (
-                  <img
-                    src={displayPhotoUrl}
-                    alt="Card media"
-                    style={{ width: '100%', height: '160px', objectFit: 'cover' }}
-                  />
+                  <img src={displayPhotoUrl} alt="Card media" />
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
+                  <div className="hm-card-media-placeholder">
                     <User size={40} />
-                    <span style={{ fontSize: '12px', fontWeight: 500 }}>No Image Banner</span>
+                    <span>No Image Banner</span>
                   </div>
                 )}
               </div>
 
-              {/* Content Preview */}
-              <div style={{ padding: '16px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <p
-                  style={{
-                    fontSize: '13px',
-                    lineHeight: 1.6,
-                    color: 'var(--text-primary)',
-                    margin: 0,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {plainText}
-                </p>
+              <div className="hm-card-body">
+                <p>{plainText}</p>
               </div>
 
-              {/* Card Actions Footer Bar */}
-              <div
-                style={{
-                  padding: '10px 16px',
-                  borderTop: '1px solid var(--border-primary)',
-                  background: 'var(--bg-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  gap: '8px',
-                }}
-              >
+              <div className="hm-card-footer">
                 <button
                   type="button"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#006838',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className="hm-icon-btn edit"
                   onClick={() => handleOpenEditModal(card)}
                   title="Edit Home Card"
                 >
@@ -297,21 +200,7 @@ function HomeManagementPanelComponent() {
                 </button>
                 <button
                   type="button"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  className="hm-icon-btn delete"
                   onClick={() => handleDeleteCard(card.id)}
                   title="Delete Home Card"
                 >
@@ -323,83 +212,25 @@ function HomeManagementPanelComponent() {
         })}
       </div>
 
-      {/* 🖼️ MODAL: Add / Edit Home Card (Split-Screen Preview) */}
+      {/* MODAL: Add / Edit Home Card (Split-Screen Preview) */}
       {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
-        >
-          {/* Backdrop */}
+        <div className="hm-modal-overlay">
           <button
             type="button"
             aria-label="Close backdrop"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              border: 'none',
-              padding: 0,
-              margin: 0,
-              cursor: 'default',
-              width: '100%',
-              height: '100%',
-            }}
+            className="hm-modal-backdrop"
             onClick={() => setIsModalOpen(false)}
           />
 
-          {/* Dialog Container */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            style={{
-              position: 'relative',
-              zIndex: 1001,
-              background: 'var(--surface-primary)',
-              borderRadius: '10px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-              width: '100%',
-              maxWidth: '920px',
-              maxHeight: '90vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '18px 24px',
-                borderBottom: '1px solid var(--border-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--bg-secondary)',
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <LayoutGrid size={20} style={{ color: '#006838' }} />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {editId ? 'Edit Home Card' : 'Add Home Card'}
-                </h3>
+          <div role="dialog" aria-modal="true" className="hm-modal-dialog">
+            <div className="hm-modal-header">
+              <div className="hm-modal-header-title">
+                <LayoutGrid size={20} className="hm-header-icon" />
+                <h3>{editId ? 'Edit Home Card' : 'Add Home Card'}</h3>
               </div>
               <button
                 type="button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-tertiary)',
-                  padding: '4px',
-                  borderRadius: '4px',
-                }}
+                className="hm-modal-close"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsModalOpen(false);
@@ -409,41 +240,19 @@ function HomeManagementPanelComponent() {
               </button>
             </div>
 
-            {/* Modal Body: Split-Screen Side-by-Side 2-Column Layout */}
-            <div
-              style={{
-                padding: '24px',
-                overflowY: 'auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: '28px',
-                alignItems: 'start',
-              }}
-            >
-              {/* Left Column: Form Inputs */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                  Card Details
-                </h4>
+            <div className="hm-modal-body">
+              <div className="hm-modal-col">
+                <h4 className="hm-modal-col-heading">Card Details</h4>
 
-                {/* File Upload / Drag & Drop Zone */}
                 <div className="ss-modal-form-group">
                   <span className="ss-modal-label">Card Banner Image</span>
                   <div
                     role="button"
                     tabIndex={0}
+                    aria-busy={isUploading}
+                    className="hm-dropzone"
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
-                    style={{
-                      border: '2px dashed var(--border-primary)',
-                      borderRadius: '8px',
-                      padding: '24px 16px',
-                      textAlign: 'center',
-                      background: 'var(--bg-secondary)',
-                      cursor: isUploading ? 'wait' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      position: 'relative',
-                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isUploading) fileInputRef.current?.click();
@@ -465,38 +274,29 @@ function HomeManagementPanelComponent() {
                     />
 
                     {isUploading ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
-                        <Loader2 size={28} className="animate-spin" style={{ color: '#006838' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Processing image...
-                        </span>
+                      <div className="hm-dropzone-state">
+                        <Loader2 size={28} className="animate-spin hm-header-icon" />
+                        <span>Processing image...</span>
                       </div>
                     ) : previewUrl ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                        <img
-                          src={previewUrl}
-                          alt="Thumbnail preview"
-                          style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
-                        />
-                        <span style={{ fontSize: '12px', color: '#006838', fontWeight: 600 }}>
+                      <div className="hm-dropzone-state">
+                        <img src={previewUrl} alt="Thumbnail preview" className="hm-dropzone-preview" />
+                        <span className="hm-header-icon">
                           Click or drag to change image {selectedFile ? `(${selectedFile.name})` : ''}
                         </span>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Drag & drop image here, or <span style={{ color: '#006838' }}>browse</span>
+                      <div className="hm-dropzone-state">
+                        <Upload size={28} />
+                        <span>
+                          Drag &amp; drop image here, or <span className="hm-header-icon">browse</span>
                         </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                          Supports PNG, JPG, WebP (Max 5MB)
-                        </span>
+                        <span className="hm-dropzone-hint">Supports PNG, JPG, WebP (Max 5MB)</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Content Input Textarea */}
                 <div className="ss-modal-form-group">
                   <label className="ss-modal-label" htmlFor="card-content-input">
                     Content Description
@@ -505,7 +305,7 @@ function HomeManagementPanelComponent() {
                     id="card-content-input"
                     rows={5}
                     className="ss-input"
-                    style={{ height: 'auto', padding: '12px', fontSize: '13px', resize: 'vertical' }}
+                    style={{ height: 'auto', padding: '12px', resize: 'vertical' }}
                     placeholder="Enter description text for this home card..."
                     value={contentInput}
                     onChange={(e) => setContentInput(e.target.value)}
@@ -513,64 +313,23 @@ function HomeManagementPanelComponent() {
                 </div>
               </div>
 
-              {/* Right Column: Live Card Preview */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                  Live Card Preview
-                </h4>
+              <div className="hm-modal-col">
+                <h4 className="hm-modal-col-heading">Live Card Preview</h4>
 
-                <div
-                  style={{
-                    background: 'var(--surface-primary)',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: 'var(--shadow-sm)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  {/* Banner Image Preview */}
-                  <div
-                    style={{
-                      height: '160px',
-                      width: '100%',
-                      background: 'var(--bg-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
+                <div className="hm-preview-card">
+                  <div className="hm-card-media">
                     {previewUrl ? (
-                      <img
-                        src={previewUrl}
-                        alt="Live preview"
-                        style={{ width: '100%', height: '160px', objectFit: 'cover' }}
-                      />
+                      <img src={previewUrl} alt="Live preview" />
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
+                      <div className="hm-card-media-placeholder">
                         <User size={40} />
-                        <span style={{ fontSize: '12px', fontWeight: 500 }}>No Image Banner</span>
+                        <span>No Image Banner</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Instant Content Preview */}
-                  <div style={{ padding: '16px 20px', minHeight: '90px', display: 'flex', alignItems: 'center' }}>
-                    <p
-                      style={{
-                        fontSize: '13px',
-                        lineHeight: 1.6,
-                        color: 'var(--text-primary)',
-                        margin: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                  <div className="hm-card-body" style={{ minHeight: '90px', display: 'flex', alignItems: 'center' }}>
+                    <p>
                       {contentInput.trim() ? (
                         stripHtml(contentInput)
                       ) : (
@@ -581,25 +340,14 @@ function HomeManagementPanelComponent() {
                     </p>
                   </div>
 
-                  {/* Card Footer Preview */}
-                  <div
-                    style={{
-                      padding: '10px 16px',
-                      borderTop: '1px solid var(--border-primary)',
-                      background: 'var(--bg-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: '8px',
-                    }}
-                  >
+                  <div className="hm-card-footer">
                     <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic', marginRight: 'auto' }}>
                       Card Footer Preview
                     </div>
-                    <button type="button" disabled style={{ opacity: 0.5, border: 'none', background: 'transparent', color: '#006838' }}>
+                    <button type="button" disabled className="hm-icon-btn edit">
                       <Edit2 size={15} />
                     </button>
-                    <button type="button" disabled style={{ opacity: 0.5, border: 'none', background: 'transparent', color: '#dc2626' }}>
+                    <button type="button" disabled className="hm-icon-btn delete">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -607,32 +355,11 @@ function HomeManagementPanelComponent() {
               </div>
             </div>
 
-            {/* Sticky Footer */}
-            <div
-              style={{
-                padding: '16px 24px',
-                borderTop: '1px solid var(--border-primary)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                background: 'var(--bg-secondary)',
-                flexShrink: 0,
-              }}
-            >
+            <div className="hm-modal-footer">
               <button
                 type="button"
-                style={{
-                  height: '36px',
-                  padding: '0 20px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  background: 'transparent',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
+                className="ss-btn-update"
+                style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsModalOpen(false);
@@ -643,23 +370,8 @@ function HomeManagementPanelComponent() {
 
               <button
                 type="button"
+                className="ss-btn-update"
                 disabled={isSaveDisabled}
-                style={{
-                  height: '36px',
-                  padding: '0 20px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  background: isSaveDisabled ? 'var(--border-primary)' : '#006838',
-                  border: 'none',
-                  borderRadius: '6px',
-                  boxShadow: isSaveDisabled ? 'none' : '0 2px 4px rgba(0, 104, 56, 0.2)',
-                  cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSaveCard();
