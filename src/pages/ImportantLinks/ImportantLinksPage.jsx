@@ -186,6 +186,7 @@ export function ImportantLinksPage() {
         formData.append('url', url);
         formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
         formData.append('is_header', pinToHeader ? 1 : 0);
+        formData.append('isHeader', pinToHeader ? 1 : 0);
         if (group) {
           formData.append('group', group);
         }
@@ -220,6 +221,7 @@ export function ImportantLinksPage() {
         formData.append('url', url);
         formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
         formData.append('is_header', pinToHeader ? 1 : 0);
+        formData.append('isHeader', pinToHeader ? 1 : 0);
         if (group) {
           formData.append('group', group);
         }

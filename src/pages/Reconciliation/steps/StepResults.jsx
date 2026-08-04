@@ -159,60 +159,31 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
   const cols = mappings.map((m) => m.src);
 
   return (
-    <div className="rrs-table-scroll" style={{ display: 'flex', gap: '16px', overflowY: 'auto', overflowX: 'hidden' }}>
-
-      {/* Source Table Container */}
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
-        <table className="rrs-table">
-          <thead>
-            <tr>
-              <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
-              <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Source {file1Name ? `(${file1Name})` : ''}</th>
+    <div className="rrs-table-scroll">
+      <table className="rrs-table">
+        <thead>
+          <tr>
+            <th className="rrs-th rrs-th-key">Key</th>
+            {cols.map((c) => <th key={`src_${c}`} className="rrs-th">{c}</th>)}
+            {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
+            <th className="rrs-th rrs-th-diff">Differences</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="rrs-tr rrs-tr--mismatch">
+              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_src_${c}`])}</td>)}
+              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_dst_${c}`])}</td>)}
+              <td className="rrs-td rrs-td-diff">
+                {Array.isArray(row._differences)
+                  ? row._differences.map((d) => `${d.column}: "${renderValue(d.file1Value)}" → "${renderValue(d.file2Value)}"`).join(' | ')
+                  : renderValue(row._differences)}
+              </td>
             </tr>
-            <tr>
-              {cols.map((c) => <th key={`src_${c}`} className="rrs-th">{c}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="rrs-tr rrs-tr--mismatch">
-                <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-                {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_src_${c}`])}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Destination Container */}
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
-        <table className="rrs-table">
-          <thead>
-            <tr>
-              <th className="rrs-th rrs-th-key" rowSpan={2}>Key</th>
-              <th className="rrs-th rrs-th-grouped-top" colSpan={cols.length}>Destination {file2Name ? `(${file2Name})` : ''}</th>
-              <th className="rrs-th rrs-th-diff" rowSpan={2}>Differences</th>
-            </tr>
-            <tr>
-              {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => (
-              <tr key={i} className="rrs-tr rrs-tr--mismatch">
-                <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-                {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_dst_${c}`])}</td>)}
-                <td className="rrs-td rrs-td-diff">
-                  {Array.isArray(row._differences)
-                    ? row._differences.map((d) => `${d.column}: "${renderValue(d.file1Value)}" → "${renderValue(d.file2Value)}"`).join(' | ')
-                    : renderValue(row._differences)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
