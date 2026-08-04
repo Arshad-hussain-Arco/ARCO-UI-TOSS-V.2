@@ -7,6 +7,18 @@
   padding-bottom: 32px;
 }
 
+.tv-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.teams-tab-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ── TOP SUMMARY CARDS ── */
 .tv-summary-strip {
   display: flex;
@@ -188,8 +200,21 @@
 .tv-ah-progress-fill.pri { background-color: var(--brand-primary); }
 .tv-ah-progress-fill.add { background-color: var(--status-info); }
 
+.tv-ah-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.tv-icon-btn-danger:hover {
+  color: var(--c-danger);
+  background: var(--c-danger-light);
+}
+
 .tv-ah-chevron {
   color: var(--text-tertiary);
+  margin-left: 16px;
   transition: transform 0.3s ease;
 }
 .tv-ah-chevron.open {

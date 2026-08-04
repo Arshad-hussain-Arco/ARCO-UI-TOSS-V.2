@@ -8,7 +8,7 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { TableSkeleton } from '@components/feedback/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -180,7 +180,7 @@ export function SchedulesSection() {
   };
 
   if (isLoading) {
-    return <Loader message="Loading automated EOD schedules…" />;
+    return <TableSkeleton rows={6} columns={5} />;
   }
 
   if (error) {

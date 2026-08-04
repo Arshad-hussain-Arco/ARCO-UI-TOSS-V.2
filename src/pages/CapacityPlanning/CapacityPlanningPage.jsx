@@ -1,54 +1,23 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Search,
-  Users,
-  Eye,
-  Star,
-  UserCheck,
-  PlusCircle,
-  CheckSquare,
-  FileSpreadsheet,
-  FileText,
-  X,
-  Info,
-  AlertTriangle
-} from 'lucide-react';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { StatsRowSkeleton, TableSkeleton } from '@components/feedback/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
+import { ExportButton, Tabs } from '@components/common';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
 import { settingsService } from '@services/settingsService';
 import toast from 'react-hot-toast';
 
-import {
-  processCapacityData,
-  countBusinessDays,
-  parseDate,
-  calculateProratedEffort
-} from './capacityCalculations';
-import {
-  exportToExcel,
-  exportToPDF
-} from './capacityExportUtils';
+import { processCapacityData, countBusinessDays, parseDate } from './capacityCalculations';
+import { exportToExcel, exportToPDF } from './capacityExportUtils';
+import { SummaryView } from './components/SummaryView';
+import { TeamView } from './components/TeamView';
+import { DrillDownModal } from './components/DrillDownModal';
 
 import './CapacityPlanningPage.css';
-
-const DAYS_OF_WEEK = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday'
-];
 
 export function CapacityPlanningPage() {
   useDocumentTitle('Capacity Planning');
@@ -359,41 +328,6 @@ export function CapacityPlanningPage() {
     return drillAllocations.some(alloc => alloc.isUnmatchedDeveloper);
   }, [drillAllocations]);
 
-  const formatDateDMY = (dateStr) => {
-    const parsed = parseDate(dateStr);
-    if (!parsed) return dateStr || 'N/A';
-    const day = String(parsed.getDate()).padStart(2, '0');
-    const month = String(parsed.getMonth() + 1).padStart(2, '0');
-    const year = parsed.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  const getDerivedRole = (alloc) => {
-    const statusLower = (alloc.status || '').toLowerCase().trim();
-    if (statusLower === 'fat testing') {
-      return {
-        label: 'Tester',
-        icon: <CheckSquare size={14} className="role-icon tester-dev" />,
-        class: 'dev-badge dev-tester',
-        tooltip: 'FAT Testing Role'
-      };
-    }
-    if (alloc.isAssignedProgrammer) {
-      return {
-        label: 'Primary Developer',
-        icon: <Star size={14} className="role-icon primary-dev" />,
-        class: 'dev-badge dev-primary',
-        tooltip: 'Primary Assigned Developer'
-      };
-    }
-    return {
-      label: 'Additional Developer',
-      icon: <PlusCircle size={14} className="role-icon add-dev" />,
-      class: 'dev-badge dev-additional',
-      tooltip: 'Supporting Additional Developer'
-    };
-  };
-
   // Dynamic status-based color class
   const getCardColorClass = (available) => {
     if (available <= 0) return 'color-danger';
@@ -401,15 +335,14 @@ export function CapacityPlanningPage() {
     return 'color-success';
   };
 
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'Primary':
-        return <Star className="role-icon primary-dev" size={14} />;
-      case 'Additional':
-        return <PlusCircle className="role-icon add-dev" size={14} />;
-      default:
-        return <CheckSquare className="role-icon tester-dev" size={14} />;
-    }
+  const openDrillDown = (consultant, timeframe) => {
+    setSelectedDrillConsultant(consultant);
+    setSelectedDrillTimeframe(timeframe);
+  };
+
+  const closeDrillDown = () => {
+    setSelectedDrillConsultant(null);
+    setSelectedDrillTimeframe(null);
   };
 
   if (error) {
@@ -417,29 +350,24 @@ export function CapacityPlanningPage() {
   }
 
   if (isLoading) {
-    return <Loader message="Loading capacity planning report..." />;
+    return (
+      <div className="cp-container">
+        <StatsRowSkeleton count={4} />
+        <TableSkeleton rows={8} columns={7} />
+      </div>
+    );
   }
 
   return (
     <div className="cp-container">
-      <div className="cp-header">
-        <div className="cp-header-right">
-          <div className="cp-view-toggle">
-            <button
-              className={`toggle-btn ${viewMode === 'summary' ? 'active' : ''}`}
-              onClick={() => setViewMode('summary')}
-            >
-              Summary View
-            </button>
-            <button
-              className={`toggle-btn ${viewMode === 'team' ? 'active' : ''}`}
-              onClick={() => setViewMode('team')}
-            >
-              Team View
-            </button>
-          </div>
-        </div>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'summary', label: 'Summary View' },
+          { id: 'team', label: 'Team View' },
+        ]}
+        activeTab={viewMode}
+        onChange={setViewMode}
+      />
 
       {/* Statistics and Details Strip */}
       <div className="cp-stats-strip">
@@ -485,467 +413,44 @@ export function CapacityPlanningPage() {
           )}
 
           <div className="export-actions">
-            <button className="cp-export-btn excel" onClick={handleExportExcel} title="Export to Excel">
-              <FileSpreadsheet size={14} />
-              <span>Export to Excel</span>
-            </button>
-            <button className="cp-export-btn pdf" onClick={handleExportPDF} title="Export to PDF">
-              <FileText size={14} />
-              <span>Export to PDF</span>
-            </button>
+            <ExportButton onExportExcel={handleExportExcel} onExportPdf={handleExportPDF} />
           </div>
         </div>
       </div>
 
       {/* ── VIEW 1: Summary View Grouped Table ── */}
+
       {viewMode === 'summary' && (
-        <div className="cp-table-card">
-          <div className="cp-table-wrapper">
-            <table className="cp-data-table">
-              <thead>
-                <tr>
-                  <th rowSpan={2}>Consultant</th>
-                  <th colSpan={2} className="text-center group-header">Next 7 Days</th>
-                  <th colSpan={2} className="text-center group-header">Next 30 Days</th>
-                  <th colSpan={2} className="text-center group-header">Next 90 Days</th>
-                </tr>
-                <tr>
-                  <th className="sub-header">Occupied</th>
-                  <th className="sub-header">Available</th>
-                  <th className="sub-header">Occupied</th>
-                  <th className="sub-header">Available</th>
-                  <th className="sub-header">Occupied</th>
-                  <th className="sub-header">Available</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupedTeams.flatMap(team => {
-                  const isCollapsed = collapsedTeams.has(team.name);
-                  const rows = [
-                    <tr
-                      key={`team-${team.name}`}
-                      className="cp-team-subheader-row"
-                      onClick={() => toggleTeamCollapse(team.name)}
-                    >
-                      <td colSpan={7} className="cp-team-subheader-cell">
-                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                        <span className="team-name-label">{team.name}</span>
-                        <span className="team-size-badge">{team.consultants.length} members</span>
-                      </td>
-                    </tr>
-                  ];
-
-                  if (!isCollapsed) {
-                    team.consultants.forEach((c) => {
-                      rows.push(
-                        <tr key={c.id} className="cp-member-row">
-                          <td className="member-name-cell">{c.name}</td>
-                          <td
-                            className="drilldown-cell occupied-cell"
-                            onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(7); }}
-                          >
-                            {c.next7Days.occupied.toFixed(1)} MDs
-                          </td>
-                          <td
-                            className={`available-cell ${getCardColorClass(c.next7Days.available)}`}
-                          >
-                            {c.next7Days.available.toFixed(1)} MDs
-                          </td>
-                          <td
-                            className="drilldown-cell occupied-cell"
-                            onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(30); }}
-                          >
-                            {c.next30Days.occupied.toFixed(1)} MDs
-                          </td>
-                          <td
-                            className={`available-cell ${getCardColorClass(c.next30Days.available)}`}
-                          >
-                            {c.next30Days.available.toFixed(1)} MDs
-                          </td>
-                          <td
-                            className="drilldown-cell occupied-cell"
-                            onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(90); }}
-                          >
-                            {c.next90Days.occupied.toFixed(1)} MDs
-                          </td>
-                          <td
-                            className={`available-cell ${getCardColorClass(c.next90Days.available)}`}
-                          >
-                            {c.next90Days.available.toFixed(1)} MDs
-                          </td>
-                        </tr>
-                      );
-                    });
-                  }
-                  return rows;
-                })}
-                {groupedTeams.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="cp-empty-state">
-                      No consultants found matching the criteria
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <SummaryView
+          groupedTeams={groupedTeams}
+          collapsedTeams={collapsedTeams}
+          toggleTeamCollapse={toggleTeamCollapse}
+          getCardColorClass={getCardColorClass}
+          onDrillDown={openDrillDown}
+        />
       )}
 
-      {/* ── VIEW 2: Team View Tabs & KPI Cards ── */}
       {viewMode === 'team' && (
-        <div className="cp-team-layout">
-          {/* Vertical/Horizontal Navigation Rail for Teams */}
-          <div className="cp-team-tabs">
-            {allTeams.map(tName => (
-              <button
-                key={tName}
-                className={`team-tab-btn ${activeTeamTab === tName ? 'active' : ''}`}
-                onClick={() => setActiveTeamTab(tName)}
-              >
-                <Users size={14} className="tab-icon" />
-                <span>{tName}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content Panels */}
-          <div className="cp-team-panel">
-            {activeSubtabConsultants.map(c => (
-              <div key={c.id} className="consultant-card">
-                <div className="consultant-info-header">
-                  <div className="consultant-avatar" style={{ overflow: 'hidden', flexShrink: 0 }}>
-                    {c.photo ? (
-                      <img
-                        src={c.photo}
-                        alt={c.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <span
-                      style={{
-                        display: c.photo ? 'none' : 'flex',
-                        width: '100%',
-                        height: '100%',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '14px',
-                        color: 'inherit'
-                      }}
-                    >
-                      {c.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="consultant-name">{c.name}</h3>
-                    <p className="consultant-role">{c.role}</p>
-                  </div>
-                </div>
-
-                <div className="consultant-kpi-grid">
-                  <div
-                    className="kpi-card info-kpi"
-                    onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(7); }}
-                  >
-                    <div className="kpi-card-header">Next 7 Days</div>
-                    <div className="kpi-vals">
-                      <div>
-                        <span className="lbl">Occupied</span>
-                        <span className="val">{c.next7Days.occupied.toFixed(1)} MDs</span>
-                      </div>
-                      <div>
-                        <span className="lbl">Available</span>
-                        <span className={`val ${getCardColorClass(c.next7Days.available)}`}>
-                          {c.next7Days.available.toFixed(1)} MDs
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className="kpi-card warning-kpi"
-                    onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(30); }}
-                  >
-                    <div className="kpi-card-header">Next 30 Days</div>
-                    <div className="kpi-vals">
-                      <div>
-                        <span className="lbl">Occupied</span>
-                        <span className="val">{c.next30Days.occupied.toFixed(1)} MDs</span>
-                      </div>
-                      <div>
-                        <span className="lbl">Available</span>
-                        <span className={`val ${getCardColorClass(c.next30Days.available)}`}>
-                          {c.next30Days.available.toFixed(1)} MDs
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className="kpi-card primary-kpi"
-                    onClick={() => { setSelectedDrillConsultant(c); setSelectedDrillTimeframe(90); }}
-                  >
-                    <div className="kpi-card-header">Next 90 Days</div>
-                    <div className="kpi-vals">
-                      <div>
-                        <span className="lbl">Occupied</span>
-                        <span className="val">{c.next90Days.occupied.toFixed(1)} MDs</span>
-                      </div>
-                      <div>
-                        <span className="lbl">Available</span>
-                        <span className={`val ${getCardColorClass(c.next90Days.available)}`}>
-                          {c.next90Days.available.toFixed(1)} MDs
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {activeSubtabConsultants.length === 0 && (
-              <div className="cp-empty-state">
-                No consultants found for this team tab
-              </div>
-            )}
-          </div>
-        </div>
+        <TeamView
+          allTeams={allTeams}
+          activeTeamTab={activeTeamTab}
+          setActiveTeamTab={setActiveTeamTab}
+          activeSubtabConsultants={activeSubtabConsultants}
+          getCardColorClass={getCardColorClass}
+          onDrillDown={openDrillDown}
+        />
       )}
 
-      {/* ── Drill-down Assignments Modal Dialog ── */}
-      {selectedDrillConsultant && selectedDrillTimeframe && (
-        <div className="cp-modal-backdrop">
-          <div className={`cp-modal-card accent-${selectedDrillTimeframe}`} role="dialog" aria-modal="true">
-            <div className="cp-modal-header">
-              <div>
-                <h2 className="cp-modal-title">
-                  {selectedDrillConsultant.name}'s MDs in Next {selectedDrillTimeframe} Days
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="cp-modal-close"
-                onClick={() => { setSelectedDrillConsultant(null); setSelectedDrillTimeframe(null); }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="cp-modal-body">
-              {hasUnmatchedDeveloper && (
-                <div
-                  style={{
-                    backgroundColor: '#fffbeb',
-                    border: '1px solid #fef3c7',
-                    borderRadius: '8px',
-                    padding: '10px 14px',
-                    marginBottom: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    color: '#b45309',
-                    fontSize: '13px',
-                    fontWeight: 500
-                  }}
-                >
-                  <AlertTriangle size={16} />
-                  <span>Some records could not be matched to a team member and may affect totals.</span>
-                </div>
-              )}
-
-              {drillAllocations.length === 0 ? (
-                <div className="cp-modal-empty">
-                  <Info size={24} />
-                  <p>No assignments found for the next {selectedDrillTimeframe} days.</p>
-                </div>
-              ) : (
-                <div className="cp-modal-table-wrapper">
-                  <table className="cp-modal-table">
-                    <thead>
-                      <tr>
-                        <th>Project</th>
-                        <th>Summary</th>
-                        <th>Status</th>
-                        <th>Role</th>
-                        <th>Start Date / End Date</th>
-                        <th>Effort (MDs)</th>
-                        <th>Total MDs in this window</th>
-                        {hasUnmatchedDeveloper && <th>Data flag</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {drillAllocations.map((alloc, idx) => {
-                        const devRole = getDerivedRole(alloc);
-                        return (
-                          <tr key={alloc.id}>
-                            <td className="bold-cell" style={{ maxWidth: '250px' }}>
-                              <ProjectText projectStr={alloc.project} />
-                            </td>
-                            <td style={{ maxWidth: '250px' }}>
-                              <SummaryText text={alloc.summary} />
-                            </td>
-                            <td>
-                              <span className={`status-badge ${alloc.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                                {alloc.status}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <div className={devRole.class} title={devRole.tooltip} style={{ cursor: 'help' }}>
-                                  {devRole.icon}
-                                  <span>{devRole.label}</span>
-                                </div>
-                                {devRole.label === 'Additional Developer' && alloc.assignedDeveloper && (
-                                  <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
-                                    Supporting: {alloc.assignedDeveloper}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                {formatDateDMY(alloc.startDate)} - {formatDateDMY(alloc.endDate)}
-                                {alloc.isInvalidRange && (
-                                  <AlertTriangle
-                                    size={14}
-                                    style={{ color: '#d97706', cursor: 'help' }}
-                                    title="Invalid date range in source data"
-                                  />
-                                )}
-                              </span>
-                            </td>
-                            <td>{Number(alloc.effort).toFixed(1)} MDs</td>
-                            {idx === 0 && (
-                              <td rowSpan={drillAllocations.length} className="total-window-cell">
-                                {totalWindowMDs.toFixed(1)} MDs
-                              </td>
-                            )}
-                            {hasUnmatchedDeveloper && (
-                              <td>
-                                {alloc.isUnmatchedDeveloper ? (
-                                  <span
-                                    className="dev-badge dev-tester"
-                                    style={{ display: 'inline-flex', gap: '4px', cursor: 'help' }}
-                                    title="This developer's name could not be matched to a known employee record, so these numbers may be unreliable."
-                                  >
-                                    <AlertTriangle size={12} style={{ color: '#d97706' }} />
-                                    Unmatched developer
-                                  </span>
-                                ) : (
-                                  <span style={{ color: '#94a3b8' }}>—</span>
-                                )}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {drillAllocations.length > 0 && (
-                <p className="cp-modal-footnote" style={{ fontSize: '11px', color: '#64748b', marginTop: '12px', fontStyle: 'italic', margin: '12px 0 0 0' }}>
-                  * Note: "Total MDs in this window" reflects the pro-rated upcoming effort allocated strictly within the {selectedDrillTimeframe}-day window for all active assignments, which may not equal the simple sum of total raw effort values.
-                </p>
-              )}
-            </div>
-
-            <div className="cp-modal-footer">
-              <button
-                type="button"
-                className="cp-modal-close-btn"
-                onClick={() => { setSelectedDrillConsultant(null); setSelectedDrillTimeframe(null); }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DrillDownModal
+        consultant={selectedDrillConsultant}
+        timeframe={selectedDrillTimeframe}
+        allocations={drillAllocations}
+        totalWindowMDs={totalWindowMDs}
+        hasUnmatchedDeveloper={hasUnmatchedDeveloper}
+        parseDate={parseDate}
+        onClose={closeDrillDown}
+      />
     </div>
-  );
-}
-
-function ProjectText({ projectStr }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  if (!projectStr) return <span>N/A</span>;
-  
-  const parts = projectStr.split(':');
-  let ref = '';
-  let title = projectStr;
-  
-  if (parts.length >= 2) {
-    ref = parts[0].trim();
-    title = parts.slice(1).join(':').trim();
-  }
-  
-  const displayRef = ref ? (ref.startsWith('#') ? ref : `#${ref}`) : '';
-  
-  if (title.length <= 30) {
-    return (
-      <span>
-        {displayRef && <strong style={{ color: '#64748b' }}>{displayRef} · </strong>}
-        {title}
-      </span>
-    );
-  }
-  
-  return (
-    <span>
-      {displayRef && <strong style={{ color: '#64748b' }}>{displayRef} · </strong>}
-      {isExpanded ? title : `${title.slice(0, 30)}...`}{' '}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: '#006838',
-          padding: '0',
-          font: 'inherit',
-          fontWeight: 600,
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          display: 'inline'
-        }}
-      >
-        {isExpanded ? 'Show less' : 'Show more'}
-      </button>
-    </span>
-  );
-}
-
-function SummaryText({ text }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  if (!text) return <span>N/A</span>;
-  if (text.length <= 30) return <span>{text}</span>;
-  
-  return (
-    <span>
-      {isExpanded ? text : `${text.slice(0, 30)}...`}{' '}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: '#006838',
-          padding: '0',
-          font: 'inherit',
-          fontWeight: 600,
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          display: 'inline'
-        }}
-      >
-        {isExpanded ? 'Show less' : 'Show more'}
-      </button>
-    </span>
   );
 }
 

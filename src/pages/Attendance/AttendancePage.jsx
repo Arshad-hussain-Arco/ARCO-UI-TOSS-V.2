@@ -5,12 +5,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  MapPin,
-  Phone,
-  Mail,
-  User,
-  Calendar,
-  TrendingUp,
   Users,
   Building2,
   Home,
@@ -21,179 +15,40 @@ import {
   FileText,
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { StatsRowSkeleton, TableSkeleton } from '@components/feedback/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { Tabs } from '@components/common';
 import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { format } from 'date-fns';
-import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
 import { leaveService } from '@services/leaveService';
 import { activatable } from '@utils/interactive';
 
+import { MONTH_NAMES, MONTH_OPTIONS, YEAR_OPTIONS, ATTENDANCE_CODE_MAP } from './constants';
+import { generateDates, getMonthDates, formatDateKey, calcStats, exportToCSV } from './utils';
+import { OnDutyToday } from './components/OnDutyToday';
+import { OnWfhToday } from './components/OnWfhToday';
+import { OnLeave } from './components/OnLeave';
+import { AttendanceReport } from './components/AttendanceReport';
+
 import './AttendancePage.css';
 
-// ─── Constants ─────────────────────────────────────────────────────────────
-
-const MONTH_NAMES = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
-const MONTH_OPTIONS = MONTH_NAMES.map((label, value) => ({ label, value: String(value) }));
-const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
-  const y = new Date().getFullYear() - 4 + i;
-  return { label: String(y), value: String(y) };
-});
-
-/**
- * Attendance status code → display config.
- * Used for cell badges AND legends section.
- */
-const ATTENDANCE_CODE_MAP = [
-  { code: 'P',   label: 'Present',           color: '#22c55e', bg: '#f0fdf4', darkBg: '#14532d' },
-  { code: 'A',   label: 'Absent',            color: '#ef4444', bg: '#fef2f2', darkBg: '#7f1d1d' },
-  { code: 'SL',  label: 'Sick Leave',        color: '#f97316', bg: '#fff7ed', darkBg: '#7c2d12' },
-  { code: 'AL',  label: 'Annual Leave',      color: '#3b82f6', bg: '#eff6ff', darkBg: '#1e3a8a' },
-  { code: 'CL',  label: 'Casual Leave',      color: '#8b5cf6', bg: '#f5f3ff', darkBg: '#4c1d95' },
-  { code: 'WFH', label: 'Work From Home',    color: '#06b6d4', bg: '#ecfeff', darkBg: '#164e63' },
-  { code: 'WW',  label: 'Weekend Work',      color: '#d97706', bg: '#fffbeb', darkBg: '#78350f' },
-  { code: 'CO',  label: 'Comp Off',          color: '#7c3aed', bg: '#ede9fe', darkBg: '#4c1d95' },
-  { code: 'ML',  label: 'Maternity Leave',   color: '#ec4899', bg: '#fdf2f8', darkBg: '#831843' },
-  { code: 'OW',  label: 'Offshore Work',     color: '#0ea5e9', bg: '#f0f9ff', darkBg: '#075985' },
-  { code: 'LWP', label: 'Leave Without Pay', color: '#dc2626', bg: '#fef2f2', darkBg: '#7f1d1d' },
-  { code: 'OD',  label: 'On Duty',           color: '#059669', bg: '#ecfdf5', darkBg: '#064e3b' },
-  { code: 'HD',  label: 'Half Day',          color: '#ca8a04', bg: '#fefce8', darkBg: '#713f12' },
-  { code: 'HO',  label: 'Holiday',           color: '#9333ea', bg: '#faf5ff', darkBg: '#581c87' },
-  { code: 'WE',  label: 'Weekend',           color: '#6b7280', bg: '#f9fafb', darkBg: '#1f2937' },
-];
-
-const CODE_LOOKUP = Object.fromEntries(ATTENDANCE_CODE_MAP.map(c => [c.code, c]));
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function generateDates(startDate, days) {
-  const dates = [];
-  for (let i = 0; i < days; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    dates.push(d);
-  }
-  return dates;
-}
-
-function getMonthDates(year, month) {
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0);
-  return generateDates(start, end.getDate());
-}
-
-function formatDateKey(date) {
-  return date.toISOString().split('T')[0];
-}
-
-function calcStats(dates) {
-  const values = Object.values(dates);
-  const presentDays = values.filter(v => v === 'P').length;
-  const totalWorkingDays = values.filter(v => v !== 'WE' && v !== 'HO').length;
-  const absentDays = values.filter(v => v === 'A').length;
-  return { presentDays, absentDays, totalWorkingDays };
-}
-
-/** Generate mock per-day attendance for a consultant over the given dates. */
-function generateAttendanceForDates(dates) {
-  const result = {};
-  for (const date of dates) {
-    const key = formatDateKey(date);
-    const dow = date.getDay();
-    if (dow === 0 || dow === 6) {
-      result[key] = 'WE';
-    } else {
-      const r = Math.random();
-      if (r < 0.78) result[key] = 'P';
-      else if (r < 0.85) result[key] = 'AL';
-      else if (r < 0.90) result[key] = 'SL';
-      else if (r < 0.93) result[key] = 'WFH';
-      else if (r < 0.96) result[key] = 'CL';
-      else result[key] = 'A';
-    }
-  }
-  return result;
-}
-
-/** Export filtered data to CSV. */
-function exportToCSV(rows, dates, filename = 'attendance.csv') {
-  const headers = ['Consultant', 'Team', ...dates.map(d => formatDateKey(d)), 'Present', 'Absent', 'Total'];
-  const lines = [
-    headers.join(','),
-    ...rows.map(({ consultant, record, stats }) =>
-      [
-        `"${consultant.name}"`,
-        `"${consultant.team}"`,
-        ...dates.map(d => record.dates[formatDateKey(d)] || ''),
-        stats.presentDays,
-        stats.absentDays,
-        stats.totalWorkingDays,
-      ].join(',')
-    ),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ─── Sub-components ─────────────────────────────────────────────────────────
-
-// Codes that render as plain coloured text (no badge background/border)
-const PLAIN_TEXT_CODES = new Set(['P', 'WFH', 'WE', 'A', 'OD']);
-
-function StatusBadge({ code }) {
-  const cfg = CODE_LOOKUP[code] || { code, label: code, color: '#6b7280', bg: '#f9fafb' };
-  const isPlain = PLAIN_TEXT_CODES.has(code);
-  return (
-    <span
-      className={isPlain ? 'att-cell-plain' : 'att-cell-badge'}
-      style={
-        isPlain
-          ? { color: cfg.color }
-          : { color: cfg.color, backgroundColor: cfg.bg, borderColor: `${cfg.color}30` }
-      }
-      title={cfg.label}
-    >
-      {code}
-    </span>
-  );
-}
-
-function InlineLegend({ codesUsed }) {
-  const items = codesUsed.length > 0
-    ? ATTENDANCE_CODE_MAP.filter(c => codesUsed.includes(c.code))
-    : ATTENDANCE_CODE_MAP;
-  return (
-    <div className="att-inline-legend">
-      {items.map(({ code, label, color }) => (
-        <span key={code} className="att-inline-legend-item">
-          <span className="att-legend-dot" style={{ backgroundColor: color }} />
-          <span className="att-legend-code" style={{ color }}>{code}</span>
-          <span className="att-legend-desc">{label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
+const SUB_TABS = ['on-duty', 'on-wfh', 'on-leave', 'report'];
+const SUB_TAB_LABELS = {
+  'on-duty': 'On Duty Today',
+  'on-wfh': 'On WFH Today',
+  'on-leave': 'On Leave',
+  report: 'Attendance Report',
+};
 
 export function AttendancePage() {
   useDocumentTitle('Attendance');
 
   const { user } = useAuth();
-  
+
   // ── UI state ──
   const [subTab, setSubTab] = useState('on-duty');
   const [viewMode, setViewMode] = useState('list');
@@ -287,11 +142,11 @@ export function AttendancePage() {
       id: m.emp_id,
       name: m.emp_name,
       team: m.team_name || 'Other',
-      manager: '', 
-      location: '', 
-      phone: '', 
+      manager: '',
+      location: '',
+      phone: '',
       email: '',
-      status: 'present', 
+      status: 'present',
       avatar: m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() : '?',
       designation: m.designation,
     }));
@@ -315,7 +170,7 @@ export function AttendancePage() {
           datesObj[dateStr] = 'P'; // fallback
           continue;
         }
-        
+
         if (dayData.is_holiday) {
           datesObj[dateStr] = 'HO';
         } else if (dayData.is_weekend) {
@@ -341,7 +196,7 @@ export function AttendancePage() {
   const { onDutyConsultants, onLeaveConsultants } = useMemo(() => {
     const todayStr = formatDateKey(today);
     if (!data?.calendar || !allConsultants.length) return { onDutyConsultants: [], onLeaveConsultants: [] };
-    
+
     const todayData = data.calendar.find(d => d.date === todayStr);
     if (!todayData) {
       return { onDutyConsultants: allConsultants, onLeaveConsultants: [] };
@@ -513,24 +368,24 @@ export function AttendancePage() {
 
   // ── Error / Loading ──
   if (error) return <ErrorState title="Attendance could not be loaded" description={error.message} onRetry={refetch} />;
-  if (isLoading || !data) return <Loader message="Loading attendance…" />;
+  if (isLoading || !data) {
+    return (
+      <div className="attendance-page">
+        <StatsRowSkeleton count={6} />
+        <TableSkeleton rows={8} columns={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="attendance-page">
 
       {/* ── Sub-tabs ── */}
-      <div className="attendance-subtabs">
-        {['on-duty', 'on-wfh', 'on-leave', 'report'].map(id => (
-          <button
-            key={id}
-            className={`attendance-subtab${subTab === id ? ' attendance-subtab-active' : ''}`}
-            onClick={() => setSubTab(id)}
-          >
-            {id === 'on-duty' ? 'On Duty Today' : id === 'on-wfh' ? 'On WFH Today' : id === 'on-leave' ? 'On Leave' : 'Attendance Report'}
-          </button>
-        ))}
-        <div className="attendance-subtab-indicator" data-tab={subTab} />
-      </div>
+      <Tabs
+        tabs={SUB_TABS.map((id) => ({ id, label: SUB_TAB_LABELS[id] }))}
+        activeTab={subTab}
+        onChange={setSubTab}
+      />
 
       {/* ── Filters — compact single row ── */}
       <div className="att-filterbar">
@@ -665,329 +520,42 @@ export function AttendancePage() {
 
       {/* ── Content ── */}
       <div className="attendance-content">
-
-        {/* On Duty — List */}
         {subTab === 'on-duty' && (
-          <div className="attendance-list">
-            {Object.entries(groupedOnDuty).map(([team, consultants]) => (
-              <div key={team} className="attendance-team-group">
-                <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
-                  {expandedTeams.has(team) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <span className="attendance-team-name">{team.charAt(0).toUpperCase() + team.slice(1)}</span>
-                  <span className="attendance-team-badge">{consultants.length}</span>
-                </button>
-                {expandedTeams.has(team) && (
-                  <div className="attendance-team-content">
-                    {consultants.map(c => (
-                      <div key={c.id} className="attendance-consultant-row">
-                        <div className="attendance-consultant-main">
-                          <div className="attendance-consultant-avatar">{c.avatar}</div>
-                          <div className="attendance-consultant-info">
-                            <div className="attendance-consultant-name">{c.name}</div>
-                            <div className="attendance-consultant-manager">Manager: {c.manager}</div>
-                          </div>
-                        </div>
-                        <div className="attendance-consultant-details">
-                          <div className="attendance-detail-item"><MapPin size={12} className="attendance-detail-icon" /><span>{c.location}</span></div>
-                          <div className="attendance-detail-item"><Phone size={12} className="attendance-detail-icon" /><span>{c.phone}</span></div>
-                          <div className="attendance-detail-item"><Mail size={12} className="attendance-detail-icon" /><span>{c.email}</span></div>
-                        </div>
-                        <div className={`attendance-status-badge ${getStatusBadgeClass(c.status)}`}>
-                          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {filteredOnDuty.length === 0 && (
-              <div className="attendance-empty">
-                <User size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on duty</p>
-              </div>
-            )}
-          </div>
+          <OnDutyToday
+            groupedOnDuty={groupedOnDuty}
+            expandedTeams={expandedTeams}
+            toggleTeam={toggleTeam}
+            getStatusBadgeClass={getStatusBadgeClass}
+            isEmpty={filteredOnDuty.length === 0}
+          />
         )}
 
-        {/* On WFH — List */}
         {subTab === 'on-wfh' && (
-          <div className="attendance-list">
-            {isWfhLoading ? (
-              <Loader message="Loading WFH data..." />
-            ) : wfhData?.on_wfh_details?.length > 0 ? (
-              <div className="attendance-team-content" style={{ marginTop: '20px' }}>
-                {wfhData.team_members
-                  .filter(c => wfhData.on_wfh_details.some(d => d.emp_id === c.emp_id))
-                  .map(c => (
-                    <div key={c.emp_id} className="attendance-consultant-row">
-                      <div className="attendance-consultant-main">
-                        <div className="attendance-consultant-avatar">
-                          {c.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-                        </div>
-                        <div className="attendance-consultant-info">
-                          <div className="attendance-consultant-name">{c.emp_name}</div>
-                          <div className="attendance-consultant-manager">{c.designation || 'Consultant'}</div>
-                        </div>
-                      </div>
-                      <div className="attendance-consultant-details">
-                        <div className="attendance-detail-item">
-                          <span>{c.team_name}</span>
-                        </div>
-                      </div>
-                      <div className="attendance-status-badge att-status-remote">
-                        Working From Home
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <div className="attendance-empty">
-                <Home size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on WFH today</p>
-              </div>
-            )}
-          </div>
+          <OnWfhToday isWfhLoading={isWfhLoading} wfhData={wfhData} />
         )}
 
-        {/* On Leave — Timeline */}
-        {subTab === 'on-leave' && viewMode === 'timeline' && (
-          <div className="attendance-timeline-wrapper">
-            <div className="attendance-timeline">
-              <div className="attendance-timeline-header">
-                <div className="attendance-timeline-consultant-col">Consultant</div>
-                <div className="attendance-timeline-dates">
-                  {timelineDates.map((date, idx) => (
-                    <div key={idx} className="attendance-timeline-date">
-                      <div className="attendance-timeline-date-day">{date.getDate()}</div>
-                      <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' })}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="attendance-timeline-body">
-                {filteredOnLeave.map(leave => (
-                  <div key={leave.consultantId} className="attendance-timeline-row">
-                    <div className="attendance-timeline-consultant">
-                      <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
-                      <div className="attendance-timeline-consultant-team">{leave.team}</div>
-                    </div>
-                    <div className="attendance-timeline-bars">
-                      {timelineDates.map((date, idx) => {
-                        const dateStr = formatDateKey(date);
-                        const dayData = data?.calendar?.find(d => d.date === dateStr);
-                        const leaveDetail = dayData?.on_leave_details?.find(l => l.emp_id === leave.consultantId);
-                        const inLeave = !!leaveDetail;
-                        return (
-                          <div
-                            key={idx}
-                            className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-leave' : ''}`}
-                            style={inLeave ? { backgroundColor: getLeaveTypeColor(leave.leaveType) } : {}}
-                            title={inLeave ? `${leave.leaveType} – ${leave.days} days` : ''}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {filteredOnLeave.length === 0 && (
-              <div className="attendance-empty">
-                <Calendar size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on leave</p>
-              </div>
-            )}
-          </div>
+        {subTab === 'on-leave' && (
+          <OnLeave
+            viewMode={viewMode}
+            timelineDates={timelineDates}
+            filteredOnLeave={filteredOnLeave}
+            calendar={data?.calendar}
+            getLeaveTypeColor={getLeaveTypeColor}
+          />
         )}
 
-        {/* On Leave — List */}
-        {subTab === 'on-leave' && viewMode === 'list' && (
-          <div className="attendance-list">
-            {filteredOnLeave.map(leave => (
-              <div key={leave.consultantId} className="attendance-leave-card">
-                <div className="attendance-leave-main">
-                  <div className="attendance-consultant-avatar">
-                    {leave.consultantName.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className="attendance-leave-info">
-                    <div className="attendance-consultant-name">{leave.consultantName}</div>
-                    <div className="attendance-consultant-team">{leave.team}</div>
-                  </div>
-                </div>
-                <div className="attendance-leave-details">
-                  <div className="attendance-leave-type">{leave.leaveType}</div>
-                  <div className="attendance-leave-dates">
-                    {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    {' – '}
-                    {new Date(leave.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                  </div>
-                  <div className="attendance-leave-days">{leave.days} days</div>
-                </div>
-              </div>
-            ))}
-            {filteredOnLeave.length === 0 && (
-              <div className="attendance-empty">
-                <Calendar size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on leave</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Attendance Report — Table ── */}
-        {subTab === 'report' && viewMode === 'list' && (
-          <div className="att-report-outer">
-            {/* Meta bar */}
-            <div className="att-report-meta">
-              <span className="att-report-range-label">
-                {filterDateRange.from && filterDateRange.to
-                  ? `${filterDateRange.from.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })} – ${filterDateRange.to.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}`
-                  : `${MONTH_NAMES[Number(filterMonth)]} ${filterYear}`}
-              </span>
-              {filterDateRange.from && (
-                <button className="att-clear-range-btn" onClick={handleClearDateRange}>
-                  Clear range
-                </button>
-              )}
-              <span className="att-report-count">{filteredReportRows.length} consultants</span>
-            </div>
-
-            <div className="att-report-scroll">
-              <table className="att-report-table">
-                <thead className="att-report-thead">
-                  <tr>
-                    <th className="att-th att-th-consultant">Consultant</th>
-                    {reportDates.map((date, idx) => {
-                      const we = isWeekend(date);
-                      return (
-                        <th key={idx} className={`att-th att-th-date${we ? ' att-th-weekend' : ''}`}>
-                          <div className="att-date-header">
-                            <span className="att-date-num">{date.getDate()}</span>
-                            <span className="att-date-dow">{date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0,2)}</span>
-                          </div>
-                        </th>
-                      );
-                    })}
-                    <th className="att-th att-th-summary">Summary</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReportRows.map(({ consultant, record, stats }) => (
-                    <tr key={consultant.id} className="att-report-row">
-                      <td className="att-td att-td-consultant">
-                        <div className="att-consultant-cell">
-                          <div className="attendance-consultant-avatar att-avatar-sm">{consultant.avatar}</div>
-                          <div>
-                            <div className="att-consultant-name">{consultant.name}</div>
-                            <div className="att-consultant-team">{consultant.team}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {reportDates.map((date, idx) => {
-                        const key = formatDateKey(date);
-                        const code = record.dates[key] || '';
-                        const we = isWeekend(date);
-                        return (
-                          <td key={idx} className={`att-td att-td-cell${we ? ' att-td-weekend' : ''}`}>
-                            {code && <StatusBadge code={code} />}
-                          </td>
-                        );
-                      })}
-                      <td className="att-td att-td-summary">
-                        <div className="att-summary-block">
-                          <div className="att-summary-row att-summary-present">
-                            <span className="att-summary-label">P</span>
-                            <span className="att-summary-val">{stats.presentDays}</span>
-                          </div>
-                          <div className="att-summary-row att-summary-absent">
-                            <span className="att-summary-label">A</span>
-                            <span className="att-summary-val">{stats.absentDays}</span>
-                          </div>
-                          <div className="att-summary-row att-summary-total">
-                            <span className="att-summary-label">T</span>
-                            <span className="att-summary-val">{stats.totalWorkingDays}</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredReportRows.length === 0 && (
-                    <tr>
-                      <td colSpan={reportDates.length + 2} className="att-empty-cell">
-                        No records found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                {/* Inline legend as tfoot — visually attached to table */}
-                <tfoot>
-                  <tr>
-                    <td colSpan={reportDates.length + 2} className="att-legend-tfoot">
-                      <InlineLegend codesUsed={codesUsed} />
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Attendance Report — Card */}
-        {subTab === 'report' && viewMode === 'card' && (
-          <div className="attendance-card-grid">
-            {filteredReportRows.map(({ consultant, stats }) => {
-              const percentage = Math.round((stats.presentDays / Math.max(stats.totalWorkingDays, 1)) * 100);
-              return (
-                <div key={consultant.id} className="attendance-card">
-                  <div className="attendance-card-header">
-                    <div className="attendance-consultant-avatar">{consultant.avatar}</div>
-                    <div className="attendance-card-info">
-                      <div className="attendance-consultant-name">{consultant.name}</div>
-                      <div className="attendance-consultant-team">{consultant.team}</div>
-                    </div>
-                  </div>
-                  <div className="attendance-card-ring">
-                    <svg className="attendance-ring-svg" viewBox="0 0 120 120">
-                      <circle className="attendance-ring-bg" cx="60" cy="60" r="50" fill="none" stroke="var(--surface-tertiary)" strokeWidth="8" />
-                      <circle
-                        className="attendance-ring-progress"
-                        cx="60" cy="60" r="50" fill="none"
-                        stroke="var(--brand-primary)" strokeWidth="8"
-                        strokeDasharray={`${2 * Math.PI * 50}`}
-                        strokeDashoffset={`${2 * Math.PI * 50 * (1 - percentage / 100)}`}
-                        transform="rotate(-90 60 60)"
-                      />
-                    </svg>
-                    <div className="attendance-ring-text">
-                      <div className="attendance-ring-percentage">{percentage}%</div>
-                      <div className="attendance-ring-label">Present</div>
-                    </div>
-                  </div>
-                  <div className="attendance-card-stats">
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.presentDays}</div>
-                      <div className="attendance-card-stat-label">Present</div>
-                    </div>
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.absentDays}</div>
-                      <div className="attendance-card-stat-label">Absent</div>
-                    </div>
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.totalWorkingDays}</div>
-                      <div className="attendance-card-stat-label">Total</div>
-                    </div>
-                  </div>
-                  <div className="attendance-card-sparkline">
-                    <TrendingUp size={12} className="attendance-sparkline-icon" />
-                    <span className="attendance-sparkline-text">
-                      {MONTH_NAMES[Number(filterMonth)]} {filterYear}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {subTab === 'report' && (
+          <AttendanceReport
+            viewMode={viewMode}
+            filterDateRange={filterDateRange}
+            filterMonth={filterMonth}
+            filterYear={filterYear}
+            handleClearDateRange={handleClearDateRange}
+            filteredReportRows={filteredReportRows}
+            reportDates={reportDates}
+            isWeekend={isWeekend}
+            codesUsed={codesUsed}
+          />
         )}
       </div>
     </div>

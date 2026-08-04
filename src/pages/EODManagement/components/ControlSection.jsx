@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, RefreshCw } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { CardGridSkeleton } from '@components/feedback/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useEodContext } from '../context/EodContext';
 import { CtrlCard } from './CtrlCard';
@@ -17,7 +17,7 @@ export function ControlSection() {
   } = useEodContext();
 
   if (isLoading) {
-    return <Loader message="Loading batch control panel…" />;
+    return <CardGridSkeleton count={4} minWidth={220} />;
   }
 
   if (error) {

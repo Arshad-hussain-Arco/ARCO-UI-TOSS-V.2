@@ -1,6 +1,6 @@
 import React from 'react';
 import { Server, Activity, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { CardGridSkeleton } from '@components/feedback/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useEodContext } from '../context/EodContext';
 import { StatCard } from './StatCard';
@@ -10,7 +10,7 @@ export function OverviewSection() {
   const { environments, isLoading, error, refreshEnvironments, metrics } = useEodContext();
 
   if (isLoading) {
-    return <Loader message="Loading EOD overview status…" />;
+    return <CardGridSkeleton count={4} minWidth={220} />;
   }
 
   if (error) {

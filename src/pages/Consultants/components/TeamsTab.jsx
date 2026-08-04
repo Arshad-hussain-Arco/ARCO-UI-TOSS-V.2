@@ -3,15 +3,16 @@ import { Users, Briefcase, ChevronDown, Copy, Plus, Edit2, Trash2 } from 'lucide
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
-import { normalizeConsultant } from './utils';
+import { CardGridSkeleton } from '@components/feedback/Skeleton';
+import { normalizeConsultant } from '../utils';
 import { activatable } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
-import './TeamsView.css';
+import { Button, ConfirmationModal, IconButton, Input, NumberInput } from '@components/common';
+import './TeamsTab.css';
 
 const MOCK_AVATAR = (name) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
 
@@ -107,25 +108,23 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
             </div>
           </div>
           
-          <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
-            <button 
-              className="tv-icon-btn edit" 
+          <div className="tv-ah-actions">
+            <IconButton
+              icon={Edit2}
+              label="Edit Team"
               title="Edit Team"
               onClick={(e) => { e.stopPropagation(); onEdit(team); }}
-            >
-              <Edit2 size={16} />
-            </button>
-            <button 
-              className="tv-icon-btn delete" 
+            />
+            <IconButton
+              icon={Trash2}
+              label="Delete Team"
               title="Delete Team"
-              style={{ color: '#ef4444' }}
+              className="tv-icon-btn-danger"
               onClick={(e) => { e.stopPropagation(); onDelete(team); }}
-            >
-              <Trash2 size={16} />
-            </button>
+            />
           </div>
 
-          <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} style={{ marginLeft: '16px' }} />
+          <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} />
         </div>
       </div>
 
@@ -149,7 +148,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView }) {
+export function TeamsTab({ onProfileView }) {
   const { user } = useAuth();
 
   const fetchTeams = useCallback(async () => {
@@ -249,7 +248,7 @@ export function TeamsView({ onProfileView }) {
   }
 
   if (isLoading && !teams) {
-    return <Loader message="Loading teams..." />;
+    return <CardGridSkeleton count={6} minWidth={240} />;
   }
 
   const teamsData = teams || [];
@@ -304,11 +303,10 @@ export function TeamsView({ onProfileView }) {
         })}
       </div>
 
-      <div className="teams-tab-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '0px' }}>
-        <button className="tv-add-btn" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '32px', backgroundColor: '#005028', color: '#ffffff', borderRadius: '6px', fontSize: '13px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease', whiteSpace: 'nowrap' }}>
-          <Plus size={16} />
-          <span>Add Team</span>
-        </button>
+      <div className="teams-tab-actions">
+        <Button variant="primary" size="sm" leadingIcon={Plus} onClick={openAddModal}>
+          Add Team
+        </Button>
       </div>
 
       {/* Accordions */}
@@ -338,89 +336,46 @@ export function TeamsView({ onProfileView }) {
         size="md"
         footer={
           <>
-            <button
-              type="button"
-              className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
-              onClick={handleSaveTeam}
-            >
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveTeam}>
               {editingTeam ? 'Update' : 'Add Team'}
-            </button>
+            </Button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Team Name</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.pri_dev_contr_per}
-              onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.add_dev_contr_per}
-              onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
-            />
-          </div>
+        <div className="tv-modal-form">
+          <Input
+            label="Team Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <NumberInput
+            label="Primary Developer Contribution(%)"
+            step="0.01"
+            value={form.pri_dev_contr_per}
+            onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
+          />
+          <NumberInput
+            label="Additional Developer Contribution(%)"
+            step="0.01"
+            value={form.add_dev_contr_per}
+            onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
+          />
         </div>
       </AdminModal>
 
       {/* Confirm Delete Modal */}
-      <AdminModal
+      <ConfirmationModal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
         title="Confirm Deletion"
-        size="sm"
-        footer={
-          <>
-            <button
-              type="button"
-              className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e2e8f0', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}
-              onClick={() => setDeleteTarget(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
-              onClick={executeDelete}
-            >
-              Delete
-            </button>
-          </>
+        description={
+          <>Are you sure you want to delete the team <strong>{deleteTarget?.name || deleteTarget?.team_name}</strong>?</>
         }
-      >
-        <div style={{ padding: '16px 0', fontSize: '14px', color: '#334155' }}>
-          Are you sure you want to delete the team <strong>{deleteTarget?.name || deleteTarget?.team_name}</strong>?
-        </div>
-      </AdminModal>
+        confirmLabel="Delete"
+        confirmVariant="danger"
+      />
 
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { colors } from "../../styles/tokens";
 import { StatCard, Pill, ProgressBar, AlertRow, Avatar } from "../../components/ui";
+import { Tabs } from "../../components/common";
 import ApprovalRow from "../../components/dashboard/ApprovalRow";
 import { RequestsTrendChart, LeaveDistributionDonut, DepartmentBarChart } from "../../components/dashboard/charts";
 import "./LmsDashboard.css";
@@ -295,56 +296,20 @@ export default function LmsDashboard() {
       </div>
 
       {/* Analytics Tabs Navigation */}
-      <div className="lms-nav-tabs">
-        <button
-          className={`lms-tab-btn ${activeTab === "overview" ? "active" : ""}`}
-          onClick={() => setActiveTab("overview")}
-        >
-          📈 Executive Overview
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "departments" ? "active" : ""}`}
-          onClick={() => setActiveTab("departments")}
-        >
-          🏢 Department Analytics
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "utilization" ? "active" : ""}`}
-          onClick={() => setActiveTab("utilization")}
-        >
-          📊 Leave Utilization
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "balances" ? "active" : ""}`}
-          onClick={() => setActiveTab("balances")}
-        >
-          💼 Employee Balances
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "onleave" ? "active" : ""}`}
-          onClick={() => setActiveTab("onleave")}
-        >
-          📅 On-Leave Calendar
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "pending" ? "active" : ""}`}
-          onClick={() => setActiveTab("pending")}
-        >
-          ⚡ Pending Worklist
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "eod" ? "active" : ""}`}
-          onClick={() => setActiveTab("eod")}
-        >
-          ⚙️ EOD Operations
-        </button>
-        <button
-          className={`lms-tab-btn ${activeTab === "audit" ? "active" : ""}`}
-          onClick={() => setActiveTab("audit")}
-        >
-          🛡️ Audit Logs
-        </button>
-      </div>
+      <Tabs
+        tabs={[
+          { id: "overview", label: "📈 Executive Overview" },
+          { id: "departments", label: "🏢 Department Analytics" },
+          { id: "utilization", label: "📊 Leave Utilization" },
+          { id: "balances", label: "💼 Employee Balances" },
+          { id: "onleave", label: "📅 On-Leave Calendar" },
+          { id: "pending", label: "⚡ Pending Worklist" },
+          { id: "eod", label: "⚙️ EOD Operations" },
+          { id: "audit", label: "🛡️ Audit Logs" },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* Tab Content Panels */}
       <div className="lms-tab-panel">

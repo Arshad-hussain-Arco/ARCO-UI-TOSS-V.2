@@ -1,7 +1,8 @@
 import { memo, useState, useEffect } from 'react';
-import { Eye, EyeOff, Save, Loader2 } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { settingsService } from '@services/settingsService';
 import { useToast } from '@hooks/useToast';
+import { Button, Input, Loader, NumberInput, PasswordInput } from '@components/common';
 
 /**
  * TAB 1: Environment Config
@@ -9,7 +10,6 @@ import { useToast } from '@hooks/useToast';
  */
 function EnvironmentConfigPanelComponent() {
   const toast = useToast();
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState(1);
@@ -96,8 +96,8 @@ function EnvironmentConfigPanelComponent() {
 
   if (loading) {
     return (
-      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      <div className="ss-form-card ss-panel-loading">
+        <Loader />
       </div>
     );
   }
@@ -108,21 +108,14 @@ function EnvironmentConfigPanelComponent() {
         <h2 className="ss-panel-title">Environment Config</h2>
       </div>
 
-      <form
-        onSubmit={handleSave}
-        style={{ padding: '24px' }}
-      >
+      <form onSubmit={handleSave} className="ss-panel-form">
         {/* 2-Column Grid Layout */}
         <div className="ss-grid-2col">
           {/* 1. Client Directory */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-client-directory">
-              Client Directory
-            </label>
-            <input
+            <Input
               id="env-client-directory"
-              type="text"
-              className="ss-input"
+              label="Client Directory"
               value={formData.clientDirectory}
               placeholder="/upload/csvfiles/oss/"
               onChange={(e) => handleChange('clientDirectory', e.target.value)}
@@ -131,13 +124,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 2. Important Links FilePath */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-important-links">
-              Important Links FilePath
-            </label>
-            <input
+            <Input
               id="env-important-links"
-              type="text"
-              className="ss-input"
+              label="Important Links FilePath"
               value={formData.ImpLinksPath}
               placeholder="/upload/CABCalendar"
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
@@ -146,13 +135,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 3. System Health Heartbeat */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-health-heartbeat">
-              System Health Heartbeat (In Seconds)
-            </label>
-            <input
+            <NumberInput
               id="env-health-heartbeat"
-              type="number"
-              className="ss-input"
+              label="System Health Heartbeat (In Seconds)"
               value={formData.systemHealthHeartbeat}
               placeholder="20"
               onChange={(e) => handleChange('systemHealthHeartbeat', e.target.value)}
@@ -161,13 +146,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 4. EOD Heartbeat Interval */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-eod-heartbeat">
-              EOD Heartbeat Interval (In Seconds)
-            </label>
-            <input
+            <NumberInput
               id="env-eod-heartbeat"
-              type="number"
-              className="ss-input"
+              label="EOD Heartbeat Interval (In Seconds)"
               value={formData.eodHeartbeatInterval}
               placeholder="60"
               onChange={(e) => handleChange('eodHeartbeatInterval', e.target.value)}
@@ -176,13 +157,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 5. Environment Server IP */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-server-ip">
-              Environment Server IP
-            </label>
-            <input
+            <Input
               id="env-server-ip"
-              type="text"
-              className="ss-input"
+              label="Environment Server IP"
               value={formData.envConfigServerIp}
               placeholder="192.168.0.98"
               onChange={(e) => handleChange('envConfigServerIp', e.target.value)}
@@ -191,13 +168,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 6. Environment Port No */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-port-no">
-              Environment Port No
-            </label>
-            <input
+            <NumberInput
               id="env-port-no"
-              type="number"
-              className="ss-input"
+              label="Environment Port No"
               value={formData.envConfigPort}
               placeholder="22"
               onChange={(e) => handleChange('envConfigPort', e.target.value)}
@@ -206,13 +179,9 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 7. Environment User Name */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-user-name">
-              Environment User Name
-            </label>
-            <input
+            <Input
               id="env-user-name"
-              type="text"
-              className="ss-input"
+              label="Environment User Name"
               value={formData.envConfigUsername}
               placeholder="sourcesftp"
               onChange={(e) => handleChange('envConfigUsername', e.target.value)}
@@ -221,35 +190,20 @@ function EnvironmentConfigPanelComponent() {
 
           {/* 8. Environment Password with inline eye icon toggle */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="env-password">
-              Environment Password
-            </label>
-            <div className="ss-input-wrapper">
-              <input
-                id="env-password"
-                type={showPassword ? 'text' : 'password'}
-                className="ss-input with-right-icon"
-                value={formData.envConfigPassword}
-                onChange={(e) => handleChange('envConfigPassword', e.target.value)}
-              />
-              <button
-                type="button"
-                className="input-icon input-icon-right"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+            <PasswordInput
+              id="env-password"
+              label="Environment Password"
+              value={formData.envConfigPassword}
+              onChange={(e) => handleChange('envConfigPassword', e.target.value)}
+            />
           </div>
         </div>
 
         {/* Primary Action Button */}
-        <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
-          <button type="submit" className="ss-btn-update" disabled={saving}>
-            {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
+        <div className="ss-panel-submit-row">
+          <Button type="submit" variant="primary" isLoading={saving} leadingIcon={saving ? undefined : Save}>
             {saving ? 'Updating...' : 'Update'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
