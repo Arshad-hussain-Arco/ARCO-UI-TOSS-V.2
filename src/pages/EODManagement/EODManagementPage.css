@@ -1096,7 +1096,7 @@
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: var(--surface-primary);
+  background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1282,8 +1282,8 @@
 }
 
 .eod-add-btn.primary-green {
-  background: var(--c-primary) !important;
-  color: var(--surface-primary) !important;
+  background: #005A36 !important;
+  color: #ffffff !important;
   border: 1px solid #004d2e !important;
   border-radius: 6px;
   padding: 6px 14px;
@@ -1298,7 +1298,7 @@
 }
 
 .eod-add-btn.primary-green:hover {
-  background: var(--c-primary-dark) !important;
+  background: #00472b !important;
   box-shadow: 0 3px 8px rgba(0, 90, 54, 0.35);
   transform: translateY(-1px);
 }
@@ -1319,7 +1319,7 @@
 }
 
 .eod-schedule-card:hover {
-  border-color: var(--border-hover, var(--border-secondary));
+  border-color: var(--border-hover, #cbd5e1);
 }
 
 .eod-schedule-header {
@@ -1341,13 +1341,13 @@
 }
 
 .eod-cal-icon {
-  color: var(--c-primary);
+  color: #005A36;
 }
 
 .eod-schedule-count-pill {
   font-size: 11px;
   font-weight: 600;
-  color: var(--c-primary);
+  color: #005A36;
   background: rgba(0, 90, 54, 0.08);
   padding: 3px 9px;
   border-radius: 12px;
@@ -1449,7 +1449,7 @@
   padding: 3px 8px;
   border-radius: 12px;
   background: rgba(0, 90, 54, 0.08);
-  color: var(--c-primary);
+  color: #005A36;
   font-size: 11px;
   font-weight: 600;
 }
@@ -1486,7 +1486,7 @@
 .eod-empty-add-btn {
   background: transparent;
   border: 1px dashed var(--border-secondary);
-  color: var(--c-primary);
+  color: #005A36;
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 11px;
@@ -1500,7 +1500,7 @@
 
 .eod-empty-add-btn:hover {
   background: rgba(0, 90, 54, 0.05);
-  border-color: var(--c-primary);
+  border-color: #005A36;
 }
 
 /* Modal form & field additions */
@@ -1517,41 +1517,41 @@
 }
 
 .eod-modal-label .req {
-  color: var(--c-danger, var(--c-danger));
+  color: var(--c-danger, #ef4444);
   margin-left: 2px;
 }
 
 .eod-modal-input.error {
-  border-color: var(--c-danger) !important;
-  background: var(--c-danger-light) !important;
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
 }
 
 .eod-field-error {
   font-size: 10px;
-  color: var(--c-danger);
+  color: #ef4444;
   font-weight: 500;
   margin-top: 3px;
 }
 
 .eod-modal-btn.primary-green {
-  background: var(--c-primary) !important;
-  color: var(--surface-primary) !important;
+  background: #005A36 !important;
+  color: #ffffff !important;
   border: none !important;
 }
 
 .eod-modal-btn.primary-green:hover {
-  background: var(--c-primary-dark) !important;
+  background: #00472b !important;
   box-shadow: 0 2px 6px rgba(0, 90, 54, 0.3);
 }
 
 .eod-modal-btn.danger {
-  background: var(--c-danger) !important;
-  color: var(--surface-primary) !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
   border: none !important;
 }
 
 .eod-modal-btn.danger:hover {
-  background: var(--c-danger) !important;
+  background: #b91c1c !important;
 }
 
 .eod-delete-modal-body {
@@ -1564,7 +1564,7 @@
 }
 
 .eod-danger-icon {
-  color: var(--c-danger);
+  color: #dc2626;
 }
 
 /* ── Control Panel ───────────────────────────────────────────── */
@@ -1772,16 +1772,16 @@
   gap: 6px;
   padding: 5px 10px;
   background: #222;
-  color: var(--text-tertiary);
+  color: #aaa;
   font-size: 10px;
   font-weight: 600;
-  border-bottom: 1px solid var(--text-secondary);
+  border-bottom: 1px solid #333;
 }
 .eod-log-expand-btn {
   margin-left: auto;
   background: none;
   border: none;
-  color: var(--text-tertiary);
+  color: #aaa;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1789,8 +1789,8 @@
   border-radius: 3px;
 }
 .eod-log-expand-btn:hover {
-  background: var(--text-secondary);
-  color: var(--surface-primary);
+  background: #333;
+  color: #fff;
 }
 
 .eod-log-lines {
@@ -1804,13 +1804,13 @@
   gap: 2px;
 }
 .eod-log-line {
-  color: var(--text-tertiary);
+  color: #888;
 }
 .eod-log-line.ok {
   color: #4ade80;
 }
 .eod-log-line.blink {
-  color: var(--text-tertiary);
+  color: #aaa;
   animation: eod-pulse 1s ease-in-out infinite;
 }
 
