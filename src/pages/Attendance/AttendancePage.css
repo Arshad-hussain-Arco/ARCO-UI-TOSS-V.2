@@ -7,72 +7,7 @@
   overflow: hidden;
 }
 
-/* Sub-tabs */
-.attendance-subtabs {
-  display: flex;
-  gap: 4px;
-  padding: 8px 16px 0;
-  background-color: var(--surface-primary);
-  border-bottom: 2px solid var(--border-primary);
-  position: relative;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.attendance-subtabs::-webkit-scrollbar {
-  display: none;
-}
-
-.attendance-subtab {
-  padding: 10px 18px;
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  border-radius: 6px 6px 0 0;
-  white-space: nowrap;
-  min-width: fit-content;
-}
-
-.attendance-subtab:hover {
-  color: var(--text-primary);
-  background-color: var(--surface-secondary);
-}
-
-.attendance-subtab-active {
-  color: var(--brand-primary);
-  font-weight: 600;
-  background-color: var(--surface-secondary);
-}
-
-.attendance-subtab-indicator {
-  position: absolute;
-  bottom: -2px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 3px 3px 0 0;
-  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.3);
-}
-
-.attendance-subtab-indicator[data-tab='on-duty'] {
-  left: 24px;
-  width: 106px;
-}
-
-.attendance-subtab-indicator[data-tab='on-leave'] {
-  left: 150px;
-  width: 67px;
-}
-
-.attendance-subtab-indicator[data-tab='report'] {
-  left: 237px;
-  width: 130px;
-}
+/* Sub-tabs now use the shared Tabs component (see components/common/Tabs) */
 
 /* Filters */
 /* ── Compact filter bar (single row) ── */
@@ -286,7 +221,7 @@
   gap: 5px;
   padding: 5px 11px;
   background-color: var(--brand-primary);
-  color: #ffffff;
+  color: var(--surface-primary);
   border: none;
   border-radius: 4px;
   font-size: 11px;
@@ -375,43 +310,43 @@
 }
 
 .kpi-icon-wrapper[data-color='blue'] {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--c-info-light);
+  color: var(--c-info);
 }
 
 [data-theme='dark'] .kpi-icon-wrapper[data-color='blue'] {
-  background-color: #1e3a8a;
-  color: #93c5fd;
+  background-color: var(--c-info);
+  color: var(--c-info-light);
 }
 
 .kpi-icon-wrapper[data-color='green'] {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--c-success-light);
+  color: var(--c-success);
 }
 
 [data-theme='dark'] .kpi-icon-wrapper[data-color='green'] {
-  background-color: #064e3b;
-  color: #6ee7b7;
+  background-color: var(--c-success);
+  color: var(--c-success-light);
 }
 
 .kpi-icon-wrapper[data-color='amber'] {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--c-warning-light);
+  color: var(--c-warning);
 }
 
 [data-theme='dark'] .kpi-icon-wrapper[data-color='amber'] {
-  background-color: #78350f;
-  color: #fde68a;
+  background-color: var(--c-warning);
+  color: var(--c-warning-light);
 }
 
 .kpi-icon-wrapper[data-color='red'] {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--c-danger-light);
+  color: var(--c-danger);
 }
 
 [data-theme='dark'] .kpi-icon-wrapper[data-color='red'] {
-  background-color: #7f1d1d;
-  color: #fca5a5;
+  background-color: var(--c-danger);
+  color: var(--c-danger-light);
 }
 
 .kpi-details {
@@ -529,7 +464,7 @@
   height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
-  color: #ffffff;
+  color: var(--surface-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -585,23 +520,23 @@
 }
 
 .att-status-present {
-  background-color: #d1fae5;
-  color: #065f46;
+  background-color: var(--c-success-light);
+  color: var(--c-success);
 }
 
 [data-theme='dark'] .att-status-present {
-  background-color: #064e3b;
-  color: #6ee7b7;
+  background-color: var(--c-success);
+  color: var(--c-success-light);
 }
 
 .att-status-remote {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--c-info-light);
+  color: var(--c-info);
 }
 
 [data-theme='dark'] .att-status-remote {
-  background-color: #1e3a8a;
-  color: #93c5fd;
+  background-color: var(--c-info);
+  color: var(--c-info-light);
 }
 
 .att-status-offshore {
@@ -934,29 +869,29 @@
 }
 
 .attendance-cell-p {
-  background-color: #d1fae5;
-  color: #065f46;
-  border-bottom: 2px solid #10b981;
+  background-color: var(--c-success-light);
+  color: var(--c-success);
+  border-bottom: 2px solid var(--c-success);
 }
 
 [data-theme='dark'] .attendance-cell-p {
-  background-color: #064e3b;
-  color: #6ee7b7;
-  border-bottom: 2px solid #10b981;
+  background-color: var(--c-success);
+  color: var(--c-success-light);
+  border-bottom: 2px solid var(--c-success);
 }
 
 .attendance-cell-al,
 .attendance-cell-sl,
 .attendance-cell-cl {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: var(--c-warning-light);
+  color: var(--c-warning);
 }
 
 [data-theme='dark'] .attendance-cell-al,
 [data-theme='dark'] .attendance-cell-sl,
 [data-theme='dark'] .attendance-cell-cl {
-  background-color: #78350f;
-  color: #fde68a;
+  background-color: var(--c-warning);
+  color: var(--c-warning-light);
 }
 
 .attendance-cell-we {
@@ -1185,10 +1120,6 @@
 @media (max-width: 768px) {
   .attendance-kpi-section {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .attendance-subtabs {
-    overflow-x: auto;
   }
 
   .attendance-consultant-row {
@@ -1497,7 +1428,7 @@
 }
 
 .att-summary-present .att-summary-val { color: #22c55e; }
-.att-summary-absent  .att-summary-val { color: #ef4444; }
+.att-summary-absent  .att-summary-val { color: var(--c-danger); }
 .att-summary-total   .att-summary-val { color: var(--text-primary); }
 
 /* Empty row */

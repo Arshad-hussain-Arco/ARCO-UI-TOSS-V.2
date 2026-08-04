@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, Plus } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { Button, Dropdown, NumberInput, TimePicker } from '@components/common';
 
 const WEEKDAYS = [
   { label: 'Mon', full: 'Monday' },
@@ -175,23 +176,19 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
             <label className="eod-modal-label">
               Environment <span className="req">*</span>
             </label>
-            <select
-              className={`eod-modal-input ${errors.envId ? 'error' : ''}`}
-              value={form.envId}
-              onChange={(e) => {
-                setForm({ ...form, envId: e.target.value });
+            <Dropdown
+              width="100%"
+              value={String(form.envId)}
+              placeholder="Select environment"
+              onChange={(value) => {
+                setForm({ ...form, envId: value });
                 if (errors.envId) setErrors({ ...errors, envId: null });
               }}
-            >
-              <option value="" disabled>
-                Select environment
-              </option>
-              {environments.map((env) => (
-                <option key={env.id} value={env.id}>
-                  {env.name} ({(env.status || 'idle').toUpperCase()})
-                </option>
-              ))}
-            </select>
+              options={environments.map((env) => ({
+                value: String(env.id),
+                label: `${env.name} (${(env.status || 'idle').toUpperCase()})`,
+              }))}
+            />
             {errors.envId && <span className="eod-field-error">{errors.envId}</span>}
           </div>
 
@@ -200,21 +197,22 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
             <label className="eod-modal-label">
               Recurrence <span className="req">*</span>
             </label>
-            <select
-              className="eod-modal-input"
+            <Dropdown
+              width="100%"
               value={form.recurrence}
-              onChange={(e) => {
-                setForm({ ...form, recurrence: e.target.value });
+              onChange={(value) => {
+                setForm({ ...form, recurrence: value });
                 setErrors({});
               }}
-            >
-              <option value="Daily">Daily</option>
-              <option value="Weekly">Weekly</option>
-              <option value="Monthly">Monthly</option>
-              <option value="Quarterly">Quarterly</option>
-              <option value="Annually">Annually</option>
-              <option value="Custom / One-time">Custom / One-time</option>
-            </select>
+              options={[
+                { value: 'Daily', label: 'Daily' },
+                { value: 'Weekly', label: 'Weekly' },
+                { value: 'Monthly', label: 'Monthly' },
+                { value: 'Quarterly', label: 'Quarterly' },
+                { value: 'Annually', label: 'Annually' },
+                { value: 'Custom / One-time', label: 'Custom / One-time' },
+              ]}
+            />
           </div>
 
           {/* Conditional Date / Weekday / Time Controls */}
@@ -242,16 +240,14 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                 <label className="eod-modal-label">
                   Schedule Time <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                <TimePicker
                   value={form.time}
+                  errorText={errors.time}
                   onChange={(e) => {
                     setForm({ ...form, time: e.target.value });
                     if (errors.time) setErrors({ ...errors, time: null });
                   }}
                 />
-                {errors.time && <span className="eod-field-error">{errors.time}</span>}
               </div>
             </div>
           )}
@@ -300,16 +296,14 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                 <label className="eod-modal-label">
                   Schedule Time <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                <TimePicker
                   value={form.time}
+                  errorText={errors.time}
                   onChange={(e) => {
                     setForm({ ...form, time: e.target.value });
                     if (errors.time) setErrors({ ...errors, time: null });
                   }}
                 />
-                {errors.time && <span className="eod-field-error">{errors.time}</span>}
               </div>
             </div>
           )}
@@ -362,16 +356,14 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                 <label className="eod-modal-label">
                   Schedule Time <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                <TimePicker
                   value={form.time}
+                  errorText={errors.time}
                   onChange={(e) => {
                     setForm({ ...form, time: e.target.value });
                     if (errors.time) setErrors({ ...errors, time: null });
                   }}
                 />
-                {errors.time && <span className="eod-field-error">{errors.time}</span>}
               </div>
             </div>
           )}
@@ -469,16 +461,14 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                   <label className="eod-modal-label">
                     Schedule Time <span className="req">*</span>
                   </label>
-                  <input
-                    type="time"
-                    className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                  <TimePicker
                     value={form.time}
+                    errorText={errors.time}
                     onChange={(e) => {
                       setForm({ ...form, time: e.target.value });
                       if (errors.time) setErrors({ ...errors, time: null });
                     }}
                   />
-                  {errors.time && <span className="eod-field-error">{errors.time}</span>}
                 </div>
               </div>
             </div>
@@ -562,10 +552,9 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                 <label className="eod-modal-label">
                   Schedule Time <span className="req">*</span>
                 </label>
-                <input
-                  type="time"
-                  className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+                <TimePicker
                   value={form.time}
+                  errorText={errors.time}
                   onChange={(e) => {
                     setForm({ ...form, time: e.target.value });
                     if (errors.time) setErrors({ ...errors, time: null });
@@ -585,45 +574,31 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
               <label className="eod-modal-label">
                 Schedule Time <span className="req">*</span>
               </label>
-              <input
-                type="time"
-                className={`eod-modal-input ${errors.time ? 'error' : ''}`}
+              <TimePicker
                 value={form.time}
+                errorText={errors.time}
                 onChange={(e) => {
                   setForm({ ...form, time: e.target.value });
                   if (errors.time) setErrors({ ...errors, time: null });
                 }}
               />
-              {errors.time && <span className="eod-field-error">{errors.time}</span>}
             </div>
           )}
         </div>
 
         {/* Modal Actions Footer */}
         <div className="eod-modal-footer">
-          <button
-            type="button"
-            className="eod-modal-btn cancel"
-            onClick={onClose}
-            disabled={isSaving}
-          >
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancel
-          </button>
-          <button type="submit" className="eod-modal-btn primary-green" disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <RefreshCw size={12} className="eod-pulse-icon" /> Saving...
-              </>
-            ) : isEdit ? (
-              <>
-                <CheckCircle size={12} /> Update Schedule
-              </>
-            ) : (
-              <>
-                <Plus size={12} /> Add Schedule
-              </>
-            )}
-          </button>
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isSaving}
+            leadingIcon={isSaving ? undefined : isEdit ? CheckCircle : Plus}
+          >
+            {isSaving ? 'Saving...' : isEdit ? 'Update Schedule' : 'Add Schedule'}
+          </Button>
         </div>
       </form>
     </AdminModal>

@@ -1,0 +1,26 @@
+.card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--app-radius-lg, 12px);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg, 24px);
+  transition:
+    box-shadow var(--transition-base, 0.2s ease),
+    border-color var(--transition-base, 0.2s ease),
+    transform var(--transition-base, 0.2s ease);
+}
+
+.hoverable:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-secondary);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  .hoverable:hover {
+    transform: none;
+  }
+}

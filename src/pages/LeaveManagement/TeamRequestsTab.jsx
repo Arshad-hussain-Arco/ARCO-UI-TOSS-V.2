@@ -144,7 +144,7 @@ export const TYPE_CONFIG = {
 };
 
 import { leaveService } from '@services/leaveService';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { TableSkeleton } from '@components/feedback/Skeleton';
 
 
   
@@ -622,7 +622,7 @@ export function TeamRequestsTab() {
       <div className="tr-content">
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
-            <Loader message="Loading team requests..." />
+            <TableSkeleton rows={5} columns={7} showHeader={false} />
           </div>
         ) : (
           <>

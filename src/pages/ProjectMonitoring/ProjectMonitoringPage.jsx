@@ -21,6 +21,7 @@ import {
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { Tabs } from '@components/common';
 import projectService from '@services/projectService';
 import './ProjectMonitoringPage.css';
 
@@ -529,35 +530,15 @@ export function ProjectMonitoringPage() {
   return (
     <div className="pm-shell">
       {/* Tab Navigation */}
-      <div className="pm-tabs-nav" role="tablist" aria-label="Project tabs">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'summary'}
-          className={`pm-tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
-          onClick={() => setActiveTab('summary')}
-        >
-          <Layers size={15} /> Project Summary
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'monitoring'}
-          className={`pm-tab-btn ${activeTab === 'monitoring' ? 'active' : ''}`}
-          onClick={() => setActiveTab('monitoring')}
-        >
-          <FileSearch size={15} /> Project Monitoring
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'breaches'}
-          className={`pm-tab-btn ${activeTab === 'breaches' ? 'active' : ''}`}
-          onClick={() => setActiveTab('breaches')}
-        >
-          <Shield size={15} /> Project Breaches
-        </button>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'summary', label: 'Project Summary', icon: Layers },
+          { id: 'monitoring', label: 'Project Monitoring', icon: FileSearch },
+          { id: 'breaches', label: 'Project Breaches', icon: Shield },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* TAB 1: PROJECT SUMMARY */}
       {activeTab === 'summary' && (

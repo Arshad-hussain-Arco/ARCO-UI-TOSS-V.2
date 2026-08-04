@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Play, RefreshCw } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { CardGridSkeleton } from '@components/feedback/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useEodContext } from '../context/EodContext';
 import { CtrlCard } from './CtrlCard';
