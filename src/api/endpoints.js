@@ -201,6 +201,8 @@ const endpoints = {
   },
   eodJobs: {
     overview: '/eod-jobs/overview/',
+    controls: '/eod-jobs/controls/',
+    environments: '/eod-jobs/environments/',
     records: '/eod-jobs/eod-records/',
     createRecord: '/eod-jobs/eod-records/create/',
     updateRecord: (id) => `/eod-jobs/eod-records/${id}/update/`,

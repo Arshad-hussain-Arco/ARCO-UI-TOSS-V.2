@@ -8,7 +8,136 @@ export const eodService = {
    */
   getEodOverview: async () => {
     const response = await httpClient.get(endpoints.eodJobs.overview);
-    return response.data;
+    const resData = response.data || {};
+    const rawEnvs = Array.isArray(resData) ? resData : (resData.environments || []);
+
+    const environments = rawEnvs.map((item) => {
+      const isRunning = item.status === 'running';
+      const isPaused = item.status === 'paused';
+      let startedAtMs = item.startedAtMs || null;
+      let elapsedSeconds = item.elapsed_seconds || 0;
+
+      if ((isRunning || isPaused) && !startedAtMs && item.lastRun && item.lastRun !== '—') {
+        const startedTime = new Date(item.lastRun).getTime();
+        if (!isNaN(startedTime)) {
+          startedAtMs = startedTime;
+          const diff = Math.floor((Date.now() - startedTime) / 1000);
+          elapsedSeconds = diff > 0 ? diff : 0;
+        }
+      }
+
+      const hrs = String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(elapsedSeconds % 60).padStart(2, '0');
+      const formattedDuration = (isRunning || isPaused) ? `${hrs}:${mins}:${secs}` : '—';
+
+      return {
+        id: item.id,
+        name: item.name || item.environment || '',
+        environment: item.environment || item.name || '',
+        status: item.status || 'idle',
+        progress: item.progress !== undefined ? item.progress : 0,
+        lastRun: item.lastRun && item.lastRun !== '—' ? (isNaN(new Date(item.lastRun).getTime()) ? item.lastRun : new Date(item.lastRun).toLocaleString()) : '—',
+        nextRun: item.nextRun || '—',
+        duration: item.duration || formattedDuration,
+        color: item.color || '#64748b',
+        startedAtMs,
+        elapsedSeconds,
+      };
+    });
+
+    return {
+      metrics: resData.metrics || {
+        total: environments.length,
+        running: environments.filter((e) => e.status === 'running').length,
+        completed: environments.filter((e) => e.status === 'completed').length,
+        failed: environments.filter((e) => e.status === 'failed').length,
+        runningEnv: null,
+      },
+      environments,
+    };
+  },
+
+  /**
+   * Fetches EOD batch control status & live execution details directly from /api/eod-jobs/controls/
+   */
+  getEodControls: async () => {
+    const response = await httpClient.get(endpoints.eodJobs.controls);
+    const data = response.data || [];
+
+    return data.map((item) => {
+      const scriptType = (item.last_run_script || '').toLowerCase();
+      const isRunning = item.status === 'running' || scriptType === 'start' || scriptType === 'resume';
+      const isPaused = item.status === 'paused' || scriptType === 'pause';
+      const isCompleted = item.status === 'completed' || scriptType === 'stop';
+
+      let startedAtMs = item.startedAtMs || null;
+      let elapsedSeconds = item.elapsed_seconds || 0;
+
+      if ((isRunning || isPaused) && !startedAtMs && item.modified) {
+        const startedTime = new Date(item.modified).getTime();
+        if (!isNaN(startedTime)) {
+          startedAtMs = startedTime;
+          const diff = Math.floor((Date.now() - startedTime) / 1000);
+          elapsedSeconds = diff > 0 ? diff : 0;
+        }
+      }
+
+      const hrs = String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(elapsedSeconds % 60).padStart(2, '0');
+      const formattedDuration = (isRunning || isPaused) ? `${hrs}:${mins}:${secs}` : '—';
+
+      return {
+        id: item.id,
+        name: item.name || item.environment || '',
+        environment: item.environment || item.name || '',
+        isActive: item.is_active === 1 || item.is_active === true || item.isActive === 'Yes',
+        serverIp: item.server_ip || item.serverIp || '',
+        userName: item.server_username || item.user_name || item.userName || '',
+        password: item.server_password || item.password || '',
+        port: item.port_no ? String(item.port_no) : (item.port || '22'),
+        logFilePath: item.log_file_path || item.logFilePath || '',
+        scriptPath: item.eod_path || item.scriptPath || '',
+        startScript: item.start_script || item.startScript || 'start.sh',
+        pauseScript: item.pause_script || item.pauseScript || 'pause.sh',
+        stopScript: item.stop_script || item.stopScript || 'stop.sh',
+        statusFileName: item.status_file_name || item.statusFileName || 'myjobstorun.txt',
+        jobsFileName: item.jobs_torun_original_filename || item.jobsFileName || '',
+        lastRunScript: item.last_run_script || item.lastRunScript || '',
+        modified: item.modified || '',
+        status: item.status || 'idle',
+        startedAtMs,
+        elapsedSeconds,
+        progress: item.progress !== undefined ? item.progress : (isRunning ? 45 : isCompleted ? 100 : 0),
+        color: item.color || (item.status === 'running' ? '#6366f1' : item.status === 'paused' ? '#f59e0b' : item.status === 'completed' ? '#10b981' : '#64748b'),
+        stepsDone: item.stepsDone !== undefined ? item.stepsDone : 0,
+        stepsTotal: item.stepsTotal !== undefined ? item.stepsTotal : 0,
+        runningJobName: item.runningJobName || '',
+        runningJobNo: item.runningJobNo || 0,
+        nextJobName: item.nextJobName || '',
+        currentStep: item.currentStep || '',
+        duration: item.duration || formattedDuration,
+        lastRun: item.modified ? new Date(item.modified).toLocaleString() : '—',
+        nextRun: item.nextRun || '—',
+      };
+    });
+  },
+
+  /**
+   * Fetches lightweight list of EOD environments (id, name, status) directly from DB.
+   * Fast response without SFTP/SSH overhead, ideal for dropdowns & schedule modal.
+   */
+  getEnvironments: async () => {
+    const response = await httpClient.get(endpoints.eodJobs.environments);
+    const data = response.data || [];
+    return data.map((item) => ({
+      id: item.id,
+      name: item.environment || item.name || '',
+      environment: item.environment || item.name || '',
+      status: item.status || 'idle',
+      isActive: item.is_active !== false,
+    }));
   },
 
   /**
@@ -163,6 +292,9 @@ export const eodService = {
         recurrence: parsedCron.recurrence,
         selectedDays: parsedCron.selectedDays,
         selectedDate: parsedCron.selectedDate,
+        selectedDayOfMonth: parsedCron.selectedDayOfMonth,
+        selectedMonth: parsedCron.selectedMonth,
+        selectedQuarters: parsedCron.selectedQuarters,
         isActive: true,
         lastModifiedBy: item.last_modified_by || '',
         lastModifiedOn: item.last_modified_on || '',

@@ -306,43 +306,43 @@ export default function LmsDashboard() {
           className={`lms-tab-btn ${activeTab === "departments" ? "active" : ""}`}
           onClick={() => setActiveTab("departments")}
         >
-          🏢 Department Analytics
+          Department Analytics
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "utilization" ? "active" : ""}`}
           onClick={() => setActiveTab("utilization")}
         >
-          📊 Leave Utilization
+          Leave Utilization
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "balances" ? "active" : ""}`}
           onClick={() => setActiveTab("balances")}
         >
-          💼 Employee Balances
+          Employee Balances
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "onleave" ? "active" : ""}`}
           onClick={() => setActiveTab("onleave")}
         >
-          📅 On-Leave Calendar
+          On-Leave Calendar
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "pending" ? "active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
-          ⚡ Pending Worklist
+          Pending Worklist
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "eod" ? "active" : ""}`}
           onClick={() => setActiveTab("eod")}
         >
-          ⚙️ EOD Operations
+          EOD Operations
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "audit" ? "active" : ""}`}
           onClick={() => setActiveTab("audit")}
         >
-          🛡️ Audit Logs
+          Audit Logs
         </button>
       </div>
 

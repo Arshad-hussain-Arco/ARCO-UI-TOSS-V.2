@@ -87,15 +87,15 @@ export function SchedulesSection() {
     fetchScheduleData();
   }, [fetchScheduleData]);
 
-  /** Lazily load environments only when opening Add/Edit modal */
+  /** Lazily load environments only when opening Add/Edit modal (uses lightweight API without SFTP overhead) */
   const fetchEnvironmentsIfNeeded = async () => {
     if (environments.length > 0) return environments;
     try {
-      const envsData = await eodService.getEodRecords();
+      const envsData = await eodService.getEnvironments();
       setEnvironments(envsData || []);
       return envsData || [];
     } catch (err) {
-      console.error('Failed to fetch environment records for modal:', err);
+      console.error('Failed to fetch environments for modal:', err);
       return [];
     }
   };
