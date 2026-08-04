@@ -67,40 +67,6 @@
 
   /* Surface Tertiary */
   --surface-tertiary: #f3f4f6;
-
-  /* Spacing Scale */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Border Radius Scale */
-  --app-radius-sm: 4px;
-  --app-radius-md: 8px;
-  --app-radius-lg: 12px;
-  --app-radius-full: 9999px;
-
-  /* Z-Index Scale */
-  --z-dropdown: 1000;
-  --z-sticky: 1100;
-  --z-overlay: 1200;
-  --z-modal: 1300;
-  --z-toast: 1400;
-  --z-tooltip: 1500;
-
-  /* Breakpoints (reference values, use in JS/media queries) */
-  --bp-mobile: 480px;
-  --bp-tablet: 768px;
-  --bp-laptop: 1024px;
-  --bp-desktop: 1280px;
-
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 200ms ease;
-  --transition-slow: 300ms ease;
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Dark Theme */

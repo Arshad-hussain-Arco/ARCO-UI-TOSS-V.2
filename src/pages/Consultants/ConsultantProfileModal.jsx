@@ -2,7 +2,7 @@ import { X, Mail, Phone, MapPin, Monitor, Building2, User, RefreshCw, AlertCircl
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { Image } from '@components/common/Image/Image';
-import { Skeleton } from '@components/feedback/Skeleton';
+import { Loader } from '@components/feedback/Loader/Loader';
 import { dismissBackdrop } from '@utils/interactive';
 import { useCallback } from 'react';
 import { useAuth } from '@hooks/useAuth';
@@ -66,15 +66,8 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
     return (
       <div className="cp-modal-overlay" {...dismissBackdrop(onClose)}>
         <div className="cp-modal-content" role="dialog" aria-modal="true" style={{ maxWidth: 400 }}>
-          <div className="cp-loader-container" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Skeleton variant="circle" width={64} height={64} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <Skeleton height={16} width="60%" />
-                <Skeleton height={12} width="40%" />
-              </div>
-            </div>
-            <Skeleton height={12} count={5} />
+          <div className="cp-loader-container">
+            <Loader message="Loading profile..." />
           </div>
         </div>
       </div>

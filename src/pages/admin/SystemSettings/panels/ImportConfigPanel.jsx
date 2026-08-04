@@ -1,8 +1,7 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Save, Upload } from 'lucide-react';
+import { Eye, EyeOff, Save, Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
-import { Button, Input, Loader, NumberInput, PasswordInput } from '@components/common';
 
 /**
  * TAB 2: ImportFileConfig
@@ -10,6 +9,7 @@ import { Button, Input, Loader, NumberInput, PasswordInput } from '@components/c
  */
 function ImportConfigPanelComponent() {
   const toast = useToast();
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configId, setConfigId] = useState(1);
@@ -121,8 +121,8 @@ function ImportConfigPanelComponent() {
 
   if (loading) {
     return (
-      <div className="ss-form-card ss-panel-loading">
-        <Loader />
+      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
@@ -133,16 +133,21 @@ function ImportConfigPanelComponent() {
         <h2 className="ss-panel-title">ImportFileConfig</h2>
       </div>
 
-      <form onSubmit={handleSave} className="ss-panel-form">
+      <form
+        onSubmit={handleSave}
+        style={{ padding: '24px' }}
+      >
         <div className="ss-grid-2col">
           {/* 1. WO FilePath + inline Upload button */}
           <div className="ss-modal-form-group">
             <label className="ss-modal-label" htmlFor="imp-wo-filepath">
               WO FilePath
             </label>
-            <div className="ss-inline-input-row">
-              <Input
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
                 id="imp-wo-filepath"
+                type="text"
+                className="ss-input"
                 value={formData.workOrderStatusFilePath}
                 onChange={(e) => handleChange('workOrderStatusFilePath', e.target.value)}
               />
@@ -152,14 +157,23 @@ function ImportConfigPanelComponent() {
                 style={{ display: 'none' }}
                 onChange={(e) => handleFileUpload('workOrderStatusFilePath', 'wofilePath', e)}
               />
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                leadingIcon={Upload}
+                className="ss-btn-update"
+                style={{
+                  height: '36px',
+                  padding: '0 14px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  background: 'var(--surface-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-primary)',
+                }}
                 onClick={() => fileInputRefs.woFilePath.current?.click()}
               >
+                <Upload size={14} />
                 Upload
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -168,9 +182,11 @@ function ImportConfigPanelComponent() {
             <label className="ss-modal-label" htmlFor="imp-cr-filepath">
               CR FilePath
             </label>
-            <div className="ss-inline-input-row">
-              <Input
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
                 id="imp-cr-filepath"
+                type="text"
+                className="ss-input"
                 value={formData.changeRequestFilePath}
                 onChange={(e) => handleChange('changeRequestFilePath', e.target.value)}
               />
@@ -180,14 +196,23 @@ function ImportConfigPanelComponent() {
                 style={{ display: 'none' }}
                 onChange={(e) => handleFileUpload('changeRequestFilePath', 'crfilePath', e)}
               />
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                leadingIcon={Upload}
+                className="ss-btn-update"
+                style={{
+                  height: '36px',
+                  padding: '0 14px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  background: 'var(--surface-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-primary)',
+                }}
                 onClick={() => fileInputRefs.crFilePath.current?.click()}
               >
+                <Upload size={14} />
                 Upload
-              </Button>
+              </button>
             </div>
           </div>
 
@@ -196,9 +221,11 @@ function ImportConfigPanelComponent() {
             <label className="ss-modal-label" htmlFor="imp-runtime-filepath">
               Runtime-Trends FilePath
             </label>
-            <div className="ss-inline-input-row">
-              <Input
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
                 id="imp-runtime-filepath"
+                type="text"
+                className="ss-input"
                 value={formData.runTimeFilePath}
                 onChange={(e) => handleChange('runTimeFilePath', e.target.value)}
               />
@@ -208,22 +235,35 @@ function ImportConfigPanelComponent() {
                 style={{ display: 'none' }}
                 onChange={(e) => handleFileUpload('runTimeFilePath', 'runTimeFilePath', e)}
               />
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                leadingIcon={Upload}
+                className="ss-btn-update"
+                style={{
+                  height: '36px',
+                  padding: '0 14px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                  background: 'var(--surface-primary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-primary)',
+                }}
                 onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
               >
+                <Upload size={14} />
                 Upload
-              </Button>
+              </button>
             </div>
           </div>
 
           {/* 4. Documents FilePath */}
           <div className="ss-modal-form-group">
-            <Input
+            <label className="ss-modal-label" htmlFor="imp-docs-filepath">
+              Documents FilePath
+            </label>
+            <input
               id="imp-docs-filepath"
-              label="Documents FilePath"
+              type="text"
+              className="ss-input"
               value={formData.ImpLinksPath}
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
             />
@@ -231,9 +271,13 @@ function ImportConfigPanelComponent() {
 
           {/* 5. CR Server IP */}
           <div className="ss-modal-form-group">
-            <Input
+            <label className="ss-modal-label" htmlFor="imp-cr-server-ip">
+              CR Server IP
+            </label>
+            <input
               id="imp-cr-server-ip"
-              label="CR Server IP"
+              type="text"
+              className="ss-input"
               value={formData.changeRequestServerIp}
               onChange={(e) => handleChange('changeRequestServerIp', e.target.value)}
             />
@@ -241,9 +285,13 @@ function ImportConfigPanelComponent() {
 
           {/* 6. CR Port No */}
           <div className="ss-modal-form-group">
-            <NumberInput
+            <label className="ss-modal-label" htmlFor="imp-cr-port-no">
+              CR Port No
+            </label>
+            <input
               id="imp-cr-port-no"
-              label="CR Port No"
+              type="number"
+              className="ss-input"
               value={formData.changeRequestPort}
               onChange={(e) => handleChange('changeRequestPort', e.target.value)}
             />
@@ -251,9 +299,13 @@ function ImportConfigPanelComponent() {
 
           {/* 7. CR User Name */}
           <div className="ss-modal-form-group">
-            <Input
+            <label className="ss-modal-label" htmlFor="imp-cr-user-name">
+              CR User Name
+            </label>
+            <input
               id="imp-cr-user-name"
-              label="CR User Name"
+              type="text"
+              className="ss-input"
               value={formData.changeRequestUsername}
               onChange={(e) => handleChange('changeRequestUsername', e.target.value)}
             />
@@ -261,20 +313,35 @@ function ImportConfigPanelComponent() {
 
           {/* 8. CR Password with inline Show/Hide toggle icon */}
           <div className="ss-modal-form-group">
-            <PasswordInput
-              id="imp-cr-password"
-              label="CR Password"
-              value={formData.changeRequestPassword}
-              onChange={(e) => handleChange('changeRequestPassword', e.target.value)}
-            />
+            <label className="ss-modal-label" htmlFor="imp-cr-password">
+              CR Password
+            </label>
+            <div className="ss-input-wrapper">
+              <input
+                id="imp-cr-password"
+                type={showPassword ? 'text' : 'password'}
+                className="ss-input with-right-icon"
+                value={formData.changeRequestPassword}
+                onChange={(e) => handleChange('changeRequestPassword', e.target.value)}
+              />
+              <button
+                type="button"
+                className="input-icon input-icon-right"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Primary Action Button */}
-        <div className="ss-panel-submit-row">
-          <Button type="submit" variant="primary" isLoading={saving} leadingIcon={saving ? undefined : Save}>
+        <div style={{ marginTop: '28px', display: 'flex', justifyContent: 'flex-start' }}>
+          <button type="submit" className="ss-btn-update" disabled={saving}>
+            {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />}
             {saving ? 'Updating...' : 'Update'}
-          </Button>
+          </button>
         </div>
       </form>
     </div>

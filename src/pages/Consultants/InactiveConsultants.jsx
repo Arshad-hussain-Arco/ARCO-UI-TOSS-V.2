@@ -2,30 +2,34 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Search,
   RotateCcw,
-  Plus,
   Users,
   ChevronDown,
   Lock,
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
+import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
-import { ConsultantsStats } from '@components/data-display/ConsultantsStats/ConsultantsStats';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
-import { normalizeConsultant } from '../utils';
+import { normalizeConsultant } from './utils';
 
-export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileView, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
-  const activeConsultants = useMemo(() => {
-    const list = Array.isArray(employeesData) ? employeesData : employeesData?.results || [];
-    return list.map(c => normalizeConsultant(c, true));
-  }, [employeesData]);
+export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, designationsData, teamsData }) {
+  const fetchInactive = useCallback(async () => {
+    const res = await consultantService.getInactiveConsultants();
+    const list = Array.isArray(res) ? res : res?.results || [];
+    return list.map(c => normalizeConsultant(c, false));
+  }, []);
+
+  const { data: consultants, isLoading, error, refetch } = useAsync(fetchInactive);
+  const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
   const [selectedDesignation, setSelectedDesignation] = useState('All Designations');
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
   const [showDesignationDropdown, setShowDesignationDropdown] = useState(false);
+  const [activatingId, setActivatingId] = useState(null);
 
   const teamRef = useRef(null);
   const designRef = useRef(null);
@@ -40,19 +44,21 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
+  const inactiveConsultants = consultants || [];
+
   const teams = useMemo(() => {
     if (teamsData && teamsData.length > 0) return teamsData.map(t => t.name);
-    return Array.from(new Set(activeConsultants.map(c => c.team).filter(Boolean)));
-  }, [activeConsultants, teamsData]);
+    return Array.from(new Set(inactiveConsultants.map(c => c.team).filter(Boolean)));
+  }, [inactiveConsultants, teamsData]);
 
   const designations = useMemo(() => {
     if (designationsData && designationsData.length > 0) return designationsData.map(d => d.name || d.designation).filter(Boolean);
-    return Array.from(new Set(activeConsultants.map(c => c.designation).filter(Boolean)));
-  }, [activeConsultants, designationsData]);
+    return Array.from(new Set(inactiveConsultants.map(c => c.designation).filter(Boolean)));
+  }, [inactiveConsultants, designationsData]);
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return activeConsultants.filter((c) => {
+    return inactiveConsultants.filter((c) => {
       return (
         (c.name.toLowerCase().includes(q) ||
           c.email.toLowerCase().includes(q) ||
@@ -61,19 +67,32 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
         (selectedDesignation === 'All Designations' || c.designation === selectedDesignation)
       );
     });
-  }, [activeConsultants, searchQuery, selectedTeam, selectedDesignation]);
+  }, [inactiveConsultants, searchQuery, selectedTeam, selectedDesignation]);
+
+  const handleActivate = async (consultant) => {
+    setActivatingId(consultant.id);
+    try {
+      await consultantService.activateConsultant({ emp_id: consultant.emp_id || consultant.id });
+      toast.success(`${consultant.name} has been activated successfully.`);
+      refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to activate consultant');
+    } finally {
+      setActivatingId(null);
+    }
+  };
 
   if (error) {
     return (
       <ErrorState
-        title="Consultants could not be loaded"
+        title="Inactive Consultants could not be loaded"
         description={error.message}
         onRetry={refetch}
       />
     );
   }
 
-  if (isLoading && activeConsultants.length === 0) {
+  if (isLoading && !consultants) {
     return (
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">
@@ -87,13 +106,7 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
 
   return (
     <>
-      <ConsultantsStats
-        total={employeesData?.total_consultants ?? activeConsultants.length}
-        active={employeesData?.active_consultants ?? activeConsultants.length}
-        teams={employeesData?.teams ?? teams.length}
-        designations={employeesData?.designations ?? designations.length}
-      />
-      <div className="consultants-filter-panel-sticky">
+      <div className="consultants-filter-panel-sticky" style={{ marginTop: '16px' }}>
         <div className="consultants-filter-row">
           <div className="consultants-search-wrapper">
             <Search className="consultants-search-icon" />
@@ -103,10 +116,6 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
               className="consultants-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              autoComplete="off"
-              name="search_consultants_filter"
-              id="consultants-search-field"
-              data-form-type="other"
             />
           </div>
           <div className="consultants-filter-group">
@@ -176,22 +185,24 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
             >
               <RotateCcw className="consultants-reset-icon" />
             </button>
-            <button className="consultants-add-button" onClick={onAdd}>
-              <Plus className="consultants-add-icon" />
-              <span className="consultants-add-label">Add Consultant</span>
-            </button>
           </div>
         </div>
       </div>
+      
+      {activatingId && (
+        <div style={{ padding: '8px 16px', color: 'var(--c-primary)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)' }}>
+          <Loader message="Activating consultant..." inline={true} />
+        </div>
+      )}
+
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">
           {filtered.map((c) => (
             <ConsultantCard
               key={c.id}
               consultant={c}
-              onEdit={() => onEdit && onEdit(c)}
-              onChangePassword={() => onPassword && onPassword(c)}
-              onDelete={() => onDelete && onDelete(c)}
+              isInactive={true}
+              onActivate={handleActivate}
               onAvatarClick={() => onProfileView && onProfileView(c.id)}
             />
           ))}
@@ -200,9 +211,9 @@ export function ConsultantsTab({ onAdd, onEdit, onPassword, onDelete, onProfileV
       {filtered.length === 0 && (
         <div className="consultants-empty-state">
           <Users className="consultants-empty-icon" />
-          <h3 className="consultants-empty-title">No consultants found</h3>
+          <h3 className="consultants-empty-title">No inactive consultants found</h3>
           <p className="consultants-empty-description">
-            Try adjusting your search or filter criteria
+            There are no inactive consultants matching your criteria.
           </p>
         </div>
       )}

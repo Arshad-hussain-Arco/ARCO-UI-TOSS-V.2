@@ -122,7 +122,7 @@
 
 .tr-view-btn[data-active='true'] {
   background: var(--c-primary);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-view-btn:not([data-active='true']):hover {
@@ -311,7 +311,7 @@
 .tr-chip[data-active='true'] {
   background: var(--c-primary);
   border-color: var(--c-primary);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-chip-count {
@@ -414,7 +414,7 @@
   font-family: var(--font-family);
   font-size: 10px;
   font-weight: 700;
-  color: var(--surface-primary);
+  color: #fff;
   flex-shrink: 0;
 }
 
@@ -458,13 +458,13 @@
 }
 
 .tr-type-leave {
-  background: var(--c-info-light);
-  color: var(--c-info);
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .tr-type-wfh {
-  background: var(--c-success-light);
-  color: var(--c-success);
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .tr-type-offshore {
@@ -473,8 +473,8 @@
 }
 
 .tr-type-compoff {
-  background: var(--c-warning-light);
-  color: var(--c-warning);
+  background: #fef3c7;
+  color: #92400e;
 }
 
 /* ─── Status Badge ────────────────────────────────────────────────── */
@@ -492,17 +492,17 @@
 
 .tr-status-pending {
   background: var(--c-warning-light);
-  color: var(--c-warning);
+  color: #92400e;
 }
 
 .tr-status-approved {
   background: var(--c-success-light);
-  color: var(--c-success);
+  color: #065f46;
 }
 
 .tr-status-rejected {
   background: var(--c-danger-light);
-  color: var(--c-danger);
+  color: #991b1b;
 }
 
 /* ─── Priority Badge ──────────────────────────────────────────────── */
@@ -548,25 +548,25 @@
 
 .tr-act-approve {
   background: var(--c-success-light);
-  color: var(--c-success);
-  border-color: var(--c-success-light);
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 
 .tr-act-approve:hover {
   background: var(--c-success);
-  color: var(--surface-primary);
+  color: #fff;
   border-color: var(--c-success);
 }
 
 .tr-act-reject {
   background: var(--c-danger-light);
-  color: var(--c-danger);
-  border-color: var(--c-danger-light);
+  color: #991b1b;
+  border-color: #fca5a5;
 }
 
 .tr-act-reject:hover {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color: #fff;
   border-color: var(--c-danger);
 }
 
@@ -708,7 +708,7 @@
   font-family: var(--font-family);
   font-size: 14px;
   font-weight: 700;
-  color: var(--surface-primary);
+  color: #fff;
   flex-shrink: 0;
 }
 
@@ -889,12 +889,12 @@
 
 .tr-tl-dot.done {
   background: var(--c-primary);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-tl-dot.active {
   background: var(--c-warning);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-tl-dot.waiting {
@@ -905,12 +905,12 @@
 
 .tr-tl-dot.rejected {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-tl-dot.approved {
   background: var(--c-success);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-tl-line {
@@ -948,17 +948,17 @@
   padding: 7px 10px;
   border-radius: 6px;
   background: var(--c-warning-light);
-  border: 1px solid var(--c-warning-light);
+  border: 1px solid #fcd34d;
   margin-bottom: 6px;
   font-family: var(--font-family);
   font-size: 11.5px;
-  color: var(--c-warning);
+  color: #92400e;
 }
 
 .tr-conflict-card.info {
   background: var(--c-info-light);
-  border-color: var(--c-info-light);
-  color: var(--c-info);
+  border-color: #93c5fd;
+  color: #1e40af;
 }
 
 /* ─── Drawer Footer ───────────────────────────────────────────────── */
@@ -1015,19 +1015,19 @@
 
 .tr-btn-danger {
   background: var(--c-danger-light);
-  color: var(--c-danger);
-  border-color: var(--c-danger-light);
+  color: #991b1b;
+  border-color: #fca5a5;
 }
 
 .tr-btn-danger:hover {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color: #fff;
   border-color: var(--c-danger);
 }
 
 .tr-btn-primary {
   background: var(--c-primary);
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-btn-primary:hover {
@@ -1323,7 +1323,7 @@
 
 .tr-dtl-cell[data-selected='true'] .tr-dtl-dow,
 .tr-dtl-cell[data-selected='true'] .tr-dtl-num {
-  color: var(--surface-primary);
+  color: #fff;
 }
 
 .tr-dtl-dow {
