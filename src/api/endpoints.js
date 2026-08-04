@@ -184,6 +184,7 @@ const endpoints = {
   },
   documents: {
     list: '/documents/get-documents/',
+    getDocument: (id) => `/documents/get-document/${id}/`,
     create: '/documents/create/',
     update: (id) => `/documents/${id}/update/`,
     delete: (id) => `/documents/${id}/delete/`,

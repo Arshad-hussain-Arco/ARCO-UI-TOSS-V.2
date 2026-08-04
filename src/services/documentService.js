@@ -48,8 +48,9 @@ function parseDocuments(data) {
       const fileExt = doc.file_name.split('.').pop().toLowerCase();
       files.push({
         id: String(doc.id),
-        name: doc.file_name, // File name acts as title if file
-        title: doc.document_title,
+        name: doc.document_title || doc.file_name,
+        title: doc.document_title || doc.file_name,
+        fileName: doc.file_name,
         type: fileExt,
         size: 'Unknown', // Not provided by DB, UI can mock or ignore
         owner: 'System', // Not provided by DB
@@ -87,6 +88,13 @@ export const documentService = {
     const response = await httpClient.get(endpoints.documents.list);
     const data = Array.isArray(response.data) ? response.data : response.data.results || [];
     return parseDocuments(data);
+  },
+
+  getDocumentContent: async (id) => {
+    const response = await httpClient.get(endpoints.documents.getDocument(id), {
+      responseType: 'blob',
+    });
+    return response.data;
   },
 
   createFolder: async ({ name, description, parentId }) => {
