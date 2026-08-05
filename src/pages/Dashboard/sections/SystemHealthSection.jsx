@@ -88,6 +88,56 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
       </div>
 
 
+      <div className="dc-span-8">
+        <section className="dc-card dc-health-right" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <h2 className="dc-section-title">Runtime Trend – Last 7 Days</h2>
+
+          <div className="dc-chart-wrap" style={{ flex: 1 }}>
+            <div className="dc-y-axis" aria-hidden="true">
+              {Y_AXIS_TICKS.map((tick) => (
+                <span key={tick} className="dc-y-lbl">
+                  {tick}m
+                </span>
+              ))}
+            </div>
+
+            <div className="dc-chart-area">
+              <div
+                className="dc-sla-line"
+                style={{ bottom: `${(slaThreshold / maxRuntime) * 100}%` }}
+              >
+                <span className="dc-sla-lbl">SLA</span>
+              </div>
+
+              <div className="dc-bars">
+                {runtimeTrend.map((entry) => (
+                  <div key={entry.day} className="dc-bar-col">
+                    <div
+                      className={`dc-bar ${entry.runtime > slaThreshold ? 'dc-bar-breach' : 'dc-bar-ok'}`}
+                      style={{ height: `${maxRuntime ? (entry.runtime / maxRuntime) * 100 : 0}%` }}
+                      title={`${entry.day}: ${entry.runtime}m, ${entry.failed} failed`}
+                    >
+                      {entry.failed > 0 ? <span className="dc-bar-badge">{entry.failed}</span> : null}
+                    </div>
+                    <span className="dc-x-lbl">{entry.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="dc-chart-insights" style={{ marginTop: 'auto', paddingTop: '10px' }}>
+            <div className="dc-insight dc-insight-warn">
+              <AlertTriangle size={11} />
+              Longest: {insights.longest.script} – {insights.longest.duration}
+            </div>
+            <div className="dc-insight dc-insight-err">
+              <AlertCircle size={11} />
+              Most Failed: {insights.mostFailed}
+            </div>
+          </div>
+        </section>
+      </div>
     </>
   );
 }

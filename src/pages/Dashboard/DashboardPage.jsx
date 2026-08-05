@@ -27,6 +27,7 @@ import { dashboardService } from '@services/dashboardService';
 import { consultantService } from '@services/consultantService';
 import { eodService } from '@services/eodService';
 import { capacityService } from '@services/capacityService';
+import { murexService } from '@services/murexService';
 import './DashboardPage.css';
 
 /**
@@ -57,6 +58,7 @@ export function DashboardPage() {
   const [departmentStats, setDepartmentStats] = useState([]);
   const [onLeaveRecords, setOnLeaveRecords] = useState([]);
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
+  const [murexData, setMurexData] = useState(null);
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
@@ -81,6 +83,7 @@ export function DashboardPage() {
         dashboardService.getDepartmentStats(),
         dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
         leaveService.listHolidays(),
+        murexService.getRuntimeTrends(),
       ];
 
       if (empId) {
@@ -119,7 +122,6 @@ export function DashboardPage() {
         setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[10]?.status === 'fulfilled') {
-        // listHolidays already returns response.data directly
         const data = results[10].value;
         const holidaysArr = Array.isArray(data) ? data : data?.results || [];
 
@@ -143,8 +145,11 @@ export function DashboardPage() {
 
         setUpcomingHolidays(upcoming);
       }
-      if (empId && results[11]?.status === 'fulfilled') {
-        const data = results[11].value;
+      if (results[11]?.status === 'fulfilled') {
+        setMurexData(results[11].value);
+      }
+      if (empId && results[12]?.status === 'fulfilled') {
+        const data = results[12].value;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -186,21 +191,43 @@ export function DashboardPage() {
       { id: 'k5', count: totalEmps - activeEmps, label: 'Inactive', subtext: 'Realtime Live Data', iconKey: 'userMinus', color: 'grey' },
     ];
 
+    const murexJobsTotal = murexData?.scripts?.length || 0;
+    const murexJobsFailed = murexData?.scripts?.reduce((sum, script) => sum + (script.failedRuns || 0), 0) || 0;
+
     // 2. System Health
     const systemHealth = {
-      murexJobs: { total: 0, failed: 0 },
+      murexJobs: { total: murexJobsTotal, failed: murexJobsFailed },
       eodStatus: { completed: eodTotal > 0 ? (eodTotal - eodRunning) : 0, total: eodTotal, running: eodRunning },
-      avgRuntime: { time: 'N/A', change: '0%' }
+      avgRuntime: { time: murexData?.summary?.avg || 'N/A', change: '0%' }
     };
 
-    // 3. Runtime Trend (Fallback static for chart demo as we don't have historical runtime live yet)
-    const runtimeTrend = [
-      { day: 'Mon', runtime: 85, failed: 0 },
-      { day: 'Tue', runtime: 90, failed: 2 },
-      { day: 'Wed', runtime: 120, failed: 0 },
-      { day: 'Thu', runtime: 110, failed: 1 },
-      { day: 'Fri', runtime: 95, failed: 0 },
-    ];
+    // 3. Runtime Trend
+    let runtimeTrend = [];
+    if (murexData && murexData.trend) {
+      runtimeTrend = murexData.trend.map(t => {
+        const d = new Date(t.date);
+        const dayStr = isNaN(d.getTime()) ? t.date : d.toLocaleDateString('en-US', { weekday: 'short' });
+        return {
+          day: dayStr,
+          runtime: t.runtime,
+          failed: 0 // Simplification since trend array doesn't include global failures
+        };
+      });
+      // Keep only last 7 items for the chart if it's too long
+      if (runtimeTrend.length > 7) {
+        runtimeTrend = runtimeTrend.slice(-7);
+      }
+    } else {
+      runtimeTrend = [
+        { day: 'Mon', runtime: 85, failed: 0 },
+        { day: 'Tue', runtime: 90, failed: 2 },
+        { day: 'Wed', runtime: 120, failed: 0 },
+        { day: 'Thu', runtime: 95, failed: 0 },
+        { day: 'Fri', runtime: 110, failed: 1 },
+        { day: 'Sat', runtime: 75, failed: 0 },
+        { day: 'Sun', runtime: 80, failed: 0 }
+      ];
+    }
     const runtimeInsights = { longest: { script: 'EOD', duration: '120m' }, mostFailed: 'N/A', slaThreshold: 100 };
 
     // 4. Leave Snapshot
