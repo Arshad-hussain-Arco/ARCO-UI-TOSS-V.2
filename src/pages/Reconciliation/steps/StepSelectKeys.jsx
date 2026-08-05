@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { generatePreviewRows } from '@mocks/data/reconciliation';
 
@@ -114,7 +114,7 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
       <div className="rwiz-step-body" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         {(processingFiles?.[0] || processingFiles?.[1]) ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: '#6b7280' }}>
-            <DotsLoader size={32} color="#4b5563" />
+            <Spinner size="lg" />
             <p style={{ marginTop: '16px', fontSize: '13px' }}>Processing file... detecting columns.</p>
             <p style={{ marginTop: '4px', fontSize: '12px' }}>This may take a few moments for large files.</p>
           </div>

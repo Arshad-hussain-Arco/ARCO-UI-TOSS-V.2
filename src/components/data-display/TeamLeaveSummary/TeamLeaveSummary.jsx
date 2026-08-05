@@ -273,8 +273,7 @@ function TeamLeaveSummary() {
     <div className="team-summary-container">
       {loading && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
-          <Loader size="md" />
-          <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>Loading summary...</p>
+          <Loader size="md" message="Loading team leave summary..." />
         </div>
       )}
       {!loading && (

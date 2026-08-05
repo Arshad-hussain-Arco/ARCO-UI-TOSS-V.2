@@ -28,15 +28,15 @@
 }
 
 .rwiz-page-title-icon {
-  color: #1e3a8a; /* Dark blue matching title */
+  color: var(--text-primary);
 }
 
 .rwiz-page-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e3a8a; /* Dark blue */
   margin: 0;
-  letter-spacing: -0.01em;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
 }
 
 .rwiz-page-guide-btn {
@@ -534,8 +534,7 @@
 }
 
 .rsk-column-badge {
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; 
   justify-content: center;
   width: 14px;
   height: 14px;
@@ -1069,7 +1068,6 @@
 .rrs-tr:hover .rrs-td-key {
   background: var(--bg-hover);
 }
-
 
 .rrs-td-diff {
   font-size: 10px;

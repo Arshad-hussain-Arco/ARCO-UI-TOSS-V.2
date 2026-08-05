@@ -231,8 +231,7 @@
 }
 
 .header-icon-button[data-active='true'] {
-  color: var(--c-primary);
-  background-color: var(--c-primary-light);
+  color: var(--c-primary);  background-color: var(--c-primary-light);
 }
 
 .header-icon {
