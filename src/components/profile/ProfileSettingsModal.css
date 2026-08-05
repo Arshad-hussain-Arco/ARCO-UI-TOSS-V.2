@@ -365,6 +365,22 @@
   width: 90px;
 }
 
+.eps-dense-input:disabled,
+.eps-dense-select:disabled {
+  background-color: #e2e8f0;
+  color: #64748b;
+  border-color: #cbd5e1;
+  cursor: not-allowed;
+  border:none
+}
+
+[data-theme="dark"] .eps-dense-input:disabled,
+[data-theme="dark"] .eps-dense-select:disabled {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* ── Minimal Footer ─────────────────────────────────────────── */
 .eps-drawer-footer {
   display: flex;

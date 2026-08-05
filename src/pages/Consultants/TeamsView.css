@@ -460,3 +460,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+.tv-icon-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-primary); background-color: var(--surface-primary); cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
+.tv-icon-btn:hover { background-color: var(--bg-secondary); }
+.tv-icon-btn.edit:hover { color: #3b82f6; border-color: #3b82f6; }
+.tv-icon-btn.delete:hover { color: #ef4444; border-color: #ef4444; }

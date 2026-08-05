@@ -360,13 +360,18 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={onSearchKeyDown}
-              style={{
+              style={{ paddingRight: '32px', 
                 width: '100%', backgroundColor: '#0d0d0d',
                 border: `1px solid ${searchQuery && totalMatches === 0 ? '#f87171' : searchQuery ? '#6366f1' : '#333'}`,
                 borderRadius: '6px', padding: '5px 28px 5px 30px',
                 color: '#fff', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
               }}
             />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
             {searchQuery && (
               <X
                 size={11}

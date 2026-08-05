@@ -1098,7 +1098,6 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             <button
               type="button"
               className="al-btn al-btn-primary"
-              disabled={!canSubmit}
               onClick={() => setShowConfirm(true)}
             >
               <Check className="al-btn-icon" /> {SUBMIT_LABELS[type]}

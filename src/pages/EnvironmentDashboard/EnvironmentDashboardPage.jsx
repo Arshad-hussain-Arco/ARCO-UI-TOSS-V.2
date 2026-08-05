@@ -95,6 +95,103 @@ export function EnvironmentDashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ featureType: '', fileName: '', storageLocation: '' });
   const [addErrors, setAddErrors] = useState({});
+import React, { useCallback, useState, useEffect } from 'react';
+import {
+  Server,
+  Database,
+  RefreshCw,
+  Trash2,
+  Edit,
+  Copy,
+  ChevronDown,
+  Search,
+  Calendar,
+  Cloud,
+  Users,
+  FileUp,
+  X,
+  Activity,
+  HardDrive,
+  Network,
+  Download,
+  FileText,
+  Settings,
+  FileSpreadsheet
+} from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
+import { Loader } from '@components/feedback/Loader/Loader';
+import { Select } from '@components/forms/Select/Select';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { AdminTable } from '@components/ui/AdminTable/AdminTable';
+import { Button } from '@components/ui/Button/Button';
+import { useAsync } from '@hooks/useAsync';
+import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { useToast } from '@hooks/useToast';
+import { environmentService } from '@services/environmentService';
+
+import './EnvironmentDashboardPage.css';
+
+/** Environment inventory: configuration files and the per-environment feature matrix. */
+export function EnvironmentDashboardPage() {
+  useDocumentTitle('Environment Dashboard');
+  const toast = useToast();
+
+  const fetchEnvironments = useCallback(() => environmentService.getEnvironments(), []);
+  const { data, isLoading, error, refetch } = useAsync(fetchEnvironments);
+
+  // Accordion Expand/Collapse States (Environment Configuration & Details)
+  const [isConfigExpanded, setIsConfigExpanded] = useState(true);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
+
+  // In-Memory Data Synchronization (Configs & Environments)
+  const [configList, setConfigList] = useState([]);
+  const [envList, setEnvList] = useState([]);
+  const [expandedConfigs, setExpandedConfigs] = useState({});
+
+  const toggleConfigRowAccordion = (configId) => {
+    setExpandedConfigs(prev => ({
+      ...prev,
+      [configId]: !prev[configId],
+    }));
+  };
+
+  // Expand ALL accordions by default when configList first loads
+  useEffect(() => {
+    if (configList.length > 0) {
+      const allExpanded = {};
+      configList.forEach((c) => { allExpanded[c.id] = true; });
+      setExpandedConfigs(allExpanded);
+    }
+  }, [configList.length]); // only re-run when count changes (initial load)
+
+  useEffect(() => {
+    if (data) {
+      setConfigList(data.configFiles || []);
+      setEnvList(data.environments || []);
+    }
+  }, [data]);
+
+  // Global Config Search State
+  const [configSearchQuery, setConfigSearchQuery] = useState('');
+
+  // Environment Sub-Accordion Expand State (Only one environment expanded at a time)
+  const [expandedEnvironment, setExpandedEnvironment] = useState(null);
+  const [envDetailsData, setEnvDetailsData] = useState({});
+
+  // Search input queries for each Environment (keyed by env.id)
+  const [envSearchQueries, setEnvSearchQueries] = useState({});
+  // Search input queries for each Config row (keyed by config.id)
+  const [configRowSearchQueries, setConfigRowSearchQueries] = useState({});
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(null);
+  const [globalExportDropdownOpen, setGlobalExportDropdownOpen] = useState(false);
+
+  // Add Configuration Modal States
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ featureType: '', fileName: '', storageLocation: '' });
+  const [addErrors, setAddErrors] = useState({});
 
   // Edit Configuration Modal States
   const [editingConfig, setEditingConfig] = useState(null);
@@ -103,6 +200,8 @@ export function EnvironmentDashboardPage() {
 
   // Delete Configuration Modal States
   const [deletingConfig, setDeletingConfig] = useState(null);
+
+  const [isSaving, setIsSaving] = useState(false);
 
   // Expand/Collapse Toggles
   const toggleConfigAccordion = () => {
@@ -214,6 +313,7 @@ export function EnvironmentDashboardPage() {
       return;
     }
 
+    setIsSaving(true);
     try {
       await environmentService.updateConfig(editingConfig.id, {
         feature: editForm.featureType,
@@ -225,6 +325,8 @@ export function EnvironmentDashboardPage() {
       refetch();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update configuration.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -233,6 +335,7 @@ export function EnvironmentDashboardPage() {
   };
 
   const handleDeleteConfig = async () => {
+    setIsSaving(true);
     try {
       await environmentService.deleteConfig(deletingConfig.id);
       toast.success('Configuration deleted successfully!');
@@ -240,6 +343,8 @@ export function EnvironmentDashboardPage() {
       refetch();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete configuration.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -254,6 +359,7 @@ export function EnvironmentDashboardPage() {
       return;
     }
 
+    setIsSaving(true);
     try {
       await environmentService.createConfig({
         feature: addForm.featureType,
@@ -267,6 +373,8 @@ export function EnvironmentDashboardPage() {
       refetch();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add configuration.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -341,536 +449,11 @@ export function EnvironmentDashboardPage() {
                 className="env-search-input"
                 value={configSearchQuery}
                 onChange={(e) => setConfigSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="env-toolbar-actions">
-              <Button
-                variant="primary"
-                size="sm"
-                leadingIcon={FileUp}
-                onClick={() => {
-                  setAddForm({ featureType: '', fileName: '', storageLocation: '' });
-                  setAddErrors({});
-                  setShowAddModal(true);
-                }}
-              >
-                Add Config
-              </Button>
-              <div style={{ position: 'relative' }} onMouseLeave={() => setGlobalExportDropdownOpen(false)}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon={Download}
-                  onMouseEnter={() => setGlobalExportDropdownOpen(true)}
-                >
-                  Export
-                </Button>
-
-                {globalExportDropdownOpen && (
-                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
-                    <div
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      onClick={() => {
-                        if (filteredConfigs.length > 0) {
-                          const doc = new jsPDF('landscape');
-                          doc.text('Environment Configurations', 14, 15);
-                          const cols = ['Type', 'Version', 'File Name', 'File Size', 'Uploaded By', 'Upload Date', 'File Location'];
-                          const data = filteredConfigs.map(c => [
-                            c.featureType, c.version, c.fileName, c.size, c.uploadedBy, c.createdDate, c.storageLocation
-                          ]);
-                          doc.autoTable({ head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
-                          doc.save('environment_configurations.pdf');
-                          toast.success('Configurations exported to PDF.');
-                        } else {
-                          toast.error('No configurations to export.');
-                        }
-                        setGlobalExportDropdownOpen(false);
-                      }}
-                    >
-                      <FileText size={14} /> PDF
-                    </div>
-                    <div
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      onClick={() => {
-                        if (filteredConfigs.length > 0) {
-                          const data = filteredConfigs.map(c => ({
-                            'Type': c.featureType, 'Version': c.version, 'File Name': c.fileName,
-                            'File Size': c.size, 'Uploaded By': c.uploadedBy, 'Upload Date': c.createdDate, 'File Location': c.storageLocation
-                          }));
-                          const ws = XLSX.utils.json_to_sheet(data);
-                          const wb = XLSX.utils.book_new();
-                          XLSX.utils.book_append_sheet(wb, ws, "Configs");
-                          XLSX.writeFile(wb, 'environment_configurations.xlsx');
-                          toast.success('Configurations exported to Excel.');
-                        } else {
-                          toast.error('No configurations to export.');
-                        }
-                        setGlobalExportDropdownOpen(false);
-                      }}
-                    >
-                      <FileSpreadsheet size={14} /> Excel
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Config Cards Grid */}
-          <div className="env-config-cards-container">
-            {filteredConfigs.length === 0 ? (
-              <div className="env-empty-box">
-                <FileText size={32} />
-                <h4>No configurations found</h4>
-                <p>Try refining your search text.</p>
-              </div>
-            ) : (
-              <div className="env-config-grid">
-                {filteredConfigs.map((config) => (
-                  <div key={config.id} className="env-config-card">
-                    <div className="env-config-card-header">
-                      <div className="env-config-badges">
-                        <span
-                          className={`env-badge ${config.featureType === 'Infra'
-                            ? 'env-badge-infra'
-                            : 'env-badge-status'
-                            }`}
-                        >
-                          {config.featureType === 'Infra' ? (
-                            <HardDrive size={14} />
-                          ) : (
-                            <Activity size={14} />
-                          )}
-                          {config.featureType}
-                        </span>
-                        <span className="env-badge env-badge-version">v{config.version}</span>
-                      </div>
-                    </div>
-
-                    <div className="env-config-card-body">
-                      <div className="env-config-file-row">
-                        <FileText size={14} className="env-config-file-icon" />
-                        <span className="env-config-file-name" title={config.fileName}>
-                          {config.fileName}
-                        </span>
-                        <span className="env-config-file-size">{config.size}</span>
-                      </div>
-
-                      <div className="env-config-metadata">
-                        <div className="env-config-meta-item" title={`Uploader: ${config.uploadedBy}`}>
-                          <Users size={14} />
-                          <span>{config.uploadedBy}</span>
-                        </div>
-                        <div className="env-config-meta-item" title={`Upload Date: ${config.createdDate}`}>
-                          <Calendar size={14} />
-                          <span>{config.createdDate}</span>
-                        </div>
-                        <div
-                          className="env-config-meta-item"
-                          style={{ gridColumn: 'span 2' }}
-                          title={`File Location: ${config.storageLocation}`}
-                        >
-                          <Cloud size={14} />
-                          <span>{config.storageLocation}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="env-config-card-footer">
-                      <button
-                        className="env-action-btn-compact"
-                        onClick={() => handleOpenEdit(config)}
-                        title="Edit Configuration"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        className="env-action-btn-compact danger"
-                        onClick={() => handleOpenDelete(config)}
-                        title="Delete Configuration"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 2️⃣ Accordion: Environment Details */}
-      <div className="env-accordion-section" data-expanded={isDetailsExpanded}>
-        {/* Standardized 3-Column Accordion Header with centered location path copy field */}
-        <button
-          type="button"
-          className="env-accordion-header"
-          onClick={toggleDetailsAccordion}
-        >
-          <div className="env-accordion-header-left">
-            <Server size={14} />
-            <span>Environment Details</span>
-          </div>
-
-          <div className="env-accordion-header-center">
-            {/* Native text input & button stop click propagation cleanly without ESLint errors */}
-            <div className="env-details-path-container">
-              <span className="env-details-path-label">Murex NPR Clients Location:</span>
-              <input
-                type="text"
-                readOnly
-                value="/upload/csvfiles/oss/"
-                className="env-details-path-value"
-                onClick={(e) => e.stopPropagation()}
-                style={{ width: '135px', background: 'transparent', border: 'none', outline: 'none', padding: 0 }}
-              />
-              <button
-                type="button"
-                className="env-details-path-copy-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard('/upload/csvfiles/oss/');
-                }}
-                title="Copy path location"
-              >
-                <Copy size={14} />
-              </button>
-            </div>
-          </div>
-
-          <div className="env-accordion-header-right">
-            <ChevronDown className="env-accordion-chevron" size={14} />
-          </div>
+               style={{ paddingRight: '32px' }} />
+      {configSearchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setConfigSearchQuery('')}>
+          <X size={14} />
         </button>
-
-        <div className="env-accordion-content">
-          {/* No legend required, just raw environments as accordions */}
-
-          <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '24px', }}>
-            {configList.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                No configurations found.
-              </div>
-            ) : (
-              configList.map((config) => {
-                const fileData = config.fileData;
-                if (!fileData || !fileData.records || !fileData.columnNames) return null;
-
-                const dynamicCols = fileData.columnNames.map((col) => ({
-                  key: col,
-                  label: col,
-                  render: (item) => (
-                    <span style={{ fontSize: '13px' }}>
-                      {item[col] !== null && item[col] !== undefined ? String(item[col]) : '-'}
-                    </span>
-                  ),
-                }));
-
-                const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
-                const filteredRecords = searchQuery
-                  ? fileData.records.filter(r =>
-                    Object.values(r).some(val =>
-                      val !== null && val !== undefined && String(val).toLowerCase().includes(searchQuery)
-                    )
-                  )
-                  : fileData.records;
-
-                return (
-                  <div key={config.id} className="config-card" style={{ flexShrink: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    {/* Header: Icon, Name, Search, Export */}
-                    <div
-                      className="env-tab-toolbar"
-                      style={{
-                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none',
-                        padding: '20px 20px',
-                        background: '#f8fafc',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => toggleConfigRowAccordion(config.id)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: '600', fontSize: '15px' }}>
-                        <div style={{ background: '#e0e7ff', color: '#4f46e5', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Database size={16} />
-                        </div>
-                        <span>{config.featureType || config.fileName}</span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b' }} />
-                            <input
-                              type="text"
-                              placeholder="Search records..."
-                              value={configRowSearchQueries[config.id] || ''}
-                              onChange={(e) => setConfigRowSearchQueries(prev => ({ ...prev, [config.id]: e.target.value }))}
-                              style={{
-                                padding: '6px 12px 6px 32px',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                width: '180px',
-                                outline: 'none'
-                              }}
-                            />
-                          </div>
-                          <div
-                            style={{ position: 'relative' }}
-                            onMouseLeave={() => setExportDropdownOpen(null)}
-                          >
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              leadingIcon={Download}
-                              onMouseEnter={() => setExportDropdownOpen(config.id)}
-                            >
-                              Export
-                            </Button>
-
-                            {exportDropdownOpen === config.id && (
-                              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
-                                <div
-                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
-                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                  onClick={() => {
-                                    if (filteredRecords.length > 0) {
-                                      const doc = new jsPDF('landscape');
-                                      doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
-                                      const headers = dynamicCols.map(c => c.label);
-                                      const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
-                                      doc.autoTable({ head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
-                                      doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
-                                      toast.success(`Exported ${filteredRecords.length} records to PDF.`);
-                                    } else {
-                                      toast.error('No records to export.');
-                                    }
-                                    setExportDropdownOpen(null);
-                                  }}
-                                >
-                                  <FileText size={14} /> PDF
-                                </div>
-                                <div
-                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
-                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                  onClick={() => {
-                                    if (filteredRecords.length > 0) {
-                                      const data = filteredRecords.map(r => {
-                                        const row = {};
-                                        dynamicCols.forEach(c => row[c.label] = r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-');
-                                        return row;
-                                      });
-                                      const ws = XLSX.utils.json_to_sheet(data);
-                                      const wb = XLSX.utils.book_new();
-                                      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                                      XLSX.writeFile(wb, `${config.featureType || config.fileName || 'export'}.xlsx`);
-                                      toast.success(`Exported ${filteredRecords.length} records to Excel.`);
-                                    } else {
-                                      toast.error('No records to export.');
-                                    }
-                                    setExportDropdownOpen(null);
-                                  }}
-                                >
-                                  <FileSpreadsheet size={14} /> Excel
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid #e2e8f0', height: '32px', cursor: 'pointer' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleConfigRowAccordion(config.id);
-                          }}
-                        >
-                          <ChevronDown
-                            size={18}
-                            style={{
-                              color: '#64748b',
-                              transform: expandedConfigs[config.id] ? 'rotate(180deg)' : 'none',
-                              transition: 'transform 0.2s ease',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Table */}
-                    {expandedConfigs[config.id] && (
-                      <div className="env-tab-table-container">
-                        <AdminTable
-                          keyField="id"
-                          emptyText="No records available."
-                          columns={dynamicCols}
-                          data={filteredRecords.map((r, i) => ({ ...r, id: `row-${i}` }))}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── MODAL 1: Add Configuration ──────────────────────────────────── */}
-      <AdminModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Add Configuration"
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" leadingIcon={FileUp} onClick={handleCreateConfig}>
-              Create
-            </Button>
-          </>
-        }
-      >
-        <div className="env-form-grid">
-          <div className="env-form-field-wrapper">
-            <label className="env-form-label env-form-label-required" htmlFor="add-featureType">
-              Configuration Type
-            </label>
-            <input
-              id="add-featureType"
-              type="text"
-              className={`env-form-input ${addErrors.featureType ? 'has-error' : ''}`}
-              value={addForm.featureType}
-              onChange={(e) => setAddForm((prev) => ({ ...prev, featureType: e.target.value }))}
-            />
-            {addErrors.featureType && <span className="env-form-error-msg">{addErrors.featureType}</span>}
-          </div>
-
-          <div className="env-form-field-wrapper">
-            <label className="env-form-label env-form-label-required" htmlFor="add-fileName">
-              File Name
-            </label>
-            <input
-              id="add-fileName"
-              type="text"
-              className={`env-form-input ${addErrors.fileName ? 'has-error' : ''}`}
-              value={addForm.fileName}
-              onChange={(e) => setAddForm((prev) => ({ ...prev, fileName: e.target.value }))}
-            />
-            {addErrors.fileName && <span className="env-form-error-msg">{addErrors.fileName}</span>}
-          </div>
-
-          <div className="env-form-field-wrapper">
-            <label className="env-form-label env-form-label-required" htmlFor="add-storageLocation">
-              File Location
-            </label>
-            <input
-              id="add-storageLocation"
-              type="text"
-              className={`env-form-input ${addErrors.storageLocation ? 'has-error' : ''}`}
-              value={addForm.storageLocation}
-              onChange={(e) => setAddForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
-            />
-            {addErrors.storageLocation && (
-              <span className="env-form-error-msg">{addErrors.storageLocation}</span>
-            )}
-          </div>
-        </div>
-      </AdminModal>
-
-      {/* ── MODAL 2: Edit Configuration ───────────────────────────────────── */}
-      <AdminModal
-        isOpen={!!editingConfig}
-        onClose={() => setEditingConfig(null)}
-        title="Edit Configuration"
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setEditingConfig(null)}>
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" leadingIcon={RefreshCw} onClick={handleUpdateConfig}>
-              Update
-            </Button>
-          </>
-        }
-      >
-        {editingConfig && (
-          <div className="env-form-grid">
-            <div className="env-form-field-wrapper">
-              <label className="env-form-label env-form-label-required" htmlFor="edit-featureType">
-                Configuration Type
-              </label>
-              <input
-                id="edit-featureType"
-                type="text"
-                className={`env-form-input ${editErrors.featureType ? 'has-error' : ''}`}
-                value={editForm.featureType}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, featureType: e.target.value }))}
-              />
-              {editErrors.featureType && <span className="env-form-error-msg">{editErrors.featureType}</span>}
-            </div>
-
-            <div className="env-form-field-wrapper">
-              <label className="env-form-label env-form-label-required" htmlFor="edit-fileName">
-                File Name
-              </label>
-              <input
-                id="edit-fileName"
-                type="text"
-                className={`env-form-input ${editErrors.fileName ? 'has-error' : ''}`}
-                value={editForm.fileName}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, fileName: e.target.value }))}
-              />
-              {editErrors.fileName && <span className="env-form-error-msg">{editErrors.fileName}</span>}
-            </div>
-
-            <div className="env-form-field-wrapper">
-              <label className="env-form-label env-form-label-required" htmlFor="edit-storageLocation">
-                File Location
-              </label>
-              <input
-                id="edit-storageLocation"
-                type="text"
-                className={`env-form-input ${editErrors.storageLocation ? 'has-error' : ''}`}
-                value={editForm.storageLocation}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
-              />
-              {editErrors.storageLocation && (
-                <span className="env-form-error-msg">{editErrors.storageLocation}</span>
-              )}
-            </div>
-          </div>
-        )}
-      </AdminModal>
-
-      {/* ── MODAL 3: Delete Configuration Confirmation ───────────────────── */}
-      <AdminModal
-        isOpen={!!deletingConfig}
-        onClose={() => setDeletingConfig(null)}
-        title="Delete Configuration"
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setDeletingConfig(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" size="sm" leadingIcon={Trash2} onClick={handleDeleteConfig}>
-              Delete
-            </Button>
-          </>
-        }
-      >
-        {deletingConfig && (
-          <div className="env-delete-confirm-box">
-            <p className="env-delete-warning-text">
               Are you sure you want to delete this configuration file:
               <strong> {deletingConfig.fileName}</strong>?
             </p>

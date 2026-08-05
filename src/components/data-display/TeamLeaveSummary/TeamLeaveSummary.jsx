@@ -10,6 +10,7 @@ import {
   Users,
   LayoutList,
   BarChart2,
+  X
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import api from '@api/httpClient';
@@ -154,7 +155,7 @@ function TeamLeaveSummary() {
 
   const [summaryView, setSummaryView] = useState('department');
   const [summaryDepartment, setSummaryDepartment] = useState('all');
-  const [summaryTimePeriod, setSummaryTimePeriod] = useState('this-month');
+  const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
   const [summaryLeaveType, setSummaryLeaveType] = useState('all');
   const [summarySearchQuery, setSummarySearchQuery] = useState('');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -230,30 +231,6 @@ function TeamLeaveSummary() {
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
       return sortDirection === 'asc' ? cmp : -cmp;
     });
-  const getSortedEmployees = (consultants) => {
-    const filtered = summaryLeaveType === 'all' ? consultants : consultants;
-    return [...filtered].sort((a, b) => {
-      if (analyticsSort === 'name') return a.name.localeCompare(b.name);
-      if (analyticsSort === 'utilization-high') return calcUtilization(b) - calcUtilization(a);
-      return calcUtilization(a) - calcUtilization(b);
-    });
-  };
-  const globalMaxDays = useMemo(() => {
-    const all = filteredDepartments.flatMap((d) => d.consultants);
-    return Math.max(...all.map((c) => calcTotal(c)), 1);
-  }, [filteredDepartments]);
-  const sortedAnalyticsDepts = useMemo(() => {
-    const depts = filteredDepartments.map((dept) => ({
-      dept,
-      stats: getDeptStats(dept),
-    }));
-    return depts.sort((a, b) => {
-      if (analyticsSort === 'name') return a.dept.name.localeCompare(b.dept.name);
-      if (analyticsSort === 'utilization-high')
-        return b.stats.utilizationPct - a.stats.utilizationPct;
-      return a.stats.utilizationPct - b.stats.utilizationPct;
-    });
-  }, [filteredDepartments, analyticsSort]);
   const visibleCategories = useMemo(() => {
     if (summaryLeaveType === 'all') return LEAVE_CATEGORIES;
     const map = {
@@ -269,6 +246,40 @@ function TeamLeaveSummary() {
     const key = map[summaryLeaveType];
     return key ? LEAVE_CATEGORIES.filter((c) => c.key === key) : LEAVE_CATEGORIES;
   }, [summaryLeaveType]);
+  const getSortedEmployees = (consultants) => {
+    let filtered = consultants;
+    if (summaryLeaveType !== 'all') {
+      filtered = consultants.filter(c => visibleCategories.some(cat => c[cat.key] > 0));
+    }
+    return [...filtered].sort((a, b) => {
+      if (analyticsSort === 'name') return a.name.localeCompare(b.name);
+      if (analyticsSort === 'utilization-high') return calcUtilization(b) - calcUtilization(a);
+      return calcUtilization(a) - calcUtilization(b);
+    });
+  };
+  const globalMaxDays = useMemo(() => {
+    const all = filteredDepartments.flatMap((d) => d.consultants);
+    return Math.max(...all.map((c) => calcTotal(c)), 1);
+  }, [filteredDepartments]);
+  const sortedAnalyticsDepts = useMemo(() => {
+    let depts = filteredDepartments;
+    if (summaryLeaveType !== 'all') {
+      depts = depts.filter(dept => {
+        return dept.consultants.some(c => visibleCategories.some(cat => c[cat.key] > 0));
+      });
+    }
+    
+    const mapped = depts.map((dept) => ({
+      dept,
+      stats: getDeptStats(dept),
+    }));
+    return mapped.sort((a, b) => {
+      if (analyticsSort === 'name') return a.dept.name.localeCompare(b.dept.name);
+      if (analyticsSort === 'utilization-high')
+        return b.stats.utilizationPct - a.stats.utilizationPct;
+      return a.stats.utilizationPct - b.stats.utilizationPct;
+    });
+  }, [filteredDepartments, analyticsSort, summaryLeaveType, visibleCategories]);
   return (
     <div className="team-summary-container">
       {loading && (
@@ -299,11 +310,21 @@ function TeamLeaveSummary() {
             <Select
               value={summaryTimePeriod}
               onChange={setSummaryTimePeriod}
+              placeholder="Select Month"
               options={[
-                { value: 'this-month', label: 'This Month' },
-                { value: 'this-quarter', label: 'This Quarter' },
-                { value: 'this-year', label: 'This Year' },
-                { value: 'custom', label: 'Custom' },
+                { value: '', label: 'Select Month', disabled: true },
+                { value: 'january', label: 'January' },
+                { value: 'february', label: 'February' },
+                { value: 'march', label: 'March' },
+                { value: 'april', label: 'April' },
+                { value: 'may', label: 'May' },
+                { value: 'june', label: 'June' },
+                { value: 'july', label: 'July' },
+                { value: 'august', label: 'August' },
+                { value: 'september', label: 'September' },
+                { value: 'october', label: 'October' },
+                { value: 'november', label: 'November' },
+                { value: 'december', label: 'December' }
               ]}
               width="dateRange"
             />
@@ -329,19 +350,7 @@ function TeamLeaveSummary() {
             />
           </div>
 
-          <div className="team-summary-filter-group team-summary-search-group">
-            <span className="team-summary-filter-label">Search Employee</span>
-            <div className="team-summary-search-wrapper">
-              <Search className="team-summary-search-icon" size={13} />
-              <input
-                type="text"
-                placeholder="Search by name..."
-                className="team-summary-search-input"
-                value={summarySearchQuery}
-                onChange={(e) => setSummarySearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
+
         </div>
 
         <div className="team-summary-filters-right">
@@ -352,7 +361,7 @@ function TeamLeaveSummary() {
               onClick={() => setSummaryView('department')}
             >
               <LayoutList size={13} />
-              <span>Dept View</span>
+              <span>Table View</span>
             </button>
             <button
               className="team-summary-view-btn"
@@ -427,16 +436,7 @@ function TeamLeaveSummary() {
                       <span className="team-summary-dept-stat-sub">consultants</span>
                     </div>
                     <div className="team-summary-dept-meta-sep" />
-                    <div className="team-summary-dept-stat">
-                      <span className="team-summary-dept-stat-val">{stats.totalLeaveDays}</span>
-                      <span className="team-summary-dept-stat-sub">days used</span>
-                    </div>
-                    <div className="team-summary-dept-meta-sep" />
-                    <div className="team-summary-dept-stat">
-                      <span className="team-summary-dept-stat-val">{stats.avgLeaveDays}</span>
-                      <span className="team-summary-dept-stat-sub">avg/person</span>
-                    </div>
-                    <div className="team-summary-dept-meta-sep" />
+                    
                     <div className="team-summary-dept-utilization">
                       <div className="team-summary-dept-util-bar">
                         <div
@@ -447,6 +447,23 @@ function TeamLeaveSummary() {
                       </div>
                       <span className="team-summary-dept-util-pct">{stats.utilizationPct}%</span>
                       <span className="team-summary-dept-stat-sub">utilization</span>
+                    </div>
+                    <div className="team-summary-dept-meta-sep" />
+                    
+                    <div className="team-summary-search-wrapper" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
+                      <Search className="team-summary-search-icon" size={13} />
+                      <input
+                        type="text"
+                        placeholder="Search employee..."
+                        className="team-summary-search-input"
+                        value={summarySearchQuery}
+                        onChange={(e) => setSummarySearchQuery(e.target.value)}
+                       style={{ paddingRight: '32px' }} />
+      {summarySearchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSummarySearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
                     </div>
                   </div>
                 </div>
@@ -481,10 +498,37 @@ function TeamLeaveSummary() {
                           {sorted.map((c) => {
                             const isEmpExpanded = expandedEmployees.has(c.id);
                             
-                            const totalQuota = c.leaveTypes?.reduce((sum, lt) => sum + (lt.entitled || 0), 0) || c.leaveQuota || 0;
-                            const totalBooked = c.leaveTypes?.reduce((sum, lt) => sum + (lt.booked || 0), 0) || calcTotal(c) || 0;
-                            const totalPending = c.leaveTypes?.reduce((sum, lt) => sum + (lt.pending || 0), 0) || 0;
-                            const totalRemaining = c.leaveTypes?.reduce((sum, lt) => sum + (lt.remaining || 0), 0) || calcRemaining(c) || 0;
+                            let targetTypes = [];
+                            if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+                            else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+                            else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+                            else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+                            else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+                            else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+                            else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
+                            
+                            let totalQuota = 0, totalBooked = 0, totalPending = 0, totalRemaining = 0;
+                            
+                            if (summaryLeaveType === 'all') {
+                              totalQuota = c.leaveTypes?.reduce((sum, lt) => sum + (lt.entitled || 0), 0) || c.leaveQuota || 0;
+                              totalBooked = c.leaveTypes?.reduce((sum, lt) => sum + (lt.booked || 0), 0) || calcTotal(c) || 0;
+                              totalPending = c.leaveTypes?.reduce((sum, lt) => sum + (lt.pending || 0), 0) || 0;
+                              totalRemaining = c.leaveTypes?.reduce((sum, lt) => sum + (lt.remaining || 0), 0) || calcRemaining(c) || 0;
+                            } else {
+                              if (c.leaveTypes && c.leaveTypes.length > 0) {
+                                const lts = c.leaveTypes.filter(lt => targetTypes.includes(lt.leave_type_code));
+                                totalQuota = lts.reduce((sum, lt) => sum + (lt.entitled || 0), 0);
+                                totalBooked = lts.reduce((sum, lt) => sum + (lt.booked || 0), 0);
+                                totalPending = lts.reduce((sum, lt) => sum + (lt.pending || 0), 0);
+                                totalRemaining = lts.reduce((sum, lt) => sum + (lt.remaining || 0), 0);
+                              } else {
+                                targetTypes.forEach(tt => {
+                                  totalQuota += c.balances?.[tt]?.entitled || 0;
+                                  totalBooked += c.balances?.[tt]?.used || 0;
+                                  totalRemaining += c.balances?.[tt]?.available || 0;
+                                });
+                              }
+                            }
 
                             const LEAVE_TYPE_LABELS = {
                               AL: "Annual Leave",
@@ -540,21 +584,24 @@ function TeamLeaveSummary() {
                                           </thead>
                                           <tbody>
                                             {relevantLeaves.length > 0 ? (
-                                              relevantLeaves.map((lt, idx) => (
-                                                <tr key={idx}>
-                                                  <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{LEAVE_TYPE_LABELS[lt.leave_type_code] || lt.leave_type_name || lt.leave_type_code}</td>
-                                                  <td className="num">{lt.entitled || 0}</td>
-                                                  <td className="num">{lt.carryover || 0}</td>
-                                                  <td className="num">{lt.advance_taken_prev_yr || 0}</td>
-                                                  <td className="num">{lt.upcoming || 0}</td>
-                                                  <td className="num">{lt.booked || 0}</td>
-                                                  <td className="num">{lt.pending || 0}</td>
-                                                  <td className="num">{lt.approved || 0}</td>
-                                                  <td className="num">{lt.rejected || 0}</td>
-                                                  <td className="num">{lt.completed || 0}</td>
-                                                  <td className="num" style={{ fontWeight: 600, color: 'var(--c-primary)' }}>{lt.remaining || 0}</td>
-                                                </tr>
-                                              ))
+                                              relevantLeaves.map((lt, idx) => {
+                                                const typeMatches = targetTypes.includes(lt.leave_type_code);
+                                                return (
+                                                  <tr key={idx} style={{ backgroundColor: (summaryLeaveType !== 'all' && typeMatches) ? 'rgba(16, 185, 129, 0.15)' : 'transparent' }}>
+                                                    <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{LEAVE_TYPE_LABELS[lt.leave_type_code] || lt.leave_type_name || lt.leave_type_code}</td>
+                                                    <td className="num">{lt.entitled || 0}</td>
+                                                    <td className="num">{lt.carryover || 0}</td>
+                                                    <td className="num">{lt.advance_taken_prev_yr || 0}</td>
+                                                    <td className="num">{lt.upcoming || 0}</td>
+                                                    <td className="num">{lt.booked || 0}</td>
+                                                    <td className="num">{lt.pending || 0}</td>
+                                                    <td className="num">{lt.approved || 0}</td>
+                                                    <td className="num">{lt.rejected || 0}</td>
+                                                    <td className="num">{lt.completed || 0}</td>
+                                                    <td className="num" style={{ fontWeight: 600, color: 'var(--c-primary)' }}>{lt.remaining || 0}</td>
+                                                  </tr>
+                                                );
+                                              })
                                             ) : (
                                               <tr>
                                                 <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '16px' }}>No active leave allocations found.</td>
@@ -615,11 +662,16 @@ function TeamLeaveSummary() {
 
           {/* ── Department Accordion List ── */}
           <div className="tsa-dept-list">
-            {sortedAnalyticsDepts.map(({ dept, stats }) => {
-              const isExpanded = expandedAnalyticsDepts.has(dept.id);
-              const employees = getSortedEmployees(dept.consultants);
-              return (
-                <div key={dept.id} className="tsa-dept-section">
+            {sortedAnalyticsDepts.length === 0 ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '15px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
+                No departments have utilized this specific leave type.
+              </div>
+            ) : (
+              sortedAnalyticsDepts.map(({ dept, stats }) => {
+                const isExpanded = expandedAnalyticsDepts.has(dept.id);
+                const employees = getSortedEmployees(dept.consultants);
+                return (
+                  <div key={dept.id} className="tsa-dept-section">
                   {/* Accordion Header */}
                   <div
                     className="tsa-dept-header"
@@ -635,16 +687,6 @@ function TeamLeaveSummary() {
                       <span className="tsa-dept-count">{stats.count} employees</span>
                     </div>
                     <div className="tsa-dept-header-right">
-                      <div className="tsa-dept-kpi">
-                        <span className="tsa-dept-kpi-val">{stats.totalLeaveDays}</span>
-                        <span className="tsa-dept-kpi-sub">days total</span>
-                      </div>
-                      <div className="tsa-dept-kpi-sep" />
-                      <div className="tsa-dept-kpi">
-                        <span className="tsa-dept-kpi-val">{stats.avgLeaveDays}</span>
-                        <span className="tsa-dept-kpi-sub">avg/person</span>
-                      </div>
-                      <div className="tsa-dept-kpi-sep" />
                       <div className="tsa-dept-util">
                         <div className="tsa-dept-util-track">
                           <div
@@ -659,7 +701,24 @@ function TeamLeaveSummary() {
                         >
                           {stats.utilizationPct}%
                         </span>
-                        <span className="tsa-dept-kpi-sub">utilized</span>
+                      </div>
+                      
+                      <div className="tsa-dept-kpi-sep" />
+                      
+                      <div className="team-summary-search-wrapper" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
+                        <Search className="team-summary-search-icon" size={13} />
+                        <input
+                          type="text"
+                          placeholder="Search employee..."
+                          className="team-summary-search-input"
+                          value={summarySearchQuery}
+                          onChange={(e) => setSummarySearchQuery(e.target.value)}
+                         style={{ paddingRight: '32px' }} />
+      {summarySearchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSummarySearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
                       </div>
                     </div>
                   </div>
@@ -675,16 +734,6 @@ function TeamLeaveSummary() {
                         </div>
                         <div className="tsa-summary-sep" />
                         <div className="tsa-summary-stat">
-                          <span className="tsa-summary-stat-val">{stats.totalLeaveDays}</span>
-                          <span className="tsa-summary-stat-label">Days Utilized</span>
-                        </div>
-                        <div className="tsa-summary-sep" />
-                        <div className="tsa-summary-stat">
-                          <span className="tsa-summary-stat-val">{stats.avgLeaveDays}</span>
-                          <span className="tsa-summary-stat-label">Avg Days / Person</span>
-                        </div>
-                        <div className="tsa-summary-sep" />
-                        <div className="tsa-summary-stat">
                           <span
                             className="tsa-summary-stat-val"
                             data-high={stats.utilizationPct >= 80 ? 'true' : 'false'}
@@ -697,7 +746,14 @@ function TeamLeaveSummary() {
 
                       {/* Employee Bar Rows */}
                       <div className="tsa-emp-list">
-                        {employees.map((emp) => {
+                        {employees.length === 0 ? (
+                          <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', margin: '10px 0' }}>
+                            {summaryLeaveType !== 'all' 
+                              ? "No employees have utilized this specific leave type."
+                              : "No employees found in this department."}
+                          </div>
+                        ) : (
+                          employees.map((emp) => {
                           const total = calcTotal(emp);
                           const utilPct = calcUtilization(emp);
                           const barWidthPct = (total / globalMaxDays) * 100;
@@ -768,13 +824,13 @@ function TeamLeaveSummary() {
                               </div>
                             </div>
                           );
-                        })}
+                        }) )}
                       </div>
                     </div>
                   )}
                 </div>
               );
-            })}
+            }) )}
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ const endpoints = {
     verify: '/auth/verify/',
     logout: '/auth/logout/',
     userInfo: '/auth/user-info/',
+    updateUserInfo: '/auth/update-user-info/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
@@ -182,6 +183,7 @@ const endpoints = {
     teams: '/employees/teams/',
     teamDetail: (id) => `/employees/teams/${id}/`,
     designationsTeams: '/employees/designation-teams/',
+    photo: (id) => `/employees/emp-photo/${id}/`,
     photoUpload: (id) => `/employees/emp-photo/${id}/upload/`,
     photoDelete: (id) => `/employees/emp-photo/${id}/delete/`,
     teamHeadcount: '/employees/team-headcount/',

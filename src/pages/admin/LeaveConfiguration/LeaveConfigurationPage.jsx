@@ -374,6 +374,7 @@ export function LeaveConfigurationPage() {
   // { code, name, leave_type: {...}, policy: {...} | null }
   const [combinedLeaveTypes, setCombinedLeaveTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Work Schedule State — static options, not fetched from backend
   const workScheduleOptions = WORK_SCHEDULE_OPTIONS;
@@ -617,6 +618,7 @@ export function LeaveConfigurationPage() {
       return;
     }
 
+    setIsSaving(true);
     const payload = {
       holiday_name: holidayForm.name,
       dates: [holidayForm.date],
@@ -649,6 +651,8 @@ export function LeaveConfigurationPage() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to save holiday');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -721,6 +725,7 @@ export function LeaveConfigurationPage() {
 
     const payload = combinedFormToPayload(combinedForm);
 
+    setIsSaving(true);
     try {
       setCombinedCodeError('');
       if (editingCombinedCode) {
@@ -743,6 +748,8 @@ export function LeaveConfigurationPage() {
         toast.error('Failed to save leave type & policy');
         console.error(err);
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1012,24 +1019,24 @@ export function LeaveConfigurationPage() {
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             {isEditing ? (
-                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
                                 <button
                                   type="button"
-                                  className="lc-btn-primary"
-                                  style={{ height: '32px', padding: '0 12px' }}
+                                  className="lc-inline-btn save"
+                                  title="Save Changes"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px' }}
                                   onClick={() => handleSaveHolidayInlineEdit(h.id)}
                                 >
-                                  <Check size={14} />
-                                  Save Changes
+                                  <Check size={16} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
-                                  style={{ width: 'auto', padding: '0 12px' }}
+                                  className="lc-inline-btn cancel"
+                                  title="Cancel"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#ef4444' }}
                                   onClick={cancelHolidayInlineEdit}
                                 >
-                                  <X size={14} />
-                                  Cancel
+                                  <X size={16} />
                                 </button>
                               </div>
                             ) : (
@@ -1278,11 +1285,12 @@ export function LeaveConfigurationPage() {
               className="lc-ghost-btn"
               style={{ padding: '0 16px', width: 'auto' }}
               onClick={() => setIsHolidayModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
-            <button type="button" className="lc-btn-primary" onClick={handleSaveHoliday}>
-              Save Holiday
+            <button type="button" className="lc-btn-primary" onClick={handleSaveHoliday} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Holiday'}
             </button>
           </>
         }
@@ -1428,11 +1436,12 @@ export function LeaveConfigurationPage() {
               className="lc-ghost-btn"
               style={{ padding: '0 16px', width: 'auto' }}
               onClick={() => setIsCombinedModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
-            <button type="button" className="lc-btn-primary" onClick={handleSaveCombined}>
-              Save Leave Type
+            <button type="button" className="lc-btn-primary" onClick={handleSaveCombined} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Leave Type'}
             </button>
           </>
         }

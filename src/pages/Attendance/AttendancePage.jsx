@@ -19,6 +19,7 @@ import {
   Percent,
   FileSpreadsheet,
   FileText,
+  X
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -550,7 +551,13 @@ export function AttendancePage() {
             className="att-search-input"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            style={{ paddingRight: '32px' }}
           />
+          {searchQuery && (
+            <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Month nav — only on Report tab, when no date range active */}
@@ -641,12 +648,12 @@ export function AttendancePage() {
       {subTab === 'on-duty' && (
         <div className="attendance-kpi-section">
           {[
-            { key: 'total',      icon: <Users size={20} />,        color: 'blue',  count: onDutyConsultants.length + onLeaveConsultants.length, label: 'Total Consultants' },
-            { key: 'present',    icon: <Building2 size={20} />,    color: 'green', count: onDutyConsultants.filter(c => c.status === 'present').length, label: 'Present (Office)' },
-            { key: 'wfh',        icon: <Home size={20} />,         color: 'blue',  count: onDutyConsultants.filter(c => c.status === 'remote').length, label: 'Work From Home' },
-            { key: 'leave',      icon: <Clock size={20} />,        color: 'amber', count: onLeaveConsultants.length, label: 'On Leave' },
+            { key: 'total',      icon: <Users size={20} />,        color: 'blue',  count: filteredOnDuty.length + filteredOnLeave.length, label: 'Total Consultants' },
+            { key: 'present',    icon: <Building2 size={20} />,    color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
+            { key: 'wfh',        icon: <Home size={20} />,         color: 'blue',  count: filteredOnDuty.filter(c => c.status === 'remote').length, label: 'Work From Home' },
+            { key: 'leave',      icon: <Clock size={20} />,        color: 'amber', count: filteredOnLeave.length, label: 'On Leave' },
             { key: 'absent',     icon: <AlertCircle size={20} />,  color: 'red',   count: 0, label: 'Absent / Not Marked' },
-            { key: 'attendance', icon: <Percent size={20} />,      color: 'green', count: `${Math.round(onDutyConsultants.length / Math.max(onDutyConsultants.length + onLeaveConsultants.length, 1) * 100)}%`, label: 'Attendance %' },
+            { key: 'attendance', icon: <Percent size={20} />,      color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(filteredOnDuty.length + filteredOnLeave.length, 1) * 100)}%`, label: 'Attendance %' },
           ].map(({ key, icon, color, count, label }) => (
             <div
               key={key}
