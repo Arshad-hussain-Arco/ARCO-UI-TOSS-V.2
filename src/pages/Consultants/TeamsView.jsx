@@ -207,12 +207,14 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+  const [formErrors, setFormErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
     setEditingTeam(null);
     setForm({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
@@ -223,24 +225,24 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
       pri_dev_contr_per: team.pri_dev_contr_per || '',
       add_dev_contr_per: team.add_dev_contr_per || ''
     });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
   const handleSaveTeam = async () => {
-    if (!form.name.trim()) {
-      toast.error('Team Name is required');
-      return;
-    }
-    if (form.pri_dev_contr_per === '' || form.add_dev_contr_per === '') {
-      toast.error('Primary and Additional contributions are required');
-      return;
-    }
+    const errors = {};
+    if (!form.name.trim()) errors.name = 'Team Name is required';
+    if (form.pri_dev_contr_per === '') errors.pri_dev_contr_per = 'Primary Contribution is required';
+    if (form.add_dev_contr_per === '') errors.add_dev_contr_per = 'Additional Contribution is required';
     const pri = parseFloat(form.pri_dev_contr_per);
     const add = parseFloat(form.add_dev_contr_per);
-    if (pri < 0 || add < 0) {
-      toast.error('Contributions cannot be negative');
+    if (form.pri_dev_contr_per !== '' && pri < 0) errors.pri_dev_contr_per = 'Cannot be negative';
+    if (form.add_dev_contr_per !== '' && add < 0) errors.add_dev_contr_per = 'Cannot be negative';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({});
     setIsSaving(true);
     try {
       const payload = {
@@ -426,9 +428,15 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <input
               type="text"
               value={form.name}
+<<<<<<< HEAD
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
+            {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
@@ -436,9 +444,15 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="number"
               step="0.01"
               value={form.pri_dev_contr_per}
+<<<<<<< HEAD
               onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
+              onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
+            {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
@@ -446,9 +460,15 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="number"
               step="0.01"
               value={form.add_dev_contr_per}
+<<<<<<< HEAD
               onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
+              onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
+            {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>
         </div>
       </AdminModal>

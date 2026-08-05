@@ -9,6 +9,7 @@ import {
   Search,
   Trash2,
   X,
+  RefreshCw,
 } from 'lucide-react';
 
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
@@ -431,13 +432,10 @@ export function LeaveConfigurationPage() {
         const data = await leaveService.getWorkScheduleSummary();
         if (active) {
           setWorkScheduleSummary(data);
-          // Pre-select the currently applied weekend days so the checkboxes reflect
-          // the org's current assignment as soon as the tab opens.
+          // The user explicitly requested that no days be checked by default upon loading,
+          // so we intentionally do NOT pre-populate selectedCustomDays here from the backend.
           if (data?.meta?.distinct_schedules === 1) {
-            const group = data.results[0];
-            setSelectedCustomDays(
-              group.work_schedule === 'CUSTOM' ? group.custom_weekend_days || [] : [],
-            );
+            setSelectedCustomDays([]);
           }
         }
       } catch (err) {
@@ -1186,72 +1184,98 @@ export function LeaveConfigurationPage() {
         )}
         {/* ── TAB 3: WORK SCHEDULE ── */}
         {activeTab === 'work-schedule' && (
-          <div className="lc-card-panel">
+          <div className="lc-card-panel" style={{ flex: 'none' }}>
             <div style={{ padding: '24px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>Work Schedule Settings</h3>
 
-              {isSummaryLoading && (
-                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>Loading current schedule…</div>
-              )}
-
-              {!isSummaryLoading && workScheduleSummary?.meta?.distinct_schedules > 1 && (
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px' }}>
-                    Employees are currently split across multiple schedules. Applying below will set everyone to the selected days.
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {workScheduleSummary.results.map((group, idx) => (
-                      <div
-                        key={`${group.work_schedule}-${idx}`}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                        }}
-                      >
-                        <div>
-                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                            {getScheduleLabel(group.work_schedule)}
-                          </span>
-                          {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
-                            <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
-                              ({formatCustomWeekendDays(group.custom_weekend_days)})
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
-                          {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              {isSummaryLoading ? (
+                <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
+                  <Loader message="Loading current schedule..." />
                 </div>
-              )}
+              ) : (
+                <>
+                  {workScheduleSummary?.meta?.distinct_schedules > 1 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px' }}>
+                        Employees are currently split across multiple schedules. Applying below will set everyone to the selected days.
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {workScheduleSummary.results.map((group, idx) => (
+                          <div
+                            key={`${group.work_schedule}-${idx}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                                {getScheduleLabel(group.work_schedule)}
+                              </span>
+                              {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
+                                <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
+                                  ({formatCustomWeekendDays(group.custom_weekend_days)})
+                                </span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                              {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div className="ss-modal-form-group">
-                  <label className="ss-modal-label">Select Weekend Days</label>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
-                    {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="ss-modal-form-group">
+                  <div style={{ marginBottom: '20px' }}>
+                    <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => (
-                      <label key={day.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCustomDays.includes(day.value)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCustomDays([...selectedCustomDays, day.value]);
-                            } else {
-                              setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
-                            }
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => {
+                      const isSelected = selectedCustomDays.includes(day.value);
+                      return (
+                        <label 
+                          key={day.value} 
+                          htmlFor={`ws-weekend-day-${day.value}`}
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '12px', 
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: 'var(--text-primary)',
+                            userSelect: 'none'
                           }}
-                          style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#334155' }}>{day.label}</span>
-                      </label>
-                    ))}
+                        >
+                          <input
+                            id={`ws-weekend-day-${day.value}`}
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCustomDays([...selectedCustomDays, day.value]);
+                              } else {
+                                setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
+                              }
+                            }}
+                            style={{ 
+                              width: '18px', 
+                              height: '18px', 
+                              accentColor: 'var(--c-primary)',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <span>{day.label}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1267,6 +1291,8 @@ export function LeaveConfigurationPage() {
                   Apply Work Schedule
                 </button>
               </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -13,7 +13,7 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
     <div className="dc-alerts-panel" style={{ borderBottom: 'none' }}>
       <div className="dc-alerts-header">
         <h2 className="dc-section-title" style={{ margin: 0 }}>Upcoming Holidays</h2>
-        <Palmtree size={14} style={{ color: '#d97706' }} />
+        {/* <Palmtree size={14} style={{ color: '#d97706' }} /> */}
       </div>
 
       <div className="dc-alerts-list">
@@ -23,8 +23,8 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
           try {
             const d = new Date(dateStr);
             if (!isNaN(d)) {
-              displayDate = isSameYear(d, new Date()) 
-                ? format(d, 'EEE, MMM d') 
+              displayDate = isSameYear(d, new Date())
+                ? format(d, 'EEE, MMM d')
                 : format(d, 'EEE, MMM d, yyyy');
             }
           } catch (e) {

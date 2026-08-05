@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { Download, Filter } from 'lucide-react';
+import { Calendar, User, Search, Play } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -23,6 +23,11 @@ import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
 import { leaveService } from '@services/leaveService';
+import { dashboardService } from '@services/dashboardService';
+import { consultantService } from '@services/consultantService';
+import { eodService } from '@services/eodService';
+import { capacityService } from '@services/capacityService';
+import { murexService } from '@services/murexService';
 import './DashboardPage.css';
 
 /**
@@ -34,8 +39,6 @@ import './DashboardPage.css';
 export function DashboardPage() {
   useDocumentTitle('Dashboard');
   const { user } = useAuth();
-
-  const [dateFilter, setDateFilter] = useState('today');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,6 +56,7 @@ export function DashboardPage() {
   const [departmentStats, setDepartmentStats] = useState([]);
   const [onLeaveRecords, setOnLeaveRecords] = useState([]);
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
+  const [murexData, setMurexData] = useState(null);
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
@@ -66,55 +70,56 @@ export function DashboardPage() {
       const endStr = format(nextWeek, 'yyyy-MM-dd');
 
       const promises = [
-        httpClient.get('/dashboard/summary/'),
-        httpClient.get('/dashboard/leave-utilization/'),
-        httpClient.get('/eod-jobs/eod-records/'),
+        dashboardService.getSummary(),
+        dashboardService.getLeaveUtilization(),
+        eodService.getEodRecords(),
         httpClient.get('/employees/teams/'),
-        httpClient.get('/employees/employees-list/'),
-        httpClient.get('/dashboard/announcements/'),
-        httpClient.get('/capacity-planning/capacity-planning/'),
-        httpClient.get('/dashboard/leave-requests-trend/?days=7'),
-        httpClient.get('/dashboard/department-stats/'),
-        httpClient.get(`/dashboard/on-leave/?start_date=${startStr}&end_date=${endStr}`),
+        consultantService.getEmployeesList(),
+        dashboardService.getAnnouncements(),
+        capacityService.getCapacityPlanning(),
+        dashboardService.getLeaveRequestsTrend({ days: 7 }),
+        dashboardService.getDepartmentStats(),
+        dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
         leaveService.listHolidays(),
+        murexService.getRuntimeTrends(),
       ];
 
       if (empId) {
-        promises.push(httpClient.get(`/dashboard/pending-approvals/?manager_id=${empId}`));
+        promises.push(dashboardService.getPendingApprovals({ manager_id: empId }));
       }
 
       const results = await Promise.allSettled(promises);
 
-      if (results[0]?.status === 'fulfilled') setApiSummary(results[0].value.data);
-      if (results[1]?.status === 'fulfilled') setLeaveUtilization(results[1].value.data);
+      // Extract results since service methods return response.data directly
+      if (results[0]?.status === 'fulfilled') setApiSummary(results[0].value);
+      if (results[1]?.status === 'fulfilled') setLeaveUtilization(results[1].value);
       if (results[2]?.status === 'fulfilled') {
-        const data = results[2].value.data;
+        const data = results[2].value;
         setEodRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[3]?.status === 'fulfilled') {
-        const data = results[3].value.data;
+        const data = results[3].value.data; // Still using httpClient for teams
         setTeams(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[4]?.status === 'fulfilled') {
-        const data = results[4].value.data;
+        const data = results[4].value;
         setEmployees(Array.isArray(data) ? data : data?.results || []);
       }
-      if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value.data);
+      if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value);
       if (results[6]?.status === 'fulfilled') {
-        const data = results[6].value.data;
+        const data = results[6].value;
         setCapacityRecords(Array.isArray(data) ? data : data?.results || []);
       }
-      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value.data);
+      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value);
       if (results[8]?.status === 'fulfilled') {
-        const data = results[8].value.data;
+        const data = results[8].value;
         setDepartmentStats(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[9]?.status === 'fulfilled') {
-        const data = results[9].value.data;
+        const data = results[9].value;
         setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[10]?.status === 'fulfilled') {
-        // listHolidays already returns response.data directly
         const data = results[10].value;
         const holidaysArr = Array.isArray(data) ? data : data?.results || [];
 
@@ -138,8 +143,11 @@ export function DashboardPage() {
 
         setUpcomingHolidays(upcoming);
       }
-      if (empId && results[11]?.status === 'fulfilled') {
-        const data = results[11].value.data;
+      if (results[11]?.status === 'fulfilled') {
+        setMurexData(results[11].value);
+      }
+      if (empId && results[12]?.status === 'fulfilled') {
+        const data = results[12].value;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -175,28 +183,80 @@ export function DashboardPage() {
     // 1. KPI Strip
     const kpis = [
       { id: 'k1', count: totalEmps, label: 'Total Consultants', subtext: 'Realtime Live Data', iconKey: 'users', color: 'blue' },
-      { id: 'k2', count: presentEmps, label: 'Present Today', subtext: 'Realtime Live Data', iconKey: 'building', color: 'green', trend: 'up' },
+      { id: 'k2', count: presentEmps, label: 'Active Consultants', subtext: 'Realtime Live Data', iconKey: 'building', color: 'green', trend: 'up' },
       { id: 'k3', count: leaveEmps, label: 'On Leave', subtext: 'Realtime Live Data', iconKey: 'clock', color: 'amber' },
       { id: 'k4', count: wfhEmps, label: 'Work From Home', subtext: 'Realtime Live Data', iconKey: 'home', color: 'blue' },
       { id: 'k5', count: totalEmps - activeEmps, label: 'Inactive', subtext: 'Realtime Live Data', iconKey: 'userMinus', color: 'grey' },
     ];
 
+    const murexJobsTotal = murexData?.scripts?.length || 0;
+    const murexJobsFailed = murexData?.scripts?.reduce((sum, script) => sum + (script.failedRuns || 0), 0) || 0;
+
     // 2. System Health
     const systemHealth = {
-      murexJobs: { total: 0, failed: 0 },
+      murexJobs: { total: murexJobsTotal, failed: murexJobsFailed },
       eodStatus: { completed: eodTotal > 0 ? (eodTotal - eodRunning) : 0, total: eodTotal, running: eodRunning },
-      avgRuntime: { time: 'N/A', change: '0%' }
+      avgRuntime: { time: murexData?.summary?.avg || 'N/A', change: '0%' }
     };
 
-    // 3. Runtime Trend (Fallback static for chart demo as we don't have historical runtime live yet)
-    const runtimeTrend = [
-      { day: 'Mon', runtime: 85, failed: 0 },
-      { day: 'Tue', runtime: 90, failed: 2 },
-      { day: 'Wed', runtime: 120, failed: 0 },
-      { day: 'Thu', runtime: 110, failed: 1 },
-      { day: 'Fri', runtime: 95, failed: 0 },
-    ];
-    const runtimeInsights = { longest: { script: 'EOD', duration: '120m' }, mostFailed: 'N/A', slaThreshold: 100 };
+    // 3. Runtime Trend
+    let runtimeTrend = [];
+    if (murexData && murexData.trend) {
+      runtimeTrend = murexData.trend.map(t => {
+        const d = new Date(t.date);
+        const dayStr = isNaN(d.getTime()) ? t.date : d.toLocaleDateString('en-US', { weekday: 'short' });
+        return {
+          day: dayStr,
+          runtime: t.runtime,
+          failed: 0 // Simplification since trend array doesn't include global failures
+        };
+      });
+      // Keep only last 7 items for the chart if it's too long
+      if (runtimeTrend.length > 7) {
+        runtimeTrend = runtimeTrend.slice(-7);
+      }
+    } else {
+      runtimeTrend = [
+        { day: 'Mon', runtime: 85, failed: 0 },
+        { day: 'Tue', runtime: 90, failed: 2 },
+        { day: 'Wed', runtime: 120, failed: 0 },
+        { day: 'Thu', runtime: 95, failed: 0 },
+        { day: 'Fri', runtime: 110, failed: 1 },
+        { day: 'Sat', runtime: 75, failed: 0 },
+        { day: 'Sun', runtime: 80, failed: 0 }
+      ];
+    }
+    const allScripts = murexData?.scripts || [];
+    
+    let longestScript = { script: 'N/A', duration: '0m' };
+    if (allScripts.length > 0) {
+      const sortedByRuntime = [...allScripts].sort((a, b) => b.maxRuntime - a.maxRuntime);
+      longestScript = { 
+        script: sortedByRuntime[0].name, 
+        duration: `${sortedByRuntime[0].maxRuntime}m` 
+      };
+    }
+
+    let mostFailedScript = 'N/A';
+    if (allScripts.length > 0) {
+      const sortedByFailures = [...allScripts].sort((a, b) => {
+         const aFails = a.history ? a.history.filter(h => h.status === 'error').length : 0;
+         const bFails = b.history ? b.history.filter(h => h.status === 'error').length : 0;
+         return bFails - aFails;
+      });
+      const topFails = sortedByFailures[0].history ? sortedByFailures[0].history.filter(h => h.status === 'error').length : 0;
+      if (topFails > 0) {
+        mostFailedScript = `${sortedByFailures[0].name} (${topFails})`;
+      }
+    }
+
+    // Default SLA threshold if we don't have a specific one per script
+    const slaThreshold = 100;
+    const runtimeInsights = { 
+      longest: longestScript, 
+      mostFailed: mostFailedScript, 
+      slaThreshold 
+    };
 
     // 4. Leave Snapshot
     const leaveDistribution = Array.isArray(leaveUtilization?.results) && leaveUtilization.results.length > 0
@@ -304,17 +364,6 @@ export function DashboardPage() {
         <div>
           <h1 className="dc-page-title">Welcome, {userName}!</h1>
           <p className="dc-page-sub">Here is your real-time overview of system health, team performance, and key operational metrics.</p>
-        </div>
-
-        <div className="dc-header-actions">
-          <div className="dc-filter-pill">
-            <Filter size={12} />
-            <Select value={dateFilter} onChange={setDateFilter} options={[{ label: 'Today', value: 'today' }]} width="dateRange" />
-          </div>
-          <button type="button" className="dc-export-btn">
-            <Download size={13} />
-            Export
-          </button>
         </div>
       </div>
 
