@@ -7,6 +7,7 @@ import {
   Edit2,
   Trash2,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -67,6 +68,7 @@ export function SchedulesSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [deleteConfirmSchedule, setDeleteConfirmSchedule] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   /** Fetch schedule records only on page load */
   const fetchScheduleData = useCallback(async () => {
@@ -168,6 +170,7 @@ export function SchedulesSection() {
   };
 
   const handleDeleteSchedule = async (id) => {
+    setIsSaving(true);
     try {
       await eodService.deleteEodSchedule(id);
       setDeleteConfirmSchedule(null);
@@ -176,6 +179,8 @@ export function SchedulesSection() {
       console.error('Failed to delete schedule:', err);
       setScheduleList((prev) => prev.filter((s) => s.id !== id));
       setDeleteConfirmSchedule(null);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -373,6 +378,7 @@ export function SchedulesSection() {
               type="button"
               className="eod-modal-btn cancel"
               onClick={() => setDeleteConfirmSchedule(null)}
+              disabled={isSaving}
             >
               Cancel
             </button>
@@ -380,8 +386,10 @@ export function SchedulesSection() {
               type="button"
               className="eod-modal-btn danger"
               onClick={() => handleDeleteSchedule(deleteConfirmSchedule.id)}
+              disabled={isSaving}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              Delete Schedule
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete Schedule'}
             </button>
           </div>
         </AdminModal>

@@ -166,7 +166,12 @@ export function ConfigSection() {
             placeholder="Search environment, IP, user, script..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-          />
+           style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
           {searchQuery && (
             <button className="eod-search-clear" onClick={() => setSearchQuery('')}>
               <X size={11} />

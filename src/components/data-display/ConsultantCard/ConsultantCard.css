@@ -180,7 +180,7 @@
 /* Card Footer - Minimal Actions overlay on hover */
 .consultant-card-footer {
   position: absolute;
-  top: 8px;
+  top: 68px;
   right: 8px;
   display: flex;
   gap: 4px;
