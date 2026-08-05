@@ -932,204 +932,12 @@ export function MurexRuntimeTrendsPage() {
   const toggleScriptAssignment = (scriptName, assign) => {
     if (assign) {
       setCategoryFormScripts(prev => [...prev, scriptName]);
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
-  const scripts = useMemo(
-    () =>
-      (data?.scripts ?? []).map((script) => {
-        // Find explicit remote category that contains this script
-        const matchingCategory = remoteCategories.find(c =>
-          c.scripts && c.scripts.some(s => s.script_name === script.name)
-        );
-        return {
-          ...script,
-          category: matchingCategory ? matchingCategory.name : 'Unassigned Scripts',
-          isPinned: pinnedScriptIds.has(script.id),
-        };
-      }),
-    [data, pinnedScriptIds, remoteCategories],
-  );
-
-  const [activeTab, setActiveTab] = useState('runtime');
-  const [timeRange, setTimeRange] = useState('7d');
-  const selectedScript = scripts.length > 0 ? scripts[0].id : '';
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [scriptFilter, setScriptFilter] = useState('');
-  const [showScriptDetail, setShowScriptDetail] = useState(false);
-  const [detailScript, setDetailScript] = useState(null);
-  const [expandedScriptIds, setExpandedScriptIds] = useState(() => new Set());
-  const [selectedCellDetails, setSelectedCellDetails] = useState(null);
-  const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
-  const [isGanttLoading, setIsGanttLoading] = useState(false);
-
-  const toggleExpandScript = (scriptId, e) => {
-    e?.stopPropagation();
-    setExpandedScriptIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(scriptId)) next.delete(scriptId);
-      else next.add(scriptId);
-      return next;
-    });
-  };
-
-  const toggleRunGantt = (runId) => {
-    setExpandedRunGanttIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(runId)) next.delete(runId);
-      else next.add(runId);
-      return next;
-    });
-  };
-
-  const handleHeatmapCellClick = async (script, eventData) => {
-    if (eventData?.points?.[0]) {
-      const pt = eventData.points[0];
-      const details = getCellExecutionDetails(script, pt.x, pt.y);
-      setSelectedCellDetails(details);
-      setExpandedRunGanttIds(new Set());
-      setIsGanttLoading(true);
-
-      // Find the exact date corresponding to this cell
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const ptDayIndex = days.indexOf(pt.y);
-      const ptWeek = parseInt(pt.x, 10);
-
-      const matchingRun = (script.history || []).find(run => {
-        if (!run.date || run.date === 'Unknown Date') return false;
-        const dateObj = parseISO(run.date);
-        if (isNaN(dateObj)) return false;
-        const week = getISOWeek(dateObj);
-        const jsDay = getDay(dateObj);
-        const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
-        return week === ptWeek && dayIndex === ptDayIndex;
-      });
-
-      if (matchingRun) {
-        // Dispatch payload to backend with exact date label
-        const payload = { script_name: script.name, label: matchingRun.date };
-        try {
-          const response = await murexService.fetchRuntimeDetails(payload);
-          const processData = response.data?.[script.name];
-          if (processData && processData.labels && processData.steps) {
-            const runs = processData.labels.map((label, index) => {
-              const stepsData = processData.steps[index];
-              const formatDuration = (secs) => {
-                const h = Math.floor(secs / 3600).toString().padStart(2, '0');
-                const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
-                const s = Math.floor(secs % 60).toString().padStart(2, '0');
-                return `${h}:${m}:${s}`;
-              };
-
-              return {
-                id: `${script.id}-run-${index}`,
-                name: `Run ${index + 1} (${label})`,
-                duration: formatDuration(processData.time_duration[index]),
-                seconds: processData.time_duration[index],
-                isOutlier: false,
-                steps: stepsData.step.map((stepName, stepIndex) => ({
-                  name: stepName,
-                  dbTime: stepsData.db_time[stepIndex],
-                  cpuTime: stepsData.cpu_time[stepIndex],
-                  elapsed: stepsData.elapsed_time[stepIndex],
-                }))
-              };
-            });
-
-            setSelectedCellDetails({
-              ...details,
-              date: matchingRun.date,
-              totalRuns: runs.length,
-              avgDuration: runs.length > 0
-                ? new Date((runs.reduce((acc, r) => acc + r.seconds, 0) / runs.length) * 1000).toISOString().substr(11, 8)
-                : '00:00:00',
-              outliersCount: runs.filter(r => r.isOutlier).length,
-              runs: runs
-            });
-          }
-        } catch (err) {
-          console.error("Failed to fetch exact run details:", err);
-        } finally {
-          setIsGanttLoading(false);
-        }
-      } else {
-        setIsGanttLoading(false);
-      }
-    }
-  };
-  const categoryCounts = {
-    ETL: scripts.filter((s) => s.category === 'ETL').length,
-    Backup: scripts.filter((s) => s.category === 'Backup').length,
-    'Alert Check': scripts.filter((s) => s.category === 'Alert Check').length,
-    Cleanup: scripts.filter((s) => s.category === 'Cleanup').length,
-    'Data Sync': scripts.filter((s) => s.category === 'Data Sync').length,
-  };
-  const filteredScripts = scripts
-    .filter((s) => selectedCategory === 'all' || s.category === selectedCategory)
-    .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return 0;
-    });
-  const selectedScriptData = scripts.find((s) => s.id === selectedScript);
-  const togglePin = (scriptId) => {
-    setPinnedScriptIds((current) => {
-      const next = new Set(current);
-      if (next.has(scriptId)) {
-        next.delete(scriptId);
-      } else {
-        next.add(scriptId);
-      }
-      return next;
-    });
-  };
-
-  const handleAddCategory = () => {
-    setEditingCategory(null);
-    setCategoryFormName('');
-    setCategoryFormDescription('');
-    setCategoryFormScripts([]);
-    setAvailableSearch('');
-    setCategorySearch('');
-    setShowCategoryModal(true);
-  };
-
-  const handleEditCategory = (cat, e) => {
-    e.stopPropagation();
-    setEditingCategory(cat);
-    setCategoryFormName(cat.name);
-    setCategoryFormDescription(cat.description || '');
-    setCategoryFormScripts((cat.scripts || []).map(s => s.script_name));
-    setAvailableSearch('');
-    setCategorySearch('');
-    setShowCategoryModal(true);
-  };
-
-  const allKnownScripts = useMemo(() => {
-    const unassigned = remoteCategories.find(c => c.id === null)?.scripts || [];
-    const currentCatScripts = editingCategory?.scripts || [];
-    return [...unassigned, ...currentCatScripts];
-  }, [remoteCategories, editingCategory]);
-
-  const renderedAvailableScripts = allKnownScripts
-    .filter(s => !categoryFormScripts.includes(s.script_name))
-    .filter(s => s.script_name.toLowerCase().includes(availableSearch.toLowerCase()));
-
-  const renderedAssignedScripts = allKnownScripts
-    .filter(s => categoryFormScripts.includes(s.script_name))
-    .filter(s => s.script_name.toLowerCase().includes(categorySearch.toLowerCase()));
-
-  const toggleScriptAssignment = (scriptName, assign) => {
-    if (assign) {
-      setCategoryFormScripts(prev => [...prev, scriptName]);
     } else {
       setCategoryFormScripts(prev => prev.filter(name => name !== scriptName));
     }
   };
+
+
 
   const [deletingCategory, setDeletingCategory] = useState(null);
   const [isDeletingCategory, setIsDeletingCategory] = useState(false);
@@ -1739,10 +1547,73 @@ export function MurexRuntimeTrendsPage() {
                   onChange={(e) => setCategorySearch(e.target.value)}
                   style={{ paddingRight: '32px',  width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
-      {categorySearch && (
-        <button type="button" className="search-clear-btn" onClick={() => setCategorySearch('')}>
-          <X size={14} />
-        </button>
+                {categorySearch && (
+                  <button type="button" className="search-clear-btn" onClick={() => setCategorySearch('')}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <div
+                className="murex-script-list-scroll"
+                style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const scriptName = e.dataTransfer.getData('text/plain');
+                  if (scriptName && !categoryFormScripts.includes(scriptName)) {
+                    toggleScriptAssignment(scriptName, true);
+                  }
+                }}
+              >
+                {renderedAssignedScripts.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts assigned</div>
+                ) : (
+                  renderedAssignedScripts.map(script => (
+                    <div
+                      key={script.id}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('text/plain', script.script_name)}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
+                    >
+                      <span>{script.script_name}</span>
+                      <button
+                        onClick={() => toggleScriptAssignment(script.script_name, false)}
+                        style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >−</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </AdminModal>
+
+      {/* ── Delete Category Confirmation Modal ── */}
+      <AdminModal
+        isOpen={!!deletingCategory}
+        onClose={() => setDeletingCategory(null)}
+        title="Delete Category"
+        size="sm"
+        footer={
+          <>
+            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={() => setDeletingCategory(null)} disabled={isDeletingCategory}>
+              Cancel
+            </button>
+            <button
+              className="con-drawer-btn con-drawer-btn-primary"
+              onClick={confirmDeleteCategory}
+              disabled={isDeletingCategory}
+              style={{ background: '#ef4444' }}
+            >
+              {isDeletingCategory ? (
+                <>
+                  <Loader2 size={16} className="spin-animation" />
+                  Deleting...
+                </>
+              ) : 'Delete'}
+            </button>
+          </>
         }
       >
         <div style={{ textAlign: 'center', padding: '10px' }}>
