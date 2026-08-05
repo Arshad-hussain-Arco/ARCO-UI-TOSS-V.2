@@ -112,8 +112,7 @@ export function LeaveRequestDrawer({
           <div className="tr-dsec-title">Request Information</div>
           <div className="tr-drow">
             <span className="tr-drow-label">Request Type</span>
-            <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type]?.css}`}>
-              {TYPE_CONFIG[liveReq.type]?.Icon && React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+            <span className="tr-drow-value">
               {liveReq.leaveType ?? TYPE_CONFIG[liveReq.type]?.label}
             </span>
           </div>
@@ -141,11 +140,13 @@ export function LeaveRequestDrawer({
             <div className="tr-drow">
               <span className="tr-drow-label">Duration</span>
               <span className="tr-drow-value">
-                {liveReq.duration === 'full'
+                {liveReq.duration === 'full' || liveReq.duration === 'Full Day' || !liveReq.duration
                   ? 'Full Day'
-                  : liveReq.duration === 'morning'
+                  : liveReq.duration === 'morning' || liveReq.duration === 'First Half'
                     ? 'First Half'
-                    : 'Second Half'}
+                    : liveReq.duration === 'afternoon' || liveReq.duration === 'Second Half'
+                      ? 'Second Half'
+                      : liveReq.duration}
               </span>
             </div>
           )}
@@ -166,8 +167,7 @@ export function LeaveRequestDrawer({
                     ? 'Reason for WFH'
                     : 'Reason'}
               </span>
-              <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type]?.css}`} style={{ maxWidth: 220 }}>
-                {TYPE_CONFIG[liveReq.type]?.Icon && React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+              <span className="tr-drow-value" style={{ maxWidth: 220 }}>
                 {liveReq.reason}
               </span>
             </div>

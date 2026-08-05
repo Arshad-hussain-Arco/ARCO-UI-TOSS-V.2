@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Users, Briefcase, ChevronDown, Copy, Plus, Edit2, Trash2 } from 'lucide-react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Users, Briefcase, ChevronDown, Copy, Plus, Edit, Trash, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -113,15 +113,14 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
               title="Edit Team"
               onClick={(e) => { e.stopPropagation(); onEdit(team); }}
             >
-              <Edit2 size={16} />
+              <Edit size={16} />
             </button>
             <button 
               className="tv-icon-btn delete" 
               title="Delete Team"
-              style={{ color: '#ef4444' }}
               onClick={(e) => { e.stopPropagation(); onDelete(team); }}
             >
-              <Trash2 size={16} />
+              <Trash size={16} />
             </button>
           </div>
 
@@ -149,7 +148,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView }) {
+export function TeamsView({ onProfileView, onTeamChanged }) {
   const { user } = useAuth();
 
   const fetchTeams = useCallback(async () => {
@@ -182,12 +181,34 @@ export function TeamsView({ onProfileView }) {
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamMembersCache, setTeamMembersCache] = useState({});
   const toast = useToast();
+  const stripRef = useRef(null);
+
+  const scrollStrip = (dir) => {
+    if (stripRef.current) {
+      stripRef.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
+    }
+  };
+
+  const [showSlider, setShowSlider] = useState(false);
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (stripRef.current) {
+        setShowSlider(stripRef.current.scrollWidth > stripRef.current.clientWidth);
+      }
+    };
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    // Slight delay in case images/fonts load
+    setTimeout(checkOverflow, 100);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [teams]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
     setEditingTeam(null);
@@ -210,11 +231,22 @@ export function TeamsView({ onProfileView }) {
       toast.error('Team Name is required');
       return;
     }
+    if (form.pri_dev_contr_per === '' || form.add_dev_contr_per === '') {
+      toast.error('Primary and Additional contributions are required');
+      return;
+    }
+    const pri = parseFloat(form.pri_dev_contr_per);
+    const add = parseFloat(form.add_dev_contr_per);
+    if (pri < 0 || add < 0) {
+      toast.error('Contributions cannot be negative');
+      return;
+    }
+    setIsSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
-        pri_dev_contr_per: form.pri_dev_contr_per ? parseFloat(form.pri_dev_contr_per) : null,
-        add_dev_contr_per: form.add_dev_contr_per ? parseFloat(form.add_dev_contr_per) : null
+        pri_dev_contr_per: pri,
+        add_dev_contr_per: add
       };
       if (editingTeam) {
         await consultantService.updateTeam(editingTeam.id, payload);
@@ -225,22 +257,29 @@ export function TeamsView({ onProfileView }) {
       }
       setIsModalOpen(false);
       refetch();
+      if (onTeamChanged) onTeamChanged();
     } catch (err) {
       console.error(err);
       toast.error('Failed to save team');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const executeDelete = async () => {
     if (!deleteTarget) return;
+    setIsSaving(true);
     try {
       await consultantService.deleteTeam(deleteTarget.id);
       toast.success('Team deleted successfully');
       setDeleteTarget(null);
       refetch();
+      if (onTeamChanged) onTeamChanged();
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete team');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -267,45 +306,67 @@ export function TeamsView({ onProfileView }) {
   return (
     <div className="teams-tab-container">
       {/* Top Summary Cards */}
-      <div className="tv-summary-strip">
-        {teamsData.map((team) => {
-          const isActive = expandedTeamId === team.id;
-          const hc = headcountMap[team.id];
-          return (
-            <div 
-              key={team.id} 
-              className={`tv-summary-card ${isActive ? 'active' : ''}`}
-              {...activatable(() => handleCardClick(team.id), { isPressed: isActive })}
-            >
-              <div className="tv-sc-header">
-                <span className="tv-sc-name">{team.name || team.team_name}</span>
-                <Users size={16} className={isActive ? 'text-brand' : 'text-gray-400'} />
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {showSlider && (
+          <button 
+            onClick={() => scrollStrip(-1)} 
+            className="tv-slider-btn"
+            style={{ position: 'absolute', left: '-14px', zIndex: 2, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
+
+        <div className="tv-summary-strip" ref={stripRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {teamsData.map((team) => {
+            const isActive = expandedTeamId === team.id;
+            const hc = headcountMap[team.id];
+            return (
+              <div 
+                key={team.id} 
+                className={`tv-summary-card ${isActive ? 'active' : ''}`}
+                {...activatable(() => handleCardClick(team.id), { isPressed: isActive })}
+              >
+                <div className="tv-sc-header">
+                  <span className="tv-sc-name">{team.name || team.team_name}</span>
+                  <Users size={16} className={isActive ? 'text-brand' : 'text-gray-400'} />
+                </div>
+                <div className="tv-sc-stats">
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val">{hc ? hc.active : '--'}</span>
+                    <span className="tv-sc-lbl">Active</span>
+                  </div>
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val leave">{hc ? hc.on_leave : '--'}</span>
+                    <span className="tv-sc-lbl">On Leave</span>
+                  </div>
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
+                    <span className="tv-sc-lbl">WFH</span>
+                  </div>
+                  <div className="tv-sc-stat total">
+                    <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
+                    <span className="tv-sc-lbl">Total</span>
+                  </div>
+                </div>
               </div>
-              <div className="tv-sc-stats">
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val">{hc ? hc.active : '--'}</span>
-                  <span className="tv-sc-lbl">Active</span>
-                </div>
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val leave">{hc ? hc.on_leave : '--'}</span>
-                  <span className="tv-sc-lbl">On Leave</span>
-                </div>
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
-                  <span className="tv-sc-lbl">WFH</span>
-                </div>
-                <div className="tv-sc-stat total">
-                  <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
-                  <span className="tv-sc-lbl">Total</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {showSlider && (
+          <button 
+            onClick={() => scrollStrip(1)} 
+            className="tv-slider-btn"
+            style={{ position: 'absolute', right: '-14px', zIndex: 2, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+          >
+            <ChevronRight size={18} />
+          </button>
+        )}
       </div>
 
       <div className="teams-tab-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '0px' }}>
-        <button className="tv-add-btn" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '32px', backgroundColor: '#005028', color: '#ffffff', borderRadius: '6px', fontSize: '13px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease', whiteSpace: 'nowrap' }}>
+        <button className="consultants-add-button" onClick={openAddModal}>
           <Plus size={16} />
           <span>Add Team</span>
         </button>
@@ -343,16 +404,18 @@ export function TeamsView({ onProfileView }) {
               className="tv-btn cancel"
               style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setIsModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary, #105e35)', color: '#fff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={handleSaveTeam}
+              disabled={isSaving}
             >
-              {editingTeam ? 'Update' : 'Add Team'}
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : (editingTeam ? 'Update' : 'Add Team')}
             </button>
           </>
         }
@@ -403,16 +466,18 @@ export function TeamsView({ onProfileView }) {
               className="tv-btn cancel"
               style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e2e8f0', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setDeleteTarget(null)}
+              disabled={isSaving}
             >
               Cancel
             </button>
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeDelete}
+              disabled={isSaving}
             >
-              Delete
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete'}
             </button>
           </>
         }

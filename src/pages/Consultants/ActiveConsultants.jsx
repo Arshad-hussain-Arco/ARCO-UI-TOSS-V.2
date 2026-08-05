@@ -6,6 +6,7 @@ import {
   Users,
   ChevronDown,
   Lock,
+  X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
@@ -107,7 +108,12 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
               name="search_consultants_filter"
               id="consultants-search-field"
               data-form-type="other"
-            />
+             style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
           </div>
           <div className="consultants-filter-group">
             <div className="consultants-dropdown-wrapper" ref={teamRef}>
@@ -168,13 +174,19 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
             </div>
             <button
               className="consultants-reset-button"
-              onClick={() => {
+              onClick={(e) => {
+                const icon = e.currentTarget.querySelector('.consultants-reset-icon');
+                if (icon) {
+                  icon.classList.add('spin-animation');
+                  setTimeout(() => icon.classList.remove('spin-animation'), 500);
+                }
                 setSearchQuery('');
                 setSelectedTeam('All Teams');
                 setSelectedDesignation('All Designations');
               }}
             >
-              <RotateCcw className="consultants-reset-icon" />
+              <RotateCcw className="consultants-reset-icon" size={14} />
+              <span>Reset</span>
             </button>
             <button className="consultants-add-button" onClick={onAdd}>
               <Plus className="consultants-add-icon" />

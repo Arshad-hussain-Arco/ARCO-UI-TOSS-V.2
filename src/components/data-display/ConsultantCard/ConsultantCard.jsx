@@ -4,14 +4,23 @@ import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import './ConsultantCard.css';
 
-function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInactive, onActivate, onAvatarClick }) {
+function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInactive, onActivate, onAvatarClick, isActivating }) {
   const toast = useToast();
-  const [photoUrl, setPhotoUrl] = useState(consultant.avatar);
+  const getPhoto = (c) => {
+    if (c.avatar) return c.avatar;
+    if (c.photo) {
+      if (c.photo.startsWith('data:')) return c.photo;
+      return `data:image/jpeg;base64,${c.photo}`;
+    }
+    return null;
+  };
+
+  const [photoUrl, setPhotoUrl] = useState(getPhoto(consultant));
   const [isFetchingPhoto, setIsFetchingPhoto] = useState(false);
 
   useEffect(() => {
-    setPhotoUrl(consultant.avatar);
-  }, [consultant.avatar]);
+    setPhotoUrl(getPhoto(consultant));
+  }, [consultant.avatar, consultant.photo]);
 
   const getInitials = (name) => {
     return name
@@ -69,17 +78,6 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
               <span className="consultant-designation" title={consultant.designation}>
                 {consultant.designation}
               </span>
-              <div 
-                className="consultant-id-copy" 
-                onClick={(e) => handleCopy(e, consultant.userId)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, consultant.userId)}
-                role="button"
-                tabIndex={0}
-                title="Copy Employee ID"
-              >
-                <span className="consultant-user-id">{consultant.userId}</span>
-                <Copy size={12} className="copy-icon" />
-              </div>
             </div>
           </div>
         </div>
@@ -108,10 +106,15 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
             onClick={() => onActivate && onActivate(consultant)}
             className="consultant-footer-btn consultant-footer-btn-activate"
             title="Activate Consultant"
-            style={{ width: '100%', display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center' }}
+            disabled={isActivating}
+            style={{ width: '100%', display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center', opacity: isActivating ? 0.6 : 1, cursor: isActivating ? 'not-allowed' : 'pointer' }}
           >
-            <Power className="consultant-footer-btn-icon" />
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>Activate</span>
+            {isActivating ? (
+              <span className="spin-animation" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid var(--c-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+            ) : (
+              <Power className="consultant-footer-btn-icon" />
+            )}
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>{isActivating ? 'Activating...' : 'Activate'}</span>
           </button>
         ) : (
           <>

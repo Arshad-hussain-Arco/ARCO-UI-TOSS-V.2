@@ -264,20 +264,23 @@
 .consultants-reset-button {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
+  gap: 6px;
+  padding: 0 10px;
   height: 32px;
-  border: 1px solid transparent;
-  background-color: transparent;
+  border: 1px solid var(--border-primary, #eaeaea);
   border-radius: 6px;
-  color: var(--text-tertiary, #999999);
+  background-color: var(--bg-primary, #ffffff);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666666);
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .consultants-reset-button:hover {
+  border-color: var(--text-secondary, #666666);
   color: var(--text-primary, #111111);
-  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .consultants-reset-icon {
@@ -1483,3 +1486,6 @@
     width: 100%;
   }
 }
+
+.spin-animation { animation: spin-anim 0.5s linear; }
+@keyframes spin-anim { 100% { transform: rotate(-360deg); } }
