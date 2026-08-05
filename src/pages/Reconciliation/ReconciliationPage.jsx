@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Check, ArrowUpRight, AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { DotsLoader } from '../../components/ui/DotsLoader/DotsLoader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
@@ -417,7 +417,7 @@ export function ReconciliationPage() {
         <div className="rwiz-reconcile-overlay" role="status" aria-live="polite">
           <div className="rwiz-reconcile-card">
             <div className="rwiz-reconcile-spinner">
-              <DotsLoader size={40} className="rwiz-reconcile-spinner-icon" color="#8cc63f" />
+              <Spinner size="lg" className="rwiz-reconcile-spinner-icon" />
             </div>
             <h3 className="rwiz-reconcile-title">Running Reconciliation</h3>
             <p className="rwiz-reconcile-phase">{STATUS_MESSAGES[reconcilePhase]}</p>

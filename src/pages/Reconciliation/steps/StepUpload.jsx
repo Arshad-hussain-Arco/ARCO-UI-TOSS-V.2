@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
-import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 
 import { useToast } from '@hooks/useToast';
 import { reconciliationService } from '@services/reconciliationService';
@@ -127,7 +127,7 @@ function DropZone({ index, fileInfo, onFile, onRemove, isProcessing, onProcessin
           }}
         >
           {isProcessing ? (
-            <DotsLoader size={20} className="rfz-dropzone-icon rwiz-btn-spinner" color="#8cc63f" />
+            <Spinner size="sm" className="rfz-dropzone-icon rwiz-btn-spinner" />
           ) : (
             <Upload size={20} className="rfz-dropzone-icon" />
           )}

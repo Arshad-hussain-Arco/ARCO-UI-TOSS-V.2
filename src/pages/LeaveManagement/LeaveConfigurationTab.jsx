@@ -261,8 +261,7 @@ export function LeaveConfigurationTab() {
     <div className="lc-container">
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
-          <Loader size="md" />
-          <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>Loading configuration...</p>
+          <Loader size="md" message="Loading leave configuration..." />
         </div>
       ) : (
         <>

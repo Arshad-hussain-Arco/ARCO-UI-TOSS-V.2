@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X } from 'lucide-react';
-import { DotsLoader } from '../../../components/ui/DotsLoader/DotsLoader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -641,8 +641,8 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         <div className="rrs-tab-content">
           {isPending ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '10px', color: 'var(--text-secondary)' }}>
-              <DotsLoader size={24} className="rwiz-btn-spinner" color="#8cc63f" />
-              <span>Loading data...</span>
+              <Spinner size="md" className="rwiz-btn-spinner" />
+              <span>Loading reconciliation results...</span>
             </div>
           ) : activeTab === 'Matched' ? (
             <MatchedTable rows={matched?.records || []} mappings={activeMappings} file1Name={file1Name} file2Name={file2Name} />
@@ -657,7 +657,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                   onClick={() => handleMissingSubTabChange('src')}
                 >
                   Missing in {file1Name || 'Source'}
-                  <span className="rrs-tab-badge">{missingInSrc.length}</span>
+                  <span className="rrs-tab-badge">{missingInSrc?.total ?? 0}</span>
                 </button>
                 <button
                   type="button"
@@ -665,7 +665,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                   onClick={() => handleMissingSubTabChange('dst')}
                 >
                   Missing in {file2Name || 'Destination'}
-                  <span className="rrs-tab-badge">{missingInDst.length}</span>
+                  <span className="rrs-tab-badge">{missingInDst?.total ?? 0}</span>
                 </button>
               </div>
               {missingSubTab === 'src'
@@ -682,7 +682,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                   onClick={() => handleDupSubTabChange('src')}
                 >
                   Duplicates in {file1Name || 'Source'}
-                  <span className="rrs-tab-badge">{dupSrc.length}</span>
+                  <span className="rrs-tab-badge">{dupSrc?.total ?? 0}</span>
                 </button>
                 <button
                   type="button"
@@ -690,7 +690,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                   onClick={() => handleDupSubTabChange('dst')}
                 >
                   Duplicates in {file2Name || 'Destination'}
-                  <span className="rrs-tab-badge">{dupDst.length}</span>
+                  <span className="rrs-tab-badge">{dupDst?.total ?? 0}</span>
                 </button>
               </div>
               {dupSubTab === 'src'
