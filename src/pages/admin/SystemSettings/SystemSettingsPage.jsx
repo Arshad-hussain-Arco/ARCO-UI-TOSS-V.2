@@ -20,7 +20,6 @@ import { ColumnMappingPanel } from './panels/ColumnMappingPanel';
 import { EnvironmentConfigPanel } from './panels/EnvironmentConfigPanel';
 import { HomeManagementPanel } from './panels/HomeManagementPanel';
 import { ImportConfigPanel } from './panels/ImportConfigPanel';
-import { WeekendConfigPanel } from './panels/WeekendConfigPanel';
 import './SystemSettingsPage.css';
 
 const TABS = [
@@ -28,7 +27,6 @@ const TABS = [
   { id: 'import-config', label: 'ImportFileConfig', icon: UploadCloud },
   { id: 'cr-columns', label: 'CR File Matching Columns', icon: FileSpreadsheet },
   { id: 'wo-columns', label: 'WO File Matching Columns', icon: AlignLeft },
-  { id: 'weekend-config', label: 'Weekend Configuration', icon: Calendar },
   { id: 'home-management', label: 'Home Management', icon: LayoutDashboard },
 ];
 
@@ -171,10 +169,6 @@ export function SystemSettingsPage() {
             type="WO"
             title="WO Column Names"
           />
-        ) : null}
-
-        {activeTab === 'weekend-config' ? (
-          <WeekendConfigPanel />
         ) : null}
 
         {activeTab === 'home-management' ? (
