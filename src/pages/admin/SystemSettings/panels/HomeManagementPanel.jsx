@@ -1,7 +1,9 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Edit2, LayoutGrid, Loader2, Plus, Trash2, Upload, User, X } from 'lucide-react';
+import { Edit2, LayoutGrid, Loader2, Plus, Trash2, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import DOMPurify from 'dompurify';
 
 /**
  * Helper to strip HTML tags for clean plain text display in cards.
@@ -26,6 +28,38 @@ function HomeManagementPanelComponent() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState('text'); // 'text' | 'html'
+  const [activeSubtab, setActiveSubtab] = useState('person'); // 'person' | 'content'
+
+  // Person Subtab State
+  const [personName, setPersonName] = useState('');
+  const [personDesignation, setPersonDesignation] = useState('');
+  const [personBio, setPersonBio] = useState('');
+  const [personFile, setPersonFile] = useState(null);
+  const [personPreviewUrl, setPersonPreviewUrl] = useState(null);
+  const [personWidth, setPersonWidth] = useState('100%'); // '50%' | '100%'
+
+  // Content Subtab State
+  const [contentFile, setContentFile] = useState(null);
+  const [contentPreviewUrl, setContentPreviewUrl] = useState(null);
+  const [contentText, setContentText] = useState('');
+  const [contentWidth, setContentWidth] = useState('100%'); // '50%' | '100%'
+
+  // HTML Tab State
+  const [htmlFile, setHtmlFile] = useState(null);
+  const [htmlPreviewUrl, setHtmlPreviewUrl] = useState(null);
+  const [htmlContent, setHtmlContent] = useState('');
+  const [htmlWidth, setHtmlWidth] = useState('100%'); // '50%' | '100%'
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState(null);
+
+  // File input refs
+  const personFileInputRef = useRef(null);
+  const contentFileInputRef = useRef(null);
+  const htmlFileInputRef = useRef(null);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -43,59 +77,95 @@ function HomeManagementPanelComponent() {
     }
   };
 
-  // Form states
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [contentInput, setContentInput] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef(null);
-
   const handleOpenAddModal = () => {
     setEditId(null);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setContentInput('');
     setIsUploading(false);
+    setActiveTab('text');
+    setActiveSubtab('person');
+
+    setPersonName('');
+    setPersonDesignation('');
+    setPersonBio('');
+    setPersonFile(null);
+    setPersonPreviewUrl(null);
+    setPersonWidth('50%'); // Default is 50% for Person Card
+
+    setContentFile(null);
+    setContentPreviewUrl(null);
+    setContentText('');
+    setContentWidth('100%'); // Default is 100% for Content Card
+
+    setHtmlFile(null);
+    setHtmlPreviewUrl(null);
+    setHtmlContent('');
+    setHtmlWidth('100%');
+
     setIsModalOpen(true);
   };
 
   const handleOpenEditModal = (card) => {
     setEditId(card.id);
-    setSelectedFile(null);
-    setPreviewUrl(card.photo ? `data:image/jpeg;base64,${card.photo}` : null);
-    setContentInput(stripHtml(card.description));
     setIsUploading(false);
+
+    setPersonName('');
+    setPersonDesignation('');
+    setPersonBio('');
+    setPersonFile(null);
+    setPersonPreviewUrl(null);
+    setPersonWidth('50%');
+
+    setContentFile(null);
+    setContentPreviewUrl(null);
+    setContentText('');
+    setContentWidth('100%');
+
+    setHtmlFile(null);
+    setHtmlPreviewUrl(null);
+    setHtmlContent('');
+    setHtmlWidth('100%');
+
+    const photoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+    const widthVal = card.display_width || '100%';
+
+    if (card.card_type === 'person_card') {
+      setActiveTab('text');
+      setActiveSubtab('person');
+      setPersonName(card.person_name || '');
+      setPersonDesignation(card.designation || '');
+      setPersonBio(card.bio || '');
+      setPersonWidth(widthVal);
+      setPersonPreviewUrl(photoUrl);
+    } else if (card.card_type === 'content_card') {
+      setActiveTab('text');
+      setActiveSubtab('content');
+      setContentText(card.text_content || '');
+      setContentWidth(widthVal);
+      setContentPreviewUrl(photoUrl);
+    } else {
+      setActiveTab('html');
+      setHtmlContent(card.html_content || '');
+      setHtmlWidth(widthVal);
+      setHtmlPreviewUrl(photoUrl);
+    }
+
     setIsModalOpen(true);
   };
 
-  const handleDeleteCard = async (id) => {
+  const handleDeleteCard = (card) => {
+    setCardToDelete(card);
+  };
+
+  const confirmDeleteCard = async () => {
+    if (!cardToDelete) return;
     try {
-      await settingsService.deleteHomeData(id);
-      setCards((prev) => prev.filter((c) => c.id !== id));
+      await settingsService.deleteHomeData(cardToDelete.id);
+      setCards((prev) => prev.filter((c) => c.id !== cardToDelete.id));
       toast.success('Home card deleted successfully');
     } catch (error) {
       console.error('Failed to delete home card:', error);
       toast.error('Failed to delete home card');
-    }
-  };
-
-  const processFileSelection = (file) => {
-    if (!file) return;
-    setIsUploading(true);
-    setSelectedFile(file);
-
-    // Just set preview url synchronously for the UI
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
-  };
-
-  const handleFileChange = (e) => {
-    e.stopPropagation();
-    const file = e.target.files?.[0];
-    if (file) {
-      processFileSelection(file);
+    } finally {
+      setCardToDelete(null);
     }
   };
 
@@ -104,30 +174,85 @@ function HomeManagementPanelComponent() {
     e.stopPropagation();
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      processFileSelection(file);
-    }
+  const processPersonFile = (file) => {
+    if (!file) return;
+    setIsUploading(true);
+    setPersonFile(file);
+    const url = URL.createObjectURL(file);
+    setPersonPreviewUrl(url);
+    setIsUploading(false);
+    toast.success(`Image selected: ${file.name}`);
+  };
+
+  const processContentFile = (file) => {
+    if (!file) return;
+    setIsUploading(true);
+    setContentFile(file);
+    const url = URL.createObjectURL(file);
+    setContentPreviewUrl(url);
+    setIsUploading(false);
+    toast.success(`Image selected: ${file.name}`);
+  };
+
+  const processHtmlFile = (file) => {
+    if (!file) return;
+    setIsUploading(true);
+    setHtmlFile(file);
+    const url = URL.createObjectURL(file);
+    setHtmlPreviewUrl(url);
+    setIsUploading(false);
+    toast.success(`Image selected: ${file.name}`);
   };
 
   const handleSaveCard = async () => {
-    if (!contentInput.trim() && !selectedFile && !previewUrl) {
-      toast.error('Please enter content or upload a photo');
-      return;
+    // Validation
+    if (activeTab === 'text') {
+      if (activeSubtab === 'person') {
+        if (!personName.trim() || !personDesignation.trim() || !personBio.trim()) {
+          toast.error('Person Name, Designation, and Biography are required.');
+          return;
+        }
+      } else {
+        if (!contentText.trim()) {
+          toast.error('Text Content is required.');
+          return;
+        }
+      }
+    } else {
+      if (!htmlContent.trim()) {
+        toast.error('HTML Code is required.');
+        return;
+      }
     }
 
     try {
       setIsUploading(true);
       const payload = new FormData();
-      if (contentInput.trim()) payload.append('description', contentInput.trim());
-      if (selectedFile) payload.append('photo', selectedFile);
+
+      if (activeTab === 'text') {
+        if (activeSubtab === 'person') {
+          payload.append('card_type', 'person_card');
+          payload.append('person_name', personName.trim());
+          payload.append('designation', personDesignation.trim());
+          payload.append('bio', personBio.trim());
+          payload.append('display_width', personWidth);
+          if (personFile) payload.append('photo', personFile);
+        } else {
+          payload.append('card_type', 'content_card');
+          payload.append('text_content', contentText.trim());
+          payload.append('display_width', contentWidth);
+          if (contentFile) payload.append('photo', contentFile);
+        }
+      } else {
+        payload.append('card_type', 'html_code');
+        payload.append('html_content', htmlContent.trim());
+        payload.append('display_width', htmlWidth);
+        if (htmlFile) payload.append('photo', htmlFile);
+      }
 
       if (editId) {
         await settingsService.updateHomeData(editId, payload);
-        toast.success('Home card updated');
+        toast.success('Home card updated successfully');
       } else {
         await settingsService.createHomeData(payload);
         toast.success('Home card added successfully');
@@ -143,15 +268,170 @@ function HomeManagementPanelComponent() {
     }
   };
 
-  const isSaveDisabled = isUploading || (!contentInput.trim() && !selectedFile && !previewUrl);
+  const isSaveDisabled = isUploading || (
+    activeTab === 'text'
+      ? (activeSubtab === 'person'
+          ? (!personName.trim() || !personDesignation.trim() || !personBio.trim())
+          : !contentText.trim()
+        )
+      : !htmlContent.trim()
+  );
 
-  if (loading && cards.length === 0) {
+  const renderUploadZone = (inputRef, file, previewUrl, onSelect, label, helperText) => {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
+      <div className="ss-modal-form-group">
+        <span className="ss-modal-label">{label}</span>
+        <div
+          role="button"
+          tabIndex={0}
+          onDragOver={handleDragOver}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const droppedFile = e.dataTransfer.files?.[0];
+            if (droppedFile && droppedFile.type.startsWith('image/')) {
+              onSelect(droppedFile);
+            }
+          }}
+          style={{
+            border: '2px dashed var(--border-primary)',
+            borderRadius: '8px',
+            padding: '24px 16px',
+            textAlign: 'center',
+            background: 'var(--bg-secondary)',
+            cursor: isUploading ? 'wait' : 'pointer',
+            transition: 'all 0.15s ease',
+            position: 'relative',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isUploading) inputRef.current?.click();
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+              e.preventDefault();
+              e.stopPropagation();
+              inputRef.current?.click();
+            }
+          }}
+        >
+          <input
+            type="file"
+            ref={inputRef}
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const selected = e.target.files?.[0];
+              if (selected) onSelect(selected);
+            }}
+          />
+
+          {isUploading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
+              <Loader2 size={28} className="animate-spin" style={{ color: '#006838' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Processing image...
+              </span>
+            </div>
+          ) : previewUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <img
+                src={previewUrl}
+                alt="Thumbnail preview"
+                style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
+              />
+              <span style={{ fontSize: '12px', color: '#006838', fontWeight: 600 }}>
+                Click or drag to change image {file ? `(${file.name})` : ''}
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Drag & drop image here, or <span style={{ color: '#006838' }}>browse</span>
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                {helperText}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     );
-  }
+  };
+
+  const renderWidthSelector = (currentWidth, setWidth) => {
+    return (
+      <div className="ss-modal-form-group">
+        <label className="ss-modal-label">Card Display Width</label>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={() => setWidth('50%')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px',
+              border: currentWidth === '50%' ? '2px solid #006838' : '1px solid var(--border-primary)',
+              borderRadius: '8px',
+              background: currentWidth === '50%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '50%' ? '#006838' : 'var(--text-primary)' }}>50% Width</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Half row layout</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setWidth('100%')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px',
+              border: currentWidth === '100%' ? '2px solid #006838' : '1px solid var(--border-primary)',
+              borderRadius: '8px',
+              background: currentWidth === '100%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '100%' ? '#006838' : 'var(--text-primary)' }}>100% Width</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Full row banner</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSkeletons = () => {
+    return (
+      <div className="hm-cards-grid">
+        {[1, 2, 3, 4].map((n) => (
+          <div key={n} className="hm-card-item" style={{ minHeight: '180px', opacity: 0.6, background: '#fcfcfc', border: '1px solid var(--border-primary)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'var(--bg-secondary)', animation: 'pulse 1.5s infinite ease-in-out' }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ height: '14px', width: '60%', background: 'var(--bg-secondary)', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }} />
+                <div style={{ height: '10px', width: '40%', background: 'var(--bg-secondary)', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              <div style={{ height: '12px', width: '100%', background: 'var(--bg-secondary)', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }} />
+              <div style={{ height: '12px', width: '90%', background: 'var(--bg-secondary)', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }} />
+              <div style={{ height: '12px', width: '75%', background: 'var(--bg-secondary)', borderRadius: '4px', animation: 'pulse 1.5s infinite ease-in-out' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -190,138 +470,119 @@ function HomeManagementPanelComponent() {
       </div>
 
       {/* 2. Responsive Card Grid Layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '24px',
-        }}
-      >
-        {cards.map((card) => {
-          const plainText = stripHtml(card.description);
-          const displayPhotoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+      {loading && cards.length === 0 ? (
+        renderSkeletons()
+      ) : cards.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface-primary)', border: '1px dashed var(--border-primary)', borderRadius: '12px', color: 'var(--text-tertiary)' }}>
+          <LayoutGrid size={48} style={{ margin: '0 auto 16px auto', display: 'block' }} />
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>No home cards found</h3>
+          <p style={{ fontSize: '13px', margin: 0 }}>Click "Add Home Card" to create content widgets for the landing dashboard.</p>
+        </div>
+      ) : (
+        <div className="hm-cards-grid">
+          {cards.map((card) => {
+            const displayPhotoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+            const width = card.display_width || '100%';
+            const isFullWidth = width === '100%';
 
-          return (
-            <div
-              key={card.id}
-              style={{
-                background: 'var(--surface-primary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-              }}
-            >
-              {/* Header/Media: Top Image Banner or Centered Placeholder */}
+            return (
               <div
+                key={card.id}
+                className="hm-card-item"
                 style={{
-                  height: '160px',
-                  width: '100%',
-                  background: 'var(--bg-secondary)',
+                  gridColumn: isFullWidth ? 'span 2' : 'span 1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  background: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-primary)',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                  padding: '12px',
+                  boxSizing: 'border-box',
+                  minHeight: '180px',
                   position: 'relative',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                 }}
               >
-                {displayPhotoUrl ? (
-                  <img
-                    src={displayPhotoUrl}
-                    alt="Card media"
-                    style={{ width: '100%', height: '160px', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
-                    <User size={40} />
-                    <span style={{ fontSize: '12px', fontWeight: 500 }}>No Image Banner</span>
+                {/* Actions in top right */}
+                <div className="hm-card-actions" style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 10 }}>
+                  <button
+                    type="button"
+                    className="hm-action-btn edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEditModal(card);
+                    }}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      border: '1px solid var(--border-primary)',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                    title="Edit Card"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="hm-action-btn delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCard(card);
+                    }}
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      border: '1px solid var(--border-primary)',
+                      background: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                    }}
+                    title="Delete Card"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                {/* Card Body with Dynamic Preview Render */}
+                <div className="hm-card-body" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '8px', width: '100%' }}>
+                  {displayPhotoUrl && (
+                    <div className="hm-image-container" style={{ width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+                      <img src={displayPhotoUrl} alt="Card preview" className="hm-image-fit" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }} />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, paddingRight: '56px' }}>
+                    {card.card_type === 'person_card' ? (
+                      <>
+                        <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{card.person_name}</h4>
+                        <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>{card.designation}</div>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.bio}</p>
+                      </>
+                    ) : card.card_type === 'content_card' ? (
+                      <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.text_content}</p>
+                    ) : (
+                      <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontFamily: 'monospace' }}>{stripHtml(card.html_content)}</p>
+                    )}
                   </div>
-                )}
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)', alignSelf: 'flex-start', marginTop: '4px' }}>
+                    {width} Width
+                  </span>
+                </div>
               </div>
-
-              {/* Content Preview */}
-              <div style={{ padding: '16px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <p
-                  style={{
-                    fontSize: '13px',
-                    lineHeight: 1.6,
-                    color: 'var(--text-primary)',
-                    margin: 0,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {plainText}
-                </p>
-              </div>
-
-              {/* Card Actions Footer Bar */}
-              <div
-                style={{
-                  padding: '10px 16px',
-                  borderTop: '1px solid var(--border-primary)',
-                  background: 'var(--bg-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  gap: '8px',
-                }}
-              >
-                <button
-                  type="button"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#006838',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => handleOpenEditModal(card)}
-                  title="Edit Home Card"
-                >
-                  <Edit2 size={15} />
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => handleDeleteCard(card.id)}
-                  title="Delete Home Card"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 🖼️ MODAL: Add / Edit Home Card (Split-Screen Preview) */}
       {isModalOpen && (
@@ -365,7 +626,7 @@ function HomeManagementPanelComponent() {
               borderRadius: '10px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
               width: '100%',
-              maxWidth: '920px',
+              maxWidth: '980px',
               maxHeight: '90vh',
               overflow: 'hidden',
               display: 'flex',
@@ -409,6 +670,63 @@ function HomeManagementPanelComponent() {
               </button>
             </div>
 
+            {/* Primary Enterprise-Style Tabs */}
+            <div style={{
+              display: 'flex',
+              background: 'var(--bg-secondary)',
+              borderBottom: '1px solid var(--border-primary)',
+              flexShrink: 0,
+            }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('text')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: activeTab === 'text' ? '#006838' : 'var(--text-secondary)',
+                  background: activeTab === 'text' ? 'var(--surface-primary)' : 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'text' ? '3px solid #006838' : '3px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'center',
+                }}
+              >
+                <FileText size={16} />
+                Text Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('html')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: activeTab === 'html' ? '#006838' : 'var(--text-secondary)',
+                  background: activeTab === 'html' ? 'var(--surface-primary)' : 'transparent',
+                  border: 'none',
+                  borderBottom: activeTab === 'html' ? '3px solid #006838' : '3px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  textAlign: 'center',
+                }}
+              >
+                <Code size={16} />
+                HTML Code
+              </button>
+            </div>
+
             {/* Modal Body: Split-Screen Side-by-Side 2-Column Layout */}
             <div
               style={{
@@ -418,190 +736,367 @@ function HomeManagementPanelComponent() {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                 gap: '28px',
                 alignItems: 'start',
+                flex: 1,
               }}
             >
               {/* Left Column: Form Inputs */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                  Card Details
-                </h4>
-
-                {/* File Upload / Drag & Drop Zone */}
-                <div className="ss-modal-form-group">
-                  <span className="ss-modal-label">Card Banner Image</span>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    style={{
-                      border: '2px dashed var(--border-primary)',
-                      borderRadius: '8px',
-                      padding: '24px 16px',
-                      textAlign: 'center',
-                      background: 'var(--bg-secondary)',
-                      cursor: isUploading ? 'wait' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      position: 'relative',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isUploading) fileInputRef.current?.click();
-                    }}
-                    onKeyDown={(e) => {
-                      if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        fileInputRef.current?.click();
-                      }
-                    }}
-                  >
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleFileChange}
-                    />
-
-                    {isUploading ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
-                        <Loader2 size={28} className="animate-spin" style={{ color: '#006838' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Processing image...
-                        </span>
+                {activeTab === 'text' ? (
+                  <>
+                    {/* Compact Segmented Subtabs */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        background: 'var(--bg-tertiary)',
+                        borderRadius: '6px',
+                        padding: '2px',
+                        gap: '2px',
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSubtab('person')}
+                          style={{
+                            padding: '5px 16px',
+                            border: 'none',
+                            background: activeSubtab === 'person' ? 'var(--surface-primary)' : 'transparent',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: activeSubtab === 'person' ? 600 : 500,
+                            color: activeSubtab === 'person' ? '#006838' : 'var(--text-secondary)',
+                            boxShadow: activeSubtab === 'person' ? 'var(--shadow-sm)' : 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.12s ease',
+                          }}
+                        >
+                          Person
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveSubtab('content')}
+                          style={{
+                            padding: '5px 16px',
+                            border: 'none',
+                            background: activeSubtab === 'content' ? 'var(--surface-primary)' : 'transparent',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: activeSubtab === 'content' ? 600 : 500,
+                            color: activeSubtab === 'content' ? '#006838' : 'var(--text-secondary)',
+                            boxShadow: activeSubtab === 'content' ? 'var(--shadow-sm)' : 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.12s ease',
+                          }}
+                        >
+                          Content
+                        </button>
                       </div>
-                    ) : previewUrl ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                        <img
-                          src={previewUrl}
-                          alt="Thumbnail preview"
-                          style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
-                        />
-                        <span style={{ fontSize: '12px', color: '#006838', fontWeight: 600 }}>
-                          Click or drag to change image {selectedFile ? `(${selectedFile.name})` : ''}
-                        </span>
+                    </div>
+
+                    {activeSubtab === 'person' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Card Display Width */}
+                        {renderWidthSelector(personWidth, setPersonWidth)}
+
+                        {/* Upload Person Image */}
+                        {renderUploadZone(
+                          personFileInputRef,
+                          personFile,
+                          personPreviewUrl,
+                          processPersonFile,
+                          "Upload Person Image",
+                          "Supports PNG, JPG, JPEG, WEBP"
+                        )}
+
+                        {/* Person Name */}
+                        <div className="ss-modal-form-group">
+                          <label className="ss-modal-label">Person Name <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <input
+                            type="text"
+                            className="ss-input"
+                            value={personName}
+                            onChange={(e) => setPersonName(e.target.value)}
+                            placeholder="Enter person name..."
+                          />
+                        </div>
+
+                        {/* Designation */}
+                        <div className="ss-modal-form-group">
+                          <label className="ss-modal-label">Designation <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <input
+                            type="text"
+                            className="ss-input"
+                            value={personDesignation}
+                            onChange={(e) => setPersonDesignation(e.target.value)}
+                            placeholder="Enter designation (e.g. Senior Architect)..."
+                          />
+                        </div>
+
+                        {/* Biography */}
+                        <div className="ss-modal-form-group">
+                          <label className="ss-modal-label">Biography <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <textarea
+                            rows={4}
+                            className="ss-input"
+                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
+                            value={personBio}
+                            onChange={(e) => setPersonBio(e.target.value)}
+                            placeholder="Enter bio or details about the person..."
+                          />
+                        </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                        <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Drag & drop image here, or <span style={{ color: '#006838' }}>browse</span>
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                          Supports PNG, JPG, WebP (Max 5MB)
-                        </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Card Display Width */}
+                        {renderWidthSelector(contentWidth, setContentWidth)}
+
+                        {/* Upload Banner/Image */}
+                        {renderUploadZone(
+                          contentFileInputRef,
+                          contentFile,
+                          contentPreviewUrl,
+                          processContentFile,
+                          "Upload Banner/Image",
+                          "Supports PNG, JPG, JPEG, WEBP"
+                        )}
+
+                        {/* Text Content */}
+                        <div className="ss-modal-form-group">
+                          <label className="ss-modal-label">Text Content <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <textarea
+                            rows={6}
+                            className="ss-input"
+                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
+                            value={contentText}
+                            onChange={(e) => setContentText(e.target.value)}
+                            placeholder="Enter content description text..."
+                          />
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Card Display Width */}
+                    {renderWidthSelector(htmlWidth, setHtmlWidth)}
 
-                {/* Content Input Textarea */}
-                <div className="ss-modal-form-group">
-                  <label className="ss-modal-label" htmlFor="card-content-input">
-                    Content Description
-                  </label>
-                  <textarea
-                    id="card-content-input"
-                    rows={5}
-                    className="ss-input"
-                    style={{ height: 'auto', padding: '12px', fontSize: '13px', resize: 'vertical' }}
-                    placeholder="Enter description text for this home card..."
-                    value={contentInput}
-                    onChange={(e) => setContentInput(e.target.value)}
-                  />
-                </div>
+                    {/* Upload Image */}
+                    {renderUploadZone(
+                      htmlFileInputRef,
+                      htmlFile,
+                      htmlPreviewUrl,
+                      processHtmlFile,
+                      "Upload Image (Optional Banner)",
+                      "Supports PNG, JPG, JPEG, WEBP"
+                    )}
+
+                    {/* HTML Content */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">HTML Code <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                      <textarea
+                        rows={10}
+                        className="ss-input"
+                        style={{
+                          fontFamily: 'monospace, "Courier New", Courier',
+                          fontSize: '12px',
+                          lineHeight: '1.5',
+                          padding: '12px',
+                          height: '220px',
+                          resize: 'vertical',
+                          whiteSpace: 'pre',
+                          overflow: 'auto',
+                          background: 'var(--bg-tertiary)',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary)',
+                        }}
+                        value={htmlContent}
+                        onChange={(e) => setHtmlContent(e.target.value)}
+                        placeholder="<!-- Enter custom HTML elements directly -->&#10;<div style='padding: 10px;'>...</div>"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right Column: Live Card Preview */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                  Live Card Preview
+                  LIVE CARD PREVIEW
                 </h4>
 
-                <div
-                  style={{
-                    background: 'var(--surface-primary)',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    boxShadow: 'var(--shadow-sm)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  {/* Banner Image Preview */}
+                {/* Preview Wrapper showing layout width */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  background: 'var(--bg-secondary)',
+                  border: '1px dashed var(--border-primary)',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  minHeight: '340px',
+                }}>
                   <div
                     style={{
-                      height: '160px',
-                      width: '100%',
-                      background: 'var(--bg-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      background: 'var(--surface-primary)',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: '12px',
                       overflow: 'hidden',
+                      boxShadow: 'var(--shadow-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      width: (activeTab === 'text' ? (activeSubtab === 'person' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
+                      minWidth: '240px',
+                      transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      alignSelf: 'start',
                     }}
                   >
-                    {previewUrl ? (
-                      <img
-                        src={previewUrl}
-                        alt="Live preview"
-                        style={{ width: '100%', height: '160px', objectFit: 'cover' }}
-                      />
+                    {activeTab === 'text' ? (
+                      activeSubtab === 'person' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px', textAlign: 'center' }}>
+                          {/* Person Image */}
+                          {personPreviewUrl ? (
+                            <img
+                              src={personPreviewUrl}
+                              alt={personName || "Person avatar"}
+                              style={{
+                                width: '90px',
+                                height: '90px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '3px solid var(--surface-primary)',
+                                boxShadow: 'var(--shadow-md)',
+                                marginBottom: '16px',
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: '90px',
+                                height: '90px',
+                                borderRadius: '50%',
+                                background: 'var(--bg-secondary)',
+                                border: '2px dashed var(--border-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'var(--text-tertiary)',
+                                marginBottom: '16px',
+                              }}
+                            >
+                              <User size={36} />
+                            </div>
+                          )}
+
+                          {/* Person Name */}
+                          <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {personName || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Person Name</span>}
+                          </h4>
+
+                          {/* Designation */}
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#006838', marginBottom: '16px' }}>
+                            {personDesignation || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Designation</span>}
+                          </div>
+
+                          {/* Separator */}
+                          <div style={{ width: '40px', height: '2px', background: 'var(--border-primary)', marginBottom: '16px' }} />
+
+                          {/* Details */}
+                          <p style={{
+                            margin: 0,
+                            fontSize: '13px',
+                            lineHeight: 1.5,
+                            color: 'var(--text-secondary)',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap',
+                          }}>
+                            {personBio || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Bio details will appear here...</span>}
+                          </p>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          {/* Banner Image */}
+                          <div style={{ height: '140px', width: '100%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            {contentPreviewUrl ? (
+                              <img src={contentPreviewUrl} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
+                                <ImageIcon size={32} />
+                                <span style={{ fontSize: '11px', fontWeight: 500 }}>No banner uploaded</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Content Details */}
+                          <div style={{ padding: '16px 20px' }}>
+                            <p style={{
+                              margin: 0,
+                              fontSize: '13px',
+                              lineHeight: 1.6,
+                              color: 'var(--text-primary)',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                            }}>
+                              {contentText ? contentText : (
+                                <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                  Content text will preview here instantly as you type...
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          {/* Footer Placeholder */}
+                          <div style={{
+                            padding: '10px 16px',
+                            borderTop: '1px solid var(--border-primary)',
+                            background: 'var(--bg-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Card Footer Preview</span>
+                            <div style={{ display: 'flex', gap: '8px', opacity: 0.3 }}>
+                              <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'var(--text-tertiary)' }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
-                        <User size={40} />
-                        <span style={{ fontSize: '12px', fontWeight: 500 }}>No Image Banner</span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* Optional Banner Image */}
+                        {htmlPreviewUrl && (
+                          <div style={{ height: '140px', width: '100%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            <img src={htmlPreviewUrl} alt="HTML Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+
+                        {/* HTML Container */}
+                        <div style={{ padding: '16px 20px', minHeight: '120px' }}>
+                          {htmlContent.trim() ? (
+                            <div
+                              className="home-card-html-content"
+                              dangerouslySetInnerHTML={{ __html: htmlContent }}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>
+                              HTML Preview will appear here...
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer Placeholder */}
+                        <div style={{
+                          padding: '10px 16px',
+                          borderTop: '1px solid var(--border-primary)',
+                          background: 'var(--bg-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Card Footer Preview</span>
+                          <div style={{ display: 'flex', gap: '8px', opacity: 0.3 }}>
+                            <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'var(--text-tertiary)' }} />
+                          </div>
+                        </div>
                       </div>
                     )}
-                  </div>
-
-                  {/* Instant Content Preview */}
-                  <div style={{ padding: '16px 20px', minHeight: '90px', display: 'flex', alignItems: 'center' }}>
-                    <p
-                      style={{
-                        fontSize: '13px',
-                        lineHeight: 1.6,
-                        color: 'var(--text-primary)',
-                        margin: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {contentInput.trim() ? (
-                        stripHtml(contentInput)
-                      ) : (
-                        <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                          Card description text will preview here instantly as you type...
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Card Footer Preview */}
-                  <div
-                    style={{
-                      padding: '10px 16px',
-                      borderTop: '1px solid var(--border-primary)',
-                      background: 'var(--bg-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      gap: '8px',
-                    }}
-                  >
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic', marginRight: 'auto' }}>
-                      Card Footer Preview
-                    </div>
-                    <button type="button" disabled style={{ opacity: 0.5, border: 'none', background: 'transparent', color: '#006838' }}>
-                      <Edit2 size={15} />
-                    </button>
-                    <button type="button" disabled style={{ opacity: 0.5, border: 'none', background: 'transparent', color: '#dc2626' }}>
-                      <Trash2 size={15} />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -678,6 +1173,67 @@ function HomeManagementPanelComponent() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AdminModal
+        isOpen={!!cardToDelete}
+        onClose={() => setCardToDelete(null)}
+        title="Delete Home Card"
+        size="sm"
+        footer={
+          <div className="hm-confirm-buttons">
+            <button
+              type="button"
+              style={{
+                height: '36px',
+                padding: '0 20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                background: 'transparent',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onClick={() => setCardToDelete(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              style={{
+                height: '36px',
+                padding: '0 20px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#ffffff',
+                background: '#dc2626',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onClick={confirmDeleteCard}
+            >
+              Delete
+            </button>
+          </div>
+        }
+      >
+        <div style={{ textAlign: 'center', padding: '10px 0' }}>
+          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', color: '#f59e0b' }}>
+            <AlertTriangle size={24} />
+          </div>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Confirm Deletion</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 4px 0' }}>
+            Are you sure you want to delete this card?
+          </p>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '13px', margin: 0 }}>
+            This action cannot be undone.
+          </p>
+        </div>
+      </AdminModal>
     </div>
   );
 }
