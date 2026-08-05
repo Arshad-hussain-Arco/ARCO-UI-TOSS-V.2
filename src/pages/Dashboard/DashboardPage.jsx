@@ -226,7 +226,37 @@ export function DashboardPage() {
         { day: 'Sun', runtime: 80, failed: 0 }
       ];
     }
-    const runtimeInsights = { longest: { script: 'EOD', duration: '120m' }, mostFailed: 'N/A', slaThreshold: 100 };
+    const allScripts = murexData?.scripts || [];
+    
+    let longestScript = { script: 'N/A', duration: '0m' };
+    if (allScripts.length > 0) {
+      const sortedByRuntime = [...allScripts].sort((a, b) => b.maxRuntime - a.maxRuntime);
+      longestScript = { 
+        script: sortedByRuntime[0].name, 
+        duration: `${sortedByRuntime[0].maxRuntime}m` 
+      };
+    }
+
+    let mostFailedScript = 'N/A';
+    if (allScripts.length > 0) {
+      const sortedByFailures = [...allScripts].sort((a, b) => {
+         const aFails = a.history ? a.history.filter(h => h.status === 'error').length : 0;
+         const bFails = b.history ? b.history.filter(h => h.status === 'error').length : 0;
+         return bFails - aFails;
+      });
+      const topFails = sortedByFailures[0].history ? sortedByFailures[0].history.filter(h => h.status === 'error').length : 0;
+      if (topFails > 0) {
+        mostFailedScript = `${sortedByFailures[0].name} (${topFails})`;
+      }
+    }
+
+    // Default SLA threshold if we don't have a specific one per script
+    const slaThreshold = 100;
+    const runtimeInsights = { 
+      longest: longestScript, 
+      mostFailed: mostFailedScript, 
+      slaThreshold 
+    };
 
     // 4. Leave Snapshot
     const leaveDistribution = Array.isArray(leaveUtilization?.results) && leaveUtilization.results.length > 0
