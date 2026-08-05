@@ -44,7 +44,7 @@ const emptyForm = {
   mobile: '', email: '', landline: '', extension: '', address: '', role: '',
   webexId: '', includeInCp: false, visaNumber: '', visa: '', visaExpire: '', visaRenewal: '',
   nextVisaExit: '', location: 'On Site', remarks: '', manager: '', gender: '',
-  physicalPcAvailable: false, computerName: '', computerLocation: '', computerLocationReference: '',
+  physicalPcAvailable: '', computerName: '', computerLocation: '', computerLocationReference: '',
   accountStatus: 'active'
 };
 
@@ -93,7 +93,7 @@ export function ConsultantsPage() {
   const dynamicRoles = Array.isArray(rolesData)
     ? rolesData.map(r => ({ id: r.id, name: r.role_name || r.name || String(r.id) }))
     : [];
-    
+
   const fetchRefData = useCallback(() => consultantService.getDesignationsAndTeams(), []);
   const { data: refData, refetch: loadRefData } = useAsync(fetchRefData, { immediate: true });
   const fetchLocations = useCallback(() => consultantService.getLocations(), []);
@@ -102,7 +102,7 @@ export function ConsultantsPage() {
   const { data: compLocationsData, refetch: loadCompLocations } = useAsync(fetchCompLocations, { immediate: true });
 
   const dynamicDesignations = Array.isArray(refData) ? refData : (refData?.results || refData?.designations || []);
-  const dynamicTeams = Array.isArray(refData) 
+  const dynamicTeams = Array.isArray(refData)
     ? refData.flatMap(d => d.teams || [])
     : (refData?.teams || []);
   const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
@@ -124,10 +124,10 @@ export function ConsultantsPage() {
   const [viewProfileId, setViewProfileId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
-  
+
   const [isAddDesignationModalOpen, setIsAddDesignationModalOpen] = useState(false);
   const [newDesignationName, setNewDesignationName] = useState('');
-  
+
   const [isAddComputerLocationModalOpen, setIsAddComputerLocationModalOpen] = useState(false);
   const [newComputerLocationName, setNewComputerLocationName] = useState('');
 
@@ -277,6 +277,7 @@ export function ConsultantsPage() {
     if (drawerMode === 'password') {
       if (!passwordData.newPassword?.trim()) return toast.error('New Password is required');
       if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Passwords do not match');
+
       
       setIsSaving(true);
       try {
@@ -428,11 +429,11 @@ export function ConsultantsPage() {
       </div>
 
       {viewProfileId && (
-        <ConsultantProfileModal 
-        isOpen={!!viewProfileId}
-        onClose={() => setViewProfileId(null)}
-        consultantId={viewProfileId}
-      />
+        <ConsultantProfileModal
+          isOpen={!!viewProfileId}
+          onClose={() => setViewProfileId(null)}
+          consultantId={viewProfileId}
+        />
       )}
 
       <AdminModal
@@ -479,415 +480,487 @@ export function ConsultantsPage() {
         <>
           <div className={`con-drawer-backdrop${drawerOpen ? ' open' : ''}`} onClick={closeDrawer} />
           <div className={`con-drawer${drawerOpen ? ' open' : ''}`}>
-          <div className="con-drawer-header">
-            <div className="con-drawer-title-row">
-              <p className="con-drawer-title">{drawerTitle}</p>
-              {drawerMode === 'password' ? (
-                <p className="con-drawer-sub">
-                  Reset access for {editingTarget?.userId}
-                </p>
-              ) : isEditing ? (
-                <p className="con-drawer-sub">
-                  {editingTarget?.userId} · {editingTarget?.team}
-                </p>
-              ) : null}
-            </div>
-            <button className="con-drawer-close" onClick={closeDrawer}>
-              <X size={14} />
-            </button>
-          </div>
-
-          {drawerMode === 'add-edit' && (
-            <>
-              <div className="con-drawer-tabs">
-                {[
-                  { id: 'consultant-info', label: 'Consultant Info', Icon: User },
-                  { id: 'user-info', label: 'User Info', Icon: Shield },
-                  { id: 'additional-info', label: 'Additional Info', Icon: Info },
-                ].map(({ id, label, Icon }) => (
-                  <button
-                    key={id}
-                    className="con-drawer-tab"
-                    data-active={formTab === id}
-                    onClick={() => setFormTab(id)}
-                  >
-                    <Icon size={12} /> {label}
-                  </button>
-                ))}
+            <div className="con-drawer-header">
+              <div className="con-drawer-title-row">
+                <p className="con-drawer-title">{drawerTitle}</p>
+                {drawerMode === 'password' ? (
+                  <p className="con-drawer-sub">
+                    Reset access for {editingTarget?.userId}
+                  </p>
+                ) : isEditing ? (
+                  <p className="con-drawer-sub">
+                    {editingTarget?.userId} · {editingTarget?.team}
+                  </p>
+                ) : null}
               </div>
+              <button className="con-drawer-close" onClick={closeDrawer}>
+                <X size={14} />
+              </button>
+            </div>
 
-              <div className="con-drawer-body">
-                {formTab === 'consultant-info' && (
-                  <div className="ef-form">
-                    <div className="ef-avatar-upload">
-                      <div className="ef-avatar-circle">
-                        <img
-                          src={
-                            formData.avatar ||
-                            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100'
-                          }
-                          alt="Avatar"
-                          className="ef-avatar-img"
-                        />
-                        <div className="ef-avatar-overlay">
-                          <Camera size={16} color="white" />
+            {drawerMode === 'add-edit' && (
+              <>
+                <div className="con-drawer-tabs">
+                  {[
+                    { id: 'consultant-info', label: 'Consultant Info', Icon: User },
+                    { id: 'user-info', label: 'User Info', Icon: Shield },
+                    { id: 'additional-info', label: 'Additional Info', Icon: Info },
+                  ].map(({ id, label, Icon }) => (
+                    <button
+                      key={id}
+                      className="con-drawer-tab"
+                      data-active={formTab === id}
+                      onClick={() => setFormTab(id)}
+                    >
+                      <Icon size={12} /> {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="con-drawer-body">
+                  {formTab === 'consultant-info' && (
+                    <div className="ef-form">
+                      <div className="ef-avatar-upload">
+                        <div className="ef-avatar-circle">
+                          <img
+                            src={
+                              formData.avatar ||
+                              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100'
+                            }
+                            alt="Avatar"
+                            className="ef-avatar-img"
+                          />
+                          <div className="ef-avatar-overlay">
+                            <Camera size={16} color="white" />
+                          </div>
+                        </div>
+                        <div className="ef-avatar-actions">
+                          <span className="ef-avatar-name">{formData.name || 'New Consultant'}</span>
+                          <div className="ef-avatar-btns">
+                            <label className="ef-avatar-btn-sm" style={{ cursor: 'pointer' }}>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={handlePhotoUpload}
+                              />
+                              <Upload size={10} /> Upload
+                            </label>
+                            {formData.avatar && (
+                              <button type="button" className="ef-avatar-btn-sm ef-avatar-btn-danger" onClick={handlePhotoRemove}>
+                                <Trash2 size={10} /> Remove
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="ef-avatar-actions">
-                        <span className="ef-avatar-name">{formData.name || 'New Consultant'}</span>
-                        <div className="ef-avatar-btns">
-                          <label className="ef-avatar-btn-sm" style={{ cursor: 'pointer' }}>
+
+                      <EfSection label="Personal Information" />
+                      <div className="ef-grid">
+                        <EfField label="Full Name" required>
+                          <div className="ef-input-wrap">
+                            <span className="ef-input-icon"><User size={12} /></span>
                             <input
-                              type="file"
-                              accept="image/*"
-                              style={{ display: 'none' }}
-                              onChange={handlePhotoUpload}
+                              type="text"
+                              className={`ef-input${formData.name ? ' ef-input-filled' : ''}`}
+                              value={formData.name || ''}
+                              onChange={(e) => patch({ name: e.target.value })}
+                              placeholder="Full legal name"
                             />
-                            <Upload size={10} /> Upload
-                          </label>
-                          {formData.avatar && (
-                            <button type="button" className="ef-avatar-btn-sm ef-avatar-btn-danger" onClick={handlePhotoRemove}>
-                              <Trash2 size={10} /> Remove
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                          </div>
+                        </EfField>
 
-                    <EfSection label="Personal Information" />
-                    <div className="ef-grid">
-                      <EfField label="Full Name" required>
-                        <div className="ef-input-wrap">
-                          <span className="ef-input-icon"><User size={12} /></span>
-                          <input
-                            type="text"
-                            className={`ef-input${formData.name ? ' ef-input-filled' : ''}`}
-                            value={formData.name || ''}
-                            onChange={(e) => patch({ name: e.target.value })}
-                            placeholder="Full legal name"
+                        <EfField label="Gender">
+                          <Select
+                            value={formData.gender || ''}
+                            onChange={(v) => patch({ gender: v })}
+                            options={[{ value: '', label: 'Select gender' }, ...STATIC_GENDERS.map(g => ({ value: g, label: g }))]}
                           />
-                        </div>
-                      </EfField>
+                        </EfField>
 
-                      <EfField label="Gender">
-                        <Select
-                          value={formData.gender || ''}
-                          onChange={(v) => patch({ gender: v })}
-                          options={[{ value: '', label: 'Select gender' }, ...STATIC_GENDERS.map(g => ({ value: g, label: g }))]}
-                        />
-                      </EfField>
+                        <EfField label="Email Address" required>
+                          <div className="ef-input-wrap">
+                            <span className="ef-input-icon"><Mail size={12} /></span>
+                            <input
+                              type="email"
+                              className="ef-input"
+                              value={formData.email || ''}
+                              onChange={(e) => patch({ email: e.target.value })}
+                            />
+                          </div>
+                        </EfField>
 
-                      <EfField label="Email Address" required>
-                        <div className="ef-input-wrap">
-                          <span className="ef-input-icon"><Mail size={12} /></span>
-                          <input
-                            type="email"
-                            className="ef-input"
-                            value={formData.email || ''}
-                            onChange={(e) => patch({ email: e.target.value })}
-                          />
-                        </div>
-                      </EfField>
+                        <EfField label="Mobile Number">
+                          <div className="ef-input-wrap">
+                            <span className="ef-input-icon"><Phone size={12} /></span>
+                            <input
+                              type="tel"
+                              className="ef-input"
+                              value={formData.mobile || ''}
+                              onChange={(e) => patch({ mobile: e.target.value })}
+                            />
+                          </div>
+                        </EfField>
 
-                      <EfField label="Mobile Number">
-                        <div className="ef-input-wrap">
-                          <span className="ef-input-icon"><Phone size={12} /></span>
+                        <EfField label="Landline">
                           <input
                             type="tel"
                             className="ef-input"
-                            value={formData.mobile || ''}
-                            onChange={(e) => patch({ mobile: e.target.value })}
+                            value={formData.landline || ''}
+                            onChange={(e) => patch({ landline: e.target.value })}
                           />
-                        </div>
-                      </EfField>
+                        </EfField>
 
-                      <EfField label="Landline">
-                        <input
-                          type="tel"
-                          className="ef-input"
-                          value={formData.landline || ''}
-                          onChange={(e) => patch({ landline: e.target.value })}
-                        />
-                      </EfField>
-
-                      <EfField label="Extension">
-                        <input
-                          type="text"
-                          className="ef-input"
-                          value={formData.extension || ''}
-                          onChange={(e) => patch({ extension: e.target.value })}
-                        />
-                      </EfField>
-
-                      <EfField label="Address" className="ef-col-span-2">
-                        <input
-                          type="text"
-                          className="ef-input"
-                          value={formData.address || ''}
-                          onChange={(e) => patch({ address: e.target.value })}
-                        />
-                      </EfField>
-                    </div>
-
-                    <EfSection label="Organization" />
-                    <div className="ef-grid">
-                      <EfField label="Role" required>
-                        <Select
-                          value={String(formData.roleId || formData.role_id || formData.role || '')}
-                          onChange={(v) => {
-                            const selectedRole = dynamicRoles.find(r => String(r.id) === String(v));
-                            patch({ roleId: v, role_id: v, role_name: selectedRole?.name || '', role: selectedRole?.name || '' });
-                          }}
-                          options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: String(r.id), label: r.name || String(r.id) }))]}
-                        />
-                      </EfField>
-                      <EfField label="Designation" required>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <Select
-                            value={String(formData.designation_name || formData.designation || '')}
-                            onChange={(v) => patch({ designation: v, designation_name: v })}
-                            options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: d.name || d.designation || '', label: d.name || d.designation || '' }))]}
-                          />
-                          <button
-                            type="button"
-                            className="ef-input-action"
-                            style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
-                            onClick={() => setIsAddDesignationModalOpen(true)}
-                            title="Add Designation"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </EfField>
-                      <EfField label="Team">
-                        <Select
-                          value={String(formData.teamId || formData.team_id || formData.team || '')}
-                          onChange={(v) => {
-                            const selectedTeam = dynamicTeams.find(t => String(t.id) === String(v));
-                            patch({ teamId: v, team_id: v, team_name: selectedTeam?.name || '', team: selectedTeam?.name || '' });
-                          }}
-                          options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: String(t.id), label: t.name || String(t.id) }))]}
-                        />
-                      </EfField>
-                      <EfField label="Reporting Manager">
-                        <Select
-                          value={String(formData.managerId || formData.manager_id || formData.manager || '')}
-                          onChange={(v) => patch({ managerId: v, manager_id: v, manager: v })}
-                          options={[{ value: '', label: 'Select manager' }, ...dynamicEmployees.map(e => ({ value: String(e.emp_id || e.id), label: e.name || e.employee_name || String(e.emp_id || e.id) }))]}
-                        />
-                      </EfField>
-                      <EfField label="Joining Date">
-                        <DatePicker
-                          value={formData.joiningDate ? new Date(formData.joiningDate) : null}
-                          onChange={(d) => patch({ joiningDate: d ? d.toISOString().split('T')[0] : '' })}
-                        />
-                      </EfField>
-                    </div>
-                  </div>
-                )}
-
-                {formTab === 'user-info' && (
-              <div className="ef-form">
-                <EfSection label="Account Identity" />
-                <div className="ef-grid">
-                  <EfField label="Username / Employee ID" required>
-                    <div className="ef-input-wrap">
-                      <span className="ef-input-icon"><Shield size={12} /></span>
-                      <input
-                        type="text"
-                        className="ef-input"
-                        value={formData.username || ''}
-                        onChange={(e) => patch({ username: e.target.value })}
-                      />
-                    </div>
-                  </EfField>
-                  <EfField label="Account Status">
-                    <Select
-                      value={formData.status || 'active'}
-                      onChange={(v) => patch({ status: v })}
-                      options={STATIC_STATUSES.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
-                    />
-                  </EfField>
-                  <EfField label="Role">
-                    <Select
-                      value={formData.role || ''}
-                      onChange={(v) => patch({ role: v })}
-                      options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: r.name || r.roleName, label: r.name || r.roleName }))]}
-                    />
-                  </EfField>
-                  {!isEditing && (
-                    <EfField label="Initial Password" required>
-                      <input
-                        type="password"
-                        className="ef-input"
-                        value={formData.password || ''}
-                        onChange={(e) => patch({ password: e.target.value })}
-                      />
-                    </EfField>
-                  )}
-                </div>
-
-                <div style={{ marginTop: '24px' }}>
-                  <EfSwitchRow
-                    label="Include in CP"
-                    checked={formData.includeInCp}
-                    onChange={(v) => patch({ includeInCp: v })}
-                  />
-                </div>
-              </div>
-            )}
-
-            {formTab === 'additional-info' && (
-              <div className="ef-form">
-                <EfSection label="VISA INFORMATION" />
-                <div className="ef-grid">
-                  <EfField label="VISA NUMBER">
-                    <input
-                      type="text"
-                      className="ef-input"
-                      placeholder="Visa document number"
-                      value={formData.visaNumber || ''}
-                      onChange={(e) => patch({ visaNumber: e.target.value })}
-                    />
-                  </EfField>
-                  <EfField label="VISA TYPE">
-                    <input
-                      type="text"
-                      className="ef-input"
-                      placeholder="e.g. H1-B, Work Permit"
-                      value={formData.visa || ''}
-                      onChange={(e) => patch({ visa: e.target.value })}
-                    />
-                  </EfField>
-                  <EfField label="VISA EXPIRY">
-                    <DatePicker
-                      value={formData.visaExpire ? new Date(formData.visaExpire) : null}
-                      onChange={(d) => patch({ visaExpire: d ? d.toISOString().split('T')[0] : '' })}
-                    />
-                  </EfField>
-                  <EfField label="VISA RENEWAL DATE">
-                    <DatePicker
-                      value={formData.visaRenewal ? new Date(formData.visaRenewal) : null}
-                      onChange={(d) => patch({ visaRenewal: d ? d.toISOString().split('T')[0] : '' })}
-                    />
-                  </EfField>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <EfField label="NEXT VISA EXIT">
-                      <DatePicker
-                        value={formData.nextVisaExit ? new Date(formData.nextVisaExit) : null}
-                        onChange={(d) => patch({ nextVisaExit: d ? d.toISOString().split('T')[0] : '' })}
-                      />
-                    </EfField>
-                  </div>
-                </div>
-
-                <EfSection label="WORK ASSIGNMENT" />
-                <div className="ef-grid">
-                  <EfField label="WEBEX / CHAT ID">
-                    <input
-                      type="text"
-                      className="ef-input"
-                      placeholder="username@chat.com"
-                      value={formData.webexId || ''}
-                      onChange={(e) => patch({ webexId: e.target.value })}
-                    />
-                  </EfField>
-                  <EfField label="WORK LOCATION">
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => patch({ location: 'On Site' })}
-                        style={{
-                          flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
-                          border: formData.location === 'On Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
-                          backgroundColor: formData.location === 'On Site' ? '#ecfdf5' : 'var(--surface-primary)',
-                          color: formData.location === 'On Site' ? '#10b981' : 'var(--text-secondary)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ● On Site
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => patch({ location: 'Off Site' })}
-                        style={{
-                          flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
-                          border: formData.location === 'Off Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
-                          backgroundColor: formData.location === 'Off Site' ? '#ecfdf5' : 'var(--surface-primary)',
-                          color: formData.location === 'Off Site' ? '#10b981' : 'var(--text-secondary)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ○ Off Site
-                      </button>
-                    </div>
-                  </EfField>
-                </div>
-
-                <div style={{ marginTop: '16px', marginBottom: '24px' }}>
-                  <EfSwitchRow
-                    label="Physical PC Available"
-                    checked={formData.physicalPcAvailable}
-                    onChange={(v) => patch({ physicalPcAvailable: v })}
-                  />
-                </div>
-
-                {formData.physicalPcAvailable && (
-                  <>
-                    <EfSection label="EQUIPMENT INFORMATION" />
-                    <div className="ef-grid">
-                      <EfField label="COMPUTER NAME">
-                        <input
-                          type="text"
-                          className="ef-input"
-                          placeholder="e.g. PC-EMP001"
-                          value={formData.computerName || ''}
-                          onChange={(e) => patch({ computerName: e.target.value })}
-                        />
-                      </EfField>
-                      <EfField label="COMPUTER LOCATION">
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <Select
-                            value={formData.computerLocation || ''}
-                            onChange={(v) => patch({ computerLocation: v })}
-                            options={[{ value: '', label: 'e.g. Floor 3 - Zone B' }, ...dynamicCompLocations.map(cl => ({ value: cl.name, label: cl.name }))]}
-                          />
-                          <button
-                            type="button"
-                            className="ef-input-action"
-                            style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
-                            onClick={() => setIsAddComputerLocationModalOpen(true)}
-                            title="Add Computer Location"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </EfField>
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <EfField label="LOCATION REFERENCE">
+                        <EfField label="Extension">
                           <input
                             type="text"
                             className="ef-input"
-                            placeholder="Desk / bay reference number"
-                            value={formData.computerLocationReference || ''}
-                            onChange={(e) => patch({ computerLocationReference: e.target.value })}
+                            value={formData.extension || ''}
+                            onChange={(e) => patch({ extension: e.target.value })}
+                          />
+                        </EfField>
+
+                        <EfField label="Address" className="ef-col-span-2">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            value={formData.address || ''}
+                            onChange={(e) => patch({ address: e.target.value })}
+                          />
+                        </EfField>
+                      </div>
+
+                      <EfSection label="Organization" />
+                      <div className="ef-grid">
+                        <EfField label="Role" required>
+                          <Select
+                            value={String(formData.roleId || formData.role_id || formData.role || '')}
+                            onChange={(v) => {
+                              const selectedRole = dynamicRoles.find(r => String(r.id) === String(v));
+                              patch({ roleId: v, role_id: v, role_name: selectedRole?.name || '', role: selectedRole?.name || '' });
+                            }}
+                            options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: String(r.id), label: r.name || String(r.id) }))]}
+                          />
+                        </EfField>
+                        <EfField label="Designation" required>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <Select
+                              value={String(formData.designation_name || formData.designation || '')}
+                              onChange={(v) => patch({ designation: v, designation_name: v })}
+                              options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: d.name || d.designation || '', label: d.name || d.designation || '' }))]}
+                            />
+                            <button
+                              type="button"
+                              className="ef-input-action"
+                              style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
+                              onClick={() => setIsAddDesignationModalOpen(true)}
+                              title="Add Designation"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </EfField>
+                        <EfField label="Team">
+                          <Select
+                            value={String(formData.teamId || formData.team_id || formData.team || '')}
+                            onChange={(v) => {
+                              const selectedTeam = dynamicTeams.find(t => String(t.id) === String(v));
+                              patch({ teamId: v, team_id: v, team_name: selectedTeam?.name || '', team: selectedTeam?.name || '' });
+                            }}
+                            options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: String(t.id), label: t.name || String(t.id) }))]}
+                          />
+                        </EfField>
+                        <EfField label="Reporting Manager">
+                          <Select
+                            value={String(formData.managerId || formData.manager_id || formData.manager || '')}
+                            onChange={(v) => patch({ managerId: v, manager_id: v, manager: v })}
+                            options={[{ value: '', label: 'Select manager' }, ...dynamicEmployees.map(e => ({ value: String(e.emp_id || e.id), label: e.name || e.employee_name || String(e.emp_id || e.id) }))]}
+                          />
+                        </EfField>
+                        <EfField label="Joining Date">
+                          <DatePicker
+                            value={formData.joiningDate ? new Date(formData.joiningDate) : null}
+                            onChange={(d) => patch({ joiningDate: d ? d.toISOString().split('T')[0] : '' })}
                           />
                         </EfField>
                       </div>
                     </div>
-                  </>
-                )}
+                  )}
 
-                <EfSection label="REMARKS" />
-                <EfField label="Additional Notes">
-                  <textarea
-                    className="ef-input"
-                    style={{ height: '80px', paddingTop: '8px', resize: 'vertical' }}
-                    value={formData.remarks || ''}
-                    onChange={(e) => patch({ remarks: e.target.value })}
-                  />
-                </EfField>
-              </div>
+                  {formTab === 'user-info' && (
+                    <div className="ef-form">
+                      <EfSection label="Account Identity" />
+                      <div className="ef-grid">
+                        <EfField label="Username / Employee ID" required>
+                          <div className="ef-input-wrap">
+                            <span className="ef-input-icon"><Shield size={12} /></span>
+                            <input
+                              type="text"
+                              className="ef-input"
+                              value={formData.username || ''}
+                              onChange={(e) => patch({ username: e.target.value })}
+                            />
+                          </div>
+                        </EfField>
+                        <EfField label="Account Status">
+                          <Select
+                            value={formData.status || 'active'}
+                            onChange={(v) => patch({ status: v })}
+                            options={STATIC_STATUSES.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+                          />
+                        </EfField>
+                        <EfField label="Role">
+                          <Select
+                            value={formData.role || ''}
+                            onChange={(v) => patch({ role: v })}
+                            options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: r.name || r.roleName, label: r.name || r.roleName }))]}
+                          />
+                        </EfField>
+                        {!isEditing && (
+                          <EfField label="Initial Password" required>
+                            <input
+                              type="password"
+                              className="ef-input"
+                              value={formData.password || ''}
+                              onChange={(e) => patch({ password: e.target.value })}
+                            />
+                          </EfField>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: '24px' }}>
+                        <EfSwitchRow
+                          label="Include in CP"
+                          checked={formData.includeInCp}
+                          onChange={(v) => patch({ includeInCp: v })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {formTab === 'additional-info' && (
+                    <div className="ef-form">
+                      <EfSection label="VISA INFORMATION" />
+                      <div className="ef-grid">
+                        <EfField label="VISA NUMBER">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="Visa document number"
+                            value={formData.visaNumber || ''}
+                            onChange={(e) => patch({ visaNumber: e.target.value })}
+                          />
+                        </EfField>
+                        <EfField label="VISA TYPE">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="e.g. H1-B, Work Permit"
+                            value={formData.visa || ''}
+                            onChange={(e) => patch({ visa: e.target.value })}
+                          />
+                        </EfField>
+                        <EfField label="VISA EXPIRY">
+                          <DatePicker
+                            value={formData.visaExpire ? new Date(formData.visaExpire) : null}
+                            onChange={(d) => patch({ visaExpire: d ? d.toISOString().split('T')[0] : '' })}
+                          />
+                        </EfField>
+                        <EfField label="VISA RENEWAL DATE">
+                          <DatePicker
+                            value={formData.visaRenewal ? new Date(formData.visaRenewal) : null}
+                            onChange={(d) => patch({ visaRenewal: d ? d.toISOString().split('T')[0] : '' })}
+                          />
+                        </EfField>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <EfField label="NEXT VISA EXIT">
+                            <DatePicker
+                              value={formData.nextVisaExit ? new Date(formData.nextVisaExit) : null}
+                              onChange={(d) => patch({ nextVisaExit: d ? d.toISOString().split('T')[0] : '' })}
+                            />
+                          </EfField>
+                        </div>
+                      </div>
+
+                      <EfSection label="WORK ASSIGNMENT" />
+                      <div className="ef-grid">
+                        <EfField label="WEBEX / CHAT ID">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="username@chat.com"
+                            value={formData.webexId || ''}
+                            onChange={(e) => patch({ webexId: e.target.value })}
+                          />
+                        </EfField>
+                        <EfField label="WORK LOCATION">
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => patch({ location: 'On Site' })}
+                              style={{
+                                flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
+                                border: formData.location === 'On Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
+                                backgroundColor: formData.location === 'On Site' ? '#ecfdf5' : 'var(--surface-primary)',
+                                color: formData.location === 'On Site' ? '#10b981' : 'var(--text-secondary)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ● On Site
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => patch({ location: 'Off Site' })}
+                              style={{
+                                flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
+                                border: formData.location === 'Off Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
+                                backgroundColor: formData.location === 'Off Site' ? '#ecfdf5' : 'var(--surface-primary)',
+                                color: formData.location === 'Off Site' ? '#10b981' : 'var(--text-secondary)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ○ Off Site
+                            </button>
+                          </div>
+                        </EfField>
+                      </div>
+
+                      <div style={{ marginTop: '16px', marginBottom: '24px' }}>
+                        <EfSwitchRow
+                          label="Physical PC Available"
+                          checked={formData.physicalPcAvailable}
+                          onChange={(v) => patch({ physicalPcAvailable: v })}
+                        />
+                      </div>
+
+                      {formData.physicalPcAvailable && (
+                        <>
+                          <EfSection label="EQUIPMENT INFORMATION" />
+                          <div className="ef-grid">
+                            <EfField label="COMPUTER NAME">
+                              <input
+                                type="text"
+                                className="ef-input"
+                                placeholder="e.g. PC-EMP001"
+                                value={formData.computerName || ''}
+                                onChange={(e) => patch({ computerName: e.target.value })}
+                              />
+                            </EfField>
+                            <EfField label="COMPUTER LOCATION">
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <Select
+                                  value={formData.computerLocation || ''}
+                                  onChange={(v) => patch({ computerLocation: v })}
+                                  options={[{ value: '', label: 'e.g. Floor 3 - Zone B' }, ...dynamicCompLocations.map(cl => ({ value: cl.name, label: cl.name }))]}
+                                />
+                                <button
+                                  type="button"
+                                  className="ef-input-action"
+                                  style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
+                                  onClick={() => setIsAddComputerLocationModalOpen(true)}
+                                  title="Add Computer Location"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            </EfField>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                              <EfField label="LOCATION REFERENCE">
+                                <input
+                                  type="text"
+                                  className="ef-input"
+                                  placeholder="Desk / bay reference number"
+                                  value={formData.computerLocationReference || ''}
+                                  onChange={(e) => patch({ computerLocationReference: e.target.value })}
+                                />
+                              </EfField>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      <EfSection label="REMARKS" />
+                      <EfField label="Additional Notes">
+                        <textarea
+                          className="ef-input"
+                          style={{ height: '80px', paddingTop: '8px', resize: 'vertical' }}
+                          value={formData.remarks || ''}
+                          onChange={(e) => patch({ remarks: e.target.value })}
+                        />
+                      </EfField>
+                    </div>
+                  )}
+                </div>
+                <div className="con-drawer-footer">
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
+                  <button className="con-drawer-btn-save" onClick={handleSave}>
+                    Save
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {drawerMode === 'delete' && (
+              <>
+                <div className="con-drawer-body delete-mode">
+                  <p>Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?</p>
+                </div>
+                <div className="con-drawer-footer">
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
+                  <button className="con-drawer-btn-save danger" onClick={handleConfirmDelete}>Deactivate</button>
+                </div>
+              </>
+            )}
+
+            {drawerMode === 'password' && (
+              <>
+                <div className="con-drawer-body">
+                  <div className="ef-form" style={{ marginTop: '8px' }}>
+                    <EfSection label="NEW CREDENTIALS" />
+                    <div className="ef-grid">
+                      <EfField label="NEW PASSWORD" required>
+                        <div className="ef-input-wrap">
+                          <span className="ef-input-icon"><Lock size={12} /></span>
+                          <input
+                            type={showPw ? 'text' : 'password'}
+                            className="ef-input has-action"
+                            placeholder="Enter new password"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData(p => ({ ...p, newPassword: e.target.value }))}
+                            autoComplete="new-password"
+                          />
+                          <button type="button" className="ef-input-action" onClick={() => setShowPw(!showPw)}>
+                            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </EfField>
+                      <EfField label="CONFIRM PASSWORD" required>
+                        <div className="ef-input-wrap">
+                          <span className="ef-input-icon"><Lock size={12} /></span>
+                          <input
+                            type={showPwConfirm ? 'text' : 'password'}
+                            className="ef-input has-action"
+                            placeholder="Re-enter password"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData(p => ({ ...p, confirmPassword: e.target.value }))}
+                            autoComplete="new-password"
+                          />
+                          <button type="button" className="ef-input-action" onClick={() => setShowPwConfirm(!showPwConfirm)}>
+                            {showPwConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </EfField>
+                    </div>
+                  </div>
+                </div>
+                <div className="con-drawer-footer">
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
+                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Key size={14} /> Update Password
+                  </button>
+                </div>
+              </>
             )}
           </div>
           <div className="con-drawer-footer">

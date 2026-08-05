@@ -1019,24 +1019,24 @@ export function LeaveConfigurationPage() {
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             {isEditing ? (
-                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
                                 <button
                                   type="button"
-                                  className="lc-btn-primary"
-                                  style={{ height: '32px', padding: '0 12px' }}
+                                  className="lc-inline-btn save"
+                                  title="Save Changes"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px' }}
                                   onClick={() => handleSaveHolidayInlineEdit(h.id)}
                                 >
-                                  <Check size={14} />
-                                  Save Changes
+                                  <Check size={16} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
-                                  style={{ width: 'auto', padding: '0 12px' }}
+                                  className="lc-inline-btn cancel"
+                                  title="Cancel"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#ef4444' }}
                                   onClick={cancelHolidayInlineEdit}
                                 >
-                                  <X size={14} />
-                                  Cancel
+                                  <X size={16} />
                                 </button>
                               </div>
                             ) : (

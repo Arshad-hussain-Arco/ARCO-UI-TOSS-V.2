@@ -17,7 +17,7 @@ import { authService } from '@services/authService';
  * @property {() => void} clearError
  */
 
-export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
+export const AuthContext = createContext(/** @type {AuthContextValue | null} */ (null));
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
   // user out. Mock auth stores the user alongside the token.
   useEffect(() => {
     let isMounted = true;
-    
+
     const initAuth = async () => {
       const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
       let persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
           const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
           const fullInfo = userInfoRes.data;
           const info = fullInfo.userInformation || fullInfo;
-          
+
           persistedUser = {
             ...persistedUser,
             id: info.id || persistedUser?.id,
@@ -55,15 +55,45 @@ export function AuthProvider({ children }) {
             isAdmin: info.isAdmin !== undefined ? info.isAdmin : persistedUser?.isAdmin,
             permissions: info.permissions || persistedUser?.permissions || [],
             mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
+            designation: info.designation || persistedUser?.designation,
+            designationName: info.designationName || persistedUser?.designationName,
+            teamName: info.teamName || persistedUser?.teamName,
+            reportingManager: info.reportingManager || persistedUser?.reportingManager,
+            gender: info.gender || persistedUser?.gender,
+            work_location: info.work_location || persistedUser?.work_location,
+            landline: info.landline || persistedUser?.landline,
+            pcAvailable:
+              info.physicalPcAvailable !== undefined
+                ? info.physicalPcAvailable
+                : persistedUser?.pcAvailable,
+            mobile: info.mobile || persistedUser?.mobile,
+            computerName: info.computerName || persistedUser?.computerName,
+            computerLocation: info.computerLocation || persistedUser?.computerLocation,
+            locationRef: info.computerLocationRef || persistedUser?.locationRef,
+            doj: info.dateOfJoining || persistedUser?.doj,
           };
           if (info.userName || info.username) {
             persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
           }
+
+          if (persistedUser.emp_id) {
+            try {
+              const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
+              if (photoRes.data?.photo) {
+                persistedUser.avatar = photoRes.data.photo.startsWith('data:')
+                  ? photoRes.data.photo
+                  : `data:image/jpeg;base64,${photoRes.data.photo}`;
+              }
+            } catch (err) {
+              console.warn('Failed to fetch user photo', err);
+            }
+          }
+
           storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
         } catch (error) {
           console.warn('Failed to fetch user-info on load', error);
         }
-        
+
         if (isMounted && persistedUser) {
           if (storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
             setUser(persistedUser);
@@ -75,10 +105,12 @@ export function AuthProvider({ children }) {
         setIsInitialising(false);
       }
     };
-    
+
     initAuth();
-    
-    return () => { isMounted = false; };
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const clearSession = useCallback(() => {
@@ -152,4 +184,3 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
