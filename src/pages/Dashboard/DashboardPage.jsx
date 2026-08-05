@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { Download, Filter } from 'lucide-react';
+import { Calendar, User, Search, Play } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -39,8 +39,6 @@ import './DashboardPage.css';
 export function DashboardPage() {
   useDocumentTitle('Dashboard');
   const { user } = useAuth();
-
-  const [dateFilter, setDateFilter] = useState('today');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -336,17 +334,6 @@ export function DashboardPage() {
         <div>
           <h1 className="dc-page-title">Welcome, {userName}!</h1>
           <p className="dc-page-sub">Here is your real-time overview of system health, team performance, and key operational metrics.</p>
-        </div>
-
-        <div className="dc-header-actions">
-          <div className="dc-filter-pill">
-            <Filter size={12} />
-            <Select value={dateFilter} onChange={setDateFilter} options={[{ label: 'Today', value: 'today' }]} width="dateRange" />
-          </div>
-          <button type="button" className="dc-export-btn">
-            <Download size={13} />
-            Export
-          </button>
         </div>
       </div>
 
