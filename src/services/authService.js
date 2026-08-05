@@ -68,7 +68,35 @@ export const authService = {
           initials: (info.userName || info.username || username).substring(0, 2).toUpperCase(),
           permissions: info.permissions || decoded.permissions || [],
           mySubordinates: info.mySubordinates || [],
+          designation: info.designation,
+          designationName: info.designationName,
+          teamName: info.teamName,
+          reportingManager: info.reportingManager,
+          gender: info.gender,
+          work_location: info.work_location,
+          landline: info.landline,
+          pcAvailable: info.physicalPcAvailable,
+          mobile: info.mobile,
+          computerName: info.computerName,
+          computerLocation: info.computerLocation,
+          locationRef: info.computerLocationRef,
+          doj: info.dateOfJoining,
         };
+        
+        if (user.emp_id) {
+          try {
+            const photoRes = await httpClient.get(endpoints.consultants.photo(user.emp_id), {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (photoRes.data?.photo) {
+              user.avatar = photoRes.data.photo.startsWith('data:')
+                ? photoRes.data.photo
+                : `data:image/jpeg;base64,${photoRes.data.photo}`;
+            }
+          } catch (err) {
+            console.warn('Failed to fetch user photo', err);
+          }
+        }
       } catch (err) {
         console.warn('Failed to fetch user-info, falling back to token data', err);
         user = {
@@ -122,6 +150,11 @@ export const authService = {
     }
 
     throw new Error('No session found');
+  },
+
+  updateUserInfo: async (payload) => {
+    const response = await httpClient.post(endpoints.auth.updateUserInfo, payload);
+    return response.data;
   },
 };
 

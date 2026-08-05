@@ -20,6 +20,7 @@ import {
 import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
 import roleService from '@services/roleService';
+import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
 
 // Application Modules List
@@ -114,6 +115,9 @@ export function RoleManagementPage() {
     assigned_roles: 0,
     unassigned_roles: 0,
   });
+  const [roleToDelete, setRoleToDelete] = useState(null);
+  const [roleToCancel, setRoleToCancel] = useState(null);
+  const [dirtyRoles, setDirtyRoles] = useState(new Set());
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -222,14 +226,22 @@ export function RoleManagementPage() {
   };
 
   // Delete Role
-  const handleDeleteRole = async (id) => {
+  const handleDeleteRole = (id) => {
+    const role = roles.find((r) => r.id === id);
+    if (role) setRoleToDelete(role);
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return;
     try {
-      await roleService.deleteRole(id);
+      await roleService.deleteRole(roleToDelete.id);
       toast.success('Role deleted successfully.');
-      if (expandedRoleId === id) setExpandedRoleId(null);
+      if (expandedRoleId === roleToDelete.id) setExpandedRoleId(null);
       fetchRoles();
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to delete role.');
+    } finally {
+      setRoleToDelete(null);
     }
   };
 
@@ -244,6 +256,11 @@ export function RoleManagementPage() {
         permissions: role.permissions,
       });
       toast.success('Role permissions updated successfully.');
+      setDirtyRoles((prev) => {
+        const next = new Set(prev);
+        next.delete(role.id);
+        return next;
+      });
       setExpandedRoleId(null);
       fetchRoles();
     } catch (err) {
@@ -255,11 +272,35 @@ export function RoleManagementPage() {
 
   // Toggle Inline Accordion for Row
   const handleToggleConfigure = (id) => {
+    if (expandedRoleId && expandedRoleId === id && dirtyRoles.has(id)) {
+      setRoleToCancel(id);
+      return;
+    }
+    if (expandedRoleId && expandedRoleId !== id && dirtyRoles.has(expandedRoleId)) {
+      setRoleToCancel(expandedRoleId);
+      return;
+    }
     setExpandedRoleId((prev) => (prev === id ? null : id));
+  };
+
+  const handleCancelClick = (roleId) => {
+    if (dirtyRoles.has(roleId)) {
+      setRoleToCancel(roleId);
+    } else {
+      setExpandedRoleId(null);
+    }
+  };
+
+  const confirmCancel = () => {
+    setExpandedRoleId(null);
+    setRoleToCancel(null);
+    fetchRoles(); // Reset unsaved changes
+    setDirtyRoles(new Set()); // Reset dirty state
   };
 
   // Toggle Permission Cell in Inline Accordion
   const handleToggleInlinePermission = (roleId, moduleName, actionKey) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
       prev.map((role) => {
         if (role.id === roleId) {
@@ -283,6 +324,7 @@ export function RoleManagementPage() {
 
   // Update Role Description Inline
   const handleInlineDescriptionChange = (roleId, newDescription) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
       prev.map((role) => {
         if (role.id === roleId) {
@@ -300,22 +342,7 @@ export function RoleManagementPage() {
     <div className="rm-container">
       {/* ── Top Header & KPI Summary Bar ────────────────────────────────────────── */}
       <div className="rm-header">
-        <div className="rm-header-top">
-          <div>
-            <h1 className="rm-page-title">Roles and Permissions</h1>
-            <p className="rm-page-sub">
-              Manage enterprise access controls, administrative rights, and module permissions.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="rm-btn-primary"
-            {...activatable(handleOpenAddModal, { label: 'Add New Role' })}
-          >
-            <Plus size={16} />
-            <span>Add Role</span>
-          </button>
-        </div>
+
 
         {/* 4 Compact Stat Cards */}
         <div className="rm-kpi-grid">
@@ -373,6 +400,17 @@ export function RoleManagementPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+          <div className="rm-header-top">
+
+            <button
+              type="button"
+              className="rm-btn-primary"
+              {...activatable(handleOpenAddModal, { label: 'Add New Role' })}
+            >
+              <Plus size={16} />
+              <span>Add Role</span>
+            </button>
           </div>
         </div>
 
@@ -502,7 +540,7 @@ export function RoleManagementPage() {
                                   className="rm-btn-sm-close"
                                   disabled={isSaving}
                                   style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
-                                  {...activatable(() => setExpandedRoleId(null), {
+                                  {...activatable(() => handleCancelClick(role.id), {
                                     label: 'Cancel permission changes',
                                   })}
                                 >
@@ -511,8 +549,8 @@ export function RoleManagementPage() {
                                 <button
                                   type="button"
                                   className="rm-btn-primary"
-                                  disabled={isSaving}
-                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                  disabled={isSaving || pCount === 0}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 ? 0.5 : 1, cursor: pCount === 0 ? 'not-allowed' : 'pointer' }}
                                   {...activatable(() => handleUpdateRole(role), {
                                     label: 'Save permission changes',
                                   })}
@@ -584,6 +622,102 @@ export function RoleManagementPage() {
           </table>
         </div>
       </div>
+
+      {/* ── "Delete Role" Confirmation Modal ────────────────────────────────────── */}
+      {roleToDelete && (
+        <div className="rm-modal-backdrop" {...dismissBackdrop(() => setRoleToDelete(null))}>
+          <div
+            className="rm-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-role-modal-title"
+            style={{ maxWidth: '400px' }}
+          >
+            <div className="rm-modal-header">
+              <h2 id="delete-role-modal-title" className="rm-modal-title">
+                Confirm Delete
+              </h2>
+              <button
+                type="button"
+                className="rm-modal-close"
+                {...activatable(() => setRoleToDelete(null), { label: 'Close modal' })}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="rm-modal-body-content" style={{ padding: '20px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                Are you sure you want to delete the role <strong>{roleToDelete.name}</strong>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="rm-modal-footer">
+              <button
+                type="button"
+                className="rm-btn-secondary"
+                {...activatable(() => setRoleToDelete(null), { label: 'Cancel' })}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rm-btn-primary"
+                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── "Cancel" Confirmation Modal ────────────────────────────────────── */}
+      {roleToCancel && (
+        <div className="rm-modal-backdrop" {...dismissBackdrop(() => setRoleToCancel(null))}>
+          <div
+            className="rm-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-role-modal-title"
+            style={{ maxWidth: '400px' }}
+          >
+            <div className="rm-modal-header">
+              <h2 id="cancel-role-modal-title" className="rm-modal-title">
+                Discard Changes
+              </h2>
+              <button
+                type="button"
+                className="rm-modal-close"
+                {...activatable(() => setRoleToCancel(null), { label: 'Close modal' })}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="rm-modal-body-content" style={{ padding: '20px' }}>
+              <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+                You have unsaved changes. Are you sure you want to discard them?
+              </p>
+            </div>
+            <div className="rm-modal-footer">
+              <button
+                type="button"
+                className="rm-btn-secondary"
+                {...activatable(() => setRoleToCancel(null), { label: 'Keep Editing' })}
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                className="rm-btn-primary"
+                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                {...activatable(confirmCancel, { label: 'Discard Changes' })}
+              >
+                Discard Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── "Add Role" Modal Overlay ───────────────────────────────────────────── */}
       {isAddModalOpen && (

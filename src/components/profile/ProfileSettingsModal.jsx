@@ -15,6 +15,9 @@ import {
   RotateCcw,
   Laptop,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { authService } from '@services/authService';
+import { consultantService } from '@services/consultantService';
 import './ProfileSettingsModal.css';
 
 /**
@@ -40,19 +43,19 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
 
   // Form Fields State
   const initialFormData = useRef({
-    name: user?.name || user?.username || 'Asif Hussain',
-    designation: user?.role || user?.roleName || 'CEO',
-    team: user?.team || 'Management',
-    manager: user?.manager || 'Asif Hussain',
-    doj: user?.doj || '01/01/1970',
-    email: user?.email || 'asif@example.in',
-    mobile: user?.mobile || '+9000000001',
+    name: user?.name || user?.username || '',
+    designation: user?.designationName || user?.designation || user?.roleName || user?.role || '',
+    team: user?.teamName || user?.team || '',
+    manager: user?.reportingManager || user?.manager || '',
+    gender: user?.gender || '',
+    doj: user?.doj || '',
+    email: user?.email || '',
+    mobile: user?.mobile || '',
     landline: user?.landline || '',
-    extension: user?.extension || '',
-    pcAvailable: user?.pcAvailable !== undefined ? user?.pcAvailable : true,
-    computerName: user?.computerName || 'BFXBFXC',
-    computerLocation: user?.computerLocation || 'MITC Floor 2',
-    locationRef: user?.locationRef || 'dvdvdv',
+    pcAvailable: user?.pcAvailable !== undefined ? user?.pcAvailable : null,
+    computerName: user?.computerName || '',
+    computerLocation: user?.computerLocation || '',
+    locationRef: user?.locationRef || '',
   });
 
   const [formData, setFormData] = useState(initialFormData.current);
@@ -60,19 +63,19 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
   // Sync state if user changes
   useEffect(() => {
     initialFormData.current = {
-      name: user?.name || user?.username || 'Asif Hussain',
-      designation: user?.role || user?.roleName || 'CEO',
-      team: user?.team || 'Management',
-      manager: user?.manager || 'Asif Hussain',
-      doj: user?.doj || '01/01/1970',
-      email: user?.email || 'asif@example.in',
-      mobile: user?.mobile || '+9000000001',
+      name: user?.name || user?.username || '',
+      designation: user?.designationName || user?.designation || user?.roleName || user?.role || '',
+      team: user?.teamName || user?.team || '',
+      manager: user?.reportingManager || user?.manager || '',
+      gender: user?.gender || '',
+      doj: user?.doj || '',
+      email: user?.email || '',
+      mobile: user?.mobile || '',
       landline: user?.landline || '',
-      extension: user?.extension || '',
-      pcAvailable: user?.pcAvailable !== undefined ? user?.pcAvailable : true,
-      computerName: user?.computerName || 'BFXBFXC',
-      computerLocation: user?.computerLocation || 'MITC Floor 2',
-      locationRef: user?.locationRef || 'dvdvdv',
+      pcAvailable: user?.pcAvailable !== undefined ? user?.pcAvailable : null,
+      computerName: user?.computerName || '',
+      computerLocation: user?.computerLocation || '',
+      locationRef: user?.locationRef || '',
     };
     setFormData(initialFormData.current);
     if (user?.avatar) setAvatarUrl(user.avatar);
@@ -99,23 +102,58 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
   }, [isOpen, handleAnimatedClose]);
 
   const handleChange = (field, value) => {
+    if (field === 'mobile') {
+      const digitsOnly = value.replace(/\D/g, '');
+      if (digitsOnly.length > 10) return;
+      setFormData((prev) => ({ ...prev, [field]: digitsOnly }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        setAvatarUrl(event.target?.result);
+      reader.onload = async (event) => {
+        const base64Data = event.target?.result;
+        try {
+          // Keep UI responsive while uploading
+          setAvatarUrl(base64Data);
+          
+          // Strip the data URL prefix (e.g. "data:image/jpeg;base64,")
+          const pureBase64 = base64Data.split(',')[1] || base64Data;
+          
+          await consultantService.uploadPhoto(user.emp_id || user.id, pureBase64);
+          toast.success('Profile photo uploaded successfully.');
+        } catch (error) {
+          toast.error(error.message || 'Failed to upload photo.');
+          // Revert on failure
+          setAvatarUrl(user?.avatar || null);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSave = () => {
-    initialFormData.current = { ...formData };
-    setIsEditing(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      await authService.updateUserInfo({
+        mobile: formData.mobile,
+        email: formData.email,
+      });
+      
+      toast.success('User info updated successfully.');
+      initialFormData.current = { ...formData };
+      setIsEditing(false);
+    } catch (error) {
+      toast.error(error.message || 'Failed to update user info.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -169,7 +207,8 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               Profile Settings
             </h3>
             <p className="eps-drawer-user-subtitle">
-              {formData.name} &bull; <span className="eps-sub-role">{formData.designation}</span> &bull; {formData.team}
+              {formData.name} &bull; <span className="eps-sub-role">{formData.designation}</span>{' '}
+              &bull; {formData.team}
             </p>
           </div>
 
@@ -185,10 +224,13 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
 
         {/* ── Compact Body Content ─────────────────────────────── */}
         <div className="eps-drawer-body">
-
           {/* Compact Avatar Strip */}
           <div className="eps-compact-avatar-strip">
-            <div className="eps-avatar-wrapper" onClick={() => fileInputRef.current?.click()} title="Change Photo">
+            <div
+              className="eps-avatar-wrapper"
+              onClick={() => fileInputRef.current?.click()}
+              title="Change Photo"
+            >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={formData.name} className="eps-avatar-img" />
               ) : (
@@ -223,6 +265,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     type="text"
                     className="eps-dense-input"
                     value={formData.name}
+                    disabled
                     onChange={(e) => handleChange('name', e.target.value)}
                   />
                 ) : (
@@ -230,17 +273,51 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                 )}
               </div>
 
+              {/* Gender */}
+              <div className="eps-row-field">
+                <div className="eps-row-label-group">
+                  <User size={12} className="eps-field-icon" />
+                  <span className="eps-row-label">Gender</span>
+                </div>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="eps-dense-input"
+                    value={
+                      formData.gender === 'M'
+                        ? 'Male'
+                        : formData.gender === 'F'
+                          ? 'Female'
+                          : formData.gender === 'O'
+                            ? 'Other'
+                            : formData.gender || ''
+                    }
+                    disabled
+                    onChange={() => {}}
+                  />
+                ) : (
+                  <span className="eps-row-value">
+                    {formData.gender === 'M'
+                      ? 'Male'
+                      : formData.gender === 'F'
+                        ? 'Female'
+                        : renderValue(formData.gender)}
+                  </span>
+                )}
+              </div>
+
               {/* Designation */}
               <div className="eps-row-field">
                 <div className="eps-row-label-group">
                   <Briefcase size={12} className="eps-field-icon" />
-                  <span className="eps-row-label">Designation</span>
+                  <span className="eps-row-label">Designation Name</span>
                 </div>
                 {isEditing ? (
                   <input
                     type="text"
                     className="eps-dense-input"
                     value={formData.designation}
+                    disabled
                     onChange={(e) => handleChange('designation', e.target.value)}
                   />
                 ) : (
@@ -252,13 +329,14 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               <div className="eps-row-field">
                 <div className="eps-row-label-group">
                   <Building size={12} className="eps-field-icon" />
-                  <span className="eps-row-label">Team</span>
+                  <span className="eps-row-label">Team Name</span>
                 </div>
                 {isEditing ? (
                   <input
                     type="text"
                     className="eps-dense-input"
                     value={formData.team}
+                    disabled
                     onChange={(e) => handleChange('team', e.target.value)}
                   />
                 ) : (
@@ -277,6 +355,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     type="text"
                     className="eps-dense-input"
                     value={formData.manager}
+                    disabled
                     onChange={(e) => handleChange('manager', e.target.value)}
                   />
                 ) : (
@@ -295,6 +374,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     type="text"
                     className="eps-dense-input"
                     value={formData.doj}
+                    disabled
                     onChange={(e) => handleChange('doj', e.target.value)}
                   />
                 ) : (
@@ -341,6 +421,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     type="text"
                     className="eps-dense-input"
                     value={formData.mobile}
+                    maxLength="10"
                     onChange={(e) => handleChange('mobile', e.target.value)}
                   />
                 ) : (
@@ -360,29 +441,11 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     className="eps-dense-input"
                     placeholder="—"
                     value={formData.landline}
+                    disabled
                     onChange={(e) => handleChange('landline', e.target.value)}
                   />
                 ) : (
                   <span className="eps-row-value">{renderValue(formData.landline)}</span>
-                )}
-              </div>
-
-              {/* Extension */}
-              <div className="eps-row-field">
-                <div className="eps-row-label-group">
-                  <Phone size={12} className="eps-field-icon" />
-                  <span className="eps-row-label">Extension</span>
-                </div>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    className="eps-dense-input"
-                    placeholder="—"
-                    value={formData.extension}
-                    onChange={(e) => handleChange('extension', e.target.value)}
-                  />
-                ) : (
-                  <span className="eps-row-value">{renderValue(formData.extension)}</span>
                 )}
               </div>
             </div>
@@ -403,16 +466,27 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                   <span className="eps-row-label">Physical PC</span>
                 </div>
                 {isEditing ? (
-                  <select
-                    className="eps-dense-select"
-                    value={formData.pcAvailable ? 'Yes' : 'No'}
-                    onChange={(e) => handleChange('pcAvailable', e.target.value === 'Yes')}
-                  >
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
+                  <input
+                    type="text"
+                    className="eps-dense-input"
+                    value={
+                      formData.pcAvailable === null
+                        ? ''
+                        : formData.pcAvailable
+                          ? 'Yes'
+                          : 'No'
+                    }
+                    disabled
+                    onChange={() => {}}
+                  />
                 ) : (
-                  <span className="eps-row-value">{formData.pcAvailable ? 'Yes' : 'No'}</span>
+                  <span className="eps-row-value">
+                    {formData.pcAvailable === null
+                      ? renderValue(null)
+                      : formData.pcAvailable
+                        ? 'Yes'
+                        : 'No'}
+                  </span>
                 )}
               </div>
 
@@ -427,6 +501,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                     type="text"
                     className="eps-dense-input"
                     value={formData.computerName}
+                    disabled
                     onChange={(e) => handleChange('computerName', e.target.value)}
                   />
                 ) : (
@@ -438,13 +513,14 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               <div className="eps-row-field">
                 <div className="eps-row-label-group">
                   <MapPin size={12} className="eps-field-icon" />
-                  <span className="eps-row-label">Location</span>
+                  <span className="eps-row-label">Computer Location</span>
                 </div>
                 {isEditing ? (
                   <input
                     type="text"
                     className="eps-dense-input"
                     value={formData.computerLocation}
+                    disabled
                     onChange={(e) => handleChange('computerLocation', e.target.value)}
                   />
                 ) : (
@@ -456,13 +532,14 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               <div className="eps-row-field">
                 <div className="eps-row-label-group">
                   <MapPin size={12} className="eps-field-icon" />
-                  <span className="eps-row-label">Reference</span>
+                  <span className="eps-row-label">Computer Location Reference</span>
                 </div>
                 {isEditing ? (
                   <input
                     type="text"
                     className="eps-dense-input"
                     value={formData.locationRef}
+                    disabled
                     onChange={(e) => handleChange('locationRef', e.target.value)}
                   />
                 ) : (
@@ -471,7 +548,6 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               </div>
             </div>
           </section>
-
         </div>
 
         {/* ── Minimal Footer ───────────────────────────────────── */}
@@ -496,20 +572,12 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                className="eps-btn eps-btn-cancel"
-                onClick={handleCancel}
-              >
+              <button type="button" className="eps-btn eps-btn-cancel" onClick={handleCancel}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="eps-btn eps-btn-primary"
-                onClick={handleSave}
-              >
+              <button type="button" className="eps-btn eps-btn-primary" onClick={handleSave} disabled={isSaving}>
                 <Check size={12} />
-                <span>Save Changes</span>
+                <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
               </button>
             </>
           )}
