@@ -19,10 +19,13 @@ import { SystemHealthSection } from './sections/SystemHealthSection';
 import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendChart';
 import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
-import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
 import { leaveService } from '@services/leaveService';
+import { dashboardService } from '@services/dashboardService';
+import { consultantService } from '@services/consultantService';
+import { eodService } from '@services/eodService';
+import { capacityService } from '@services/capacityService';
 import './DashboardPage.css';
 
 /**
@@ -66,51 +69,52 @@ export function DashboardPage() {
       const endStr = format(nextWeek, 'yyyy-MM-dd');
 
       const promises = [
-        httpClient.get('/dashboard/summary/'),
-        httpClient.get('/dashboard/leave-utilization/'),
-        httpClient.get('/eod-jobs/eod-records/'),
+        dashboardService.getSummary(),
+        dashboardService.getLeaveUtilization(),
+        eodService.getEodRecords(),
         httpClient.get('/employees/teams/'),
-        httpClient.get('/employees/employees-list/'),
-        httpClient.get('/dashboard/announcements/'),
-        httpClient.get('/capacity-planning/capacity-planning/'),
-        httpClient.get('/dashboard/leave-requests-trend/?days=7'),
-        httpClient.get('/dashboard/department-stats/'),
-        httpClient.get(`/dashboard/on-leave/?start_date=${startStr}&end_date=${endStr}`),
+        consultantService.getEmployeesList(),
+        dashboardService.getAnnouncements(),
+        capacityService.getCapacityPlanning(),
+        dashboardService.getLeaveRequestsTrend({ days: 7 }),
+        dashboardService.getDepartmentStats(),
+        dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
         leaveService.listHolidays(),
       ];
 
       if (empId) {
-        promises.push(httpClient.get(`/dashboard/pending-approvals/?manager_id=${empId}`));
+        promises.push(dashboardService.getPendingApprovals({ manager_id: empId }));
       }
 
       const results = await Promise.allSettled(promises);
 
-      if (results[0]?.status === 'fulfilled') setApiSummary(results[0].value.data);
-      if (results[1]?.status === 'fulfilled') setLeaveUtilization(results[1].value.data);
+      // Extract results since service methods return response.data directly
+      if (results[0]?.status === 'fulfilled') setApiSummary(results[0].value);
+      if (results[1]?.status === 'fulfilled') setLeaveUtilization(results[1].value);
       if (results[2]?.status === 'fulfilled') {
-        const data = results[2].value.data;
+        const data = results[2].value;
         setEodRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[3]?.status === 'fulfilled') {
-        const data = results[3].value.data;
+        const data = results[3].value.data; // Still using httpClient for teams
         setTeams(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[4]?.status === 'fulfilled') {
-        const data = results[4].value.data;
+        const data = results[4].value;
         setEmployees(Array.isArray(data) ? data : data?.results || []);
       }
-      if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value.data);
+      if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value);
       if (results[6]?.status === 'fulfilled') {
-        const data = results[6].value.data;
+        const data = results[6].value;
         setCapacityRecords(Array.isArray(data) ? data : data?.results || []);
       }
-      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value.data);
+      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value);
       if (results[8]?.status === 'fulfilled') {
-        const data = results[8].value.data;
+        const data = results[8].value;
         setDepartmentStats(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[9]?.status === 'fulfilled') {
-        const data = results[9].value.data;
+        const data = results[9].value;
         setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
       }
       if (results[10]?.status === 'fulfilled') {
@@ -139,7 +143,7 @@ export function DashboardPage() {
         setUpcomingHolidays(upcoming);
       }
       if (empId && results[11]?.status === 'fulfilled') {
-        const data = results[11].value.data;
+        const data = results[11].value;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
