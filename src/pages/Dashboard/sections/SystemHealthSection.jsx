@@ -1,8 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Activity, AlertCircle, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
-/** Y-axis gridline labels, in minutes. */
-const Y_AXIS_TICKS = [120, 90, 60, 30, 0];
+// Removed static Y_AXIS_TICKS
 
 /**
  * System health cards alongside the seven-day runtime bar chart.
@@ -18,11 +17,36 @@ const Y_AXIS_TICKS = [120, 90, 60, 30, 0];
 function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) {
   const { slaThreshold } = insights;
 
-  // The tallest bar defines the chart's scale, so a single slow day rescales all.
   const maxRuntime = useMemo(
-    () => Math.max(...runtimeTrend.map((entry) => entry.runtime)),
-    [runtimeTrend],
+    () => Math.max(...runtimeTrend.map((entry) => entry.runtime), slaThreshold),
+    [runtimeTrend, slaThreshold],
   );
+
+  const chartMax = useMemo(() => {
+    if (!maxRuntime || maxRuntime <= 0) return 120;
+    const roughStep = maxRuntime / 4;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const norm = roughStep / magnitude;
+    
+    let niceStep;
+    if (norm <= 1) niceStep = 1;
+    else if (norm <= 2) niceStep = 2;
+    else if (norm <= 2.5) niceStep = 2.5;
+    else if (norm <= 5) niceStep = 5;
+    else niceStep = 10;
+    
+    return niceStep * magnitude * 4;
+  }, [maxRuntime]);
+
+  const yTicks = useMemo(() => {
+    return [
+      chartMax,
+      chartMax * 0.75,
+      chartMax * 0.5,
+      chartMax * 0.25,
+      0
+    ];
+  }, [chartMax]);
 
   return (
     <>
@@ -94,7 +118,7 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
 
           <div className="dc-chart-wrap" style={{ flex: 1 }}>
             <div className="dc-y-axis" aria-hidden="true">
-              {Y_AXIS_TICKS.map((tick) => (
+              {yTicks.map((tick) => (
                 <span key={tick} className="dc-y-lbl">
                   {tick}m
                 </span>
@@ -104,7 +128,7 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
             <div className="dc-chart-area">
               <div
                 className="dc-sla-line"
-                style={{ bottom: `${(slaThreshold / maxRuntime) * 100}%` }}
+                style={{ bottom: `${(slaThreshold / chartMax) * 100}%` }}
               >
                 <span className="dc-sla-lbl">SLA</span>
               </div>
@@ -114,7 +138,7 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
                   <div key={entry.day} className="dc-bar-col">
                     <div
                       className={`dc-bar ${entry.runtime > slaThreshold ? 'dc-bar-breach' : 'dc-bar-ok'}`}
-                      style={{ height: `${maxRuntime ? (entry.runtime / maxRuntime) * 100 : 0}%` }}
+                      style={{ height: `${chartMax ? (entry.runtime / chartMax) * 100 : 0}%` }}
                       title={`${entry.day}: ${entry.runtime}m, ${entry.failed} failed`}
                     >
                       {entry.failed > 0 ? <span className="dc-bar-badge">{entry.failed}</span> : null}
