@@ -48,6 +48,7 @@ const endpoints = {
     summary: '/dashboard/summary/',
     leaveUtilization: '/dashboard/leave-utilization/',
     announcements: '/dashboard/announcements/',
+    dismissAnnouncement: (id) => `/dashboard/announcements/${id}/dismiss/`,
     leaveRequestsTrend: '/dashboard/leave-requests-trend/',
     departmentStats: '/dashboard/department-stats/',
     onLeave: '/dashboard/on-leave/',

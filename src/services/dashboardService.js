@@ -14,6 +14,10 @@ export const dashboardService = {
     const response = await httpClient.get(endpoints.dashboard.announcements);
     return response.data;
   },
+  dismissAnnouncement: async (id) => {
+    const response = await httpClient.post(endpoints.dashboard.dismissAnnouncement(id));
+    return response.data;
+  },
   getLeaveRequestsTrend: async (params) => {
     const response = await httpClient.get(endpoints.dashboard.leaveRequestsTrend, { params });
     return response.data;
