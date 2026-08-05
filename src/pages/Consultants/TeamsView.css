@@ -15,7 +15,9 @@
   padding: 4px;
   scrollbar-width: none;
 }
-.tv-summary-strip::-webkit-scrollbar { display: none; }
+.tv-summary-strip::-webkit-scrollbar {
+  display: none;
+}
 
 .tv-summary-card {
   min-width: 260px;
@@ -69,8 +71,12 @@
   font-weight: 700;
   color: var(--text-primary);
 }
-.tv-sc-val.leave { color: var(--status-warning); }
-.tv-sc-val.wfh { color: var(--status-info); }
+.tv-sc-val.leave {
+  color: var(--status-warning);
+}
+.tv-sc-val.wfh {
+  color: var(--status-info);
+}
 
 .tv-sc-lbl {
   font-size: 10px;
@@ -170,8 +176,13 @@
   justify-content: space-between;
   font-size: 11px;
 }
-.tv-ah-progress-label span { color: var(--text-secondary); }
-.tv-ah-progress-label strong { color: var(--text-primary); font-weight: 700; }
+.tv-ah-progress-label span {
+  color: var(--text-secondary);
+}
+.tv-ah-progress-label strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
 
 .tv-ah-progress-bar {
   height: 6px;
@@ -185,8 +196,12 @@
   border-radius: 3px;
   transition: width 0.5s ease;
 }
-.tv-ah-progress-fill.pri { background-color: var(--brand-primary); }
-.tv-ah-progress-fill.add { background-color: var(--status-info); }
+.tv-ah-progress-fill.pri {
+  background-color: var(--brand-primary);
+}
+.tv-ah-progress-fill.add {
+  background-color: var(--status-info);
+}
 
 .tv-ah-chevron {
   color: var(--text-tertiary);
@@ -203,7 +218,8 @@
   padding: 16px 20px;
 }
 
-.tv-body-loader, .tv-body-error {
+.tv-body-loader,
+.tv-body-error {
   display: flex;
   justify-content: center;
   padding: 32px 0;
@@ -217,8 +233,14 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .tv-section-title {
@@ -333,9 +355,15 @@
   border-radius: 50%;
   border: 2px solid var(--surface-primary);
 }
-.tv-emp-status-dot.active { background-color: var(--status-success); }
-.tv-emp-status-dot.leave { background-color: var(--status-warning); }
-.tv-emp-status-dot.wfh { background-color: var(--status-info); }
+.tv-emp-status-dot.active {
+  background-color: var(--status-success);
+}
+.tv-emp-status-dot.leave {
+  background-color: var(--status-warning);
+}
+.tv-emp-status-dot.wfh {
+  background-color: var(--status-info);
+}
 
 .tv-emp-info {
   flex: 1;
@@ -461,7 +489,27 @@
   }
 }
 
-.tv-icon-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-primary); background-color: var(--surface-primary); cursor: pointer; color: var(--text-secondary); transition: all 0.2s ease; }
-.tv-icon-btn:hover { background-color: var(--bg-secondary); }
-.tv-icon-btn.edit:hover { color: #3b82f6; border-color: #3b82f6; }
-.tv-icon-btn.delete:hover { color: #ef4444; border-color: #ef4444; }
+.tv-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-primary);
+  background-color: var(--surface-primary);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+.tv-icon-btn:hover {
+  background-color: var(--bg-secondary);
+}
+.tv-icon-btn.edit:hover {
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+.tv-icon-btn.delete:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
