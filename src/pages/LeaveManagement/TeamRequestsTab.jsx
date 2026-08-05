@@ -95,6 +95,12 @@ export function initials(name) {
     .join('')
     .toUpperCase();
 }
+export function getPhotoUrl(photo) {
+  if (!photo) return null;
+  if (photo.startsWith('http') || photo.startsWith('data:image')) return photo;
+  if (photo.startsWith('/')) return `http://127.0.0.1:8000${photo}`;
+  return `data:image/png;base64,${photo}`;
+}
 function todayStr() {
   return /* @__PURE__ */ new Date().toISOString().slice(0, 10);
 }
@@ -165,12 +171,13 @@ export async function fetchAndMapTeamLeaves(managerId) {
       id: req.id.toString(),
       employeeId: `EMP${req.emp_id}`,
       employeeName: req.emp_name,
+      photo: req.photo,
       team: req.team_name,
       type: type,
       leaveType: req.leave_type,
       startDate: req.start_date,
       endDate: req.end_date,
-      duration: req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
+      duration: req.leave_duration === 'FULL_DAY' ? 'full' : req.leave_duration === 'FIRST_HALF' ? 'morning' : req.leave_duration === 'SECOND_HALF' ? 'afternoon' : req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
       inDays: req.in_days,
       bizDays: req.business_days,
       requestedOn: req.requested_date ? req.requested_date.split('T')[0] : '',
@@ -675,14 +682,28 @@ export function TeamRequestsTab() {
                             <div className="tr-consultant-cell">
                               <div
                                 className="tr-avatar"
-                                style={{ background: avatarColor(req.employeeName) }}
+                                style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
                               >
-                                {initials(req.employeeName)}
+                                {req.photo ? (
+                                  <img 
+                                    src={getPhotoUrl(req.photo)} 
+                                    alt={req.employeeName} 
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'block';
+                                      e.target.parentElement.style.background = avatarColor(req.employeeName);
+                                    }}
+                                  />
+                                ) : null}
+                                <div style={{ display: req.photo ? 'none' : 'block' }}>
+                                  {initials(req.employeeName)}
+                                </div>
                               </div>
                               <div>
                                 <div className="tr-con-name">{req.employeeName}</div>
                                 <div className="tr-con-sub">
-                                  {req.employeeId} · {req.team}
+                                  {req.team}
                                 </div>
                               </div>
                             </div>
@@ -918,16 +939,30 @@ export function TeamRequestsTab() {
                       {/* Avatar */}
                       <div
                         className="tr-avatar tr-sdl-emp-avatar"
-                        style={{ background: avatarColor(req.employeeName) }}
+                        style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
                       >
-                        {initials(req.employeeName)}
+                        {req.photo ? (
+                          <img 
+                            src={getPhotoUrl(req.photo)} 
+                            alt={req.employeeName} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                              e.target.parentElement.style.background = avatarColor(req.employeeName);
+                            }}
+                          />
+                        ) : null}
+                        <div style={{ display: req.photo ? 'none' : 'block' }}>
+                          {initials(req.employeeName)}
+                        </div>
                       </div>
 
                       {/* Identity */}
                       <div className="tr-sdl-emp-identity">
                         <div className="tr-con-name">{req.employeeName}</div>
                         <div className="tr-con-sub">
-                          {req.employeeId} · {req.team} · {req.designation}
+                          {req.team} · {req.designation}
                         </div>
                       </div>
 

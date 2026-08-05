@@ -192,8 +192,8 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
             >
               Cancel
             </button>
-            <button type="button" className="ss-btn-update" onClick={handleSaveEdit} disabled={saving}>
-              {saving ? <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : 'Save Changes'}
+            <button type="button" className="ss-btn-update" onClick={handleSaveEdit} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {saving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Changes'}
             </button>
           </>
         }

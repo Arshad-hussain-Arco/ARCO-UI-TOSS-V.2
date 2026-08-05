@@ -276,7 +276,12 @@ export function LeaveConfigurationTab() {
               placeholder="Search employee name, role or team…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-            />
+             style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
           </div>
 
           <Select
