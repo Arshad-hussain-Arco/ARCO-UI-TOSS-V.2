@@ -313,7 +313,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
           <button 
             onClick={() => scrollStrip(-1)} 
             className="tv-slider-btn"
-            style={{ position: 'absolute', left: '-14px', zIndex: 2, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+            style={{ position: 'absolute', left: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
           >
             <ChevronLeft size={18} />
           </button>
@@ -360,7 +360,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
           <button 
             onClick={() => scrollStrip(1)} 
             className="tv-slider-btn"
-            style={{ position: 'absolute', right: '-14px', zIndex: 2, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+            style={{ position: 'absolute', right: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
           >
             <ChevronRight size={18} />
           </button>
@@ -404,7 +404,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setIsModalOpen(false)}
               disabled={isSaving}
             >
@@ -413,7 +413,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary, #105e35)', color: '#fff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={handleSaveTeam}
               disabled={isSaving}
             >
@@ -424,34 +424,49 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Team Name</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Team Name</label>
             <input
               type="text"
               value={form.name}
+<<<<<<< HEAD
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
               onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
             {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
             <input
               type="number"
               step="0.01"
               value={form.pri_dev_contr_per}
+<<<<<<< HEAD
+              onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
               onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
             {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
             <input
               type="number"
               step="0.01"
               value={form.add_dev_contr_per}
+<<<<<<< HEAD
+              onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
+=======
               onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
               style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+>>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
             />
             {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>
@@ -469,7 +484,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e2e8f0', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setDeleteTarget(null)}
               disabled={isSaving}
             >
@@ -478,7 +493,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeDelete}
               disabled={isSaving}
             >
@@ -487,7 +502,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
           </>
         }
       >
-        <div style={{ padding: '16px 0', fontSize: '14px', color: '#334155' }}>
+        <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the team <strong>{deleteTarget?.name || deleteTarget?.team_name}</strong>?
         </div>
       </AdminModal>
