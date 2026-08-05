@@ -556,7 +556,8 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         start_date: dateStr(startDate),
                         end_date: end ? dateStr(end) : dateStr(startDate),
                         reason: reason || (type === 'compoff' ? 'Comp-off / Weekend Work' : (type === 'offshore' ? 'Offshore Work' : '')),
-                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
+                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
+                        location: user?.location?.toLowerCase() === 'on site' ? 1 : 2
                       };
 
                       if (type === 'offshore' && requiresJustification) {
