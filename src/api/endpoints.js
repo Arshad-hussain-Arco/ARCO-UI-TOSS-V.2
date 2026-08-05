@@ -45,6 +45,16 @@ const endpoints = {
     updateHomeData: (id) => `/dashboard/home-data/${id}/update/`,
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
   },
+  dashboard: {
+    summary: '/dashboard/summary/',
+    leaveUtilization: '/dashboard/leave-utilization/',
+    announcements: '/dashboard/announcements/',
+    dismissAnnouncement: (id) => `/dashboard/announcements/${id}/dismiss/`,
+    leaveRequestsTrend: '/dashboard/leave-requests-trend/',
+    departmentStats: '/dashboard/department-stats/',
+    onLeave: '/dashboard/on-leave/',
+    pendingApprovals: '/dashboard/pending-approvals/',
+  },
   me: {
     balance: (id) => `/leaves/me/${id}/balance/`,
     leaves: (id) => `/leaves/me/${id}/leaves/`,
