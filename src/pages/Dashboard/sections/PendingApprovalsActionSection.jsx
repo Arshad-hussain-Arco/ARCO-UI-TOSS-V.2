@@ -44,9 +44,10 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
     // If not found, create a fallback mapped object based on dashboard data
     const req = fullReq || {
       id: dashboardReq.id.toString(),
-      employeeName: dashboardReq.emp_name,
-      team: dashboardReq.department_name,
-      type: 'leave', // Guessing since it's not strongly typed in dashboard
+      empId: dashboardReq.emp_id,
+      name: dashboardReq.emp_name,
+      team: dashboardReq.designation,
+      type: dashboardReq.leave_type, // Guessing since it's not strongly typed in dashboard
       leaveType: dashboardReq.leave_type,
       startDate: dashboardReq.start_date || '',
       endDate: dashboardReq.end_date || '',
@@ -158,20 +159,20 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
             <div key={req.id} className="dc-pa-card">
               <div className="dc-pa-info">
                 <span className="dc-pa-name">{req.emp_name}</span>
-                <span className="dc-pa-dept">{req.department_name || 'N/A'}</span>
+                <span className="dc-pa-dept">{req.designation || 'N/A'}</span>
                 
                 <div className="dc-pa-details">
-                  <span className="dc-pa-type">{req.leave_type}</span>
-                  <span className="dc-pa-dates">
-                    {req.start_date} - {req.end_date}
-                  </span>
-                </div>
+                <span className="dc-pa-type">{req.leave_type}</span>
+                <span className="dc-pa-dates">
+                  {req.start_date} - {req.end_date}
+                </span>
                 
                 {req.sla_breached && (
                   <span className="dc-pa-sla-warning">
                     Overdue ({req.age_days}d)
                   </span>
                 )}
+              </div>
               </div>
               
               <div className="dc-pa-actions">
