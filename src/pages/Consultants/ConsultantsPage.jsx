@@ -892,9 +892,9 @@ export function ConsultantsPage() {
                   )}
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
-                  <button className="con-drawer-btn-save" onClick={handleSave}>
-                    Save
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
                   </button>
                 </div>
               </>
@@ -907,8 +907,10 @@ export function ConsultantsPage() {
                   <p>Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?</p>
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
-                  <button className="con-drawer-btn-save danger" onClick={handleConfirmDelete}>Deactivate</button>
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+                  <button className="con-drawer-btn con-drawer-btn-danger" onClick={handleConfirmDelete} disabled={isSaving}>
+                    {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
+                  </button>
                 </div>
               </>
             )}
@@ -955,88 +957,14 @@ export function ConsultantsPage() {
                   </div>
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer}>Cancel</button>
-                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Key size={14} /> Update Password
+                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {isSaving ? <><Loader2 size={14} className="spin-animation" /> Updating...</> : <><Key size={14} /> Update Password</>}
                   </button>
                 </div>
               </>
             )}
           </div>
-          <div className="con-drawer-footer">
-            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-            <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Delete Confirmation Modal */}
-          {drawerMode === 'delete' && (
-            <>
-              <div className="con-drawer-body delete-mode">
-                <p>Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?</p>
-              </div>
-              <div className="con-drawer-footer">
-                <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-                <button className="con-drawer-btn con-drawer-btn-danger" onClick={handleConfirmDelete} disabled={isSaving}>
-                  {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
-                </button>
-              </div>
-            </>
-          )}
-
-          {drawerMode === 'password' && (
-            <>
-              <div className="con-drawer-body">
-                <div className="ef-form" style={{ marginTop: '8px' }}>
-                <EfSection label="NEW CREDENTIALS" />
-                <div className="ef-grid">
-                  <EfField label="NEW PASSWORD" required>
-                    <div className="ef-input-wrap">
-                      <span className="ef-input-icon"><Lock size={12} /></span>
-                      <input
-                        type={showPw ? 'text' : 'password'}
-                        className="ef-input has-action"
-                        placeholder="Enter new password"
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData(p => ({ ...p, newPassword: e.target.value }))}
-                        autoComplete="new-password"
-                      />
-                      <button type="button" className="ef-input-action" onClick={() => setShowPw(!showPw)}>
-                        {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
-                  </EfField>
-                  <EfField label="CONFIRM PASSWORD" required>
-                    <div className="ef-input-wrap">
-                      <span className="ef-input-icon"><Lock size={12} /></span>
-                      <input
-                        type={showPwConfirm ? 'text' : 'password'}
-                        className="ef-input has-action"
-                        placeholder="Re-enter password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData(p => ({ ...p, confirmPassword: e.target.value }))}
-                        autoComplete="new-password"
-                      />
-                      <button type="button" className="ef-input-action" onClick={() => setShowPwConfirm(!showPwConfirm)}>
-                        {showPwConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
-                  </EfField>
-                </div>
-              </div>
-            </div>
-            <div className="con-drawer-footer">
-              <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-              <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {isSaving ? <><Loader2 size={14} className="spin-animation" /> Updating...</> : <><Key size={14} /> Update Password</>}
-              </button>
-            </div>
-          </>
-          )}
-        </div>
         </>
       )}
 
