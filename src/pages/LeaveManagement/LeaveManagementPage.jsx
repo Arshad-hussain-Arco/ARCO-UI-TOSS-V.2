@@ -198,13 +198,13 @@ export function LeaveManagementPage() {
                 <button className="my-leaves-action-btn" onClick={() => setModalType('leave')}>
                   Apply Leave
                 </button>
-                <button className="my-leaves-action-btn" onClick={() => setModalType('wfh')}>
+                <button className="my-leaves-action-btn" style={{ backgroundColor: '#0284c7' }} onClick={() => setModalType('wfh')}>
                   Apply WFH
                 </button>
-                <button className="my-leaves-action-btn" onClick={() => setModalType('offshore')}>
+                <button className="my-leaves-action-btn" style={{ backgroundColor: '#7c3aed' }} onClick={() => setModalType('offshore')}>
                   Apply Offshore Work
                 </button>
-                <button className="my-leaves-action-btn" onClick={() => setModalType('compoff')}>
+                <button className="my-leaves-action-btn" style={{ backgroundColor: '#ea580c' }} onClick={() => setModalType('compoff')}>
                   Book Comp-off / Weekend Work
                 </button>
               </div>
@@ -467,19 +467,22 @@ export function LeaveManagementPage() {
                                   {statusStr}
                                 </span>
                               </td>
+
                               <td className="leave-table-cell" data-label="Comments">
                                 {(leave.approval_reason || leave.rejected_reason) ? (
-                                  <button className="leave-table-icon-button" title={leave.approval_reason || leave.rejected_reason}>
-                                    <FileCheck className="leave-table-icon" />
-                                  </button>
-                                ) : null}
+                                  <span style={{ fontSize: '13px', color: '#666' }}>
+                                    {leave.approval_reason || leave.rejected_reason}
+                                  </span>
+                                ) : '-'}
                               </td>
+
                               <td className="leave-table-cell" data-label="Action">
                                 <div className="leave-table-actions">
                                   {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                     <>
                                       <button 
                                         className="leave-table-action-button" 
+                                        style={{ color: '#ef4444' }}
                                         title="Cancel Request"
                                         onClick={() => setCancelModalLeave(leave)}
                                       >
@@ -487,6 +490,7 @@ export function LeaveManagementPage() {
                                       </button>
                                       <button 
                                         className="leave-table-action-button" 
+                                        style={{ color: '#3b82f6' }}
                                         title="Edit Request"
                                         onClick={() => setEditModalLeave(leave)}
                                       >

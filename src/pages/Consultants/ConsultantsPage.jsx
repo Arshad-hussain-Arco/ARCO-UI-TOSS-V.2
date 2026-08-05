@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Lock,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -107,6 +108,10 @@ export function ConsultantsPage() {
   const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
   const dynamicCompLocations = Array.isArray(compLocationsData) ? compLocationsData : (compLocationsData?.results || []);
 
+  const fetchInactive = useCallback(() => consultantService.getInactiveConsultants(), []);
+  const { data: inactiveData } = useAsync(fetchInactive, { immediate: true });
+  const inactiveCount = Array.isArray(inactiveData) ? inactiveData.length : inactiveData?.results?.length || 0;
+
   const [activeTab, setActiveTab] = useState('consultants');
   const [drawerMode, setDrawerMode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -114,6 +119,7 @@ export function ConsultantsPage() {
   const [editingTarget, setEditingTarget] = useState(null);
   const [showPw, setShowPw] = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [viewProfileId, setViewProfileId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
@@ -272,12 +278,16 @@ export function ConsultantsPage() {
       if (!passwordData.newPassword?.trim()) return toast.error('New Password is required');
       if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Passwords do not match');
 
+      
+      setIsSaving(true);
       try {
         await consultantService.updateConsultant({ ...editingTarget, password: passwordData.newPassword });
         toast.success('Password updated successfully');
         closeDrawer();
       } catch (e) {
         toast.error(e.message || 'Failed to update password');
+      } finally {
+        setIsSaving(false);
       }
       return;
     }
@@ -290,6 +300,7 @@ export function ConsultantsPage() {
     if (!formData.username?.trim() && !formData.userId?.trim()) return toast.error('Username / Employee ID is required');
     if (!isEditing && !formData.password?.trim()) return toast.error('Initial Password is required');
 
+    setIsSaving(true);
     try {
       if (isEditing) {
         await consultantService.updateConsultant({ ...formData, id: editingTarget.id });
@@ -314,10 +325,13 @@ export function ConsultantsPage() {
       loadEmployees(); // Force a refresh of the list
     } catch (e) {
       toast.error(e.message || 'Failed to save consultant');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleConfirmDelete = async () => {
+    setIsSaving(true);
     try {
       // Prompt asked for "api/employees/delete/". Assuming ID is passed.
       await consultantService.deleteConsultant({
@@ -330,6 +344,8 @@ export function ConsultantsPage() {
       loadEmployees();
     } catch (e) {
       toast.error(e.message || 'Failed to deactivate consultant');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -354,16 +370,32 @@ export function ConsultantsPage() {
       >
         {/* Page tabs */}
         <div className="consultants-tabs">
-          {pageTabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className="consultants-tab"
-              data-active={activeTab === t.id}
-            >
-              <span className="consultants-tab-label">{t.label}</span>
-            </button>
-          ))}
+          {pageTabs.map((t) => {
+            let count = null;
+            if (!isEmployeesLoading) {
+              if (t.id === 'consultants' && employeesData) count = dynamicEmployees.length;
+              if (t.id === 'inactive' && inactiveData) count = inactiveCount;
+              if (t.id === 'teams') count = dynamicTeams.length;
+            }
+
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className="consultants-tab"
+                data-active={activeTab === t.id}
+              >
+                <span className="consultants-tab-label">
+                  {t.label}
+                  {count !== null && (
+                    <span style={{ marginLeft: '8px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>
+                      {count}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Content */}
@@ -392,7 +424,7 @@ export function ConsultantsPage() {
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
             />
-          )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} />}
+          )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} />}
         </div>
       </div>
 
@@ -931,6 +963,80 @@ export function ConsultantsPage() {
               </>
             )}
           </div>
+          <div className="con-drawer-footer">
+            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+            <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+          {drawerMode === 'delete' && (
+            <>
+              <div className="con-drawer-body delete-mode">
+                <p>Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?</p>
+              </div>
+              <div className="con-drawer-footer">
+                <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+                <button className="con-drawer-btn con-drawer-btn-danger" onClick={handleConfirmDelete} disabled={isSaving}>
+                  {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {drawerMode === 'password' && (
+            <>
+              <div className="con-drawer-body">
+                <div className="ef-form" style={{ marginTop: '8px' }}>
+                <EfSection label="NEW CREDENTIALS" />
+                <div className="ef-grid">
+                  <EfField label="NEW PASSWORD" required>
+                    <div className="ef-input-wrap">
+                      <span className="ef-input-icon"><Lock size={12} /></span>
+                      <input
+                        type={showPw ? 'text' : 'password'}
+                        className="ef-input has-action"
+                        placeholder="Enter new password"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(p => ({ ...p, newPassword: e.target.value }))}
+                        autoComplete="new-password"
+                      />
+                      <button type="button" className="ef-input-action" onClick={() => setShowPw(!showPw)}>
+                        {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </EfField>
+                  <EfField label="CONFIRM PASSWORD" required>
+                    <div className="ef-input-wrap">
+                      <span className="ef-input-icon"><Lock size={12} /></span>
+                      <input
+                        type={showPwConfirm ? 'text' : 'password'}
+                        className="ef-input has-action"
+                        placeholder="Re-enter password"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(p => ({ ...p, confirmPassword: e.target.value }))}
+                        autoComplete="new-password"
+                      />
+                      <button type="button" className="ef-input-action" onClick={() => setShowPwConfirm(!showPwConfirm)}>
+                        {showPwConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </EfField>
+                </div>
+              </div>
+            </div>
+            <div className="con-drawer-footer">
+              <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
+              <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isSaving ? <><Loader2 size={14} className="spin-animation" /> Updating...</> : <><Key size={14} /> Update Password</>}
+              </button>
+            </div>
+          </>
+          )}
+        </div>
         </>
       )}
 

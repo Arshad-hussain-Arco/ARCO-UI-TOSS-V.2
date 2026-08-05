@@ -18,7 +18,9 @@ import {
   Edit,
   Trash2,
   Loader2,
+  X
 } from 'lucide-react';
+import { CiPlay1 } from "react-icons/ci";
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
@@ -234,7 +236,8 @@ function buildJobStackedBarSpec(script) {
 }
 
 /* ─── JobCard Component ─────────────────────────────────────────── */
-function JobCard({ script, onOpenDetail }) {
+function JobCard({ script, onOpenDetail, onTogglePin }) {
+  const [isOpen, setIsOpen] = useState(true);
   const barSpec = useMemo(() => buildJobStackedBarSpec(script), [script]);
 
   const avgRuntimeFmt = script.avgRuntime || '—';
@@ -269,11 +272,21 @@ function JobCard({ script, onOpenDetail }) {
             {(script.health || 'Unknown').toUpperCase()}
           </span>
           <button
-            className="murex-icon-btn"
-            title="View Execution History"
-            onClick={() => onOpenDetail && onOpenDetail(script)}
+            className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
+            title="Pin Job"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin && onTogglePin(script.id);
+            }}
           >
-            <Eye size={12} />
+            <Pin size={12} />
+          </button>
+          <button
+            className="murex-icon-btn"
+            title="Toggle Details"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         </div>
       </div>
@@ -317,92 +330,94 @@ function JobCard({ script, onOpenDetail }) {
       </div>
 
       {/* Card Body: Chart + Details Panel */}
-      <div className="murex-job-card-body">
-        {/* Left: Stacked Bar Chart */}
-        <div className="murex-job-chart-area">
-          <PlotlyChart
-            data={barSpec.data}
-            layout={barSpec.layout}
-            style={{ minHeight: 200 }}
-          />
+      {isOpen && (
+        <div className="murex-job-card-body">
+          {/* Left: Stacked Bar Chart */}
+          <div className="murex-job-chart-area">
+            <PlotlyChart
+              data={barSpec.data}
+              layout={barSpec.layout}
+              style={{ minHeight: 200 }}
+            />
+          </div>
+
+          {/* Right: Stats Panel */}
+          <div className="murex-job-details-panel">
+            {/* 2×2 Metric Grid */}
+            <div className="murex-job-metric-grid">
+              {/* Avg Runtime */}
+              <div className="murex-job-metric-card">
+                <div className="murex-job-metric-icon blue">
+                  <Clock size={13} />
+                </div>
+                <div className="murex-job-metric-info">
+                  <span className="murex-job-metric-label">Avg Runtime</span>
+                  <span className="murex-job-metric-value blue">{avgRuntimeFmt}</span>
+                </div>
+              </div>
+
+              {/* Success Rate / Trend */}
+              <div className="murex-job-metric-card">
+                <div className={`murex-job-metric-icon ${trendPositive ? 'green' : 'red'}`}>
+                  {trendPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                </div>
+                <div className="murex-job-metric-info">
+                  <span className="murex-job-metric-label">Success Rate</span>
+                  <span className={`murex-job-metric-value ${trendPositive ? 'green' : 'red'}`}>{trendPct}</span>
+                </div>
+              </div>
+
+              {/* Frequency */}
+              <div className="murex-job-metric-card">
+                <div className="murex-job-metric-icon purple">
+                  <Calendar size={13} />
+                </div>
+                <div className="murex-job-metric-info">
+                  <span className="murex-job-metric-label">Frequency</span>
+                  <span className="murex-job-metric-value purple">{freqFmt}</span>
+                </div>
+              </div>
+
+              {/* Outliers */}
+              <div className="murex-job-metric-card">
+                <div className={`murex-job-metric-icon ${outlierCount > 0 ? 'red' : 'green'}`}>
+                  <AlertTriangle size={13} />
+                </div>
+                <div className="murex-job-metric-info">
+                  <span className="murex-job-metric-label">Outliers</span>
+                  <span className={`murex-job-metric-value ${outlierCount > 0 ? 'red' : 'green'}`}>
+                    {outlierCount > 0 ? `⚠️ ${outlierCount}` : '0'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Last Run Row */}
+            <div className="murex-job-last-run">
+              <Clock size={11} className="murex-job-last-run-icon" />
+              <span className="murex-job-last-run-label">Last Run</span>
+              <span className="murex-job-last-run-val">{lastRunFmt}</span>
+            </div>
+
+            {/* Min / Max Range Bar */}
+            <div className="murex-job-minmax-wrap">
+              <div className="murex-job-minmax-header">
+                <span className="murex-job-minmax-label">Min vs Max Runtime</span>
+              </div>
+              <div className="murex-job-minmax-bar">
+                <div
+                  className="murex-job-minmax-fill"
+                  style={{ width: `${minMaxRatio}%` }}
+                />
+              </div>
+              <div className="murex-job-minmax-values">
+                <span className="murex-job-minmax-min">⬇ {minRtFmt}</span>
+                <span className="murex-job-minmax-max">⬆ {maxRtFmt}</span>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Right: Stats Panel */}
-        <div className="murex-job-details-panel">
-          {/* 2×2 Metric Grid */}
-          <div className="murex-job-metric-grid">
-            {/* Avg Runtime */}
-            <div className="murex-job-metric-card">
-              <div className="murex-job-metric-icon blue">
-                <Clock size={13} />
-              </div>
-              <div className="murex-job-metric-info">
-                <span className="murex-job-metric-label">Avg Runtime</span>
-                <span className="murex-job-metric-value blue">{avgRuntimeFmt}</span>
-              </div>
-            </div>
-
-            {/* Success Rate / Trend */}
-            <div className="murex-job-metric-card">
-              <div className={`murex-job-metric-icon ${trendPositive ? 'green' : 'red'}`}>
-                {trendPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-              </div>
-              <div className="murex-job-metric-info">
-                <span className="murex-job-metric-label">Success Rate</span>
-                <span className={`murex-job-metric-value ${trendPositive ? 'green' : 'red'}`}>{trendPct}</span>
-              </div>
-            </div>
-
-            {/* Frequency */}
-            <div className="murex-job-metric-card">
-              <div className="murex-job-metric-icon purple">
-                <Calendar size={13} />
-              </div>
-              <div className="murex-job-metric-info">
-                <span className="murex-job-metric-label">Frequency</span>
-                <span className="murex-job-metric-value purple">{freqFmt}</span>
-              </div>
-            </div>
-
-            {/* Outliers */}
-            <div className="murex-job-metric-card">
-              <div className={`murex-job-metric-icon ${outlierCount > 0 ? 'red' : 'green'}`}>
-                <AlertTriangle size={13} />
-              </div>
-              <div className="murex-job-metric-info">
-                <span className="murex-job-metric-label">Outliers</span>
-                <span className={`murex-job-metric-value ${outlierCount > 0 ? 'red' : 'green'}`}>
-                  {outlierCount > 0 ? `⚠️ ${outlierCount}` : '0'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Last Run Row */}
-          <div className="murex-job-last-run">
-            <Clock size={11} className="murex-job-last-run-icon" />
-            <span className="murex-job-last-run-label">Last Run</span>
-            <span className="murex-job-last-run-val">{lastRunFmt}</span>
-          </div>
-
-          {/* Min / Max Range Bar */}
-          <div className="murex-job-minmax-wrap">
-            <div className="murex-job-minmax-header">
-              <span className="murex-job-minmax-label">Min vs Max Runtime</span>
-            </div>
-            <div className="murex-job-minmax-bar">
-              <div
-                className="murex-job-minmax-fill"
-                style={{ width: `${minMaxRatio}%` }}
-              />
-            </div>
-            <div className="murex-job-minmax-values">
-              <span className="murex-job-minmax-min">⬇ {minRtFmt}</span>
-              <span className="murex-job-minmax-max">⬆ {maxRtFmt}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -917,12 +932,208 @@ export function MurexRuntimeTrendsPage() {
   const toggleScriptAssignment = (scriptName, assign) => {
     if (assign) {
       setCategoryFormScripts(prev => [...prev, scriptName]);
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
+  const scripts = useMemo(
+    () =>
+      (data?.scripts ?? []).map((script) => {
+        // Find explicit remote category that contains this script
+        const matchingCategory = remoteCategories.find(c =>
+          c.scripts && c.scripts.some(s => s.script_name === script.name)
+        );
+        return {
+          ...script,
+          category: matchingCategory ? matchingCategory.name : 'Unassigned Scripts',
+          isPinned: pinnedScriptIds.has(script.id),
+        };
+      }),
+    [data, pinnedScriptIds, remoteCategories],
+  );
+
+  const [activeTab, setActiveTab] = useState('runtime');
+  const [timeRange, setTimeRange] = useState('7d');
+  const selectedScript = scripts.length > 0 ? scripts[0].id : '';
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [scriptFilter, setScriptFilter] = useState('');
+  const [showScriptDetail, setShowScriptDetail] = useState(false);
+  const [detailScript, setDetailScript] = useState(null);
+  const [expandedScriptIds, setExpandedScriptIds] = useState(() => new Set());
+  const [selectedCellDetails, setSelectedCellDetails] = useState(null);
+  const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
+  const [isGanttLoading, setIsGanttLoading] = useState(false);
+
+  const toggleExpandScript = (scriptId, e) => {
+    e?.stopPropagation();
+    setExpandedScriptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(scriptId)) next.delete(scriptId);
+      else next.add(scriptId);
+      return next;
+    });
+  };
+
+  const toggleRunGantt = (runId) => {
+    setExpandedRunGanttIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(runId)) next.delete(runId);
+      else next.add(runId);
+      return next;
+    });
+  };
+
+  const handleHeatmapCellClick = async (script, eventData) => {
+    if (eventData?.points?.[0]) {
+      const pt = eventData.points[0];
+      const details = getCellExecutionDetails(script, pt.x, pt.y);
+      setSelectedCellDetails(details);
+      setExpandedRunGanttIds(new Set());
+      setIsGanttLoading(true);
+
+      // Find the exact date corresponding to this cell
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const ptDayIndex = days.indexOf(pt.y);
+      const ptWeek = parseInt(pt.x, 10);
+
+      const matchingRun = (script.history || []).find(run => {
+        if (!run.date || run.date === 'Unknown Date') return false;
+        const dateObj = parseISO(run.date);
+        if (isNaN(dateObj)) return false;
+        const week = getISOWeek(dateObj);
+        const jsDay = getDay(dateObj);
+        const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+        return week === ptWeek && dayIndex === ptDayIndex;
+      });
+
+      if (matchingRun) {
+        // Dispatch payload to backend with exact date label
+        const payload = { script_name: script.name, label: matchingRun.date };
+        try {
+          const response = await murexService.fetchRuntimeDetails(payload);
+          const processData = response.data?.[script.name];
+          if (processData && processData.labels && processData.steps) {
+            const runs = processData.labels.map((label, index) => {
+              const stepsData = processData.steps[index];
+              const formatDuration = (secs) => {
+                const h = Math.floor(secs / 3600).toString().padStart(2, '0');
+                const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+                const s = Math.floor(secs % 60).toString().padStart(2, '0');
+                return `${h}:${m}:${s}`;
+              };
+
+              return {
+                id: `${script.id}-run-${index}`,
+                name: `Run ${index + 1} (${label})`,
+                duration: formatDuration(processData.time_duration[index]),
+                seconds: processData.time_duration[index],
+                isOutlier: false,
+                steps: stepsData.step.map((stepName, stepIndex) => ({
+                  name: stepName,
+                  dbTime: stepsData.db_time[stepIndex],
+                  cpuTime: stepsData.cpu_time[stepIndex],
+                  elapsed: stepsData.elapsed_time[stepIndex],
+                }))
+              };
+            });
+
+            setSelectedCellDetails({
+              ...details,
+              date: matchingRun.date,
+              totalRuns: runs.length,
+              avgDuration: runs.length > 0
+                ? new Date((runs.reduce((acc, r) => acc + r.seconds, 0) / runs.length) * 1000).toISOString().substr(11, 8)
+                : '00:00:00',
+              outliersCount: runs.filter(r => r.isOutlier).length,
+              runs: runs
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch exact run details:", err);
+        } finally {
+          setIsGanttLoading(false);
+        }
+      } else {
+        setIsGanttLoading(false);
+      }
+    }
+  };
+  const categoryCounts = {
+    ETL: scripts.filter((s) => s.category === 'ETL').length,
+    Backup: scripts.filter((s) => s.category === 'Backup').length,
+    'Alert Check': scripts.filter((s) => s.category === 'Alert Check').length,
+    Cleanup: scripts.filter((s) => s.category === 'Cleanup').length,
+    'Data Sync': scripts.filter((s) => s.category === 'Data Sync').length,
+  };
+  const filteredScripts = scripts
+    .filter((s) => selectedCategory === 'all' || s.category === selectedCategory)
+    .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0;
+    });
+  const selectedScriptData = scripts.find((s) => s.id === selectedScript);
+  const togglePin = (scriptId) => {
+    setPinnedScriptIds((current) => {
+      const next = new Set(current);
+      if (next.has(scriptId)) {
+        next.delete(scriptId);
+      } else {
+        next.add(scriptId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryFormName('');
+    setCategoryFormDescription('');
+    setCategoryFormScripts([]);
+    setAvailableSearch('');
+    setCategorySearch('');
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (cat, e) => {
+    e.stopPropagation();
+    setEditingCategory(cat);
+    setCategoryFormName(cat.name);
+    setCategoryFormDescription(cat.description || '');
+    setCategoryFormScripts((cat.scripts || []).map(s => s.script_name));
+    setAvailableSearch('');
+    setCategorySearch('');
+    setShowCategoryModal(true);
+  };
+
+  const allKnownScripts = useMemo(() => {
+    const unassigned = remoteCategories.find(c => c.id === null)?.scripts || [];
+    const currentCatScripts = editingCategory?.scripts || [];
+    return [...unassigned, ...currentCatScripts];
+  }, [remoteCategories, editingCategory]);
+
+  const renderedAvailableScripts = allKnownScripts
+    .filter(s => !categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(availableSearch.toLowerCase()));
+
+  const renderedAssignedScripts = allKnownScripts
+    .filter(s => categoryFormScripts.includes(s.script_name))
+    .filter(s => s.script_name.toLowerCase().includes(categorySearch.toLowerCase()));
+
+  const toggleScriptAssignment = (scriptName, assign) => {
+    if (assign) {
+      setCategoryFormScripts(prev => [...prev, scriptName]);
     } else {
       setCategoryFormScripts(prev => prev.filter(name => name !== scriptName));
     }
   };
 
   const [deletingCategory, setDeletingCategory] = useState(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
 
   const handleDeleteCategory = (cat, e) => {
     e.stopPropagation();
@@ -931,6 +1142,7 @@ export function MurexRuntimeTrendsPage() {
 
   const confirmDeleteCategory = async () => {
     if (!deletingCategory) return;
+    setIsDeletingCategory(true);
     try {
       const res = await murexService.deleteCategory(deletingCategory.id);
       if (res?.categories) {
@@ -944,12 +1156,14 @@ export function MurexRuntimeTrendsPage() {
     } catch (err) {
       console.error('Failed to delete category', err);
     } finally {
+      setIsDeletingCategory(false);
       setDeletingCategory(null);
     }
   };
 
   const handleSaveCategory = async () => {
     if (!categoryFormName.trim()) return;
+    setIsSavingCategory(true);
     try {
       const originalScripts = (editingCategory?.scripts || []).map(s => s.script_name);
 
@@ -975,6 +1189,28 @@ export function MurexRuntimeTrendsPage() {
       setShowCategoryModal(false);
     } catch (err) {
       console.error('Failed to save category', err);
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleAssignScriptDirectly = async (scriptName, targetCategory) => {
+    if (!targetCategory || targetCategory.id === null) return;
+    try {
+      const payload = {
+        name: targetCategory.name,
+        description: targetCategory.description || '',
+        assign_scripts: [scriptName],
+        unassign_scripts: []
+      };
+      const res = await murexService.updateCategory(targetCategory.id, payload);
+      if (res?.categories) {
+        setRemoteCategoriesData(res.categories);
+      } else {
+        fetchCategories();
+      }
+    } catch (err) {
+      console.error('Failed to assign script to category', err);
     }
   };
 
@@ -1064,6 +1300,7 @@ export function MurexRuntimeTrendsPage() {
                   key={script.id}
                   script={script}
                   onOpenDetail={openScriptDetail}
+                  onTogglePin={togglePin}
                 />
               ))}
               {scripts.length === 0 && (
@@ -1097,7 +1334,21 @@ export function MurexRuntimeTrendsPage() {
                 </button>
 
                 {remoteCategories.map((category) => (
-                  <div key={category.id} className="murex-category-item-wrapper" style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                  <div 
+                    key={category.id} 
+                    className="murex-category-item-wrapper" 
+                    style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}
+                    onDragOver={(e) => {
+                      if (category.id !== null) e.preventDefault();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const scriptName = e.dataTransfer.getData('text/plain');
+                      if (scriptName && category.id !== null) {
+                        handleAssignScriptDirectly(scriptName, category);
+                      }
+                    }}
+                  >
                     <button
                       className={`murex-category-item ${selectedCategory === category.name ? 'active' : ''}`}
                       onClick={() => setSelectedCategory(category.name)}
@@ -1131,8 +1382,12 @@ export function MurexRuntimeTrendsPage() {
                 ))}
               </div>
 
-              <button className="murex-add-category-btn" onClick={handleAddCategory}>
-                <Plus size={12} />
+              <button 
+                className="murex-add-category-btn" 
+                onClick={handleAddCategory}
+                style={{ backgroundColor: '#105e35', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Plus size={14} />
                 <span>Add Category</span>
               </button>
             </div>
@@ -1148,7 +1403,12 @@ export function MurexRuntimeTrendsPage() {
                     className="murex-search-input"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                   style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
                 </div>
               </div>
 
@@ -1173,9 +1433,21 @@ export function MurexRuntimeTrendsPage() {
                           <tr
                             className={`murex-script-row ${isExpanded ? 'expanded' : ''}`}
                             onClick={(e) => toggleExpandScript(script.id, e)}
+                            draggable
+                            onDragStart={(e) => e.dataTransfer.setData('text/plain', script.name)}
                           >
                             <td className="murex-script-td">
-                              <div className="murex-script-name-cell">
+                              <div className="murex-script-name-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <CiPlay1 
+                                  size={16} 
+                                  style={{ 
+                                    color: 'var(--primary-color)', 
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.3s ease',
+                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                  }} 
+                                  onClick={(e) => { e.stopPropagation(); toggleExpandScript(script.id, e); }}
+                                />
                                 {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
                                 <span>{script.name}</span>
                               </div>
@@ -1197,13 +1469,6 @@ export function MurexRuntimeTrendsPage() {
                             </td>
                             <td className="murex-script-td actions-col">
                               <div className="murex-script-actions">
-                                <button
-                                  className={`murex-icon-btn ${isExpanded ? 'active' : ''}`}
-                                  onClick={(e) => toggleExpandScript(script.id, e)}
-                                  title={isExpanded ? 'Collapse Details' : 'Expand Details & Heatmap'}
-                                >
-                                  {isExpanded ? <ChevronUp size={12} /> : <Eye size={12} />}
-                                </button>
                                 <button
                                   className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
                                   onClick={(e) => {
@@ -1371,16 +1636,23 @@ export function MurexRuntimeTrendsPage() {
       {/* Category Management Modal */}
       <AdminModal
         isOpen={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
+        onClose={() => !isSavingCategory && setShowCategoryModal(false)}
         title={editingCategory ? 'Edit Category' : 'Create a New Category'}
         size={editingCategory ? 'lg' : 'md'}
         footer={
           <>
-            <button className="con-drawer-btn-cancel" onClick={() => setShowCategoryModal(false)}>
+            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={() => setShowCategoryModal(false)} disabled={isSavingCategory}>
               Cancel
             </button>
-            <button className="con-drawer-btn-save" onClick={handleSaveCategory}>
-              {editingCategory ? 'Save Changes' : 'Create Category'}
+            <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSaveCategory} disabled={isSavingCategory}>
+              {isSavingCategory ? (
+                <>
+                  <Loader2 size={16} className="spin-animation" />
+                  {editingCategory ? 'Saving...' : 'Creating...'}
+                </>
+              ) : (
+                editingCategory ? 'Save Changes' : 'Create Category'
+              )}
             </button>
           </>
         }
@@ -1392,7 +1664,7 @@ export function MurexRuntimeTrendsPage() {
               type="text"
               value={categoryFormName}
               onChange={e => setCategoryFormName(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary, #d1d5db)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
             />
           </div>
           <div className="murex-form-group">
@@ -1400,7 +1672,7 @@ export function MurexRuntimeTrendsPage() {
             <textarea
               value={categoryFormDescription}
               onChange={e => setCategoryFormDescription(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary, #d1d5db)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
             />
           </div>
         </div>
@@ -1417,15 +1689,36 @@ export function MurexRuntimeTrendsPage() {
                   placeholder="Search available scripts..."
                   value={availableSearch}
                   onChange={(e) => setAvailableSearch(e.target.value)}
-                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                  style={{ paddingRight: '32px',  width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
+      {availableSearch && (
+        <button type="button" className="search-clear-btn" onClick={() => setAvailableSearch('')}>
+          <X size={14} />
+        </button>
+      )}
               </div>
-              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}>
+              <div 
+                className="murex-script-list-scroll" 
+                style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const scriptName = e.dataTransfer.getData('text/plain');
+                  if (scriptName && categoryFormScripts.includes(scriptName)) {
+                    toggleScriptAssignment(scriptName, false);
+                  }
+                }}
+              >
                 {renderedAvailableScripts.length === 0 ? (
                   <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts found</div>
                 ) : (
                   renderedAvailableScripts.map(script => (
-                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                    <div 
+                      key={script.id} 
+                      draggable 
+                      onDragStart={(e) => e.dataTransfer.setData('text/plain', script.script_name)}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
+                    >
                       <span>{script.script_name}</span>
                       <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                     </div>
@@ -1444,41 +1737,12 @@ export function MurexRuntimeTrendsPage() {
                   placeholder="Search category scripts..."
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
-                  style={{ width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                  style={{ paddingRight: '32px',  width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
-              </div>
-              <div className="murex-script-list-scroll" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px', background: 'var(--bg-tertiary)' }}>
-                {renderedAssignedScripts.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts assigned</div>
-                ) : (
-                  renderedAssignedScripts.map(script => (
-                    <div key={script.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', background: 'var(--bg-primary)', borderRadius: '4px', marginBottom: '4px' }}>
-                      <span>{script.script_name}</span>
-                      <button onClick={() => toggleScriptAssignment(script.script_name, false)} style={{ background: 'var(--error-color)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>-</button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </AdminModal>
-
-      {/* Delete Confirmation Modal */}
-      <AdminModal
-        isOpen={!!deletingCategory}
-        onClose={() => setDeletingCategory(null)}
-        title=""
-        size="sm"
-        footer={
-          <div style={{ display: 'flex', width: '100%', justifyContent: 'center', gap: '10px' }}>
-            <button className="con-drawer-btn-cancel" onClick={() => setDeletingCategory(null)}>
-              Cancel
-            </button>
-            <button className="con-drawer-btn-save danger" onClick={confirmDeleteCategory}>
-              Delete
-            </button>
-          </div>
+      {categorySearch && (
+        <button type="button" className="search-clear-btn" onClick={() => setCategorySearch('')}>
+          <X size={14} />
+        </button>
         }
       >
         <div style={{ textAlign: 'center', padding: '10px' }}>

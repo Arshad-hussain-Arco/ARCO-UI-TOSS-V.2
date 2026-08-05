@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { BookOpen, Check, ChevronDown, Code, MessageCircle, Plus, Search, Server, Shield } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Code, MessageCircle, Plus, Search, Server, Shield , X} from 'lucide-react';
 
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -303,7 +303,12 @@ export function ImportantLinksPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search links"
-          />
+           style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
         </div>
 
         <span className="il-toolbar-spacer" aria-hidden="true" />
