@@ -195,10 +195,10 @@ export function LeaveManagementPage() {
                 <input type="text" placeholder="Search leaves..." className="my-leaves-search" />
               </div>
               <div className="my-leaves-actions">
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#4CAF50' }} onClick={() => setModalType('leave')}>
+                <button className="my-leaves-action-btn" style={{ backgroundColor: '#006633' }} onClick={() => setModalType('leave')}>
                   Apply Leave
                 </button>
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#2E7D32' }} onClick={() => setModalType('wfh')}>
+                <button className="my-leaves-action-btn" style={{ backgroundColor: '#006633' }} onClick={() => setModalType('wfh')}>
                   Apply WFH
                 </button>
                 <button className="my-leaves-action-btn" style={{ backgroundColor: '#1565C0' }} onClick={() => setModalType('offshore')}>
