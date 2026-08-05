@@ -19,6 +19,7 @@ import { SystemHealthSection } from './sections/SystemHealthSection';
 import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendChart';
 import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
+import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
 import { leaveService } from '@services/leaveService';
@@ -179,7 +180,7 @@ export function DashboardPage() {
     // 1. KPI Strip
     const kpis = [
       { id: 'k1', count: totalEmps, label: 'Total Consultants', subtext: 'Realtime Live Data', iconKey: 'users', color: 'blue' },
-      { id: 'k2', count: presentEmps, label: 'Present Today', subtext: 'Realtime Live Data', iconKey: 'building', color: 'green', trend: 'up' },
+      { id: 'k2', count: presentEmps, label: 'Active Consultants', subtext: 'Realtime Live Data', iconKey: 'building', color: 'green', trend: 'up' },
       { id: 'k3', count: leaveEmps, label: 'On Leave', subtext: 'Realtime Live Data', iconKey: 'clock', color: 'amber' },
       { id: 'k4', count: wfhEmps, label: 'Work From Home', subtext: 'Realtime Live Data', iconKey: 'home', color: 'blue' },
       { id: 'k5', count: totalEmps - activeEmps, label: 'Inactive', subtext: 'Realtime Live Data', iconKey: 'userMinus', color: 'grey' },

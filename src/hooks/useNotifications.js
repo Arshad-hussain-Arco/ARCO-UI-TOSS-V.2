@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { storage } from '@utils/storage';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 
+const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+
 const WS_BASE = (() => {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
   const origin = apiBase.replace(/\/api\/?$/, '');
   return origin.replace(/^http/, 'ws');
 })();
 
-const REST_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const REST_BASE = apiBase.replace(/\/+$/, '');
 
 /** Notification type → display config (open-ended — unknown types fall back to 'default') */
 export const NOTIF_CONFIG = {
