@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, ExternalLink, Menu, Moon, MoreVertical, Pin, Sun } from 'lucide-react';
+import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Pin, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
@@ -51,6 +51,11 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
 
   useOnClickOutside(navMenuRef, closeNavMenu, isNavMenuOpen);
 
+  const [activeGroupDropdown, setActiveGroupDropdown] = useState(null);
+
+  const groupDropdownRef = useRef(null);
+  useOnClickOutside(groupDropdownRef, () => setActiveGroupDropdown(null), activeGroupDropdown !== null);
+
   return (
     <header className="header">
       {/* Left group: toggle + logo + title */}
@@ -75,20 +80,37 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
 
       {/* Right group: navigation + actions */}
       <div className="header-right-group">
-        <nav className="header-pinned-links" aria-label="Pinned links">
-          {pinnedLinks.map((link) => (
-            <a
-              key={link.id}
-              href={link.url}
-              className="header-pinned-item"
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`${link.group} · ${link.label}`}
-            >
-              {link.label}
-              <ExternalLink size={12} aria-hidden="true" style={{ marginLeft: '4px' }} />
-            </a>
-          ))}
+        <nav className="header-pinned-links" aria-label="Pinned links" ref={groupDropdownRef}>
+          {pinnedLinks.slice(0, 5).map((group) => {
+            const isOpen = activeGroupDropdown === group.groupId;
+            return (
+              <div key={group.groupId} className="header-pinned-dropdown-wrapper">
+                <button
+                  type="button"
+                  className="header-pinned-item"
+                  onClick={() => setActiveGroupDropdown(isOpen ? null : group.groupId)}
+                >
+                  {group.groupTitle}
+                  <ChevronDown size={11} aria-hidden="true" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                </button>
+                <div className="header-pinned-dropdown-menu" data-open={isOpen}>
+                  {group.links.map((link) => (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      className="header-pinned-dropdown-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setActiveGroupDropdown(null)}
+                    >
+                      <span>{link.label}</span>
+                      <ExternalLink size={10} style={{ marginLeft: 'auto', opacity: 0.6 }} />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="header-mobile-nav-wrapper" ref={navMenuRef}>

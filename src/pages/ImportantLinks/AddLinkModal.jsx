@@ -101,7 +101,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
  * @param {(payload: Object) => void} props.onUpdate
  * @param {() => void} props.onClose
  */
-function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, onUpdate, onClose }) {
+function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, onUpdate, onClose, isSaving = false }) {
   const isEditMode = !!editLink;
 
   const getInitialState = useCallback(() => {
@@ -202,7 +202,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     } else {
       onAdd(payload);
     }
-    onClose();
   }
 
   function handleFileChange(e) {
@@ -435,10 +434,10 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
         {/* ── Footer ──────────────────────────────────────────────── */}
         <div className="il-modal-footer">
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
-          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleReset}>
+          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleReset} disabled={isSaving}>
             Reset
           </Button>
           <Button
@@ -446,8 +445,9 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             size="sm"
             leadingIcon={isEditMode ? Check : Plus}
             onClick={handleSubmit}
+            isLoading={isSaving}
           >
-            {isEditMode ? 'Update Link' : 'Add Link'}
+            {isEditMode ? (isSaving ? 'Updating...' : 'Update Link') : (isSaving ? 'Adding...' : 'Add Link')}
           </Button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { useEffect, useState } from 'react';
 import './LeaveCard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
-function LeaveCard({ title, icon: Icon, centerCount, left, used, color, isLoading }) {
+function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading }) {
   const [bgColor, setBgColor] = useState('#e5e7eb');
   useEffect(() => {
     const updateBgColor = () => {
@@ -67,9 +67,14 @@ function LeaveCard({ title, icon: Icon, centerCount, left, used, color, isLoadin
 
   return (
     <div className="leave-card" data-leave-type={leaveType}>
-      <div className="leave-card-header">
+      <div className="leave-card-header" style={{ flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
         <h3 className="leave-card-title">{title}</h3>
-        {Icon && <Icon className="leave-card-icon" />}
+        {subtitle && (
+          <span style={{ fontSize: '9px', fontWeight: '500', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            {subtitle}
+          </span>
+        )}
+        {Icon && <Icon className="leave-card-icon" style={{ position: 'absolute', right: '8px', top: '8px' }} />}
       </div>
 
       <div className="leave-card-chart-container">

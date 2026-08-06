@@ -428,13 +428,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <input
               type="text"
               value={form.name}
-<<<<<<< HEAD
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
-=======
               onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
->>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
             {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
@@ -444,13 +439,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="number"
               step="0.01"
               value={form.pri_dev_contr_per}
-<<<<<<< HEAD
-              onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
-=======
               onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
->>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
             {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
@@ -460,13 +450,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="number"
               step="0.01"
               value={form.add_dev_contr_per}
-<<<<<<< HEAD
-              onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-secondary)', outline: 'none' }}
-=======
               onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
->>>>>>> 4bba4aafdcf45e4d5bbf640ffe1301fbab64a6bb
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
             {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>

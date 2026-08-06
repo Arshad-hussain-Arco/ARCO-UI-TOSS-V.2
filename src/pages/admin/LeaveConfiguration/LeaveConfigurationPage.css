@@ -276,6 +276,18 @@
   color: #64748b;
 }
 
+.lc-tag-ongoing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
 /* Action Ghost Icon Buttons */
 .lc-ghost-btn {
   display: inline-flex;

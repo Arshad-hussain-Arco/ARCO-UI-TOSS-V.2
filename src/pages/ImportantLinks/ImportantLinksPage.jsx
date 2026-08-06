@@ -1,15 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { BookOpen, Check, ChevronDown, Code, MessageCircle, Plus, Search, Server, Shield , X} from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Code, Loader2, MessageCircle, Plus, Search, Server, Shield, X } from 'lucide-react';
 
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Button } from '@components/ui/Button/Button';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
+import { useToast } from '@hooks/useToast';
 import { createId } from '@utils/id';
 
 import { AddLinkModal } from './AddLinkModal';
@@ -105,6 +107,7 @@ function GroupFilterDropdown({ groups, selected, onChange }) {
 export function ImportantLinksPage() {
   useDocumentTitle('Important Links');
 
+  const toast = useToast();
   const { pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
@@ -115,9 +118,10 @@ export function ImportantLinksPage() {
   const [selectedGroup, setSelectedGroup] = useState('__all__');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // ── Modal state ────────────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
   const [editLink, setEditLink] = useState(null); // { ...link, group: 'Group Title' }
+  const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ── Merged categories (server + local overrides + locally added) ──
   const mergedCategories = useMemo(() => {
@@ -167,9 +171,15 @@ export function ImportantLinksPage() {
     [mergedCategories],
   );
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setEditLink(null);
+  }, []);
+
   // ── Handle Add Link ────────────────────────────────────────────
   const handleAddLink = useCallback(
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
+      setIsSaving(true);
       try {
         let groupId;
         const existingGroup = serverCategories?.find((c) => c.title === group);
@@ -202,16 +212,23 @@ export function ImportantLinksPage() {
         }
 
         await refetch();
+        window.dispatchEvent(new Event('pinned-links:refresh'));
+        toast.success('Link added successfully');
+        handleCloseModal();
       } catch (err) {
         console.error('Failed to add link:', err);
+        toast.error(err.message || 'Failed to add link');
+      } finally {
+        setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, refetch],
+    [serverCategories, pinLink, refetch, handleCloseModal, toast],
   );
 
   // ── Handle Update Link ─────────────────────────────────────────
   const handleUpdateLink = useCallback(
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
+      setIsSaving(true);
       try {
         const existingGroup = serverCategories?.find((c) => c.title === group);
         const groupId = existingGroup?.id;
@@ -238,30 +255,41 @@ export function ImportantLinksPage() {
         }
 
         await refetch();
-        setEditLink(null);
+        window.dispatchEvent(new Event('pinned-links:refresh'));
+        toast.success('Link updated successfully');
+        handleCloseModal();
       } catch (err) {
         console.error('Failed to update link:', err);
+        toast.error(err.message || 'Failed to update link');
+      } finally {
+        setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, unpinLink, refetch],
+    [serverCategories, pinLink, unpinLink, refetch, handleCloseModal, toast],
   );
 
   // ── Handle Delete Link ─────────────────────────────────────────
-  const handleDeleteLink = useCallback(
-    async (link) => {
-      if (!window.confirm(`Are you sure you want to delete "${link.label}"?`)) {
-        return;
-      }
-      try {
-        await linkService.deleteLink(link.id);
-        unpinLink(link.id);
-        await refetch();
-      } catch (err) {
-        console.error('Failed to delete link:', err);
-      }
-    },
-    [unpinLink, refetch],
-  );
+  const handleDeleteLink = useCallback((link) => {
+    setDeleteTarget(link);
+  }, []);
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    setIsSaving(true);
+    try {
+      await linkService.deleteLink(deleteTarget.id);
+      unpinLink(deleteTarget.id);
+      await refetch();
+      window.dispatchEvent(new Event('pinned-links:refresh'));
+      toast.success('Link deleted successfully');
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error('Failed to delete link:', err);
+      toast.error(err.message || 'Failed to delete link');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // ── Open edit modal ────────────────────────────────────────────
   const handleEditLink = useCallback(
@@ -276,10 +304,7 @@ export function ImportantLinksPage() {
     [mergedCategories],
   );
 
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setEditLink(null);
-  }, []);
+
 
   return (
     <div className="il-page">
@@ -366,8 +391,43 @@ export function ImportantLinksPage() {
           onAdd={handleAddLink}
           onUpdate={handleUpdateLink}
           onClose={handleCloseModal}
+          isSaving={isSaving}
         />
       )}
+
+      {/* Confirm Delete Modal */}
+      <AdminModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirm Deletion"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}
+              onClick={() => setDeleteTarget(null)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={executeDelete}
+              disabled={isSaving}
+            >
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
+          Are you sure you want to delete the link <strong>{deleteTarget?.label}</strong>?
+        </div>
+      </AdminModal>
     </div>
   );
 }

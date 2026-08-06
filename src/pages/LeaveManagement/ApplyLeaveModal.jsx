@@ -318,6 +318,24 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [refNum] = useState(`LV-${Date.now().toString().slice(-6)}`);
+  const [dailyConfigs, setDailyConfigs] = useState({}); // { '2026-08-07': 'full' }
+
+  // Sync dailyConfigs when dates change
+  useEffect(() => {
+    if (startDate) {
+      const targetEnd = endDate ?? startDate;
+      const days = eachDay(startDate, targetEnd);
+      const newConfigs = {};
+      days.forEach((d) => {
+        const dStr = dateStr(d);
+        newConfigs[dStr] = dailyConfigs[dStr] || 'full';
+      });
+      setDailyConfigs(newConfigs);
+    } else {
+      setDailyConfigs({});
+    }
+  }, [startDate, endDate]);
+
   const activeEmp = applyFor === 'behalf' && behalfEmp ? behalfEmp : SELF;
   const end = endDate ?? startDate;
   const isMultiDay = !!(startDate && end && dateStr(startDate) !== dateStr(end));
@@ -325,7 +343,19 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const bizDays = startDate && end ? countBiz(startDate, end) : 0;
   const wkndDays = startDate && end ? countWknd(startDate, end) : 0;
   const holCount = startDate && end ? countHols(startDate, end) : 0;
-  const charged = isMultiDay ? bizDays : duration === 'full' ? bizDays || 0 : 0.5;
+
+  // Charged leaves: sum of active business days configured
+  const charged = useMemo(() => {
+    if (!startDate || !end) return 0;
+    let sum = 0;
+    eachDay(startDate, end).forEach((d) => {
+      if (isSaudiWeekend(d) || PUBLIC_HOLIDAYS.includes(dateStr(d))) return;
+      const cfg = dailyConfigs[dateStr(d)] || 'full';
+      sum += cfg === 'full' ? 1 : 0.5;
+    });
+    return sum;
+  }, [startDate, end, dailyConfigs]);
+
   const avail = leaveType?.balance ?? 0;
   const remaining = leaveType ? Math.max(0, avail - charged) : 0;
   const barPct = avail > 0 ? Math.max(0, remaining / avail) * 100 : 100;
@@ -541,52 +571,69 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     try {
                       setIsSubmitting(true);
                       
-                      let backendLeaveType = '';
-                      if (type === 'wfh') backendLeaveType = 'WFH';
-                      else if (type === 'offshore') backendLeaveType = 'OW';
-                      else if (type === 'compoff') backendLeaveType = claimType === 'compoff' ? 'CompOff' : 'WW';
-                      else if (showLeaveType && leaveType) {
-                        const m = { annual: 'AL', sick: 'SL', compoff: 'CompOff', emergency: 'AL', maternity: 'ML' };
-                        backendLeaveType = m[leaveType.id] || 'AL';
-                      }
+                      const backendLeaveType = (() => {
+                        if (type === 'wfh') return 'WFH';
+                        if (type === 'offshore') return 'OW';
+                        if (type === 'compoff') return claimType === 'compoff' ? 'CompOff' : 'WW';
+                        if (showLeaveType && leaveType) {
+                          const m = { annual: 'AL', sick: 'SL', compoff: 'CompOff', emergency: 'AL', maternity: 'ML' };
+                          return m[leaveType.id] || 'AL';
+                        }
+                        return 'AL';
+                      })();
 
-                      const payload = {
+                      const basePayload = {
                         emp_id: applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id,
                         leave_type: backendLeaveType,
-                        start_date: dateStr(startDate),
-                        end_date: end ? dateStr(end) : dateStr(startDate),
                         reason: reason || (type === 'compoff' ? 'Comp-off / Weekend Work' : (type === 'offshore' ? 'Offshore Work' : '')),
-                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
                         location: user?.location?.toLowerCase() === 'on site' ? 1 : 2
                       };
-
                       if (type === 'offshore' && requiresJustification) {
-                        payload.justification = justificationText;
+                        basePayload.justification = justificationText;
                       }
-                      
                       if (applyFor === 'behalf') {
-                        payload.manager_id = user?.emp_id;
+                        basePayload.manager_id = user?.emp_id;
                       }
-                      
-                      if (applyFor === 'behalf') {
-                        await leaveService.applyLeaveOnBehalf(payload);
-                      } else {
-                        if (type === 'offshore') {
-                          const res = await leaveService.applyOwLeave(payload);
-                          if (res?.requires_justification && !payload.justification) {
-                            setRequiresJustification(true);
-                            setQuotaInfo(res.quota_info);
-                            setIsSubmitting(false);
-                            return;
-                          }
-                        } else if (type === 'wfh') {
-                          await leaveService.requestWfh(payload);
-                        } else if (type === 'compoff' && claimType === 'compoff') {
-                          await leaveService.claimCompOff(payload);
-                        } else if (type === 'compoff' && claimType === 'weekend') {
-                          await leaveService.claimWeekend(payload);
+
+                      // Split requests daily to allow mixed duration configurations
+                      const days = eachDay(startDate, end);
+                      for (const day of days) {
+                        const dStr = dateStr(day);
+                        const isWeekend = isSaudiWeekend(day);
+                        const isHol = PUBLIC_HOLIDAYS.includes(dStr);
+                        // Skip weekends and public holidays for leaves/wfh
+                        if ((type === 'leave' || type === 'wfh') && (isWeekend || isHol)) {
+                          continue;
+                        }
+
+                        const dayConfig = dailyConfigs[dStr] || 'full';
+                        const dayPayload = {
+                          ...basePayload,
+                          start_date: dStr,
+                          end_date: dStr,
+                          duration: dayConfig === 'morning' ? 'FIRST_HALF' : dayConfig === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
+                        };
+
+                        if (applyFor === 'behalf') {
+                          await leaveService.applyLeaveOnBehalf(dayPayload);
                         } else {
-                          await leaveService.applyLeave(payload);
+                          if (type === 'offshore') {
+                            const res = await leaveService.applyOwLeave(dayPayload);
+                            if (res?.requires_justification && !dayPayload.justification) {
+                              setRequiresJustification(true);
+                              setQuotaInfo(res.quota_info);
+                              setIsSubmitting(false);
+                              return;
+                            }
+                          } else if (type === 'wfh') {
+                            await leaveService.requestWfh(dayPayload);
+                          } else if (type === 'compoff' && claimType === 'compoff') {
+                            await leaveService.claimCompOff(dayPayload);
+                          } else if (type === 'compoff' && claimType === 'weekend') {
+                            await leaveService.claimWeekend(dayPayload);
+                          } else {
+                            await leaveService.applyLeave(dayPayload);
+                          }
                         }
                       }
 
@@ -753,13 +800,65 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
               {/* Duration — only for leave/wfh */}
               {showDuration && startDate && (
                 <div className="al-form-group">
-                  <span className="al-label">Duration</span>
+                  <span className="al-label">Duration Selection</span>
                   {isMultiDay ? (
-                    <div className="al-duration-locked">
-                      <div className="al-duration-locked-badge">Full Day</div>
-                      <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
-                        — applied to all selected days
-                      </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '10px', backgroundColor: 'var(--bg-secondary)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                        Customize leave hours for each business day in the range:
+                      </div>
+                      {eachDay(startDate, end).map((day) => {
+                        const dStr = dateStr(day);
+                        const startStr = dateStr(startDate);
+                        const endStr = dateStr(end);
+                        const isStartDay = dStr === startStr;
+                        const isEndDay = dStr === endStr;
+                        const isMiddleDay = !isStartDay && !isEndDay;
+
+                        const isWeekend = isSaudiWeekend(day);
+                        const isHol = PUBLIC_HOLIDAYS.includes(dStr);
+                        if (isWeekend || isHol) return null;
+                        const currentVal = dailyConfigs[dStr] || 'full';
+                        return (
+                          <div key={dStr} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                              {fmtShort(day)}
+                            </span>
+                            <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
+                              {[
+                                ['full', 'Full Day'],
+                                ['morning', '1st Half'],
+                                ['afternoon', '2nd Half'],
+                              ].map(([val, lbl]) => {
+                                const isDisabled = 
+                                  (isMiddleDay && val !== 'full') ||
+                                  (isStartDay && val === 'morning') ||
+                                  (isEndDay && val === 'afternoon');
+                                
+                                return (
+                                  <button
+                                    key={val}
+                                    type="button"
+                                    className="al-duration-chip"
+                                    style={{ 
+                                      padding: '3px 8px', 
+                                      fontSize: '11px', 
+                                      opacity: isDisabled ? 0.4 : 1, 
+                                      cursor: isDisabled ? 'not-allowed' : 'pointer' 
+                                    }}
+                                    data-active={currentVal === val}
+                                    disabled={isDisabled}
+                                    onClick={() => {
+                                      if (!isDisabled) setDailyConfigs(prev => ({ ...prev, [dStr]: val }));
+                                    }}
+                                  >
+                                    {lbl}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="al-duration-chips">
@@ -773,7 +872,11 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                           type="button"
                           className="al-duration-chip"
                           data-active={duration === val}
-                          onClick={() => setDuration(val)}
+                          onClick={() => {
+                            setDuration(val);
+                            const dStr = dateStr(startDate);
+                            setDailyConfigs({ [dStr]: val });
+                          }}
                         >
                           {lbl}
                         </button>
@@ -958,9 +1061,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     [
                       'Charged',
                       charged > 0
-                        ? duration !== 'full' && !isMultiDay
-                          ? '0.5d'
-                          : `${charged}d`
+                        ? `${charged}d`
                         : '\u2014',
                       '',
                     ],

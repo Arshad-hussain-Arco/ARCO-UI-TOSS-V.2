@@ -90,7 +90,7 @@ export function OverviewSection() {
 
       {/* ── Environment Status Table ────────────────────────────── */}
       <div className="eod-section-bar">
-        <p className="eod-section-title">Environment Status</p>
+        <p className="eod-section-title">EOD Status</p>
         <button
           className="eod-add-btn"
           onClick={refreshEnvironments}

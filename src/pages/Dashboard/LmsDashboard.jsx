@@ -313,7 +313,7 @@ export default function LmsDashboard() {
           className={`lms-tab-btn ${activeTab === "utilization" ? "active" : ""}`}
           onClick={() => setActiveTab("utilization")}
         >
-          Leave Utilization
+          Team leave Utilization
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "balances" ? "active" : ""}`}

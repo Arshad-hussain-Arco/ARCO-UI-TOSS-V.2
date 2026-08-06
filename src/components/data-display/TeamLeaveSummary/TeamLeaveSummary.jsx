@@ -740,7 +740,7 @@ function TeamLeaveSummary() {
                           >
                             {stats.utilizationPct}%
                           </span>
-                          <span className="tsa-summary-stat-label">Leave Utilization</span>
+                          <span className="tsa-summary-stat-label">Team leave Utilization</span>
                         </div>
                       </div>
 
