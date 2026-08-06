@@ -15,6 +15,7 @@ import { DocumentsActivitySection } from './sections/DocumentsActivitySection';
 import { KpiStrip } from './sections/KpiStrip';
 import { LeaveSnapshotSection } from './sections/LeaveSnapshotSection';
 import { ProjectRiskSection } from './sections/ProjectRiskSection';
+import { TeamAvailabilityOverview } from './sections/TeamAvailabilityOverview';
 import { SystemHealthSection } from './sections/SystemHealthSection';
 import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendChart';
 import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
@@ -389,6 +390,10 @@ export function DashboardPage() {
                   <div className="dc-span-12">
                     <EnvironmentStatusStrip eodRecords={eodRecords} />
                   </div>
+
+                  <TeamAvailabilityOverview
+                    departmentStats={departmentStats}
+                  />
 
                   <SystemHealthSection
                     systemHealth={mappedSummary.systemHealth}
