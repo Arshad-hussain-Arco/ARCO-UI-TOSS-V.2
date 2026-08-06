@@ -179,22 +179,15 @@ export function StepUpload({ files, processingFiles, onProcessingChange, onFiles
 
 
   const bothLoaded = (files[0] !== null || processingFiles[0]) && (files[1] !== null || processingFiles[1]);
-  // We can only check format mismatch if both are fully parsed
-  const formatMismatch = files[0] !== null && files[1] !== null && files[0].ext !== files[1].ext;
+
 
   const handleNext = useCallback(() => {
     if (!bothLoaded) {
       toast.warning('⚠️ Please upload both Source and Destination files before proceeding.');
       return;
     }
-    if (formatMismatch) {
-      toast.warning(
-        `⚠️ Both files must be the same format. File 1 is .${files[0].ext}, File 2 is .${files[1].ext}.`,
-      );
-      return;
-    }
     onNext();
-  }, [bothLoaded, formatMismatch, files, onNext, toast]);
+  }, [bothLoaded, files, onNext, toast]);
 
   return (
     <>
@@ -210,8 +203,7 @@ export function StepUpload({ files, processingFiles, onProcessingChange, onFiles
         <div className="rwiz-step-intro">
           <AlertCircle size={13} className="rwiz-intro-icon" />
           <span>
-            Supported formats: <strong>{FORMAT_LABELS}</strong>. Both uploaded files must be of the
-            same format.
+            Supported formats: <strong>{FORMAT_LABELS}</strong>.
           </span>
         </div>
 
