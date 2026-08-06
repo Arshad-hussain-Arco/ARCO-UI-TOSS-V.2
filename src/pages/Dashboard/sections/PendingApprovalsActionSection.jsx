@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Check, X, Clock } from 'lucide-react';
-import httpClient from '@api/httpClient';
 import { leaveService } from '@services/leaveService';
 import { useAuth } from '@hooks/useAuth';
-import './PendingApprovalsActionSection.css';
 import LeaveRequestDrawer from '../../LeaveManagement/components/LeaveRequestDrawer';
 import { fetchAndMapTeamLeaves, eachDay } from '../../LeaveManagement/TeamRequestsTab';
 // Import TeamRequests CSS so the drawer styles apply correctly
 import '../../LeaveManagement/TeamRequests.css';
 
 /**
- * Section for managers to approve or reject pending leave requests.
+ * Section for managers to approve or reject pending leave requests in a highly compact, clean enterprise layout.
  */
 export function PendingApprovalsActionSection({ pendingApprovals, onActionComplete }) {
   const { user } = useAuth();
@@ -27,7 +25,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
   const [rejectErr, setRejectErr] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Fetch full team leaves in background to populate drawer properly (team availability etc)
+  // Fetch full team leaves in background to populate drawer properly
   useEffect(() => {
     if (pendingApprovals && pendingApprovals.length > 0) {
       const managerId = user?.emp_id || user?.id || 1;
@@ -38,16 +36,14 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
   }, [pendingApprovals, user]);
 
   const openDrawer = (dashboardReq, actionType) => {
-    // Try to find the full mapped request from teamLeaves array
     const fullReq = teamLeaves.find(r => r.id === dashboardReq.id.toString());
     
-    // If not found, create a fallback mapped object based on dashboard data
     const req = fullReq || {
       id: dashboardReq.id.toString(),
       empId: dashboardReq.emp_id,
       name: dashboardReq.emp_name,
       team: dashboardReq.designation,
-      type: dashboardReq.leave_type, // Guessing since it's not strongly typed in dashboard
+      type: dashboardReq.leave_type,
       leaveType: dashboardReq.leave_type,
       startDate: dashboardReq.start_date || '',
       endDate: dashboardReq.end_date || '',
@@ -63,7 +59,6 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
       conflicts: [],
     };
     
-    // Ensure endpoints are present
     req.approve_endpoint = dashboardReq.approve_endpoint;
     req.reject_endpoint = dashboardReq.reject_endpoint;
 
@@ -145,52 +140,110 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
   };
 
   return (
-    <div className="dc-pa-section">
-      <div className="dc-pa-header">
-        <Clock size={14} />
-        <span className="dc-pa-title">Action Required</span>
+    <div style={{ padding: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
+        <Clock size={13} style={{ color: '#006838' }} />
+        <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Action Required
+        </h2>
       </div>
 
-      <div className="dc-pa-list">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {pendingApprovals.map((req) => {
           const isLoading = loadingId === req.id.toString();
           
           return (
-            <div key={req.id} className="dc-pa-card">
-              <div className="dc-pa-info">
-                <span className="dc-pa-name">{req.emp_name}</span>
-                <span className="dc-pa-dept">{req.designation || 'N/A'}</span>
-                
-                <div className="dc-pa-details">
-                <span className="dc-pa-type">{req.leave_type}</span>
-                <span className="dc-pa-dates">
-                  {req.start_date} - {req.end_date}
+            <div 
+              key={req.id} 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                padding: '6px 10px',
+                background: 'var(--surface-primary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '6px',
+                height: '52px',
+                boxSizing: 'border-box',
+                transition: 'all 0.15s ease'
+              }}
+              className="dc-action-row-hover"
+            >
+              {/* Employee Info - Left Column */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '2px' }}>
+                <span 
+                  style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 500, 
+                    color: 'var(--text-primary)', 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis' 
+                  }}
+                  title={req.emp_name}
+                >
+                  {req.emp_name}
                 </span>
-                
-                {req.sla_breached && (
-                  <span className="dc-pa-sla-warning">
-                    Overdue ({req.age_days}d)
-                  </span>
-                )}
+                <span 
+                  style={{ 
+                    fontSize: '10px', 
+                    color: 'var(--text-tertiary)', 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis' 
+                  }}
+                >
+                  {req.designation || 'Team Member'} • {req.leave_type}
+                  {req.sla_breached && (
+                    <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '4px' }}>• Overdue</span>
+                  )}
+                </span>
               </div>
-              </div>
-              
-              <div className="dc-pa-actions">
+
+              {/* Action Buttons - Right Column */}
+              <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
                 <button 
-                  className="dc-pa-btn dc-pa-approve" 
                   onClick={() => openDrawer(req, 'approve')}
                   disabled={isLoading}
                   title="Approve"
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '4px',
+                    background: '#006838',
+                    color: '#ffffff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    opacity: isLoading ? 0.5 : 1,
+                    transition: 'opacity 0.15s ease'
+                  }}
                 >
-                  <Check size={14} />
+                  <Check size={12} />
                 </button>
                 <button 
-                  className="dc-pa-btn dc-pa-reject" 
                   onClick={() => openDrawer(req, 'reject')}
                   disabled={isLoading}
                   title="Reject"
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '4px',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    opacity: isLoading ? 0.5 : 1,
+                    transition: 'opacity 0.15s ease'
+                  }}
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               </div>
             </div>
