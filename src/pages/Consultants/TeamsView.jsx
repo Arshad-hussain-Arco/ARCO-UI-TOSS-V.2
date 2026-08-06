@@ -37,8 +37,8 @@ function EmployeeCard({ consultant, onClick }) {
         <div className="tv-emp-name">{consultant.name}</div>
         <div className="tv-emp-meta">
           <div className="tv-emp-designation">{consultant.designation || consultant.role}</div>
-          <div 
-            className="tv-emp-id-copy" 
+          <div
+            className="tv-emp-id-copy"
             onClick={(e) => handleCopy(e, consultant.userId || 'N/A')}
             onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, consultant.userId || 'N/A')}
             role="button"
@@ -106,17 +106,17 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
               <div className="tv-ah-progress-fill add" style={{ width: `${addDev}%` }} />
             </div>
           </div>
-          
+
           <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
-            <button 
-              className="tv-icon-btn edit" 
+            <button
+              className="tv-icon-btn edit"
               title="Edit Team"
               onClick={(e) => { e.stopPropagation(); onEdit(team); }}
             >
               <Edit size={16} />
             </button>
-            <button 
-              className="tv-icon-btn delete" 
+            <button
+              className="tv-icon-btn delete"
               title="Delete Team"
               onClick={(e) => { e.stopPropagation(); onDelete(team); }}
             >
@@ -131,16 +131,16 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
       {isExpanded && (
         <div className="tv-accordion-body">
           <div className="tv-body-content">
-              {activeMembers.length > 0 && (
-                <div className="tv-members-section">
-                  <h4 className="tv-section-title">TEAM MEMBERS</h4>
-                  <div className="tv-members-grid">
-                    {activeMembers.map(emp => (
-                      <EmployeeCard key={emp.id} consultant={emp} onClick={onProfileView} />
-                    ))}
-                  </div>
+            {activeMembers.length > 0 && (
+              <div className="tv-members-section">
+                <h4 className="tv-section-title">TEAM MEMBERS</h4>
+                <div className="tv-members-grid">
+                  {activeMembers.map(emp => (
+                    <EmployeeCard key={emp.id} consultant={emp} onClick={onProfileView} />
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -310,8 +310,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
       {/* Top Summary Cards */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {showSlider && (
-          <button 
-            onClick={() => scrollStrip(-1)} 
+          <button
+            onClick={() => scrollStrip(-1)}
             className="tv-slider-btn"
             style={{ position: 'absolute', left: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
           >
@@ -324,8 +324,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             const isActive = expandedTeamId === team.id;
             const hc = headcountMap[team.id];
             return (
-              <div 
-                key={team.id} 
+              <div
+                key={team.id}
                 className={`tv-summary-card ${isActive ? 'active' : ''}`}
                 {...activatable(() => handleCardClick(team.id), { isPressed: isActive })}
               >
@@ -357,8 +357,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
         </div>
 
         {showSlider && (
-          <button 
-            onClick={() => scrollStrip(1)} 
+          <button
+            onClick={() => scrollStrip(1)}
             className="tv-slider-btn"
             style={{ position: 'absolute', right: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
           >
@@ -378,8 +378,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
       <div className="tv-accordions-list">
         {teamsData.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
-            <TeamAccordion 
-              team={team} 
+            <TeamAccordion
+              team={team}
               isExpanded={expandedTeamId === team.id}
               onToggle={() => handleCardClick(team.id)}
               onProfileView={onProfileView}
@@ -429,7 +429,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="text"
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
             {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
@@ -440,7 +440,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               step="0.01"
               value={form.pri_dev_contr_per}
               onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
             {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
@@ -451,7 +451,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               step="0.01"
               value={form.add_dev_contr_per}
               onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : 'var(--border-secondary)'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
             {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>

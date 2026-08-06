@@ -75,13 +75,19 @@
 
 .home-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .home-cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-card {
   background: var(--surface-primary);
-  border-radius: 16px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
