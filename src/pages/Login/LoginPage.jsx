@@ -161,7 +161,7 @@ export function LoginPage() {
 
         {/* 2. Brand accent */}
         <div className="brand-accent">
-          <span className="brand-accent-text">TOSS</span>
+          <span className="brand-accent-text">TOSS -</span>
           <div className="brand-accent-line" />
         </div>
 
