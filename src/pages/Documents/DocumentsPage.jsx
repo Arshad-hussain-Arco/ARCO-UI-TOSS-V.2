@@ -17,7 +17,7 @@ import { documentService } from '@services/documentService';
 
 import { FolderTree } from './components/FolderTree';
 import { DocumentViewer } from './components/DocumentViewer';
-import { AddFolderModal, UploadFileModal, EditDocumentModal } from './components/DocumentModals';
+import { AddFolderModal, UploadFileModal, EditDocumentModal, DeleteConfirmationModal } from './components/DocumentModals';
 
 import './DocumentsPage.css';
 
@@ -58,6 +58,11 @@ export function DocumentsPage() {
   const [editTarget, setEditTarget] = useState(null);
   const [editTargetType, setEditTargetType] = useState('file');
 
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const toggleFolder = (folderId) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(folderId)) {
@@ -78,20 +83,28 @@ export function DocumentsPage() {
     setShowEditModal(true);
   };
 
-  const handleDeleteDocument = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete "${name || 'this item'}"?`)) {
-      return;
-    }
+  const handleDeleteDocument = (id, name) => {
+    setDeleteTarget({ id, name });
+    setShowDeleteModal(true);
+  };
 
+  const confirmDeleteDocument = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
     try {
-      await documentService.deleteDocument(id);
+      await documentService.deleteDocument(deleteTarget.id);
       toast.success('Document deleted successfully');
-      if (selectedFile?.id === id) {
+      if (selectedFile?.id === deleteTarget.id) {
         setSelectedFile(null);
       }
       refetch();
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete document');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -288,6 +301,17 @@ export function DocumentsPage() {
         targetDocument={editTarget}
         targetType={editTargetType}
         onSuccess={refetch}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        targetName={deleteTarget?.name}
+        onConfirm={confirmDeleteDocument}
+        isDeleting={isDeleting}
       />
     </div>
   );

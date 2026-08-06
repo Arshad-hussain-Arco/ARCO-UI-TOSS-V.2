@@ -340,3 +340,40 @@ export function EditDocumentModal({ isOpen, onClose, targetDocument, targetType,
     </div>
   );
 }
+
+/** Modal for Confirming Deletion */
+export function DeleteConfirmationModal({ isOpen, onClose, targetName, onConfirm, isDeleting }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="doc-modal-overlay">
+      <div className="doc-modal-container">
+        <div className="doc-modal-header">
+          <h3>Confirm Deletion</h3>
+          <button className="doc-modal-close-btn" onClick={onClose} disabled={isDeleting}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="doc-modal-body">
+          <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+            Are you sure you want to delete <strong>{targetName || 'this item'}</strong>? This action cannot be undone.
+          </p>
+        </div>
+        <div className="doc-modal-footer">
+          <button type="button" className="doc-modal-btn ghost" onClick={onClose} disabled={isDeleting}>
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            className="doc-modal-btn primary" 
+            style={{ backgroundColor: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+            onClick={onConfirm} 
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
