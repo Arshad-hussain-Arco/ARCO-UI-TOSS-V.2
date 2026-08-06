@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X, Database } from 'lucide-react';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -155,46 +155,143 @@ function MatchedTable({ rows, mappings, file1Name, file2Name }) {
 }
 
 function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
+  const [hoveredRow, setHoveredRow] = useState(null);
+  const leftScrollRef = React.useRef(null);
+  const rightScrollRef = React.useRef(null);
+
   if (!rows.length) return <div className="rrs-empty">No mismatched records.</div>;
   const cols = mappings.map((m) => m.src);
 
+  const hasDiff = (row, col) => {
+    if (Array.isArray(row._differences)) {
+      return row._differences.some(d => d.column === col);
+    }
+    return false;
+  };
+
+  const handleLeftScroll = (e) => {
+    if (rightScrollRef.current && rightScrollRef.current.scrollTop !== e.target.scrollTop) {
+      rightScrollRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  const handleRightScroll = (e) => {
+    if (leftScrollRef.current && leftScrollRef.current.scrollTop !== e.target.scrollTop) {
+      leftScrollRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
   return (
-    <div className="rrs-table-scroll">
-      <table className="rrs-table">
-        <thead>
-          <tr>
-            <th className="rrs-th rrs-th-key">Key</th>
-            {cols.map((c) => <th key={`src_${c}`} className="rrs-th">{c}</th>)}
-            {mappings.map((m) => <th key={`dst_${m.src}`} className="rrs-th">{m.dst}</th>)}
-            <th className="rrs-th rrs-th-diff">Differences</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="rrs-tr rrs-tr--mismatch">
-              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
-              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_src_${c}`])}</td>)}
-              {cols.map((c) => <td key={c} className="rrs-td">{renderValue(row[`_dst_${c}`])}</td>)}
-              <td className="rrs-td rrs-td-diff">
-                {Array.isArray(row._differences)
-                  ? row._differences.map((d) => `${d.column}: "${renderValue(d.file1Value)}" → "${renderValue(d.file2Value)}"`).join(' | ')
-                  : renderValue(row._differences)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="rrs-mismatch-container">
+      {/* Two Tables Side-by-Side */}
+      <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex' }}>
+
+        {/* Left Table: Source */}
+        <div className="rrs-mismatch-table-pane">
+          {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
+          <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
+            <div style={{ width: '100px', minWidth: '100px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px', borderRight: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+              KEY
+            </div>
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '10px', color: 'var(--text-primary)' }}>
+              <Database size={12} style={{ color: 'var(--text-secondary)' }} />
+              {file1Name || 'SOURCE'}
+            </div>
+          </div>
+
+          <div className="rrs-table-scroll" ref={leftScrollRef} onScroll={handleLeftScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '45vh', overflow: 'auto' }}>
+            <table className="rrs-table">
+              <thead>
+                <tr>
+                  <th className="rrs-th rrs-th-key" style={{ top: 0, minWidth: '100px', width: '100px', zIndex: 4, background: 'var(--surface-primary)' }}></th>
+                  {cols.map((c) => <th key={`src_${c}`} className="rrs-th rrs-th-grouped" style={{ top: 0 }}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr
+                    key={i}
+                    className={`rrs-tr rrs-tr--mismatch ${hoveredRow === i ? 'rrs-tr--hovered' : ''}`}
+                    onMouseEnter={() => setHoveredRow(i)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                  >
+                    <td className="rrs-td rrs-td-key rrs-td-key--green">{renderValue(row._key)}</td>
+                    {cols.map((c) => (
+                      <td key={`src_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.04)' } : {}}>
+                        {renderValue(row[`_src_${c}`])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Table: Destination */}
+        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right">
+          {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
+          <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '10px', color: 'var(--text-primary)' }}>
+              <Database size={12} style={{ color: 'var(--text-secondary)' }} />
+              {file2Name || 'DESTINATION'}
+            </div>
+            <div style={{ width: '200px', minWidth: '200px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px', borderLeft: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+              DIFFERENCES
+            </div>
+          </div>
+
+          <div className="rrs-table-scroll" ref={rightScrollRef} onScroll={handleRightScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '45vh', overflow: 'auto' }}>
+            <table className="rrs-table">
+              <thead>
+                <tr>
+                  {cols.map((c) => <th key={`dst_${c}`} className="rrs-th rrs-th-grouped" style={{ top: 0 }}>{c}</th>)}
+                  <th className="rrs-th rrs-th-diff-sticky" style={{ top: 0, zIndex: 4, background: 'var(--surface-primary)' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr
+                    key={i}
+                    className={`rrs-tr rrs-tr--mismatch ${hoveredRow === i ? 'rrs-tr--hovered' : ''}`}
+                    onMouseEnter={() => setHoveredRow(i)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                  >
+                    {cols.map((c) => (
+                      <td key={`dst_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.04)' } : {}}>
+                        {renderValue(row[`_dst_${c}`])}
+                      </td>
+                    ))}
+                    <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
+                      {Array.isArray(row._differences)
+                        ? row._differences.map((d) => (
+                          <div key={d.column} style={{ marginBottom: '4px' }}>
+                            {d.column}: "{renderValue(d.file1Value)}" &rarr; "{renderValue(d.file2Value)}"
+                          </div>
+                        ))
+                        : renderValue(row._differences)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
 
-function MissingTable({ rows }) {
+function MissingTable({ rows, mappings, isSource }) {
   if (!rows.length) return <div className="rrs-empty">No records in this category.</div>;
 
-  // Find the keys to show: we prefer the keys inside `row.row` if it exists, otherwise top-level keys excluding meta
   const sampleRow = rows[0] ?? {};
   const dataObj = sampleRow.row || sampleRow;
-  const cols = Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key');
+
+  const cols = mappings
+    ? mappings.map(m => isSource ? m.src : m.dst).filter(Boolean)
+    : Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key');
 
   return (
     <div className="rrs-table-scroll">
@@ -221,12 +318,15 @@ function MissingTable({ rows }) {
   );
 }
 
-function DuplicateTable({ rows }) {
+function DuplicateTable({ rows, mappings, isSource }) {
   if (!rows.length) return <div className="rrs-empty">No duplicate records found.</div>;
 
   const sampleRow = rows[0] ?? {};
   const dataObj = sampleRow.row || sampleRow;
-  const extraCols = Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key' && k !== 'duplicateCount');
+
+  const extraCols = mappings
+    ? mappings.map(m => isSource ? m.src : m.dst).filter(Boolean)
+    : Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key' && k !== 'duplicateCount');
 
   return (
     <div className="rrs-table-scroll">
@@ -324,6 +424,9 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         const separatorHeader = '||';
 
         const getSourceCols = () => {
+          if (activeMappings && activeMappings.length > 0) {
+            return activeMappings.map(m => m.src).filter(Boolean);
+          }
           if (raw.matched?.records?.length && raw.matched.records[0].row1) {
             return Object.keys(raw.matched.records[0].row1);
           }
@@ -337,6 +440,9 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         };
 
         const getDestinationCols = () => {
+          if (activeMappings && activeMappings.length > 0) {
+            return activeMappings.map(m => m.dst).filter(d => d && d !== '__skip__');
+          }
           if (raw.matched?.records?.length && raw.matched.records[0].row2) {
             return Object.keys(raw.matched.records[0].row2);
           }
@@ -572,6 +678,12 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         {/* KPI Cards */}
         <div className="rrs-stats-grid">
           <StatCard
+            label="Total Records"
+            value={`${(results?.rawResults?.totalFile1 || 0).toLocaleString()} / ${(results?.rawResults?.totalFile2 || 0).toLocaleString()}`}
+            subLabel="Source / Destination"
+            colorClass="purple"
+          />
+          <StatCard
             label="Matched"
             value={stats.matched.toLocaleString()}
             subLabel={`of ${stats.total.toLocaleString()} total`}
@@ -669,8 +781,8 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                 </button>
               </div>
               {missingSubTab === 'src'
-                ? <MissingTable rows={missingInSrc?.records || []} />
-                : <MissingTable rows={missingInDst?.records || []} />
+                ? <MissingTable rows={missingInSrc?.records || []} mappings={activeMappings} isSource={true} />
+                : <MissingTable rows={missingInDst?.records || []} mappings={activeMappings} isSource={false} />
               }
             </>
           ) : activeTab === 'Duplicates' ? (
@@ -694,8 +806,8 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
                 </button>
               </div>
               {dupSubTab === 'src'
-                ? <DuplicateTable rows={dupSrc?.records || []} />
-                : <DuplicateTable rows={dupDst?.records || []} />
+                ? <DuplicateTable rows={dupSrc?.records || []} mappings={activeMappings} isSource={true} />
+                : <DuplicateTable rows={dupDst?.records || []} mappings={activeMappings} isSource={false} />
               }
             </>
           ) : null}
