@@ -116,17 +116,19 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   }, [colMappings, dstCols, onColMappingsChange]);
 
   const resetAll = useCallback(() => {
-    const reset = colMappings.map((m) => ({
-      ...m,
-      dst: '__skip__',
-      dataType: 'Categorical',
-      tolerance: '0.00',
-      roundOff: 'None',
-      exclude: false,
-    }));
-    onColMappingsChange(reset);
-    setShowResetConfirm(false);
-  }, [colMappings, onColMappingsChange]);
+  const reset = colMappings.map((m) => ({
+    ...m,
+    dst: '__skip__',
+    dataType: files[0]?.columnMeta?.[m.src]?.dataType || 'Categorical',
+    tolerance: '0.00',
+    roundOff: 'None',
+    exclude: false,
+  }));
+  onColMappingsChange(reset);
+   setShowResetConfirm(false);
+}, [colMappings, files, onColMappingsChange]);
+
+
 
   const updateRow = useCallback((index, patch) => {
     const updated = colMappings.map((m, i) => {
@@ -310,9 +312,9 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
                 </p>
               </div>
               <div className="rrs-modal-footer" style={{ borderTop: 'none', paddingTop: 0, justifyContent: 'center', gap: '12px' }}>
-                <button 
-                  type="button" 
-                  className="rwiz-btn rwiz-btn-outline" 
+                <button
+                  type="button"
+                  className="rwiz-btn rwiz-btn-outline"
                   onClick={() => setShowResetConfirm(false)}
                   style={{ width: '120px', justifyContent: 'center' }}
                 >

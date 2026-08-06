@@ -479,7 +479,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
           ['Duplicate Records (in File 2)', duplicatesInFile2Count],
           ['Total Duplicate Records', totalDuplicateRecords],
           ['', ''],
-          ['Match Rate', `${raw.matchRate ?? 0}%`],
+          ['Key Coverage Rate', `${raw.keyCoverageRate ?? 0}%`],
           ['Exact Match Rate', `${raw.exactMatchRate ?? 0}%`],
         ];
 
@@ -708,10 +708,16 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
             colorClass="blue"
           />
           <StatCard
-            label="Match Rate"
-            value={`${stats.matchRate}%`}
-            subLabel="exact match rate"
+            label="Key Coverage"
+            value={`${results?.rawResults?.keyCoverageRate ?? 0}%`}
+            subLabel="records found in both files"
             colorClass="purple"
+          />
+          <StatCard
+            label="Exact Match"
+            value={`${results?.rawResults?.exactMatchRate ?? 0}%`}
+            subLabel="identical in both the files"
+            colorClass="green"
           />
         </div>
 
