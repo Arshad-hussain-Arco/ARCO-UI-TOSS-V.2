@@ -534,7 +534,7 @@
 }
 
 .rsk-column-badge {
-  display: inline-flex; 
+  display: inline-flex;
   justify-content: center;
   width: 14px;
   height: 14px;
@@ -813,7 +813,7 @@
 /* KPI cards */
 .rrs-stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 8px;
 }
 
@@ -980,14 +980,16 @@
 
 /* Tables */
 .rrs-table-scroll {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   flex: 1;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
 }
 
 .rrs-table {
-  width: 100%;
+  min-width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 11px;
 }
@@ -1012,19 +1014,24 @@
   text-align: center;
   border-bottom: 2px solid var(--border-primary);
   border-right: 1px solid var(--border-tertiary);
+  top: 36px;
+  z-index: 2;
 }
 
 .rrs-th-grouped-top {
   text-align: center;
   border-bottom: 1px solid var(--border-tertiary);
   border-right: 1px solid var(--border-tertiary);
+  background: var(--surface-primary);
+  top: 0;
+  z-index: 3;
 }
 
 .rrs-th-key {
   position: sticky;
   left: 0;
-  z-index: 2;
-  background: var(--bg-secondary);
+  z-index: 5;
+  background: var(--surface-primary);
 }
 
 .rrs-th-diff {
@@ -1064,6 +1071,11 @@
   left: 0;
   z-index: 1;
   background: var(--surface-primary);
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rrs-tr:hover .rrs-td-key {
@@ -1074,6 +1086,11 @@
   font-size: 10px;
   color: var(--c-danger);
   font-weight: 500;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rrs-dup-badge {
@@ -1557,7 +1574,7 @@
   border-color: var(--c-success);
 }
 
-.rrs-th-key--green { 
+.rrs-th-key--green {
   color: var(--c-success) !important;
 }
 
@@ -1581,7 +1598,7 @@
   z-index: 2;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-primary);
-  box-shadow: -2px 0 5px rgba(0,0,0,0.03);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.03);
 }
 
 .rrs-td-diff-sticky {
@@ -1592,5 +1609,5 @@
   z-index: 1;
   background: var(--surface-primary);
   border-left: 1px solid var(--border-primary);
-  box-shadow: -2px 0 5px rgba(0,0,0,0.03);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.03);
 }

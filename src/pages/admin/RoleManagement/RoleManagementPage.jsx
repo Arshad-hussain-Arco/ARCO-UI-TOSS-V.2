@@ -554,8 +554,8 @@ export function RoleManagementPage() {
                                 <button
                                   type="button"
                                   className="rm-btn-primary"
-                                  disabled={isSaving || pCount === 0}
-                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 ? 0.5 : 1, cursor: pCount === 0 ? 'not-allowed' : 'pointer' }}
+                                  disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
                                   {...activatable(() => handleUpdateRole(role), {
                                     label: 'Save permission changes',
                                   })}

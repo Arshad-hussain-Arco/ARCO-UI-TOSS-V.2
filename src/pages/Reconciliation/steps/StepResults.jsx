@@ -187,23 +187,23 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
       <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex' }}>
 
         {/* Left Table: Source */}
-        <div className="rrs-mismatch-table-pane">
+        <div className="rrs-mismatch-table-pane" style={{ flex: 1, minWidth: 0 }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
           <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
-            <div style={{ width: '100px', minWidth: '100px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px', borderRight: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+            <div style={{ width: '130px', minWidth: '130px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', borderRight: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
               KEY
             </div>
-            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '10px', color: 'var(--text-primary)' }}>
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
               <Database size={12} style={{ color: 'var(--text-secondary)' }} />
               {file1Name || 'SOURCE'}
             </div>
           </div>
 
-          <div className="rrs-table-scroll" ref={leftScrollRef} onScroll={handleLeftScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '45vh', overflow: 'auto' }}>
+          <div className="rrs-table-scroll" ref={leftScrollRef} onScroll={handleLeftScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '50vh', minHeight: '150px', overflowX: 'auto', overflowY: 'auto', width: '100%' }}>
             <table className="rrs-table">
               <thead>
                 <tr>
-                  <th className="rrs-th rrs-th-key" style={{ top: 0, minWidth: '100px', width: '100px', zIndex: 4, background: 'var(--surface-primary)' }}></th>
+                  <th className="rrs-th rrs-th-key" style={{ top: 0, minWidth: '130px', width: '130px', maxWidth: '130px', zIndex: 4, background: 'var(--surface-primary)' }}></th>
                   {cols.map((c) => <th key={`src_${c}`} className="rrs-th rrs-th-grouped" style={{ top: 0 }}>{c}</th>)}
                 </tr>
               </thead>
@@ -217,7 +217,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                   >
                     <td className="rrs-td rrs-td-key rrs-td-key--green">{renderValue(row._key)}</td>
                     {cols.map((c) => (
-                      <td key={`src_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.04)' } : {}}>
+                      <td key={`src_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--c-danger)', fontWeight: 600 } : {}}>
                         {renderValue(row[`_src_${c}`])}
                       </td>
                     ))}
@@ -229,24 +229,24 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
         </div>
 
         {/* Right Table: Destination */}
-        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right">
+        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right" style={{ flex: 1, minWidth: 0 }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
           <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
-            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '10px', color: 'var(--text-primary)' }}>
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
               <Database size={12} style={{ color: 'var(--text-secondary)' }} />
               {file2Name || 'DESTINATION'}
             </div>
-            <div style={{ width: '200px', minWidth: '200px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px', borderLeft: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
+            {/* <div style={{ width: '300px', minWidth: '300px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', borderLeft: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
               DIFFERENCES
-            </div>
+            </div> */}
           </div>
 
-          <div className="rrs-table-scroll" ref={rightScrollRef} onScroll={handleRightScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '45vh', overflow: 'auto' }}>
+          <div className="rrs-table-scroll" ref={rightScrollRef} onScroll={handleRightScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '50vh', minHeight: '150px', overflowX: 'auto', overflowY: 'auto', width: '100%' }}>
             <table className="rrs-table">
               <thead>
                 <tr>
                   {cols.map((c) => <th key={`dst_${c}`} className="rrs-th rrs-th-grouped" style={{ top: 0 }}>{c}</th>)}
-                  <th className="rrs-th rrs-th-diff-sticky" style={{ top: 0, zIndex: 4, background: 'var(--surface-primary)' }}></th>
+                  {/* <th className="rrs-th rrs-th-diff-sticky" style={{ top: 0, zIndex: 4, background: 'var(--surface-primary)', width: '300px', minWidth: '300px', maxWidth: '300px' }}></th> */}
                 </tr>
               </thead>
               <tbody>
@@ -258,11 +258,11 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                     onMouseLeave={() => setHoveredRow(null)}
                   >
                     {cols.map((c) => (
-                      <td key={`dst_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.04)' } : {}}>
+                      <td key={`dst_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--c-danger)', fontWeight: 600 } : {}}>
                         {renderValue(row[`_dst_${c}`])}
                       </td>
                     ))}
-                    <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
+                    {/* <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
                       {Array.isArray(row._differences)
                         ? row._differences.map((d) => (
                           <div key={d.column} style={{ marginBottom: '4px' }}>
@@ -270,7 +270,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                           </div>
                         ))
                         : renderValue(row._differences)}
-                    </td>
+                    </td> */}
                   </tr>
                 ))}
               </tbody>
@@ -479,7 +479,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
           ['Duplicate Records (in File 2)', duplicatesInFile2Count],
           ['Total Duplicate Records', totalDuplicateRecords],
           ['', ''],
-          ['Match Rate', `${raw.matchRate ?? 0}%`],
+          ['Key Coverage Rate', `${raw.keyCoverageRate ?? 0}%`],
           ['Exact Match Rate', `${raw.exactMatchRate ?? 0}%`],
         ];
 
@@ -708,10 +708,16 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
             colorClass="blue"
           />
           <StatCard
-            label="Match Rate"
-            value={`${stats.matchRate}%`}
-            subLabel="exact match rate"
+            label="Key Coverage"
+            value={`${results?.rawResults?.keyCoverageRate ?? 0}%`}
+            subLabel="records found in both files"
             colorClass="purple"
+          />
+          <StatCard
+            label="Exact Match"
+            value={`${results?.rawResults?.exactMatchRate ?? 0}%`}
+            subLabel="identical in both the files"
+            colorClass="green"
           />
         </div>
 
