@@ -64,12 +64,12 @@ function StepperBar({ currentStep }) {
   );
 }
 
-function buildInitialMappings(srcCols, dstCols) {
+function buildInitialMappings(srcCols, columnMeta = {}) {
   return srcCols.map((src) => {
     return {
       src,
       dst: '__skip__',
-      dataType: 'Categorical',
+      dataType: columnMeta?.[src]?.dataType || 'Categorical',
       tolerance: '0.00',
       roundOff: 'None',
       exclude: false,
@@ -208,7 +208,7 @@ export function ReconciliationPage() {
       // Rebuild mappings only if file 1 was added or changed
       if (updated[0]?.columns && (!prevFiles[0] || prevFiles[0].name !== updated[0].name)) {
         setTimeout(() => {
-          setColMappings(buildInitialMappings(updated[0].columns, updated[1]?.columns ?? []));
+          setColMappings(buildInitialMappings(updated[0].columns, updated[0].columnMeta));
         }, 0);
       }
       return updated;
