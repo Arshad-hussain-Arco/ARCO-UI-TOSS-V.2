@@ -30,7 +30,7 @@ function HomeManagementPanelComponent() {
 
   // Tab State
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'html'
-  const [activeSubtab, setActiveSubtab] = useState('person'); // 'person' | 'content'
+  const [activeSubtab, setActiveSubtab] = useState('article'); // 'article' | 'content'
 
   // Person Subtab State
   const [personName, setPersonName] = useState('');
@@ -81,7 +81,7 @@ function HomeManagementPanelComponent() {
     setEditId(null);
     setIsUploading(false);
     setActiveTab('text');
-    setActiveSubtab('person');
+    setActiveSubtab('article');
 
     setPersonName('');
     setPersonDesignation('');
@@ -129,7 +129,7 @@ function HomeManagementPanelComponent() {
 
     if (card.card_type === 'person_card') {
       setActiveTab('text');
-      setActiveSubtab('person');
+      setActiveSubtab('article');
       setPersonName(card.person_name || '');
       setPersonDesignation(card.designation || '');
       setPersonBio(card.bio || '');
@@ -207,9 +207,9 @@ function HomeManagementPanelComponent() {
   const handleSaveCard = async () => {
     // Validation
     if (activeTab === 'text') {
-      if (activeSubtab === 'person') {
+      if (activeSubtab === 'article') {
         if (!personName.trim() || !personDesignation.trim() || !personBio.trim()) {
-          toast.error('Person Name, Designation, and Biography are required.');
+          toast.error('Title, Sub Head, and Description are required.');
           return;
         }
       } else {
@@ -230,7 +230,7 @@ function HomeManagementPanelComponent() {
       const payload = new FormData();
 
       if (activeTab === 'text') {
-        if (activeSubtab === 'person') {
+        if (activeSubtab === 'article') {
           payload.append('card_type', 'person_card');
           payload.append('person_name', personName.trim());
           payload.append('designation', personDesignation.trim());
@@ -270,10 +270,10 @@ function HomeManagementPanelComponent() {
 
   const isSaveDisabled = isUploading || (
     activeTab === 'text'
-      ? (activeSubtab === 'person'
-          ? (!personName.trim() || !personDesignation.trim() || !personBio.trim())
-          : !contentText.trim()
-        )
+      ? (activeSubtab === 'article'
+        ? (!personName.trim() || !personDesignation.trim() || !personBio.trim())
+        : !contentText.trim()
+      )
       : !htmlContent.trim()
   );
 
@@ -330,7 +330,7 @@ function HomeManagementPanelComponent() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
               <Loader2 size={28} className="animate-spin" style={{ color: '#006838' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Processing image...
+                Uploading image...
               </span>
             </div>
           ) : previewUrl ? (
@@ -754,21 +754,21 @@ function HomeManagementPanelComponent() {
                       }}>
                         <button
                           type="button"
-                          onClick={() => setActiveSubtab('person')}
+                          onClick={() => setActiveSubtab('article')}
                           style={{
                             padding: '5px 16px',
                             border: 'none',
-                            background: activeSubtab === 'person' ? 'var(--surface-primary)' : 'transparent',
+                            background: activeSubtab === 'article' ? 'var(--surface-primary)' : 'transparent',
                             borderRadius: '4px',
                             fontSize: '12px',
-                            fontWeight: activeSubtab === 'person' ? 600 : 500,
-                            color: activeSubtab === 'person' ? '#006838' : 'var(--text-secondary)',
-                            boxShadow: activeSubtab === 'person' ? 'var(--shadow-sm)' : 'none',
+                            fontWeight: activeSubtab === 'article' ? 600 : 500,
+                            color: activeSubtab === 'article' ? '#006838' : 'var(--text-secondary)',
+                            boxShadow: activeSubtab === 'article' ? 'var(--shadow-sm)' : 'none',
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
                           }}
                         >
-                          Person
+                          Article
                         </button>
                         <button
                           type="button"
@@ -791,7 +791,7 @@ function HomeManagementPanelComponent() {
                       </div>
                     </div>
 
-                    {activeSubtab === 'person' ? (
+                    {activeSubtab === 'article' ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {/* Card Display Width */}
                         {renderWidthSelector(personWidth, setPersonWidth)}
@@ -802,44 +802,44 @@ function HomeManagementPanelComponent() {
                           personFile,
                           personPreviewUrl,
                           processPersonFile,
-                          "Upload Person Image",
+                          "Upload Article Image",
                           "Supports PNG, JPG, JPEG, WEBP"
                         )}
 
                         {/* Person Name */}
                         <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Person Name <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <label className="ss-modal-label">Title <span style={{ color: 'var(--c-danger)' }}>*</span></label>
                           <input
                             type="text"
                             className="ss-input"
                             value={personName}
                             onChange={(e) => setPersonName(e.target.value)}
-                            placeholder="Enter person name..."
+                            placeholder="Enter Title..."
                           />
                         </div>
 
                         {/* Designation */}
                         <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Designation <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <label className="ss-modal-label">Sub Head <span style={{ color: 'var(--c-danger)' }}>*</span></label>
                           <input
                             type="text"
                             className="ss-input"
                             value={personDesignation}
                             onChange={(e) => setPersonDesignation(e.target.value)}
-                            placeholder="Enter designation (e.g. Senior Architect)..."
+                            placeholder="Enter Sub-head ..."
                           />
                         </div>
 
                         {/* Biography */}
                         <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Biography <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                          <label className="ss-modal-label">Description <span style={{ color: 'var(--c-danger)' }}>*</span></label>
                           <textarea
                             rows={4}
                             className="ss-input"
                             style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
                             value={personBio}
                             onChange={(e) => setPersonBio(e.target.value)}
-                            placeholder="Enter bio or details about the person..."
+                            placeholder="Enter Description..."
                           />
                         </div>
                       </div>
@@ -942,20 +942,20 @@ function HomeManagementPanelComponent() {
                       boxShadow: 'var(--shadow-md)',
                       display: 'flex',
                       flexDirection: 'column',
-                      width: (activeTab === 'text' ? (activeSubtab === 'person' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
+                      width: (activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
                       minWidth: '240px',
                       transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       alignSelf: 'start',
                     }}
                   >
                     {activeTab === 'text' ? (
-                      activeSubtab === 'person' ? (
+                      activeSubtab === 'article' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px', textAlign: 'center' }}>
                           {/* Person Image */}
                           {personPreviewUrl ? (
                             <img
                               src={personPreviewUrl}
-                              alt={personName || "Person avatar"}
+                              alt={personName || "Article image"}
                               style={{
                                 width: '90px',
                                 height: '90px',
@@ -987,12 +987,12 @@ function HomeManagementPanelComponent() {
 
                           {/* Person Name */}
                           <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {personName || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Person Name</span>}
+                            {personName || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Title</span>}
                           </h4>
 
                           {/* Designation */}
                           <div style={{ fontSize: '12px', fontWeight: 600, color: '#006838', marginBottom: '16px' }}>
-                            {personDesignation || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Designation</span>}
+                            {personDesignation || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Sub Head</span>}
                           </div>
 
                           {/* Separator */}
@@ -1007,7 +1007,7 @@ function HomeManagementPanelComponent() {
                             wordBreak: 'break-word',
                             whiteSpace: 'pre-wrap',
                           }}>
-                            {personBio || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Bio details will appear here...</span>}
+                            {personBio || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Description details will appear here...</span>}
                           </p>
                         </div>
                       ) : (
