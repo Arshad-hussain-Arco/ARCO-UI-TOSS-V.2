@@ -33,6 +33,7 @@ import './LeaveManagementPage.css';
 import './LeaveTable.css';
 const ALL_TABS = [
   { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
+  { id: 'my-leaves-summary', label: 'My Leaves Summary', icon: FileText },
   { id: 'team-requests', label: 'Team Leave Requests', icon: Users },
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3 },
   { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, adminOnly: true },
@@ -536,7 +537,145 @@ export function LeaveManagementPage() {
 
         {activeTab === 'leave-config' && <LeaveConfigurationTab />}
 
+        {activeTab === 'my-leaves-summary' && (
+          <div className="lc-card-panel" style={{ marginTop: '20px' }}>
+            <div className="leave-table-container">
+              <table className="leave-table">
+                <colgroup>
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
+                <thead className="leave-table-thead">
+                  <tr className="leave-table-header-row">
+                    <th className="leave-table-header">LEAVE TYPE</th>
+                    <th className="leave-table-header">DATES</th>
+                    <th className="leave-table-header">WORK DAYS</th>
+                    <th className="leave-table-header">LEAVE REASON</th>
+                    <th className="leave-table-header">STATUS</th>
+                    <th className="leave-table-header">COMMENTS</th>
+                    <th className="leave-table-header">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody className="leave-table-tbody">
+                  <tr className="leave-table-row">
+                    <td className="leave-table-cell">Annual Leave</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-dates">
+                        <span className="leave-table-date-text text-[14px]">Tue, 22 Sept 2026</span>
+                        <span className="leave-table-date-duration">(0.5 days)</span>
+                      </div>
+                    </td>
+                    <td className="leave-table-cell">0.5</td>
+                    <td className="leave-table-cell">kkkkkkkk</td>
+                    <td className="leave-table-cell">
+                      <span className="leave-table-status" data-status="self-rejected">self_rejected</span>
+                    </td>
+                    <td className="leave-table-cell">-</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-actions">
+                        <button className="leave-table-action-button" style={{ color: 'var(--c-danger)' }}><X className="leave-table-action-icon" size={14}/></button>
+                        <button className="leave-table-action-button" style={{ color: 'var(--text-secondary)' }}><Edit className="leave-table-action-icon" size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
 
+                  <tr className="leave-table-row">
+                    <td className="leave-table-cell">Annual Leave</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-dates">
+                        <span className="leave-table-date-text text-[14px]">Sat, 29 Aug 2026 - Sun, 30 Aug 2026</span>
+                        <span className="leave-table-date-duration">(2 days)</span>
+                      </div>
+                    </td>
+                    <td className="leave-table-cell">1</td>
+                    <td className="leave-table-cell">v cgfdfdf</td>
+                    <td className="leave-table-cell">
+                      <span className="leave-table-status" data-status="pending">pending</span>
+                    </td>
+                    <td className="leave-table-cell">-</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-actions">
+                        <button className="leave-table-action-button" style={{ color: 'var(--c-danger)' }}><X className="leave-table-action-icon" size={14}/></button>
+                        <button className="leave-table-action-button" style={{ color: 'var(--text-secondary)' }}><Edit className="leave-table-action-icon" size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr className="leave-table-row">
+                    <td className="leave-table-cell">Annual Leave</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-dates">
+                        <span className="leave-table-date-text text-[14px]">Tue, 25 Aug 2026</span>
+                        <span className="leave-table-date-duration">(1 day)</span>
+                      </div>
+                    </td>
+                    <td className="leave-table-cell">1</td>
+                    <td className="leave-table-cell">kmn kkkkkkkkkkkkkk</td>
+                    <td className="leave-table-cell">
+                      <span className="leave-table-status" data-status="pending">pending</span>
+                    </td>
+                    <td className="leave-table-cell">-</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-actions">
+                        <button className="leave-table-action-button" style={{ color: 'var(--c-danger)' }}><X className="leave-table-action-icon" size={14}/></button>
+                        <button className="leave-table-action-button" style={{ color: 'var(--text-secondary)' }}><Edit className="leave-table-action-icon" size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr className="leave-table-row">
+                    <td className="leave-table-cell">Annual Leave</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-dates">
+                        <span className="leave-table-date-text text-[14px]">Tue, 11 Aug 2026 - Tue, 18 Aug 2026</span>
+                        <span className="leave-table-date-duration">(8 days)</span>
+                      </div>
+                    </td>
+                    <td className="leave-table-cell">7</td>
+                    <td className="leave-table-cell">gthtrhtr</td>
+                    <td className="leave-table-cell">
+                      <span className="leave-table-status" data-status="approved">approved</span>
+                    </td>
+                    <td className="leave-table-cell">jtyjfytj</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-actions">
+                        <button className="leave-table-action-button" style={{ color: 'var(--c-danger)' }}><X className="leave-table-action-icon" size={14}/></button>
+                        <button className="leave-table-action-button" style={{ color: 'var(--text-secondary)' }}><Edit className="leave-table-action-icon" size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr className="leave-table-row">
+                    <td className="leave-table-cell">Work From Home</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-dates">
+                        <span className="leave-table-date-text text-[14px]">Wed, 05 Aug 2026 - Sat, 08 Aug 2026</span>
+                        <span className="leave-table-date-duration">(4 days)</span>
+                      </div>
+                    </td>
+                    <td className="leave-table-cell">4</td>
+                    <td className="leave-table-cell">gfhgfyy</td>
+                    <td className="leave-table-cell">
+                      <span className="leave-table-status" data-status="self-rejected">self_rejected</span>
+                    </td>
+                    <td className="leave-table-cell">-</td>
+                    <td className="leave-table-cell">
+                      <div className="leave-table-actions">
+                        <button className="leave-table-action-button" style={{ color: 'var(--c-danger)' }}><X className="leave-table-action-icon" size={14}/></button>
+                        <button className="leave-table-action-button" style={{ color: 'var(--text-secondary)' }}><Edit className="leave-table-action-icon" size={14}/></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

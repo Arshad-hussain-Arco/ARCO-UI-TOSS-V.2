@@ -40,12 +40,34 @@ const pageTabs = [
 ];
 
 const emptyForm = {
-  name: '', username: '', password: '', designation: '', team: '', joiningDate: '',
-  mobile: '', email: '', landline: '', extension: '', address: '', role: '',
-  webexId: '', includeInCp: false, visaNumber: '', visa: '', visaExpire: '', visaRenewal: '',
-  nextVisaExit: '', location: 'On Site', remarks: '', manager: '', gender: '',
-  physicalPcAvailable: '', computerName: '', computerLocation: '', computerLocationReference: '',
-  accountStatus: 'active'
+  name: '',
+  username: '',
+  password: '',
+  designation: '',
+  team: '',
+  joiningDate: '',
+  mobile: '',
+  email: '',
+  landline: '',
+  extension: '',
+  address: '',
+  role: '',
+  webexId: '',
+  includeInCp: false,
+  visaNumber: '',
+  visa: '',
+  visaExpire: '',
+  visaRenewal: '',
+  nextVisaExit: '',
+  location: 'On Site',
+  remarks: '',
+  manager: '',
+  gender: '',
+  physicalPcAvailable: '',
+  computerName: '',
+  computerLocation: '',
+  computerLocationReference: '',
+  accountStatus: 'active',
 };
 
 const STATIC_DESIGNATIONS = ['CEO', 'HR', 'Developer', 'Engineer', 'Manager'];
@@ -84,14 +106,20 @@ export function ConsultantsPage() {
 
   const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
 
-  const { data: employeesData, refetch: loadEmployees, isLoading: isEmployeesLoading, error: employeesError, setData: setEmployeesData } = useAsync(fetchEmployees, { immediate: true });
+  const {
+    data: employeesData,
+    refetch: loadEmployees,
+    isLoading: isEmployeesLoading,
+    error: employeesError,
+    setData: setEmployeesData,
+  } = useAsync(fetchEmployees, { immediate: true });
 
   const dynamicEmployees = employeesData?.results || employeesData || [];
 
   const fetchRoles = useCallback(() => consultantService.getRoles(), []);
   const { data: rolesData } = useAsync(fetchRoles, { immediate: true });
   const dynamicRoles = Array.isArray(rolesData)
-    ? rolesData.map(r => ({ id: r.id, name: r.role_name || r.name || String(r.id) }))
+    ? rolesData.map((r) => ({ id: r.id, name: r.role_name || r.name || String(r.id) }))
     : [];
 
   const fetchRefData = useCallback(() => consultantService.getDesignationsAndTeams(), []);
@@ -99,18 +127,28 @@ export function ConsultantsPage() {
   const fetchLocations = useCallback(() => consultantService.getLocations(), []);
   const { data: locationsData } = useAsync(fetchLocations, { immediate: true });
   const fetchCompLocations = useCallback(() => consultantService.getComputerLocations(), []);
-  const { data: compLocationsData, refetch: loadCompLocations } = useAsync(fetchCompLocations, { immediate: true });
+  const { data: compLocationsData, refetch: loadCompLocations } = useAsync(fetchCompLocations, {
+    immediate: true,
+  });
 
-  const dynamicDesignations = Array.isArray(refData) ? refData : (refData?.results || refData?.designations || []);
+  const dynamicDesignations = Array.isArray(refData)
+    ? refData
+    : refData?.results || refData?.designations || [];
   const dynamicTeams = Array.isArray(refData)
-    ? refData.flatMap(d => d.teams || [])
-    : (refData?.teams || []);
-  const dynamicLocations = Array.isArray(locationsData) ? locationsData : (locationsData?.results || []);
-  const dynamicCompLocations = Array.isArray(compLocationsData) ? compLocationsData : (compLocationsData?.results || []);
+    ? refData.flatMap((d) => d.teams || [])
+    : refData?.teams || [];
+  const dynamicLocations = Array.isArray(locationsData)
+    ? locationsData
+    : locationsData?.results || [];
+  const dynamicCompLocations = Array.isArray(compLocationsData)
+    ? compLocationsData
+    : compLocationsData?.results || [];
 
   const fetchInactive = useCallback(() => consultantService.getInactiveConsultants(), []);
   const { data: inactiveData } = useAsync(fetchInactive, { immediate: true });
-  const inactiveCount = Array.isArray(inactiveData) ? inactiveData.length : inactiveData?.results?.length || 0;
+  const inactiveCount = Array.isArray(inactiveData)
+    ? inactiveData.length
+    : inactiveData?.results?.length || 0;
 
   const [activeTab, setActiveTab] = useState('consultants');
   const [drawerMode, setDrawerMode] = useState(null);
@@ -144,7 +182,10 @@ export function ConsultantsPage() {
       setNewDesignationName('');
       setIsAddDesignationModalOpen(false);
       await loadRefData();
-      patch({ designation: newDesignationName.trim(), designation_name: newDesignationName.trim() });
+      patch({
+        designation: newDesignationName.trim(),
+        designation_name: newDesignationName.trim(),
+      });
     } catch (error) {
       toast.error('Failed to add designation');
     }
@@ -161,7 +202,10 @@ export function ConsultantsPage() {
       setNewComputerLocationName('');
       setIsAddComputerLocationModalOpen(false);
       await loadCompLocations();
-      patch({ computerLocation: newComputerLocationName.trim(), computer_location: newComputerLocationName.trim() });
+      patch({
+        computerLocation: newComputerLocationName.trim(),
+        computer_location: newComputerLocationName.trim(),
+      });
     } catch (error) {
       toast.error('Failed to add computer location');
     }
@@ -230,7 +274,12 @@ export function ConsultantsPage() {
     reader.onloadend = async () => {
       const base64String = reader.result;
       const rawBase64 = base64String.split(',')[1];
-      patch({ avatar: base64String, photoUploadBase64: rawBase64, photo: rawBase64, photoDeleteFlag: false });
+      patch({
+        avatar: base64String,
+        photoUploadBase64: rawBase64,
+        photo: rawBase64,
+        photoDeleteFlag: false,
+      });
 
       // If we are editing an existing consultant, upload immediately
       if (editingTarget?.id) {
@@ -238,9 +287,13 @@ export function ConsultantsPage() {
           await consultantService.uploadPhoto(editingTarget.id, rawBase64);
           toast.success('Photo uploaded successfully');
           // Update locally to guarantee UI reflects the change even if fetch is cached
-          setEmployeesData(prev => {
+          setEmployeesData((prev) => {
             const list = prev?.results || prev || [];
-            const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: rawBase64, avatar: rawBase64 } : c);
+            const mapped = list.map((c) =>
+              (c.emp_id || c.id) === editingTarget.id
+                ? { ...c, photo: rawBase64, avatar: rawBase64 }
+                : c,
+            );
             return prev?.results ? { ...prev, results: mapped } : mapped;
           });
           loadEmployees(); // Background refresh
@@ -261,9 +314,11 @@ export function ConsultantsPage() {
         await consultantService.deletePhoto(editingTarget.id);
         toast.success('Photo removed successfully');
         // Update locally to guarantee UI reflects the change
-        setEmployeesData(prev => {
+        setEmployeesData((prev) => {
           const list = prev?.results || prev || [];
-          const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: null, avatar: null } : c);
+          const mapped = list.map((c) =>
+            (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: null, avatar: null } : c,
+          );
           return prev?.results ? { ...prev, results: mapped } : mapped;
         });
         loadEmployees(); // Background refresh
@@ -276,12 +331,15 @@ export function ConsultantsPage() {
   const handleSave = async () => {
     if (drawerMode === 'password') {
       if (!passwordData.newPassword?.trim()) return toast.error('New Password is required');
-      if (passwordData.newPassword !== passwordData.confirmPassword) return toast.error('Passwords do not match');
+      if (passwordData.newPassword !== passwordData.confirmPassword)
+        return toast.error('Passwords do not match');
 
-      
       setIsSaving(true);
       try {
-        await consultantService.updateConsultant({ ...editingTarget, password: passwordData.newPassword });
+        await consultantService.updateConsultant({
+          ...editingTarget,
+          password: passwordData.newPassword,
+        });
         toast.success('Password updated successfully');
         closeDrawer();
       } catch (e) {
@@ -294,20 +352,26 @@ export function ConsultantsPage() {
 
     // Form Validation
     if (!formData.name?.trim()) return toast.error('Full Name is required');
-    if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)) return toast.error('Valid Email Address is required');
+    if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email))
+      return toast.error('Valid Email Address is required');
     if (!formData.role || !formData.roleId) return toast.error('Role selection is required');
-    if (!formData.designation && formData.designation !== 0) return toast.error('Designation is required');
-    if (!formData.username?.trim() && !formData.userId?.trim()) return toast.error('Username / Employee ID is required');
-    if (!isEditing && !formData.password?.trim()) return toast.error('Initial Password is required');
+    if (!formData.designation && formData.designation !== 0)
+      return toast.error('Designation is required');
+    if (!formData.username?.trim() && !formData.userId?.trim())
+      return toast.error('Username / Employee ID is required');
+    if (!isEditing && !formData.password?.trim())
+      return toast.error('Initial Password is required');
 
     setIsSaving(true);
     try {
       if (isEditing) {
         await consultantService.updateConsultant({ ...formData, id: editingTarget.id });
         toast.success('Consultant updated successfully');
-        setEmployeesData(prev => {
+        setEmployeesData((prev) => {
           const list = prev?.results || prev || [];
-          const mapped = list.map(c => (c.emp_id || c.id) === editingTarget.id ? { ...c, ...formData } : c);
+          const mapped = list.map((c) =>
+            (c.emp_id || c.id) === editingTarget.id ? { ...c, ...formData } : c,
+          );
           return prev?.results ? { ...prev, results: mapped } : mapped;
         });
       } else {
@@ -337,7 +401,7 @@ export function ConsultantsPage() {
       await consultantService.deleteConsultant({
         id: editingTarget.id,
         userId: editingTarget.userId,
-        name: editingTarget.name
+        name: editingTarget.name,
       });
       toast.success('Consultant deactivated successfully');
       closeDrawer();
@@ -388,7 +452,17 @@ export function ConsultantsPage() {
                 <span className="consultants-tab-label">
                   {t.label}
                   {count !== null && (
-                    <span style={{ marginLeft: '8px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>
+                    <span
+                      style={{
+                        marginLeft: '8px',
+                        background: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
                       {count}
                     </span>
                   )}
@@ -424,7 +498,10 @@ export function ConsultantsPage() {
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
             />
-          )}{activeTab === 'teams' && <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} />}
+          )}
+          {activeTab === 'teams' && (
+            <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} />
+          )}
         </div>
       </div>
 
@@ -442,9 +519,13 @@ export function ConsultantsPage() {
         title="Add Designation"
       >
         <div style={{ padding: '16px' }}>
-          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>If you want to Add Employee Designation</p>
+          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+            If you want to Add Employee Designation
+          </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Add Designation</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Add Designation
+            </span>
             <input
               type="text"
               className="ef-input"
@@ -458,14 +539,30 @@ export function ConsultantsPage() {
             <button
               type="button"
               onClick={() => setIsAddDesignationModalOpen(false)}
-              style={{ padding: '6px 24px', backgroundColor: '#ef4444', color: '#fff', borderRadius: '4px', border: 'none', fontWeight: '500', cursor: 'pointer' }}
+              style={{
+                padding: '6px 24px',
+                backgroundColor: '#ef4444',
+                color: '#fff',
+                borderRadius: '4px',
+                border: 'none',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAddDesignation}
-              style={{ padding: '6px 32px', backgroundColor: '#10b981', color: '#fff', borderRadius: '4px', border: 'none', fontWeight: '500', cursor: 'pointer' }}
+              style={{
+                padding: '6px 32px',
+                backgroundColor: '#10b981',
+                color: '#fff',
+                borderRadius: '4px',
+                border: 'none',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
             >
               Add
             </button>
@@ -478,15 +575,16 @@ export function ConsultantsPage() {
       ════════════════════════════════════════════════════════ */}
       {drawerMode !== null && (
         <>
-          <div className={`con-drawer-backdrop${drawerOpen ? ' open' : ''}`} onClick={closeDrawer} />
+          <div
+            className={`con-drawer-backdrop${drawerOpen ? ' open' : ''}`}
+            onClick={closeDrawer}
+          />
           <div className={`con-drawer${drawerOpen ? ' open' : ''}`}>
             <div className="con-drawer-header">
               <div className="con-drawer-title-row">
                 <p className="con-drawer-title">{drawerTitle}</p>
                 {drawerMode === 'password' ? (
-                  <p className="con-drawer-sub">
-                    Reset access for {editingTarget?.userId}
-                  </p>
+                  <p className="con-drawer-sub">Reset access for {editingTarget?.userId}</p>
                 ) : isEditing ? (
                   <p className="con-drawer-sub">
                     {editingTarget?.userId} · {editingTarget?.team}
@@ -535,7 +633,9 @@ export function ConsultantsPage() {
                           </div>
                         </div>
                         <div className="ef-avatar-actions">
-                          <span className="ef-avatar-name">{formData.name || 'New Consultant'}</span>
+                          <span className="ef-avatar-name">
+                            {formData.name || 'New Consultant'}
+                          </span>
                           <div className="ef-avatar-btns">
                             <label className="ef-avatar-btn-sm" style={{ cursor: 'pointer' }}>
                               <input
@@ -547,7 +647,11 @@ export function ConsultantsPage() {
                               <Upload size={10} /> Upload
                             </label>
                             {formData.avatar && (
-                              <button type="button" className="ef-avatar-btn-sm ef-avatar-btn-danger" onClick={handlePhotoRemove}>
+                              <button
+                                type="button"
+                                className="ef-avatar-btn-sm ef-avatar-btn-danger"
+                                onClick={handlePhotoRemove}
+                              >
                                 <Trash2 size={10} /> Remove
                               </button>
                             )}
@@ -559,7 +663,9 @@ export function ConsultantsPage() {
                       <div className="ef-grid">
                         <EfField label="Full Name" required>
                           <div className="ef-input-wrap">
-                            <span className="ef-input-icon"><User size={12} /></span>
+                            <span className="ef-input-icon">
+                              <User size={12} />
+                            </span>
                             <input
                               type="text"
                               className={`ef-input${formData.name ? ' ef-input-filled' : ''}`}
@@ -574,13 +680,18 @@ export function ConsultantsPage() {
                           <Select
                             value={formData.gender || ''}
                             onChange={(v) => patch({ gender: v })}
-                            options={[{ value: '', label: 'Select gender' }, ...STATIC_GENDERS.map(g => ({ value: g, label: g }))]}
+                            options={[
+                              { value: '', label: 'Select gender' },
+                              ...STATIC_GENDERS.map((g) => ({ value: g, label: g })),
+                            ]}
                           />
                         </EfField>
 
                         <EfField label="Email Address" required>
                           <div className="ef-input-wrap">
-                            <span className="ef-input-icon"><Mail size={12} /></span>
+                            <span className="ef-input-icon">
+                              <Mail size={12} />
+                            </span>
                             <input
                               type="email"
                               className="ef-input"
@@ -592,7 +703,9 @@ export function ConsultantsPage() {
 
                         <EfField label="Mobile Number">
                           <div className="ef-input-wrap">
-                            <span className="ef-input-icon"><Phone size={12} /></span>
+                            <span className="ef-input-icon">
+                              <Phone size={12} />
+                            </span>
                             <input
                               type="tel"
                               className="ef-input"
@@ -634,25 +747,53 @@ export function ConsultantsPage() {
                       <div className="ef-grid">
                         <EfField label="Role" required>
                           <Select
-                            value={String(formData.roleId || formData.role_id || formData.role || '')}
+                            value={String(
+                              formData.roleId || formData.role_id || formData.role || '',
+                            )}
                             onChange={(v) => {
-                              const selectedRole = dynamicRoles.find(r => String(r.id) === String(v));
-                              patch({ roleId: v, role_id: v, role_name: selectedRole?.name || '', role: selectedRole?.name || '' });
+                              const selectedRole = dynamicRoles.find(
+                                (r) => String(r.id) === String(v),
+                              );
+                              patch({
+                                roleId: v,
+                                role_id: v,
+                                role_name: selectedRole?.name || '',
+                                role: selectedRole?.name || '',
+                              });
                             }}
-                            options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: String(r.id), label: r.name || String(r.id) }))]}
+                            options={[
+                              { value: '', label: 'Select role' },
+                              ...dynamicRoles.map((r) => ({
+                                value: String(r.id),
+                                label: r.name || String(r.id),
+                              })),
+                            ]}
                           />
                         </EfField>
                         <EfField label="Designation" required>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <Select
-                              value={String(formData.designation_name || formData.designation || '')}
+                              value={String(
+                                formData.designation_name || formData.designation || '',
+                              )}
                               onChange={(v) => patch({ designation: v, designation_name: v })}
-                              options={[{ value: '', label: 'Select designation' }, ...dynamicDesignations.map(d => ({ value: d.name || d.designation || '', label: d.name || d.designation || '' }))]}
+                              options={[
+                                { value: '', label: 'Select designation' },
+                                ...dynamicDesignations.map((d) => ({
+                                  value: d.name || d.designation || '',
+                                  label: d.name || d.designation || '',
+                                })),
+                              ]}
                             />
                             <button
                               type="button"
                               className="ef-input-action"
-                              style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
+                              style={{
+                                position: 'static',
+                                padding: '0 12px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-primary)',
+                              }}
                               onClick={() => setIsAddDesignationModalOpen(true)}
                               title="Add Designation"
                             >
@@ -662,25 +803,50 @@ export function ConsultantsPage() {
                         </EfField>
                         <EfField label="Team">
                           <Select
-                            value={String(formData.teamId || formData.team_id || formData.team || '')}
+                            value={String(
+                              formData.teamId || formData.team_id || formData.team || '',
+                            )}
                             onChange={(v) => {
-                              const selectedTeam = dynamicTeams.find(t => String(t.id) === String(v));
-                              patch({ teamId: v, team_id: v, team_name: selectedTeam?.name || '', team: selectedTeam?.name || '' });
+                              const selectedTeam = dynamicTeams.find(
+                                (t) => String(t.id) === String(v),
+                              );
+                              patch({
+                                teamId: v,
+                                team_id: v,
+                                team_name: selectedTeam?.name || '',
+                                team: selectedTeam?.name || '',
+                              });
                             }}
-                            options={[{ value: '', label: 'Select team' }, ...dynamicTeams.map(t => ({ value: String(t.id), label: t.name || String(t.id) }))]}
+                            options={[
+                              { value: '', label: 'Select team' },
+                              ...dynamicTeams.map((t) => ({
+                                value: String(t.id),
+                                label: t.name || String(t.id),
+                              })),
+                            ]}
                           />
                         </EfField>
                         <EfField label="Reporting Manager">
                           <Select
-                            value={String(formData.managerId || formData.manager_id || formData.manager || '')}
+                            value={String(
+                              formData.managerId || formData.manager_id || formData.manager || '',
+                            )}
                             onChange={(v) => patch({ managerId: v, manager_id: v, manager: v })}
-                            options={[{ value: '', label: 'Select manager' }, ...dynamicEmployees.map(e => ({ value: String(e.emp_id || e.id), label: e.name || e.employee_name || String(e.emp_id || e.id) }))]}
+                            options={[
+                              { value: '', label: 'Select manager' },
+                              ...dynamicEmployees.map((e) => ({
+                                value: String(e.emp_id || e.id),
+                                label: e.name || e.employee_name || String(e.emp_id || e.id),
+                              })),
+                            ]}
                           />
                         </EfField>
                         <EfField label="Joining Date">
                           <DatePicker
                             value={formData.joiningDate ? new Date(formData.joiningDate) : null}
-                            onChange={(d) => patch({ joiningDate: d ? d.toISOString().split('T')[0] : '' })}
+                            onChange={(d) =>
+                              patch({ joiningDate: d ? d.toISOString().split('T')[0] : '' })
+                            }
                           />
                         </EfField>
                       </div>
@@ -693,7 +859,9 @@ export function ConsultantsPage() {
                       <div className="ef-grid">
                         <EfField label="Username / Employee ID" required>
                           <div className="ef-input-wrap">
-                            <span className="ef-input-icon"><Shield size={12} /></span>
+                            <span className="ef-input-icon">
+                              <Shield size={12} />
+                            </span>
                             <input
                               type="text"
                               className="ef-input"
@@ -706,14 +874,23 @@ export function ConsultantsPage() {
                           <Select
                             value={formData.status || 'active'}
                             onChange={(v) => patch({ status: v })}
-                            options={STATIC_STATUSES.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+                            options={STATIC_STATUSES.map((s) => ({
+                              value: s,
+                              label: s.charAt(0).toUpperCase() + s.slice(1),
+                            }))}
                           />
                         </EfField>
                         <EfField label="Role">
                           <Select
                             value={formData.role || ''}
                             onChange={(v) => patch({ role: v })}
-                            options={[{ value: '', label: 'Select role' }, ...dynamicRoles.map(r => ({ value: r.name || r.roleName, label: r.name || r.roleName }))]}
+                            options={[
+                              { value: '', label: 'Select role' },
+                              ...dynamicRoles.map((r) => ({
+                                value: r.name || r.roleName,
+                                label: r.name || r.roleName,
+                              })),
+                            ]}
                           />
                         </EfField>
                         {!isEditing && (
@@ -763,20 +940,26 @@ export function ConsultantsPage() {
                         <EfField label="VISA EXPIRY">
                           <DatePicker
                             value={formData.visaExpire ? new Date(formData.visaExpire) : null}
-                            onChange={(d) => patch({ visaExpire: d ? d.toISOString().split('T')[0] : '' })}
+                            onChange={(d) =>
+                              patch({ visaExpire: d ? d.toISOString().split('T')[0] : '' })
+                            }
                           />
                         </EfField>
                         <EfField label="VISA RENEWAL DATE">
                           <DatePicker
                             value={formData.visaRenewal ? new Date(formData.visaRenewal) : null}
-                            onChange={(d) => patch({ visaRenewal: d ? d.toISOString().split('T')[0] : '' })}
+                            onChange={(d) =>
+                              patch({ visaRenewal: d ? d.toISOString().split('T')[0] : '' })
+                            }
                           />
                         </EfField>
                         <div style={{ gridColumn: '1 / -1' }}>
                           <EfField label="NEXT VISA EXIT">
                             <DatePicker
                               value={formData.nextVisaExit ? new Date(formData.nextVisaExit) : null}
-                              onChange={(d) => patch({ nextVisaExit: d ? d.toISOString().split('T')[0] : '' })}
+                              onChange={(d) =>
+                                patch({ nextVisaExit: d ? d.toISOString().split('T')[0] : '' })
+                              }
                             />
                           </EfField>
                         </div>
@@ -799,11 +982,24 @@ export function ConsultantsPage() {
                               type="button"
                               onClick={() => patch({ location: 'On Site' })}
                               style={{
-                                flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
-                                border: formData.location === 'On Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
-                                backgroundColor: formData.location === 'On Site' ? '#ecfdf5' : 'var(--surface-primary)',
-                                color: formData.location === 'On Site' ? '#10b981' : 'var(--text-secondary)',
-                                cursor: 'pointer'
+                                flex: 1,
+                                height: '36px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                border:
+                                  formData.location === 'On Site'
+                                    ? '1px solid #10b981'
+                                    : '1px solid var(--border-primary)',
+                                backgroundColor:
+                                  formData.location === 'On Site'
+                                    ? '#ecfdf5'
+                                    : 'var(--surface-primary)',
+                                color:
+                                  formData.location === 'On Site'
+                                    ? '#10b981'
+                                    : 'var(--text-secondary)',
+                                cursor: 'pointer',
                               }}
                             >
                               ● On Site
@@ -812,11 +1008,24 @@ export function ConsultantsPage() {
                               type="button"
                               onClick={() => patch({ location: 'Off Site' })}
                               style={{
-                                flex: 1, height: '36px', borderRadius: '6px', fontSize: '13px', fontWeight: '500',
-                                border: formData.location === 'Off Site' ? '1px solid #10b981' : '1px solid var(--border-primary)',
-                                backgroundColor: formData.location === 'Off Site' ? '#ecfdf5' : 'var(--surface-primary)',
-                                color: formData.location === 'Off Site' ? '#10b981' : 'var(--text-secondary)',
-                                cursor: 'pointer'
+                                flex: 1,
+                                height: '36px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                border:
+                                  formData.location === 'Off Site'
+                                    ? '1px solid #10b981'
+                                    : '1px solid var(--border-primary)',
+                                backgroundColor:
+                                  formData.location === 'Off Site'
+                                    ? '#ecfdf5'
+                                    : 'var(--surface-primary)',
+                                color:
+                                  formData.location === 'Off Site'
+                                    ? '#10b981'
+                                    : 'var(--text-secondary)',
+                                cursor: 'pointer',
                               }}
                             >
                               ○ Off Site
@@ -851,12 +1060,23 @@ export function ConsultantsPage() {
                                 <Select
                                   value={formData.computerLocation || ''}
                                   onChange={(v) => patch({ computerLocation: v })}
-                                  options={[{ value: '', label: 'e.g. Floor 3 - Zone B' }, ...dynamicCompLocations.map(cl => ({ value: cl.name, label: cl.name }))]}
+                                  options={[
+                                    { value: '', label: 'e.g. Floor 3 - Zone B' },
+                                    ...dynamicCompLocations.map((cl) => ({
+                                      value: cl.name,
+                                      label: cl.name,
+                                    })),
+                                  ]}
                                 />
                                 <button
                                   type="button"
                                   className="ef-input-action"
-                                  style={{ position: 'static', padding: '0 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}
+                                  style={{
+                                    position: 'static',
+                                    padding: '0 12px',
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-primary)',
+                                  }}
                                   onClick={() => setIsAddComputerLocationModalOpen(true)}
                                   title="Add Computer Location"
                                 >
@@ -871,7 +1091,9 @@ export function ConsultantsPage() {
                                   className="ef-input"
                                   placeholder="Desk / bay reference number"
                                   value={formData.computerLocationReference || ''}
-                                  onChange={(e) => patch({ computerLocationReference: e.target.value })}
+                                  onChange={(e) =>
+                                    patch({ computerLocationReference: e.target.value })
+                                  }
                                 />
                               </EfField>
                             </div>
@@ -892,9 +1114,25 @@ export function ConsultantsPage() {
                   )}
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
+                  <button
+                    className="con-drawer-btn con-drawer-btn-cancel"
+                    onClick={closeDrawer}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="con-drawer-btn con-drawer-btn-primary"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={16} className="spin-animation" /> Saving...
+                      </>
+                    ) : (
+                      'Save'
+                    )}
                   </button>
                 </div>
               </>
@@ -904,12 +1142,30 @@ export function ConsultantsPage() {
             {drawerMode === 'delete' && (
               <>
                 <div className="con-drawer-body delete-mode">
-                  <p>Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?</p>
+                  <p>
+                    Are you sure you want to deactivate <strong>{editingTarget?.name}</strong>?
+                  </p>
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-                  <button className="con-drawer-btn con-drawer-btn-danger" onClick={handleConfirmDelete} disabled={isSaving}>
-                    {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
+                  <button
+                    className="con-drawer-btn con-drawer-btn-cancel"
+                    onClick={closeDrawer}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="con-drawer-btn con-drawer-btn-danger"
+                    onClick={handleConfirmDelete}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={16} className="spin-animation" /> Deactivating...
+                      </>
+                    ) : (
+                      'Deactivate'
+                    )}
                   </button>
                 </div>
               </>
@@ -923,32 +1179,48 @@ export function ConsultantsPage() {
                     <div className="ef-grid">
                       <EfField label="NEW PASSWORD" required>
                         <div className="ef-input-wrap">
-                          <span className="ef-input-icon"><Lock size={12} /></span>
+                          <span className="ef-input-icon">
+                            <Lock size={12} />
+                          </span>
                           <input
                             type={showPw ? 'text' : 'password'}
                             className="ef-input has-action"
                             placeholder="Enter new password"
                             value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData(p => ({ ...p, newPassword: e.target.value }))}
+                            onChange={(e) =>
+                              setPasswordData((p) => ({ ...p, newPassword: e.target.value }))
+                            }
                             autoComplete="new-password"
                           />
-                          <button type="button" className="ef-input-action" onClick={() => setShowPw(!showPw)}>
+                          <button
+                            type="button"
+                            className="ef-input-action"
+                            onClick={() => setShowPw(!showPw)}
+                          >
                             {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
                           </button>
                         </div>
                       </EfField>
                       <EfField label="CONFIRM PASSWORD" required>
                         <div className="ef-input-wrap">
-                          <span className="ef-input-icon"><Lock size={12} /></span>
+                          <span className="ef-input-icon">
+                            <Lock size={12} />
+                          </span>
                           <input
                             type={showPwConfirm ? 'text' : 'password'}
                             className="ef-input has-action"
                             placeholder="Re-enter password"
                             value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData(p => ({ ...p, confirmPassword: e.target.value }))}
+                            onChange={(e) =>
+                              setPasswordData((p) => ({ ...p, confirmPassword: e.target.value }))
+                            }
                             autoComplete="new-password"
                           />
-                          <button type="button" className="ef-input-action" onClick={() => setShowPwConfirm(!showPwConfirm)}>
+                          <button
+                            type="button"
+                            className="ef-input-action"
+                            onClick={() => setShowPwConfirm(!showPwConfirm)}
+                          >
                             {showPwConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
                           </button>
                         </div>
@@ -957,9 +1229,28 @@ export function ConsultantsPage() {
                   </div>
                 </div>
                 <div className="con-drawer-footer">
-                  <button className="con-drawer-btn con-drawer-btn-cancel" onClick={closeDrawer} disabled={isSaving}>Cancel</button>
-                  <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSave} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isSaving ? <><Loader2 size={14} className="spin-animation" /> Updating...</> : <><Key size={14} /> Update Password</>}
+                  <button
+                    className="con-drawer-btn con-drawer-btn-cancel"
+                    onClick={closeDrawer}
+                    disabled={isSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="con-drawer-btn con-drawer-btn-primary"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={14} className="spin-animation" /> Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Key size={14} /> Update Password
+                      </>
+                    )}
                   </button>
                 </div>
               </>
@@ -974,9 +1265,13 @@ export function ConsultantsPage() {
         title="Add Computer Location"
       >
         <div style={{ padding: '16px' }}>
-          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>If you want to Add Computer Location</p>
+          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
+            If you want to Add Computer Location
+          </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>Computer Location</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Computer Location
+            </span>
             <input
               type="text"
               className="ef-input"
@@ -990,14 +1285,30 @@ export function ConsultantsPage() {
             <button
               type="button"
               onClick={() => setIsAddComputerLocationModalOpen(false)}
-              style={{ padding: '6px 24px', backgroundColor: '#ef4444', color: '#fff', borderRadius: '4px', border: 'none', fontWeight: '500', cursor: 'pointer' }}
+              style={{
+                padding: '6px 24px',
+                backgroundColor: '#ef4444',
+                color: '#fff',
+                borderRadius: '4px',
+                border: 'none',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAddComputerLocation}
-              style={{ padding: '6px 32px', backgroundColor: '#10b981', color: '#fff', borderRadius: '4px', border: 'none', fontWeight: '500', cursor: 'pointer' }}
+              style={{
+                padding: '6px 32px',
+                backgroundColor: '#10b981',
+                color: '#fff',
+                borderRadius: '4px',
+                border: 'none',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
             >
               Add
             </button>

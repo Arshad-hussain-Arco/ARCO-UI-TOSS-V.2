@@ -1154,7 +1154,7 @@
   width: 9px;
   height: 9px;
   opacity: 0;
-  color: white;
+  color: var(--text-inverse);
   transition: opacity 0.12s;
 }
 
@@ -1207,7 +1207,7 @@
   width: 20px;
   height: 20px;
   background: var(--c-primary);
-  color: white;
+  color: var(--text-inverse);
   border-radius: 50%;
   border: 2px solid var(--surface-primary);
   display: flex;
@@ -1425,7 +1425,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: white;
+  background: var(--surface-primary);
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s;
 }
