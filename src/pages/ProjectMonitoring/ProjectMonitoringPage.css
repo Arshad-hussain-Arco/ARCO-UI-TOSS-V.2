@@ -2051,8 +2051,7 @@
   width: 160px;
   min-width: 160px;
   max-width: 160px;
-  border-right: 1px solid #cbd5e1;
-  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.12);
+  border-right: 1px solid #f6f6f6;
 }
 
 .pm-col-lifecycle {
@@ -2623,6 +2622,7 @@
   flex: 1;
   padding: 0;
 }
+
 .pm-reset-btn {
   display: inline-flex;
   align-items: center;
@@ -2648,8 +2648,13 @@
 }
 
 @keyframes spin-anim {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(-360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(-360deg);
+  }
 }
 
 .spin-animation {
