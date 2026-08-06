@@ -11,46 +11,48 @@ const PinnedLinksContext = createContext(null);
 export function PinnedLinksProvider({ children }) {
   const [pinnedLinks, setPinnedLinks] = useState([]);
 
-  useEffect(() => {
+  const refreshPinnedLinks = useCallback(() => {
     linkService.getLinkCategories()
       .then(categories => {
-        const headerLinks = [];
+        const grouped = [];
         categories.forEach(cat => {
-          cat.links.forEach(link => {
-            if (link.pinToHeader) {
-              headerLinks.push({
+          const linksInGroup = cat.links.filter(link => link.pinToHeader);
+          if (linksInGroup.length > 0) {
+            grouped.push({
+              groupId: cat.id,
+              groupTitle: cat.title,
+              links: linksInGroup.map(link => ({
                 id: link.id,
-                group: cat.title,
                 label: link.label,
                 url: link.url
-              });
-            }
-          });
+              }))
+            });
+          }
         });
-        setPinnedLinks(headerLinks);
+        setPinnedLinks(grouped);
       })
       .catch(err => console.error("Failed to fetch pinned links:", err));
   }, []);
 
+  useEffect(() => {
+    refreshPinnedLinks();
+    window.addEventListener('pinned-links:refresh', refreshPinnedLinks);
+    return () => {
+      window.removeEventListener('pinned-links:refresh', refreshPinnedLinks);
+    };
+  }, [refreshPinnedLinks]);
+
   const pinLink = useCallback((link) => {
-    setPinnedLinks((prev) => {
-      const exists = prev.some((p) => p.id === link.id);
-      if (exists) {
-        return prev.map((p) => (p.id === link.id ? { ...p, ...link } : p));
-      }
-      return [...prev, link];
-    });
-  }, []);
+    refreshPinnedLinks();
+  }, [refreshPinnedLinks]);
 
   const unpinLink = useCallback((id) => {
-    setPinnedLinks((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    refreshPinnedLinks();
+  }, [refreshPinnedLinks]);
 
   const updatePinnedLink = useCallback((id, updates) => {
-    setPinnedLinks((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-    );
-  }, []);
+    refreshPinnedLinks();
+  }, [refreshPinnedLinks]);
 
   return (
     <PinnedLinksContext.Provider value={{ pinnedLinks, pinLink, unpinLink, updatePinnedLink }}>

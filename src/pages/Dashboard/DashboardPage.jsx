@@ -362,8 +362,7 @@ export function DashboardPage() {
     <div className="dc-root">
       <div className="dc-page-header">
         <div>
-          <h1 className="dc-page-title">Welcome, {userName}!</h1>
-          <p className="dc-page-sub">Here is your real-time overview of system health, team performance, and key operational metrics.</p>
+          <h1 className="dc-page-title">Dashboard</h1>
         </div>
       </div>
 

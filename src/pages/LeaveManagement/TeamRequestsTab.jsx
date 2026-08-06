@@ -463,7 +463,7 @@ export function TeamRequestsTab() {
           data-active={innerTab === 'sameday'}
           onClick={() => setInnerTab('sameday')}
         >
-          Same Day Leave<span className="tr-subtab-badge">{sdlEmployees.length} Employees</span>
+          Requests by dates<span className="tr-subtab-badge">{sdlEmployees.length} Employees</span>
         </button>
         <div className="tr-subtab-indicator" data-tab={innerTab} />
       </div>

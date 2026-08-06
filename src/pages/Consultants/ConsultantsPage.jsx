@@ -977,59 +977,42 @@ export function ConsultantsPage() {
                           />
                         </EfField>
                         <EfField label="WORK LOCATION">
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => patch({ location: 'On Site' })}
-                              style={{
-                                flex: 1,
-                                height: '36px',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                border:
-                                  formData.location === 'On Site'
-                                    ? '1px solid #10b981'
-                                    : '1px solid var(--border-primary)',
-                                backgroundColor:
-                                  formData.location === 'On Site'
-                                    ? '#ecfdf5'
-                                    : 'var(--surface-primary)',
-                                color:
-                                  formData.location === 'On Site'
-                                    ? '#10b981'
-                                    : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              ● On Site
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => patch({ location: 'Off Site' })}
-                              style={{
-                                flex: 1,
-                                height: '36px',
-                                borderRadius: '6px',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                border:
-                                  formData.location === 'Off Site'
-                                    ? '1px solid #10b981'
-                                    : '1px solid var(--border-primary)',
-                                backgroundColor:
-                                  formData.location === 'Off Site'
-                                    ? '#ecfdf5'
-                                    : 'var(--surface-primary)',
-                                color:
-                                  formData.location === 'Off Site'
-                                    ? '#10b981'
-                                    : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              ○ Off Site
-                            </button>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {dynamicLocations
+                              .filter((loc) => loc.name && loc.name.toLowerCase() !== 'hybrid')
+                              .map((loc) => {
+                                const isSelected =
+                                  formData.location?.toLowerCase() === loc.name.toLowerCase() ||
+                                  (!formData.location && loc.name.toLowerCase() === 'onsite');
+                                return (
+                                  <button
+                                    key={loc.id}
+                                    type="button"
+                                    onClick={() => patch({ location: loc.name })}
+                                    style={{
+                                      flex: 1,
+                                      minWidth: '100px',
+                                      height: '36px',
+                                      borderRadius: '6px',
+                                      fontSize: '13px',
+                                      fontWeight: '500',
+                                      border: isSelected
+                                        ? '1px solid #10b981'
+                                        : '1px solid var(--border-primary)',
+                                      backgroundColor: isSelected
+                                        ? '#ecfdf5'
+                                        : 'var(--surface-primary)',
+                                      color: isSelected
+                                        ? '#10b981'
+                                        : 'var(--text-secondary)',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {isSelected ? '● ' : '○ '}
+                                    {loc.name}
+                                  </button>
+                                );
+                              })}
                           </div>
                         </EfField>
                       </div>

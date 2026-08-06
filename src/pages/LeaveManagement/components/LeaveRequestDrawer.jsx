@@ -24,7 +24,8 @@ export function LeaveRequestDrawer({
   isSubmittingAction,
   onClose,
   onApprove,
-  onReject
+  onReject,
+  isReadOnly
 }) {
   if (!liveReq) return null;
 
@@ -371,7 +372,7 @@ export function LeaveRequestDrawer({
         </div>
 
         {/* Manager Notes */}
-        {(drawerAction !== 'view' || liveReq.status === 'pending') && (
+        {!isReadOnly && (drawerAction !== 'view' || liveReq.status === 'pending') && (
           <div className="tr-dsec">
             <div className="tr-dsec-title">Manager Notes</div>
             <textarea
@@ -395,7 +396,7 @@ export function LeaveRequestDrawer({
 
       <div className="tr-drawer-footer">
         <div className="tr-footer-left">
-          {rejectErr && (
+          {!isReadOnly && rejectErr && (
             <span className="tr-footer-left-label">
               <AlertCircle size={11} />
               Comments required to reject
@@ -403,9 +404,9 @@ export function LeaveRequestDrawer({
           )}
         </div>
         <button className="tr-btn tr-btn-ghost" onClick={onClose}>
-          Cancel
+          {isReadOnly ? 'Close' : 'Cancel'}
         </button>
-        {liveReq.status === 'pending' && (
+        {!isReadOnly && liveReq.status === 'pending' && (
           <>
             {(drawerAction === 'view' || drawerAction === 'reject') && (
               <button 

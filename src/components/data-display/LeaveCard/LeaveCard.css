@@ -2,10 +2,10 @@
   background: linear-gradient(135deg, #f6f6f6 0%, #f9fafb 100%);
   border: none;
   border-radius: 6px;
-  padding: 8px;
+  padding: 2px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   transition: all 0.2s ease;
 }
 
@@ -246,7 +246,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 3px 0;
+  padding: 0;
 }
 
 .leave-card-chart {
@@ -269,8 +269,9 @@
 .leave-card-stats {
   display: flex;
   justify-content: space-around;
-  gap: 6px;
-  padding-top: 4px;
+  gap: 2px;
+  padding-top: 0;
+  margin-top: auto;
 }
 
 .leave-card-stat {
@@ -342,7 +343,15 @@
 }
 
 @keyframes pulse-skeleton {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
 }

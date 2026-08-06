@@ -59,7 +59,7 @@ export const SIDEBAR_NAVIGATION = [
       { id: 'admin-roles', label: 'Roles & Permissions', to: ROUTES.ADMIN_ROLES },
       {
         id: 'admin-leave-config',
-        label: 'Leave Configurations',
+        label: 'Leave type and policies',
         to: ROUTES.ADMIN_LEAVE_CONFIGURATIONS,
       },
       { id: 'admin-settings', label: 'System Settings', to: ROUTES.ADMIN_SETTINGS },
