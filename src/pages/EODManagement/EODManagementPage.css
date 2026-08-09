@@ -1096,7 +1096,7 @@
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--surface-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1283,7 +1283,7 @@
 
 .eod-add-btn.primary-green {
   background: #005A36 !important;
-  color: #ffffff !important;
+  color: var(--surface-primary) !important;
   border: 1px solid #004d2e !important;
   border-radius: 6px;
   padding: 6px 14px;
@@ -1319,7 +1319,7 @@
 }
 
 .eod-schedule-card:hover {
-  border-color: var(--border-hover, #cbd5e1);
+  border-color: var(--border-hover);
 }
 
 .eod-schedule-header {
@@ -1517,25 +1517,25 @@
 }
 
 .eod-modal-label .req {
-  color: var(--c-danger, #ef4444);
+  color: var(--c-danger);
   margin-left: 2px;
 }
 
 .eod-modal-input.error {
-  border-color: #ef4444 !important;
-  background: #fef2f2 !important;
+  border-color: var(--c-danger) !important;
+  background: var(--c-danger-light) !important;
 }
 
 .eod-field-error {
   font-size: 10px;
-  color: #ef4444;
+  color: var(--c-danger);
   font-weight: 500;
   margin-top: 3px;
 }
 
 .eod-modal-btn.primary-green {
   background: #005A36 !important;
-  color: #ffffff !important;
+  color: var(--surface-primary) !important;
   border: none !important;
 }
 
@@ -1545,13 +1545,13 @@
 }
 
 .eod-modal-btn.danger {
-  background: #dc2626 !important;
-  color: #ffffff !important;
+  background: var(--c-danger) !important;
+  color: var(--surface-primary) !important;
   border: none !important;
 }
 
 .eod-modal-btn.danger:hover {
-  background: #b91c1c !important;
+  background: var(--c-danger) !important;
 }
 
 .eod-delete-modal-body {
@@ -1564,7 +1564,7 @@
 }
 
 .eod-danger-icon {
-  color: #dc2626;
+  color: var(--c-danger);
 }
 
 /* ── Control Panel ───────────────────────────────────────────── */
@@ -1790,7 +1790,7 @@
 }
 .eod-log-expand-btn:hover {
   background: #333;
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .eod-log-lines {

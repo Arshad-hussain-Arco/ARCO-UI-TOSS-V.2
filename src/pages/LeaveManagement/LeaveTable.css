@@ -136,7 +136,7 @@
 }
 
 .leave-table-status[data-status='self-rejected'] {
-  background: #94a3b8;
+  background: var(--text-tertiary);
   color: var(--text-inverse);
 }
 
@@ -193,13 +193,13 @@
 
 .leave-table-action-button.action-cancel {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
   border-color: #fca5a5;
 }
 
 .leave-table-action-button.action-cancel:hover {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-danger);
 }
 
@@ -214,9 +214,9 @@
 }
 
 .leave-table-action-button.action-edit:hover {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #3b82f6;
+  background: var(--c-info);
+  color: var(--surface-primary);
+  border-color: var(--c-info);
 }
 
 .leave-table-action-button.action-edit .leave-table-action-icon {

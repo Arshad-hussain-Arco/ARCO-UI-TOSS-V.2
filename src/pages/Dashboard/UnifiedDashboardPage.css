@@ -6,7 +6,7 @@
   --ud-border: #E2E8F0;
   --ud-text-primary: #0F172A;
   --ud-text-secondary: #64748B;
-  --ud-brand: #1B4D3E;
+  --ud-brand: var(--c-primary-dark);
   --ud-brand-light: #E6F0EC;
   --ud-brand-hover: #143A2F;
   --ud-accent-blue: #2563EB;
@@ -37,7 +37,7 @@
 .ud-upcoming-list::-webkit-scrollbar-track,
 .ud-project-list::-webkit-scrollbar-track,
 .ud-alert-stack::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: var(--bg-secondary);
   border-radius: 3px;
 }
 .ud-dashboard ::-webkit-scrollbar-thumb,
@@ -149,7 +149,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  background-color: #F1F5F9;
+  background-color: var(--bg-secondary);
   color: var(--ud-text-secondary);
 }
 
@@ -512,7 +512,7 @@
 
 .ud-cap-bar-bg {
   height: 6px;
-  background-color: #F1F5F9;
+  background-color: var(--bg-secondary);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -751,7 +751,7 @@
 .ud-headcount-count { color: var(--ud-text-secondary); font-size: 0.7rem; }
 .ud-headcount-bar-bg {
   height: 6px;
-  background: #F1F5F9;
+  background: var(--bg-secondary);
   border-radius: 3px;
   overflow: hidden;
 }

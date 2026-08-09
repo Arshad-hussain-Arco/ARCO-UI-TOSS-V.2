@@ -122,7 +122,7 @@
 
 .tr-view-btn[data-active='true'] {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-view-btn:not([data-active='true']):hover {
@@ -311,7 +311,7 @@
 .tr-chip[data-active='true'] {
   background: var(--c-primary);
   border-color: var(--c-primary);
-  color: #fff;
+  color: #ffffff;
 }
 
 .tr-chip-count {
@@ -414,7 +414,7 @@
   font-family: var(--font-family);
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color:  #ffffff;
   flex-shrink: 0;
 }
 
@@ -492,22 +492,22 @@
 
 .tr-status-pending {
   background: var(--c-warning-light);
-  color: #92400e;
+  color:  var(--text-secondary);
 }
 
 .tr-status-approved {
-  background: var(--c-success-light);
-  color: #065f46;
+  background: var(--c-primary);
+  color:  #ffffff;
 }
 
 .tr-status-rejected {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
 }
 
 .tr-status-self_rejected {
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--border-secondary);
+  color: var(--text-secondary);
 }
 
 /* ─── Priority Badge ──────────────────────────────────────────────── */
@@ -560,25 +560,25 @@
 
 .tr-act-approve {
   background: var(--c-success-light);
-  color: #065f46;
+  color:  var(--c-primary);
   border-color: #a7f3d0;
 }
 
 .tr-act-approve:hover {
   background: var(--c-success);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-success);
 }
 
 .tr-act-reject {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
   border-color: #fca5a5;
 }
 
 .tr-act-reject:hover {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-danger);
 }
 
@@ -711,7 +711,7 @@
   font-family: var(--font-family);
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--surface-primary);
   flex-shrink: 0;
 }
 
@@ -892,12 +892,12 @@
 
 .tr-tl-dot.done {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.active {
   background: var(--c-warning);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.waiting {
@@ -908,12 +908,12 @@
 
 .tr-tl-dot.rejected {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.approved {
   background: var(--c-success);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-line {
@@ -1018,19 +1018,19 @@
 
 .tr-btn-danger {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
   border-color: #fca5a5;
 }
 
 .tr-btn-danger:hover {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-danger);
 }
 
 .tr-btn-primary {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-btn-primary:hover {
@@ -1326,7 +1326,7 @@
 
 .tr-dtl-cell[data-selected='true'] .tr-dtl-dow,
 .tr-dtl-cell[data-selected='true'] .tr-dtl-num {
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-dtl-dow {

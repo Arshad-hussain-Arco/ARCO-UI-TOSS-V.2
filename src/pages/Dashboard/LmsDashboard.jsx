@@ -596,7 +596,7 @@ export default function LmsDashboard() {
                           <Avatar name={b.emp_name} size={28} />
                           <div>
                             <strong>{b.emp_name}</strong>
-                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>ID: {b.emp_id}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>ID: {b.emp_id}</div>
                           </div>
                         </div>
                       </td>

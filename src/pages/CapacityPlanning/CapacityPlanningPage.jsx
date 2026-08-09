@@ -800,7 +800,7 @@ export function CapacityPlanningPage() {
                                   <span>{devRole.label}</span>
                                 </div>
                                 {devRole.label === 'Additional Developer' && alloc.assignedDeveloper && (
-                                  <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                     Supporting: {alloc.assignedDeveloper}
                                   </span>
                                 )}
@@ -836,7 +836,7 @@ export function CapacityPlanningPage() {
                                     Unmatched developer
                                   </span>
                                 ) : (
-                                  <span style={{ color: '#94a3b8' }}>—</span>
+                                  <span style={{ color: 'var(--text-tertiary)' }}>—</span>
                                 )}
                               </td>
                             )}
@@ -848,7 +848,7 @@ export function CapacityPlanningPage() {
                 </div>
               )}
               {drillAllocations.length > 0 && (
-                <p className="cp-modal-footnote" style={{ fontSize: '11px', color: '#64748b', marginTop: '12px', fontStyle: 'italic', margin: '12px 0 0 0' }}>
+                <p className="cp-modal-footnote" style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '12px', fontStyle: 'italic', margin: '12px 0 0 0' }}>
                   * Note: "Total MDs in this window" reflects the pro-rated upcoming effort allocated strictly within the {selectedDrillTimeframe}-day window for all active assignments, which may not equal the simple sum of total raw effort values.
                 </p>
               )}
@@ -888,7 +888,7 @@ function ProjectText({ projectStr }) {
   if (title.length <= 30) {
     return (
       <span>
-        {displayRef && <strong style={{ color: '#64748b' }}>{displayRef} · </strong>}
+        {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
         {title}
       </span>
     );
@@ -896,7 +896,7 @@ function ProjectText({ projectStr }) {
   
   return (
     <span>
-      {displayRef && <strong style={{ color: '#64748b' }}>{displayRef} · </strong>}
+      {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
       {isExpanded ? title : `${title.slice(0, 30)}...`}{' '}
       <button
         type="button"
@@ -904,7 +904,7 @@ function ProjectText({ projectStr }) {
         style={{
           background: 'none',
           border: 'none',
-          color: '#006838',
+          color: 'var(--c-primary)',
           padding: '0',
           font: 'inherit',
           fontWeight: 600,
@@ -934,7 +934,7 @@ function SummaryText({ text }) {
         style={{
           background: 'none',
           border: 'none',
-          color: '#006838',
+          color: 'var(--c-primary)',
           padding: '0',
           font: 'inherit',
           fontWeight: 600,

@@ -431,11 +431,11 @@
 }
 
 .il-link-action-btn.il-link-action-open:hover {
-  color: var(--c-primary);
+  color: var(--text-primary);
 }
 
 .il-link-action-btn.il-link-action-edit:hover {
-  color: var(--c-info);
+  color: var(--text-primary);
 }
 
 /* ── Empty State (inside a card) ─────────────────────────────── */

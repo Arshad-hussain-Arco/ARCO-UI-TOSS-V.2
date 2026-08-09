@@ -4,9 +4,9 @@ export function ProgressTooltip({ title, subtitle, description, state, position,
   if (!visible) return null;
 
   const stateColors = {
-    completed: '#10b981',
-    current: '#3b82f6',
-    future: '#94a3b8',
+    completed: 'var(--c-success)',
+    current: 'var(--c-info)',
+    future: 'var(--text-tertiary)',
   };
 
   return (
@@ -20,7 +20,7 @@ export function ProgressTooltip({ title, subtitle, description, state, position,
       <div className="pm-tooltip-header">
         <span
           className="pm-tooltip-state-dot"
-          style={{ background: stateColors[state] || '#3b82f6' }}
+          style={{ background: stateColors[state] || 'var(--c-info)' }}
         />
         <span className="pm-tooltip-title">{title}</span>
         {state && (

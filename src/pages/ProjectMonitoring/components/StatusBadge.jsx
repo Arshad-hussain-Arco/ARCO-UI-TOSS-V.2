@@ -7,7 +7,7 @@ export function StatusBadge({ label, color, state = 'current', size = 'medium' }
     <span
       className={`pm-status-badge size-${size} state-${state}`}
       style={{
-        '--badge-color': color || '#3b82f6',
+        '--badge-color': color || 'var(--c-info)',
       }}
     >
       <span className="pm-badge-dot" />

@@ -5,11 +5,11 @@ import './TeamKPICard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
 function TeamKPICard({ title, count, total, color }) {
   const remaining = total - count;
-  const [bgColor, setBgColor] = useState('#f3f4f6');
+  const [bgColor, setBgColor] = useState('var(--surface-tertiary)');
   useEffect(() => {
     const updateBgColor = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      setBgColor(isDark ? '#374151' : '#f3f4f6');
+      setBgColor(isDark ? 'var(--surface-tertiary)' : 'var(--surface-tertiary)');
     };
     updateBgColor();
     const observer = new MutationObserver(updateBgColor);

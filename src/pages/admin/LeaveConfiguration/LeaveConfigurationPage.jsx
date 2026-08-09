@@ -1130,7 +1130,7 @@ export function LeaveConfigurationPage() {
                               formatHolidayDates(h.dates && h.dates.length > 0 ? h.dates : h.date ? [h.date] : [])
                             )}
                           </td>
-                          <td style={{ color: '#64748b' }}>
+                          <td style={{ color: 'var(--text-secondary)' }}>
                             {isEditing ? computeDayOfWeek(holidayEditForm.date) : (h.dates && h.dates.length > 1 ? 'Multiple Days' : computeDayOfWeek(h.date || (h.dates && h.dates[0])))}
                           </td>
                           <td>
@@ -1204,7 +1204,7 @@ export function LeaveConfigurationPage() {
                                   type="button"
                                   className="lc-inline-btn cancel"
                                   title="Cancel"
-                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#ef4444' }}
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', color: 'var(--c-danger)' }}
                                   onClick={cancelHolidayInlineEdit}
                                 >
                                   <X size={16} />
@@ -1368,7 +1368,7 @@ export function LeaveConfigurationPage() {
         {activeTab === 'work-schedule' && (
           <div className="lc-card-panel" style={{ flex: 'none' }}>
             <div style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>weekend configurations Settings</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>weekend configurations Settings</h3>
 
               {isSummaryLoading ? (
                 <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
@@ -1387,21 +1387,21 @@ export function LeaveConfigurationPage() {
                             key={`${group.work_schedule}-${idx}`}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
+                              padding: '10px 16px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-secondary)',
                               borderRadius: '8px',
                             }}
                           >
                             <div>
-                              <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {getScheduleLabel(group.work_schedule)}
                               </span>
                               {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
-                                <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', marginLeft: '8px' }}>
                                   ({formatCustomWeekendDays(group.custom_weekend_days)})
                                 </span>
                               )}
                             </div>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                               {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
                             </span>
                           </div>
@@ -1414,7 +1414,7 @@ export function LeaveConfigurationPage() {
                     <div className="ss-modal-form-group">
                   <div style={{ marginBottom: '20px' }}>
                     <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                       {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
                     </div>
                   </div>
@@ -1462,7 +1462,7 @@ export function LeaveConfigurationPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-secondary)', paddingTop: '24px' }}>
                 <button
                   type="button"
                   className="lc-btn-primary"
@@ -1506,7 +1506,7 @@ export function LeaveConfigurationPage() {
         <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Holiday Name */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Holiday Name
             </label>
             <input
@@ -1517,7 +1517,7 @@ export function LeaveConfigurationPage() {
                 width: '100%',
                 padding: '0 12px',
                 height: '38px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px'
               }}
@@ -1529,7 +1529,7 @@ export function LeaveConfigurationPage() {
 
           {/* Start Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Start Date
             </label>
             <DatePicker
@@ -1557,7 +1557,7 @@ export function LeaveConfigurationPage() {
 
           {/* End Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               End Date
             </label>
             <DatePicker
@@ -1578,7 +1578,7 @@ export function LeaveConfigurationPage() {
 
           {/* Computed Day & Status Row */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Day of Week (Computed)
             </label>
             <div
@@ -1588,11 +1588,11 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #cbd5e1',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px',
-                color: holidayForm.startDate ? '#475569' : '#94a3b8',
+                color: holidayForm.startDate ? 'var(--text-secondary)' : 'var(--text-tertiary)',
                 fontWeight: 500
               }}
             >
@@ -1609,7 +1609,7 @@ export function LeaveConfigurationPage() {
           </div>
 
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Status (Computed)
             </label>
             <div
@@ -1619,8 +1619,8 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #cbd5e1',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px',
               }}
@@ -1632,14 +1632,14 @@ export function LeaveConfigurationPage() {
                   <span className="lc-tag-past" style={{ fontSize: '11px', padding: '2px 8px' }}>Past</span>
                 )
               ) : (
-                <span style={{ color: '#94a3b8' }}>Status will be computed</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>Status will be computed</span>
               )}
             </div>
           </div>
 
           {/* Holiday Type */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Holiday Type
             </label>
             <CreatableSelect
@@ -1654,7 +1654,7 @@ export function LeaveConfigurationPage() {
 
           {/* Description */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Description
             </label>
             <input
@@ -1665,7 +1665,7 @@ export function LeaveConfigurationPage() {
                 width: '100%',
                 padding: '0 12px',
                 height: '38px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px'
               }}
@@ -2377,9 +2377,9 @@ export function LeaveConfigurationPage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: '6px',
-                border: '1px solid var(--border-primary, #e2e8f0)',
-                backgroundColor: '#ffffff',
-                color: 'var(--text-primary, #0f172a)',
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--surface-primary)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 fontWeight: '500',
                 height: '36px',
@@ -2398,8 +2398,8 @@ export function LeaveConfigurationPage() {
                 padding: '8px 16px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: '#ef4444',
-                color: '#ffffff',
+                backgroundColor: 'var(--c-danger)',
+                color: 'var(--surface-primary)',
                 cursor: 'pointer',
                 fontWeight: '500',
                 display: 'flex',

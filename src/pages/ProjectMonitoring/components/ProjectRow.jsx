@@ -25,9 +25,9 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
           <div className="pm-code-cell">
             <span className="pm-expand-icon">
               {isExpanded ? (
-                <ChevronDown size={13} color="#64748b" />
+                <ChevronDown size={13} color="var(--text-secondary)" />
               ) : (
-                <ChevronRight size={13} color="#64748b" />
+                <ChevronRight size={13} color="var(--text-secondary)" />
               )}
             </span>
             <span className="pm-project-code">{project.code || project.id}</span>
@@ -148,9 +148,9 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                   </div>
                   <div className="pm-chart-legend">
                     <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#60a5fa' }} /> Planning</span>
-                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#ef4444' }} /> Development</span>
+                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: 'var(--c-danger)' }} /> Development</span>
                     <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#ec4899' }} /> Testing</span>
-                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: '#10b981' }} /> Delivered</span>
+                    <span className="pm-legend-item"><span className="pm-legend-dot" style={{ background: 'var(--c-success)' }} /> Delivered</span>
                   </div>
                   <div className="pm-histogram-container">
                     <div className="pm-histogram-yaxis">
@@ -173,7 +173,7 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                         </div>
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.development / maxBar) * 100}%`, background: '#ef4444' }} title={`Development: ${chart.development}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.development / maxBar) * 100}%`, background: 'var(--c-danger)' }} title={`Development: ${chart.development}`} />
                           </div>
                           <span className="pm-histo-label">Development</span>
                         </div>
@@ -185,7 +185,7 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                         </div>
                         <div className="pm-histo-col">
                           <div className="pm-histo-bar-wrap">
-                            <div className="pm-histo-bar" style={{ height: `${(chart.delivered / maxBar) * 100}%`, background: '#10b981' }} title={`Delivered: ${chart.delivered}`} />
+                            <div className="pm-histo-bar" style={{ height: `${(chart.delivered / maxBar) * 100}%`, background: 'var(--c-success)' }} title={`Delivered: ${chart.delivered}`} />
                           </div>
                           <span className="pm-histo-label">Delivered</span>
                         </div>
@@ -207,19 +207,19 @@ export function ProjectRow({ project, isExpanded, onToggleExpand, mode = 'busine
                     {/* Additional key project status fields */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
                       {project.dependsOn && (
-                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed var(--border-secondary)', padding: '4px 0' }}>
                           <span className="pm-kv-label">Category:</span>
-                          <span className="pm-kv-val" style={{ background: '#006838', color: '#fff', padding: '1px 8px', borderRadius: 10, fontSize: 10 }}>{project.dependsOn}</span>
+                          <span className="pm-kv-val" style={{ background: 'var(--c-primary)', color: 'var(--surface-primary)', padding: '1px 8px', borderRadius: 10, fontSize: 10 }}>{project.dependsOn}</span>
                         </div>
                       )}
                       {project.priority && (
-                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed var(--border-secondary)', padding: '4px 0' }}>
                           <span className="pm-kv-label">Priority:</span>
                           <span className="pm-kv-val">{project.priority}</span>
                         </div>
                       )}
                       {project.workOrderType && (
-                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed #e2e8f0', padding: '4px 0' }}>
+                        <div className="pm-kv-item" style={{ borderBottom: '1px dashed var(--border-secondary)', padding: '4px 0' }}>
                           <span className="pm-kv-label">Work Order Type:</span>
                           <span className="pm-kv-val">{project.workOrderType}</span>
                         </div>

@@ -122,7 +122,7 @@
 
 .lc-table td {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-tertiary, #f3f4f6);
+  border-bottom: 1px solid var(--border-tertiary);
   color: var(--text-primary);
   vertical-align: middle;
   white-space: nowrap;
@@ -146,7 +146,7 @@
 .lc-table th:first-child {
   z-index: 2;
   /* Needs to be above the sticky column when scrolling vertically */
-  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--border-secondary) 100%);
 }
 
 .lc-table tr:hover td:first-child {
@@ -170,7 +170,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  color: #ffffff;
+  color: var(--surface-primary);
   font-weight: 700;
   font-size: 11px;
   flex-shrink: 0;
@@ -298,7 +298,7 @@
 
 .lc-act-btn.save {
   background: var(--c-primary);
-  color: #ffffff;
+  color: var(--surface-primary);
   border-color: var(--c-primary);
 }
 
@@ -308,12 +308,12 @@
 
 .lc-act-btn.cancel {
   background: var(--surface-primary);
-  color: #ef4444;
+  color: var(--c-danger);
   border-color: var(--border-primary);
 }
 
 .lc-act-btn.cancel:hover {
-  background: #fef2f2;
+  background: var(--c-danger-light);
   border-color: #fca5a5;
 }
 
@@ -356,8 +356,8 @@
   left: calc(var(--depth, 1) * 28px - 14px);
   top: -24px;
   bottom: 50%;
-  border-left: 1px solid #cbd5e1;
-  border-bottom: 1px solid #cbd5e1;
+  border-left: 1px solid var(--border-secondary);
+  border-bottom: 1px solid var(--border-secondary);
   width: 14px;
   pointer-events: none;
 }
@@ -372,14 +372,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
 .lc-expand-btn:hover {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--border-secondary);
+  color: var(--text-primary);
 }
 
 .lc-expand-placeholder {
@@ -433,8 +433,8 @@
 }
 
 .lc-table th:nth-child(7) {
-  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
-  color: #166534;
+  background: linear-gradient(180deg, var(--c-success-light) 0%, var(--c-success-light) 100%);
+  color: var(--c-success);
 }
 
 .lc-plain-val {
@@ -445,7 +445,7 @@
 .lc-edit-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -456,7 +456,7 @@
 }
 
 .lc-edit-btn:hover {
-  color: #334155;
+  color: var(--text-primary);
 }
 
 .lc-action-btns {

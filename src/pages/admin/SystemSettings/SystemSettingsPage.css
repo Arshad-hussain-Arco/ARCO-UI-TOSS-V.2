@@ -247,7 +247,7 @@
   padding: 0 24px;
   font-size: 13px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--surface-primary);
   background: var(--c-primary);
   border: none;
   border-radius: 6px;
@@ -365,14 +365,14 @@
 
 .hm-action-btn.edit:hover {
   background: var(--c-primary-light);
-  color: #006838;
-  border-color: #006838;
+  color: var(--c-primary);
+  border-color: var(--c-primary);
 }
 
 .hm-action-btn.delete:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #dc2626;
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+  border-color: var(--c-danger);
 }
 
 /* Content wrapper inside cards */

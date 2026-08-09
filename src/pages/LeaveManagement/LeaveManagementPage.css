@@ -976,7 +976,7 @@
 
 /* Leave Balance Overview */
 .balance-overview-section {
-  background-color: var(--bg-primary, #ffffff);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-primary, #eaeaea);
   border-radius: 8px;
   padding: 16px;
@@ -1071,7 +1071,7 @@
 
 /* Upcoming Leaves */
 .upcoming-leaves-section {
-  background-color: var(--bg-primary, #ffffff);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-primary, #eaeaea);
   border-radius: 8px;
   padding: 16px;
@@ -1087,7 +1087,7 @@
 .upcoming-leaves-icon {
   width: 16px;
   height: 16px;
-  color: var(--c-primary, #006633);
+  color: var(--c-primary);
 }
 
 .upcoming-leaves-title {
@@ -1109,7 +1109,7 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background-color: var(--bg-secondary, #f3f4f6);
+  background-color: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;

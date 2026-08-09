@@ -304,7 +304,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           >
             <div className="rrs-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
               <div className="rrs-modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                <h3 className="rrs-modal-title" style={{ fontSize: '18px', color: '#111827' }}>Reset All Settings?</h3>
+                <h3 className="rrs-modal-title" style={{ fontSize: '18px', color: 'var(--bg-secondary)' }}>Reset All Settings?</h3>
               </div>
               <div className="rrs-modal-body" style={{ padding: '16px 20px' }}>
                 <p className="rrs-modal-desc" style={{ fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>
@@ -324,7 +324,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
                   type="button"
                   className="rwiz-btn rwiz-btn-primary"
                   onClick={resetAll}
-                  style={{ width: '140px', justifyContent: 'center', backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#fff' }}
+                  style={{ width: '140px', justifyContent: 'center', backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: 'var(--surface-primary)' }}
                 >
                   Reset Everything
                 </button>
