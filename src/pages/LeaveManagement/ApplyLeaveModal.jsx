@@ -981,7 +981,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         basePayload.justification = justificationText;
                       }
                       if (needsFlexJustification && flexJustification.trim()) {
-                        payload.justification = flexJustification.trim();
+                        basePayload.justification = flexJustification.trim();
                       }
 
                       if (applyFor === 'behalf') {
@@ -989,12 +989,12 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       }
                       
                       if (applyFor === 'behalf') {
-                        const res = await leaveService.applyLeaveOnBehalf(payload);
+                        const res = await leaveService.applyLeaveOnBehalf(basePayload);
                         setLastDayBreakdown(res?.day_breakdown || null);
                       } else {
                         if (type === 'offshore') {
-                          const res = await leaveService.applyOwLeave(payload);
-                          if (res?.requires_justification && !payload.justification) {
+                          const res = await leaveService.applyOwLeave(basePayload);
+                          if (res?.requires_justification && !basePayload.justification) {
                             setRequiresJustification(true);
                             setQuotaInfo(res.quota_info);
                             setIsSubmitting(false);
@@ -1006,19 +1006,19 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                           // endpoint as regular leave (leave_type: 'WFH'
                           // in the payload already carries this) instead
                           // of its own dedicated request-wfh endpoint.
-                          const res = await leaveService.applyLeave(payload);
+                          const res = await leaveService.applyLeave(basePayload);
                           setLastDayBreakdown(res?.day_breakdown || null);
                         } else if (type === 'compoff') {
                           // Generic claim submission — works for any
                           // Claim-category leave type, not just CWW/CCompOff.
                           await leaveService.claimSubmit({
-                            emp_id: payload.emp_id,
+                            emp_id: basePayload.emp_id,
                             leave_type_code: backendLeaveType,
-                            dates: payload.dates,
-                            reason: payload.reason,
+                            dates: basePayload.dates,
+                            reason: basePayload.reason,
                           });
                         } else {
-                          const res = await leaveService.applyLeave(payload);
+                          const res = await leaveService.applyLeave(basePayload);
                           setLastDayBreakdown(res?.day_breakdown || null);
                         }
                       }
@@ -1279,8 +1279,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       </div>
                       {(() => {
                         const bizDaysArr = eachDay(startDate, end).filter(day => {
-                          const dStr = dateStr(day);
-                          return !isSaudiWeekend(day) && !PUBLIC_HOLIDAYS.includes(dStr);
+                          return !isRealWeekend(day, calendarDayMap) && !isRealHoliday(day, calendarDayMap);
                         });
 
                         return bizDaysArr.map((day, index) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X, Database } from 'lucide-react';
+import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X, Database, AlertCircle } from 'lucide-react';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -169,41 +169,76 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
     return false;
   };
 
+  const getDiffTooltip = (row, col, isSource) => {
+    if (Array.isArray(row._differences)) {
+      const diff = row._differences.find(d => d.column === col);
+      if (diff) {
+        return isSource
+          ? `Destination value: ${diff.file2Value}`
+          : `Source value: ${diff.file1Value}`;
+      }
+    }
+    return undefined;
+  };
+
+  const getOtherDiffValue = (row, col, isSource) => {
+    if (Array.isArray(row._differences)) {
+      const diff = row._differences.find(d => d.column === col);
+      if (diff) {
+        return isSource ? diff.file2Value : diff.file1Value;
+      }
+    }
+    return undefined;
+  };
+
   const handleLeftScroll = (e) => {
-    if (rightScrollRef.current && rightScrollRef.current.scrollTop !== e.target.scrollTop) {
-      rightScrollRef.current.scrollTop = e.target.scrollTop;
+    if (rightScrollRef.current) {
+      if (rightScrollRef.current.scrollTop !== e.target.scrollTop) {
+        rightScrollRef.current.scrollTop = e.target.scrollTop;
+      }
+      if (rightScrollRef.current.scrollLeft !== e.target.scrollLeft) {
+        rightScrollRef.current.scrollLeft = e.target.scrollLeft;
+      }
     }
   };
 
   const handleRightScroll = (e) => {
-    if (leftScrollRef.current && leftScrollRef.current.scrollTop !== e.target.scrollTop) {
-      leftScrollRef.current.scrollTop = e.target.scrollTop;
+    if (leftScrollRef.current) {
+      if (leftScrollRef.current.scrollTop !== e.target.scrollTop) {
+        leftScrollRef.current.scrollTop = e.target.scrollTop;
+      }
+      if (leftScrollRef.current.scrollLeft !== e.target.scrollLeft) {
+        leftScrollRef.current.scrollLeft = e.target.scrollLeft;
+      }
     }
   };
 
   return (
-    <div className="rrs-mismatch-container">
+    <div className="rrs-mismatch-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Two Tables Side-by-Side */}
-      <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex' }}>
+      <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
 
         {/* Left Table: Source */}
-        <div className="rrs-mismatch-table-pane" style={{ flex: 1, minWidth: 0 }}>
+        <div className="rrs-mismatch-table-pane" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
-          <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
-            <div style={{ width: '130px', minWidth: '130px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', borderRight: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
-              KEY
+          <div style={{ display: 'flex', background: 'var(--surface-primary)' }}>
+            <div style={{ width: '130px', minWidth: '130px', padding: '6px 10px', borderRight: '1px solid var(--border-primary)', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '0', left: '0', right: '0', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--c-primary)', zIndex: 10 }}>
+                KEY
+              </div>
             </div>
-            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
-              <Database size={12} style={{ color: 'var(--text-secondary)' }} />
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--c-primary)', fontWeight: 600, borderBottom: '1px solid var(--border-tertiary)' }}>
+              <Database size={12} style={{ color: 'var(--c-primary)' }} />
               {file1Name || 'SOURCE'}
             </div>
           </div>
 
-          <div className="rrs-table-scroll" ref={leftScrollRef} onScroll={handleLeftScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '50vh', minHeight: '150px', overflowX: 'auto', overflowY: 'auto', width: '100%' }}>
+          <div className="rrs-table-scroll" ref={leftScrollRef} onScroll={handleLeftScroll} style={{ border: 'none', borderRadius: 0, flex: 1, overflowX: 'auto', overflowY: 'auto', width: '100%', minHeight: 0 }}>
             <table className="rrs-table">
               <thead>
                 <tr>
-                  <th className="rrs-th rrs-th-key" style={{ top: 0, minWidth: '130px', width: '130px', maxWidth: '130px', zIndex: 4, background: 'var(--surface-primary)' }}></th>
+                  <th className="rrs-th rrs-th-key" style={{ top: 0, minWidth: '130px', width: '130px', maxWidth: '130px', zIndex: 4, background: 'var(--surface-primary)' }}>
+                  </th>
                   {cols.map((c) => <th key={`src_${c}`} className="rrs-th rrs-th-grouped" style={{ top: 0 }}>{c}</th>)}
                 </tr>
               </thead>
@@ -216,11 +251,33 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                     onMouseLeave={() => setHoveredRow(null)}
                   >
                     <td className="rrs-td rrs-td-key rrs-td-key--green">{renderValue(row._key)}</td>
-                    {cols.map((c) => (
-                      <td key={`src_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--c-danger)', fontWeight: 600 } : {}}>
-                        {renderValue(row[`_src_${c}`])}
-                      </td>
-                    ))}
+                    {cols.map((c) => {
+                      const isDiff = hasDiff(row, c);
+                      return (
+                        <td
+                          key={`src_${c}`}
+                          className="rrs-td"
+                          title={getDiffTooltip(row, c, true)}
+                        >
+                          {isDiff ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              color: 'var(--c-danger)',
+                              fontWeight: 600
+                            }}>
+                              {renderValue(row[`_src_${c}`])}
+                            </span>
+                          ) : (
+                            renderValue(row[`_src_${c}`])
+                          )}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -229,11 +286,11 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
         </div>
 
         {/* Right Table: Destination */}
-        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right" style={{ flex: 1, minWidth: 0 }}>
+        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
           <div style={{ display: 'flex', background: 'var(--surface-primary)', borderBottom: '1px solid var(--border-tertiary)' }}>
-            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)' }}>
-              <Database size={12} style={{ color: 'var(--text-secondary)' }} />
+            <div style={{ flex: 1, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', color: 'var(--c-success)', fontWeight: 600 }}>
+              <Database size={12} style={{ color: 'var(--c-success)' }} />
               {file2Name || 'DESTINATION'}
             </div>
             {/* <div style={{ width: '300px', minWidth: '300px', padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', borderLeft: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}>
@@ -241,7 +298,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             </div> */}
           </div>
 
-          <div className="rrs-table-scroll" ref={rightScrollRef} onScroll={handleRightScroll} style={{ border: 'none', borderRadius: 0, maxHeight: '50vh', minHeight: '150px', overflowX: 'auto', overflowY: 'auto', width: '100%' }}>
+          <div className="rrs-table-scroll" ref={rightScrollRef} onScroll={handleRightScroll} style={{ border: 'none', borderRadius: 0, flex: 1, overflowX: 'auto', overflowY: 'auto', width: '100%', minHeight: 0 }}>
             <table className="rrs-table">
               <thead>
                 <tr>
@@ -257,11 +314,33 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                     onMouseEnter={() => setHoveredRow(i)}
                     onMouseLeave={() => setHoveredRow(null)}
                   >
-                    {cols.map((c) => (
-                      <td key={`dst_${c}`} className="rrs-td" style={hasDiff(row, c) ? { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--c-danger)', fontWeight: 600 } : {}}>
-                        {renderValue(row[`_dst_${c}`])}
-                      </td>
-                    ))}
+                    {cols.map((c) => {
+                      const isDiff = hasDiff(row, c);
+                      return (
+                        <td
+                          key={`dst_${c}`}
+                          className="rrs-td"
+                          title={getDiffTooltip(row, c, false)}
+                        >
+                          {isDiff ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              color: 'var(--c-danger)',
+                              fontWeight: 600
+                            }}>
+                              {renderValue(row[`_dst_${c}`])}
+                            </span>
+                          ) : (
+                            renderValue(row[`_dst_${c}`])
+                          )}
+                        </td>
+                      );
+                    })}
                     {/* <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
                       {Array.isArray(row._differences)
                         ? row._differences.map((d) => (

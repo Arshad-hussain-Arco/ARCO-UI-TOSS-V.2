@@ -27,24 +27,24 @@ const YEARS = [
   { value: '2027', label: '2027' },
 ];
 
-export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
+export function MyLeavesSummaryTab({
+  leaves = [],
+  setViewModalLeave,
+  selectedYear,
+  onYearChange,
+  fromDate,
+  onFromDateChange,
+  toDate,
+  onToDateChange,
+}) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('all');
-  const [fromDate, setFromDate] = useState(null);
-  const [toDate, setToDate] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   // Normalize leave status for filtering
   const normalizedLeaves = useMemo(() => {
     const mapped = leaves.map(leave => {
-      let statusStr = 'pending';
-      if (leave.status === 1) statusStr = 'pending';
-      else if (leave.status === 3) statusStr = 'approved';
-      else if (leave.status === 2) statusStr = 'rejected';
-      else if (leave.status === 4) statusStr = 'self-rejected';
-      else if (leave.status_code) statusStr = leave.status_code.toLowerCase().replace('_', '-');
-      
+      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
       return { ...leave, statusStr };
     });
     
@@ -56,42 +56,21 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
     });
   }, [leaves]);
 
+  // Year and date-range are already applied server-side (leaves prop is
+  // fetched with ?year=/&from=/&to= from the parent) — only month is
+  // filtered here, client-side, since the backend has no month param.
   const dateFilteredLeaves = useMemo(() => {
+    if (selectedMonth === 'all') return normalizedLeaves;
     return normalizedLeaves.filter(leave => {
       const rawStart = leave.start_date || leave.date;
       if (!rawStart) return true;
-      
+
       const leaveStart = new Date(rawStart);
       if (isNaN(leaveStart.getTime())) return true;
-      
-      // Month filter
-      if (selectedMonth !== 'all') {
-        if (leaveStart.getMonth() !== parseInt(selectedMonth)) return false;
-      }
-      
-      // Year filter
-      if (selectedYear !== 'all') {
-        if (leaveStart.getFullYear() !== parseInt(selectedYear)) return false;
-      }
-      
-      // Date Range filter
-      if (fromDate) {
-        const from = new Date(fromDate);
-        from.setHours(0,0,0,0);
-        if (leaveStart < from) return false;
-      }
-      
-      if (toDate) {
-        const to = new Date(toDate);
-        to.setHours(23,59,59,999);
-        const rawEnd = leave.end_date || leave.date;
-        const leaveEnd = rawEnd ? new Date(rawEnd) : leaveStart;
-        if (!isNaN(leaveEnd.getTime()) && leaveEnd > to) return false;
-      }
-      
-      return true;
+
+      return leaveStart.getMonth() === parseInt(selectedMonth);
     });
-  }, [normalizedLeaves, selectedMonth, selectedYear, fromDate, toDate]);
+  }, [normalizedLeaves, selectedMonth]);
 
   const filteredLeaves = useMemo(() => {
     return dateFilteredLeaves.filter(leave => {
@@ -151,6 +130,10 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
             </button>
+            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
+              <span className="leave-filter-label">Pending</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
+            </button>
             <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
@@ -209,29 +192,29 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
             />
           </div>
           <div style={{ width: '130px' }}>
-            <Select 
-              value={selectedYear} 
-              onChange={setSelectedYear} 
-              options={YEARS} 
+            <Select
+              value={selectedYear}
+              onChange={onYearChange}
+              options={YEARS}
               placeholder="Select Year"
               width="130px"
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
-            <DatePicker 
-              value={fromDate ? new Date(fromDate) : null} 
-              onChange={(d) => setFromDate(d ? d.toISOString() : null)} 
-              placeholder="Start Date" 
+            <DatePicker
+              value={fromDate ? new Date(fromDate) : null}
+              onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
+              placeholder="Start Date"
               width="130px"
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
-            <DatePicker 
-              value={toDate ? new Date(toDate) : null} 
-              onChange={(d) => setToDate(d ? d.toISOString() : null)} 
-              placeholder="End Date" 
+            <DatePicker
+              value={toDate ? new Date(toDate) : null}
+              onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
+              placeholder="End Date"
               width="130px"
             />
           </div>
