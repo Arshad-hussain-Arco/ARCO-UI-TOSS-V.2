@@ -387,10 +387,14 @@ function CreatableSelect({ value, onChange, placeholder, options, id }) {
         <button
           type="button"
           className="lc-creatable-chevron"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsOpen((prev) => !prev);
+          }}
           tabIndex={-1}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={14} style={{ pointerEvents: 'none' }} />
         </button>
       </div>
 
