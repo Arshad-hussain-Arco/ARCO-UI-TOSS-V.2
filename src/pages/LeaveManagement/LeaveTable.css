@@ -153,8 +153,8 @@
   transition: all 0.15s ease;
 }
 
-.leave-table-icon-button:hover {
-  background: var(--bg-tertiary);
+.leave-table-icon-button:hover   {
+  background: var(--bg-hover);
 }
 
 .leave-table-icon {
@@ -163,8 +163,8 @@
   color: var(--text-secondary);
 }
 
-.leave-table-icon-button:hover .leave-table-icon {
-  color: var(--c-primary);
+.leave-table-icon-button:hover .leave-table-icon   {
+  background: var(--bg-hover);
 }
 
 /* Action Buttons */
@@ -197,10 +197,8 @@
   border-color: #fca5a5;
 }
 
-.leave-table-action-button.action-cancel:hover {
-  background: var(--c-danger);
-  color: var(--surface-primary);
-  border-color: var(--c-danger);
+.leave-table-action-button.action-cancel:hover   {
+  background: var(--bg-hover);
 }
 
 .leave-table-action-button.action-cancel .leave-table-action-icon {
@@ -213,10 +211,8 @@
   border-color: #bfdbfe;
 }
 
-.leave-table-action-button.action-edit:hover {
-  background: var(--c-info);
-  color: var(--surface-primary);
-  border-color: var(--c-info);
+.leave-table-action-button.action-edit:hover   {
+  background: var(--bg-hover);
 }
 
 .leave-table-action-button.action-edit .leave-table-action-icon {
@@ -229,9 +225,8 @@
   border-color: var(--border-primary);
 }
 
-.leave-table-action-button.action-view:hover {
+.leave-table-action-button.action-view:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .leave-table-action-button.action-view .leave-table-action-icon {

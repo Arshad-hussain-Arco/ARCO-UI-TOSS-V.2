@@ -182,8 +182,9 @@
   border-color: #c2e7d5;
 }
 
-.cp-export-btn.excel:hover {
-  background-color: #c2e7d5;
+.cp-export-btn.excel:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .cp-export-btn.pdf {
@@ -191,9 +192,9 @@
   color: #dc2626;
   border-color: #fee2e2;
 }
-.cp-export-btn.pdf:hover{
-  background-color: #f5d7d7;
-  color: #dc2626;
+.cp-export-btn.pdf:hover  {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
  
 
@@ -389,9 +390,8 @@
   flex-shrink: 0;
 }
 
-.team-tab-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+.team-tab-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .team-tab-btn.active {
@@ -735,8 +735,8 @@
   transition: all 0.2s ease;
 }
 
-.cp-modal-close-btn:hover {
-  background-color: var(--border-secondary);
+.cp-modal-close-btn:hover   {
+  background: var(--bg-hover);
 }
 
 /* Developer type badges */

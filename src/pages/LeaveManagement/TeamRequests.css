@@ -150,8 +150,9 @@
   transition: background 0.1s;
 }
 
-.tr-export-btn:hover {
-  background: var(--bg-hover);
+.tr-export-btn:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tr-export-dropdown {
@@ -553,9 +554,8 @@
   white-space: nowrap;
 }
 
-.tr-act-btn:hover {
+.tr-act-btn:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .tr-act-approve {
@@ -1011,9 +1011,8 @@
   border-color: var(--border-primary);
 }
 
-.tr-btn-ghost:hover {
+.tr-btn-ghost:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .tr-btn-danger {
@@ -1022,10 +1021,9 @@
   border-color: #fca5a5;
 }
 
-.tr-btn-danger:hover {
+.tr-btn-danger:hover   {
   background: var(--c-danger);
-  color: var(--surface-primary);
-  border-color: var(--c-danger);
+  color: #ffffff;
 }
 
 .tr-btn-primary {
@@ -1033,8 +1031,9 @@
   color: var(--surface-primary);
 }
 
-.tr-btn-primary:hover {
-  background: var(--c-primary-hover);
+.tr-btn-primary:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tr-btn-primary:disabled {
@@ -1241,9 +1240,8 @@
     color 0.1s;
 }
 
-.tr-dtl-nav-btn:hover {
+.tr-dtl-nav-btn:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .tr-dtl-nav-title {

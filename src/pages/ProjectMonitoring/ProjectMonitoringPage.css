@@ -56,9 +56,8 @@
   transition: all 0.15s ease;
 }
 
-.pm-tab-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-secondary);
+.pm-tab-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-tab-btn.active {
@@ -148,10 +147,8 @@
   transition: all 0.15s ease;
 }
 
-.pm-refresh-text-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--c-primary);
-  border-color: var(--c-primary);
+.pm-refresh-text-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-refresh-text-btn.spinning svg {
@@ -843,9 +840,8 @@
   box-sizing: border-box;
 }
 
-.pm-icon-btn:hover {
-  background: var(--border-secondary);
-  color: var(--text-primary);
+.pm-icon-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-export-btn {
@@ -867,8 +863,9 @@
   box-sizing: border-box;
 }
 
-.pm-export-btn:hover {
-  background: #00522c;
+.pm-export-btn:hover  {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .pm-toolbar-divider {
@@ -893,9 +890,8 @@
   flex-shrink: 0;
 }
 
-.pm-icon-btn:hover {
-  background: var(--border-secondary);
-  color: var(--text-primary);
+.pm-icon-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-export-btn {
@@ -915,9 +911,9 @@
   flex-shrink: 0;
 }
 
-.pm-export-btn:hover {
-  background: #00522c;
-  box-shadow: 0 2px 6px rgba(0, 104, 56, 0.25);
+.pm-export-btn:hover  {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Master Table Container */
@@ -978,7 +974,7 @@
 
 .pm-master-table tbody td {
   padding: 8px 14px;
-  color: var(--bg-secondary);
+  color: var(--text-secondary);
   vertical-align: middle;
 }
 
@@ -991,7 +987,7 @@
 .pm-project-code {
   font-size: 12px;
   font-weight: 700;
-  color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .pm-info-btn {
@@ -1011,9 +1007,8 @@
   transition: all 0.15s ease;
 }
 
-.pm-info-btn:hover {
-  background: var(--c-primary);
-  color: var(--surface-primary);
+.pm-info-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-lifecycle-pill {
@@ -1199,7 +1194,7 @@
 .pm-detail-card-title {
   font-size: 12px;
   font-weight: 700;
-  color: var(--bg-secondary);
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -1477,10 +1472,8 @@
   transition: all 0.15s ease;
 }
 
-.pm-modal-close-btn:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
+.pm-modal-close-btn:hover  {
+  background: var(--bg-hover);
 }
 
 /* Modal Toolbar */
@@ -1740,7 +1733,7 @@
 .pm-resolution-title {
   font-size: 12px;
   font-weight: 700;
-  color: var(--bg-secondary);
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -2076,7 +2069,7 @@
   text-overflow: ellipsis;
   font-size: 12px;
   font-weight: 500;
-  color: var(--bg-secondary);
+  color: var(--text-secondary);
   cursor: default;
 }
 
@@ -2441,7 +2434,7 @@
   padding: 4px 6px;
   border-radius: 4px;
   font-size: 11px;
-  color: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -2599,8 +2592,8 @@
   transition: background 0.15s ease;
 }
 
-.pm-modal-close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+.pm-modal-close-btn:hover  {
+  background: var(--bg-hover);
 }
 
 .pm-modal-toolbar {
@@ -2643,9 +2636,8 @@
   box-sizing: border-box;
 }
 
-.pm-reset-btn:hover {
-  background: var(--border-secondary);
-  color: var(--text-primary);
+.pm-reset-btn:hover  {
+  background: var(--bg-hover);
 }
 
 @keyframes spin-anim {
