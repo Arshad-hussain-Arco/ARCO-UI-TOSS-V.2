@@ -196,11 +196,13 @@
   color: #991b1b;
   border-color: #fca5a5;
 }
+
 .leave-table-action-button.action-cancel:hover {
   background: var(--c-danger);
   color: #fff;
   border-color: var(--c-danger);
 }
+
 .leave-table-action-button.action-cancel .leave-table-action-icon {
   color: inherit;
 }
@@ -210,11 +212,13 @@
   color: #1d4ed8;
   border-color: #bfdbfe;
 }
+
 .leave-table-action-button.action-edit:hover {
   background: #3b82f6;
   color: #fff;
   border-color: #3b82f6;
 }
+
 .leave-table-action-button.action-edit .leave-table-action-icon {
   color: inherit;
 }
@@ -224,10 +228,12 @@
   color: var(--text-secondary);
   border-color: var(--border-primary);
 }
+
 .leave-table-action-button.action-view:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
 .leave-table-action-button.action-view .leave-table-action-icon {
   color: inherit;
 }
