@@ -46,6 +46,7 @@ const endpoints = {
   },
   me: {
     balance: (id) => `/leaves/me/${id}/balance/`,
+    eligibleLeaveTypes: (id) => `/leaves/me/${id}/eligible-leave-types/`,
     leaves: (id) => `/leaves/me/${id}/leaves/`,
     employeeLeaveByYear: (id) => `/leaves/employee-leave-by-year/${id}/`,
     teamLeaves: (id) => `/leaves/me/my-team-leaves/${id}/`,
@@ -54,8 +55,13 @@ const endpoints = {
     modifyLeave: (id) => `/leaves/me/leaves/${id}/modify/`,
     cancelLeave: (id) => `/leaves/me/leaves/${id}/cancel/`,
     leaveHistory: (id) => `/leaves/me/leaves/${id}/history/`,
+    // Deprecated aliases — kept working server-side, but the UI should use
+    // `claimSubmit`/`claimEligibleDates` below instead (generic, works for
+    // any Claim-category leave type, not just CWW/CCompOff).
     claimWeekend: `/leaves/me/leaves/claim-weekend/`,
     claimCompOff: `/leaves/me/leaves/claim-comp-off/`,
+    claimSubmit: `/leaves/me/leaves/claim/`,
+    claimEligibleDates: `/leaves/me/leaves/claim-eligible-dates/`,
     wfh: `/leaves/me/leaves/wfh/`,
     partialCancel: (id) => `/leaves/me/leaves/${id}/partial-cancel/`,
     owApply: `/leaves/me/leaves/ow/`,

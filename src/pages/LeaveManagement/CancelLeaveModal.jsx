@@ -10,12 +10,19 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reason, setReason] = useState('');
 
+  const isOnBehalf = leave.emp_id != null && user?.emp_id != null && leave.emp_id !== user.emp_id;
+  const ownerLabel = isOnBehalf ? (leave.emp_name || `employee #${leave.emp_id}`) + "'s" : 'your';
+
   const handleCancel = async () => {
     try {
       setIsSubmitting(true);
       
+      // emp_id must be the LEAVE OWNER, not whoever's clicking cancel — the
+      // backend checks the caller is either that owner or an authorized
+      // manager/HR for the owner, so this works unchanged whether the
+      // logged-in user is cancelling their own leave or a report's.
       const payload = {
-        emp_id: user?.emp_id || user?.empId || 1, // Fallback if missing
+        emp_id: leave.emp_id ?? user?.emp_id ?? user?.empId ?? 1,
         reason: reason
       };
 
@@ -43,7 +50,7 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
         </div>
         <div className="al-body" style={{ padding: '20px' }}>
           <p style={{ marginBottom: '16px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Are you sure you want to cancel your {leave.leave_type} request for {new Date(leave.start_date).toLocaleDateString()}?
+            Are you sure you want to cancel {ownerLabel} {leave.leave_type} request for {new Date(leave.start_date).toLocaleDateString()}?
           </p>
           
           <div className="al-form-group">

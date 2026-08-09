@@ -212,6 +212,17 @@
   transform: translateY(0);
 }
 
+.my-leaves-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.my-leaves-action-btn:disabled:hover {
+  background-color: var(--c-primary);
+  transform: none;
+  box-shadow: none;
+}
+
 .leave-cards-grid {
   display: flex;
   gap: 12px;
