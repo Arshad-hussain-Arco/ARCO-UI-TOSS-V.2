@@ -87,6 +87,9 @@ export function LeaveManagementPage() {
   const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [summaryYear, setSummaryYear] = useState(String(currentDate.getFullYear()));
+  const [summaryFrom, setSummaryFrom] = useState(null);
+  const [summaryTo, setSummaryTo] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,24 +123,34 @@ export function LeaveManagementPage() {
 
         console.log("Fetching data for targetEmpId:", targetEmpId, "User:", user);
 
-        try {
-          const response = await leaveService.getLeaveBalance(targetEmpId);
-          setLeaveBalances(response?.balances);
-        } catch (e) {
-          console.error("Failed to fetch leave balances", e);
+        // leaveBalances / eligibleLeaveTypes only feed the "Apply Leave"
+        // tab's summary cards and eligibility checks — MyLeavesSummaryTab
+        // doesn't use either, so skip fetching them there.
+        if (activeTab === 'my-leaves') {
+          try {
+            const response = await leaveService.getLeaveBalance(targetEmpId);
+            setLeaveBalances(response?.balances);
+          } catch (e) {
+            console.error("Failed to fetch leave balances", e);
+          }
+
+          try {
+            const eligibleResponse = await leaveService.getEligibleLeaveTypes(targetEmpId);
+            const eligibleList = Array.isArray(eligibleResponse) ? eligibleResponse : (eligibleResponse?.results || []);
+            setEligibleLeaveTypes(eligibleList);
+          } catch (e) {
+            console.error("Failed to fetch eligible leave types", e);
+            setEligibleLeaveTypes([]);
+          }
         }
 
         try {
-          const eligibleResponse = await leaveService.getEligibleLeaveTypes(targetEmpId);
-          const eligibleList = Array.isArray(eligibleResponse) ? eligibleResponse : (eligibleResponse?.results || []);
-          setEligibleLeaveTypes(eligibleList);
-        } catch (e) {
-          console.error("Failed to fetch eligible leave types", e);
-          setEligibleLeaveTypes([]);
-        }
+          const leavesParams = {};
+          if (summaryYear && summaryYear !== 'all') leavesParams.year = summaryYear;
+          if (summaryFrom) leavesParams.from = summaryFrom;
+          if (summaryTo) leavesParams.to = summaryTo;
 
-        try {
-          const leavesResponse = await leaveService.getMyLeaves(targetEmpId);
+          const leavesResponse = await leaveService.getMyLeaves(targetEmpId, leavesParams);
           const userLeaves = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse?.results || []);
           setLeaves(userLeaves);
           setCalendarEvents(userLeaves);
@@ -152,7 +165,7 @@ export function LeaveManagementPage() {
       }
     };
     fetchData();
-  }, [user, calendarYear, calendarMonth, activeTab, refreshKey]);
+  }, [user, calendarYear, calendarMonth, activeTab, refreshKey, summaryYear, summaryFrom, summaryTo]);
 
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
@@ -195,7 +208,7 @@ export function LeaveManagementPage() {
   );
 
   const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending'));
+    const pendingLeaves = leaves.filter(l => l.status_code?.toLowerCase() === 'pending');
     if (pendingLeaves.length === 0) return null;
 
     let minDate = new Date(8640000000000000);
@@ -269,7 +282,7 @@ export function LeaveManagementPage() {
             endDate: viewModalLeave.end_date || viewModalLeave.date,
             bizDays: viewModalLeave.business_days || viewModalLeave.in_days || 0,
             requestedOn: viewModalLeave.created_at || new Date().toISOString(),
-            status: viewModalLeave.status === 1 ? 'pending' : (viewModalLeave.status === 3 ? 'approved' : (viewModalLeave.status === 2 ? 'rejected' : (viewModalLeave.status === 4 ? 'self-rejected' : viewModalLeave.status_code?.toLowerCase() || 'pending'))),
+            status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
             duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
           }}
@@ -444,7 +457,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -452,7 +465,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -460,7 +473,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -468,7 +481,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -569,7 +582,7 @@ export function LeaveManagementPage() {
                       </thead>
                       <tbody className="leave-table-tbody">
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
+                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
@@ -579,7 +592,7 @@ export function LeaveManagementPage() {
                           // Mapping standard abbreviation codes to readable text if needed
                           const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
                           const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
+                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
 
                           return (
                             <tr key={leave.id} className="leave-table-row">
@@ -640,7 +653,7 @@ export function LeaveManagementPage() {
                           );
                         })}
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
+                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).length === 0 && (
                             <tr className="leave-table-row">
@@ -673,7 +686,16 @@ export function LeaveManagementPage() {
         {activeTab === 'leave-config' && <LeaveConfigurationTab />}
 
         {activeTab === 'my-leaves-summary' && (
-          <MyLeavesSummaryTab leaves={leaves} setViewModalLeave={setViewModalLeave} />
+          <MyLeavesSummaryTab
+            leaves={leaves}
+            setViewModalLeave={setViewModalLeave}
+            selectedYear={summaryYear}
+            onYearChange={setSummaryYear}
+            fromDate={summaryFrom}
+            onFromDateChange={setSummaryFrom}
+            toDate={summaryTo}
+            onToDateChange={setSummaryTo}
+          />
         )}
       </div>
     </div>
