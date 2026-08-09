@@ -25,6 +25,7 @@ export const ROUTES = Object.freeze({
   PROJECT_MONITORING: '/project-monitoring',
   IMPORTANT_LINKS: '/important-links',
   DOCUMENTS: '/documents',
+  DOCUMENTS_USER_GUIDE: '/documents/user-guide',
 
   // Protected — admin section
   ADMIN: '/admin',
