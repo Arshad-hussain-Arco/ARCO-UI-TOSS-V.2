@@ -44,6 +44,23 @@ const ALL_TABS = [
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3 },
   { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, adminOnly: true },
 ];
+
+// Maps each leave-application action button to the eligible-leave-types API
+// code(s) that unlock it. "Apply Leave" has no fixed code — it always opens the
+// dropdown so eligibility for it is decided per-leave-type inside the modal.
+// "Submit Claim" is similar but keyed by category rather than fixed codes —
+// it opens a modal listing every active Claim-category leave type the
+// employee is eligible for (CWW, CCompOff, and any custom Claim type HR
+// created), not just a hardcoded pair.
+// To add a new leave-specific button in the future, just add an entry here.
+const LEAVE_ACTION_BUTTONS = [
+  { modalType: 'leave', label: 'Apply Leave', codes: null },
+  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'] },
+  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'] },
+  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: 'CLAIM' },
+];
+
+const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
 import { Loader } from '@components/feedback/Loader/Loader';
 
 export function LeaveManagementPage() {
@@ -65,6 +82,7 @@ export function LeaveManagementPage() {
 
   const { user } = useAuth();
   const [leaveBalances, setLeaveBalances] = useState(null);
+  const [eligibleLeaveTypes, setEligibleLeaveTypes] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,6 +128,15 @@ export function LeaveManagementPage() {
         }
 
         try {
+          const eligibleResponse = await leaveService.getEligibleLeaveTypes(targetEmpId);
+          const eligibleList = Array.isArray(eligibleResponse) ? eligibleResponse : (eligibleResponse?.results || []);
+          setEligibleLeaveTypes(eligibleList);
+        } catch (e) {
+          console.error("Failed to fetch eligible leave types", e);
+          setEligibleLeaveTypes([]);
+        }
+
+        try {
           const leavesResponse = await leaveService.getMyLeaves(targetEmpId);
           const userLeaves = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse?.results || []);
           setLeaves(userLeaves);
@@ -143,33 +170,30 @@ export function LeaveManagementPage() {
       setCalendarMonth(calendarMonth + 1);
     }
   };
+  // "Apply for: Myself | On Behalf" should only show for users who can
+  // actually apply on behalf of someone — a manager with direct/indirect
+  // reports, or HR/admin (matches the backend's _is_hr() / _can_manage_target()
+  // permission check on the apply-on-behalf endpoint).
+  // A button is eligible if it has no fixed code (e.g. the generic "Apply
+  // Leave" dropdown) or at least one of its codes is present and active in
+  // the eligible-leave-types API response — never hardcoded. `category`
+  // covers "Submit Claim", which isn't a fixed pair of codes — it's
+  // eligible whenever any active Claim-category leave type exists.
+  const isActionEligible = (codes, category) => {
+    if (category) {
+      return eligibleLeaveTypes.some((t) => t.category === category && t.active !== false);
+    }
+    if (!codes) return true;
+    return eligibleLeaveTypes.some((t) => codes.includes(t.code) && t.active !== false);
+  };
 
-  const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending'));
-    if (pendingLeaves.length === 0) return null;
+  const canApplyOnBehalf = Boolean(
+    user?.mySubordinates?.length > 0 ||
+    user?.isAdmin === 1 || user?.isAdmin === true ||
+    user?.role === 'admin' || user?.roleName?.includes('HR') ||
+    user?.role?.toLowerCase()?.includes('admin')
+  );
 
-    let minDate = new Date(8640000000000000);
-    let maxDate = new Date(-8640000000000000);
-    let hasValidDates = false;
-
-    pendingLeaves.forEach(leave => {
-      const start = new Date(leave.start_date || leave.date);
-      const end = new Date(leave.end_date || leave.date || leave.start_date);
-
-      if (!isNaN(start.getTime())) {
-        if (start < minDate) minDate = start;
-        hasValidDates = true;
-      }
-      if (!isNaN(end.getTime())) {
-        if (end > maxDate) maxDate = end;
-        hasValidDates = true;
-      }
-    });
-
-    if (!hasValidDates) return null;
-    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
-  }, [leaves]);
   return (
     <div className="leave-management">
       {modalType && (
@@ -180,7 +204,7 @@ export function LeaveManagementPage() {
               setRefreshKey(k => k + 1);
             }
           }}
-          isAdmin={true}
+          isAdmin={canApplyOnBehalf}
           type={modalType}
         />
       )}
@@ -258,18 +282,20 @@ export function LeaveManagementPage() {
                 <input type="text" placeholder="Search leaves..." className="my-leaves-search" />
               </div>
               <div className="my-leaves-actions">
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#006633' }} onClick={() => setModalType('leave')}>
-                  <CalendarDays size={16} /> Apply Leave
-                </button>
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#006633' }} onClick={() => setModalType('wfh')}>
-                  <CalendarDays size={16} /> Apply WFH
-                </button>
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#1565C0' }} onClick={() => setModalType('offshore')}>
-                  <Home size={16} /> Apply Offshore Work
-                </button>
-                <button className="my-leaves-action-btn" style={{ backgroundColor: '#F9A825' }} onClick={() => setModalType('compoff')}>
-                  <CalendarPlus size={16} /> Book Comp-off / Weekend Work
-                </button>
+                {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category }) => {
+                  const eligible = isActionEligible(codes, category);
+                  return (
+                    <button
+                      key={type}
+                      className="my-leaves-action-btn"
+                      disabled={!eligible}
+                      title={eligible ? undefined : INELIGIBLE_TOOLTIP}
+                      onClick={() => eligible && setModalType(type)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -281,6 +307,7 @@ export function LeaveManagementPage() {
                 left={leaveBalances?.AL?.available ?? 0}
                 used={leaveBalances?.AL?.used ?? 0}
                 total={leaveBalances?.AL?.entitled ?? 0}
+                isUnlimited={leaveBalances?.AL?.is_unlimited}
                 color="#006633"
               />
               <LeaveCard
@@ -299,6 +326,7 @@ export function LeaveManagementPage() {
                 left={leaveBalances?.CompOff?.available ?? 0}
                 used={leaveBalances?.CompOff?.used ?? 0}
                 total={leaveBalances?.CompOff?.entitled ?? 0}
+                isUnlimited={leaveBalances?.CompOff?.is_unlimited}
                 color="#8b5cf6"
               />
               <LeaveCard
@@ -308,6 +336,7 @@ export function LeaveManagementPage() {
                 left={leaveBalances?.SL?.available ?? 0}
                 used={leaveBalances?.SL?.used ?? 0}
                 total={leaveBalances?.SL?.entitled ?? 0}
+                isUnlimited={leaveBalances?.SL?.is_unlimited}
                 color="#dc2626"
               />
               <LeaveCard
@@ -317,6 +346,7 @@ export function LeaveManagementPage() {
                 left={leaveBalances?.WW?.available ?? 0}
                 used={leaveBalances?.WW?.used ?? 0}
                 total={leaveBalances?.WW?.entitled ?? 0}
+                isUnlimited={leaveBalances?.WW?.is_unlimited}
                 color="#f59e0b"
               />
               <LeaveCard
@@ -354,6 +384,7 @@ export function LeaveManagementPage() {
                 left={leaveBalances?.OW?.available ?? 0}
                 used={leaveBalances?.OW?.used ?? 0}
                 total={leaveBalances?.OW?.entitled ?? 0}
+                isUnlimited={leaveBalances?.OW?.is_unlimited}
                 color="#6366f1"
               />
               <LeaveCard
