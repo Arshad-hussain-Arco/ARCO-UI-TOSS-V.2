@@ -132,6 +132,27 @@
   background: var(--bg-hover);
 }
 
+/* First Column Sticky Behavior */
+.lc-table th:first-child,
+.lc-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--surface-primary);
+  /* Solid background to prevent overlap */
+  border-right: 1px solid var(--border-primary);
+}
+
+.lc-table th:first-child {
+  z-index: 2;
+  /* Needs to be above the sticky column when scrolling vertically */
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.lc-table tr:hover td:first-child {
+  background-color: var(--bg-hover);
+}
+
 .lc-table tr.lc-row-editing td {
   background: var(--c-primary-light);
 }
@@ -139,7 +160,7 @@
 .lc-emp-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .lc-avatar {
@@ -307,4 +328,157 @@
   justify-content: center;
   color: var(--text-tertiary);
   gap: 8px;
+}
+
+/* ── Tree Layout ──────────────────────────────────────────────────────── */
+.lc-tree-row {
+  transition: background-color 0.15s ease;
+}
+
+.lc-tree-row:hover {
+  background-color: var(--surface-hover);
+}
+
+.lc-td-name {
+  min-width: 280px;
+}
+
+.lc-tree-indent {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 8px;
+}
+
+/* Vertical and horizontal connecting lines for children */
+.lc-tree-line {
+  position: absolute;
+  left: calc(var(--depth, 1) * 28px - 14px);
+  top: -24px;
+  bottom: 50%;
+  border-left: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  width: 14px;
+  pointer-events: none;
+}
+
+.lc-expand-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lc-expand-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.lc-expand-placeholder {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.lc-emp-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-manager-pill {
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Premium Table Headers ────────────────────────────────────────────── */
+.lc-table th:nth-child(2) {
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+}
+
+.lc-table th:nth-child(3) {
+  background: linear-gradient(180deg, #f3e8ff 0%, #e9d5ff 100%);
+  color: #6b21a8;
+}
+
+.lc-table th:nth-child(4) {
+  background: linear-gradient(180deg, #ffe4e6 0%, #fecdd3 100%);
+  color: #be123c;
+}
+
+.lc-table th:nth-child(5) {
+  background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #3730a3;
+}
+
+.lc-table th:nth-child(6) {
+  background: linear-gradient(180deg, #ccfbf1 0%, #a7f3d0 100%);
+  color: #047857;
+}
+
+.lc-table th:nth-child(7) {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+  color: #166534;
+}
+
+.lc-plain-val {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.lc-edit-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lc-edit-btn:hover {
+  color: #334155;
+}
+
+.lc-action-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.lc-save-btn {
+  background: var(--c-success);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.lc-cancel-btn {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
 }

@@ -49,7 +49,9 @@ import { Loader } from '@components/feedback/Loader/Loader';
 export function LeaveManagementPage() {
   useDocumentTitle('Leave Management');
 
-  const [activeTab, setActiveTab] = useState('my-leaves');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('leaveManagementActiveTab') || 'my-leaves';
+  });
   const [modalType, setModalType] = useState(null);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
@@ -125,6 +127,12 @@ export function LeaveManagementPage() {
     fetchData();
   }, [user, calendarYear, calendarMonth, activeTab, refreshKey]);
 
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('leaveManagementActiveTab');
+    };
+  }, []);
+
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
       setCalendarMonth(11);
@@ -165,8 +173,8 @@ export function LeaveManagementPage() {
     });
     
     if (!hasValidDates) return null;
-    const fmt = (d) => d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} - ${fmt(maxDate)}`;
+    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
   }, [leaves]);
   return (
     <div className="leave-management">
@@ -232,7 +240,11 @@ export function LeaveManagementPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                localStorage.setItem('leaveManagementActiveTab', tab.id);
+                setFilterStatus('all');
+              }}
               className="leave-management-tab"
               data-active={activeTab === tab.id}
             >
@@ -373,7 +385,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('all')}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{leaves.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -381,7 +393,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -389,7 +401,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -397,7 +409,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -405,7 +417,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase() === 'self-rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -413,12 +425,12 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('offshore')}
                       >
                         <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => l.leave_type === 'OW').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      {(filterStatus === 'pending' || filterStatus === 'all') && pendingDateRangeText && (
+                      {(filterStatus === 'pending') && pendingDateRangeText && (
                         <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
                           Pending from: {pendingDateRangeText}
                         </span>
@@ -506,7 +518,7 @@ export function LeaveManagementPage() {
                       </thead>
                       <tbody className="leave-table-tbody">
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
@@ -516,7 +528,7 @@ export function LeaveManagementPage() {
                           // Mapping standard abbreviation codes to readable text if needed
                           const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
                           const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
 
                           return (
                             <tr key={leave.id} className="leave-table-row">
@@ -556,16 +568,14 @@ export function LeaveManagementPage() {
                                   {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                     <>
                                       <button 
-                                        className="leave-table-action-button" 
-                                        style={{ color: '#ef4444' }}
+                                        className="leave-table-action-button action-cancel" 
                                         title="Cancel Request"
                                         onClick={() => setCancelModalLeave(leave)}
                                       >
                                         <X className="leave-table-action-icon" />
                                       </button>
                                       <button 
-                                        className="leave-table-action-button" 
-                                        style={{ color: '#3b82f6' }}
+                                        className="leave-table-action-button action-edit" 
                                         title="Edit Request"
                                         onClick={() => setEditModalLeave(leave)}
                                       >
@@ -579,7 +589,7 @@ export function LeaveManagementPage() {
                           );
                         })}
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).length === 0 && (
                             <tr className="leave-table-row">

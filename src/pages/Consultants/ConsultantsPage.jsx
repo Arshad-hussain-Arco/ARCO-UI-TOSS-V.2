@@ -211,11 +211,13 @@ export function ConsultantsPage() {
     }
   };
 
+  const hasMounted = useRef(false);
   // Refetch the main list whenever we switch back to the consultants tab
   useEffect(() => {
-    if (activeTab === 'consultants') {
+    if (hasMounted.current && activeTab === 'consultants') {
       loadEmployees();
     }
+    hasMounted.current = true;
   }, [activeTab, loadEmployees]);
 
   const openDrawer = (mode) => {
