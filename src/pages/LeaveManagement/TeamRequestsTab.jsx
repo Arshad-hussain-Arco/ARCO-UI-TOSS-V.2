@@ -142,6 +142,33 @@ function isSaudiWeekend(dateStr) {
   const d = /* @__PURE__ */ new Date(dateStr + 'T00:00:00').getDay();
   return d === 5 || d === 6;
 }
+
+export function getRelativePendingTime(isoString) {
+  if (!isoString) return '-';
+  const requestedDate = new Date(isoString);
+  if (isNaN(requestedDate.getTime())) return '-';
+
+  const now = new Date();
+  const diffMs = now - requestedDate;
+  if (diffMs < 0) return 'Just now'; 
+
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffDays >= 3) {
+    return requestedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else if (diffDays > 0) {
+    return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+  } else if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+  } else if (diffMins > 0) {
+    return `${diffMins} min${diffMins > 1 ? 's' : ''}`;
+  } else {
+    return 'Just now';
+  }
+}
+
 export const TYPE_CONFIG = {
   leave: { label: 'Leave', css: 'tr-type-leave', Icon: Briefcase },
   wfh: { label: 'WFH', css: 'tr-type-wfh', Icon: Home },
@@ -181,6 +208,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
       inDays: req.in_days,
       bizDays: req.business_days,
       requestedOn: req.requested_date ? req.requested_date.split('T')[0] : '',
+      requestedAt: req.requested_date || '',
       status: req.status ? req.status.toLowerCase() : 'pending',
       priority: 'normal',
       manager: req.manager_name,
@@ -447,6 +475,40 @@ export function TeamRequestsTab() {
       })),
     [filtered],
   );
+
+  const pendingDateRangeText = useMemo(() => {
+    const pendingLeaves = requests.filter(l => l.status === 'pending');
+    if (pendingLeaves.length === 0) return null;
+    
+    let minDate = new Date(8640000000000000);
+    let maxDate = new Date(-8640000000000000);
+    let hasValidDates = false;
+    
+    pendingLeaves.forEach(leave => {
+      const start = new Date(leave.startDate);
+      const end = new Date(leave.endDate || leave.startDate);
+      
+      if (!isNaN(start.getTime())) {
+        if (start < minDate) minDate = start;
+        hasValidDates = true;
+      }
+      if (!isNaN(end.getTime())) {
+        if (end > maxDate) maxDate = end;
+        hasValidDates = true;
+      }
+    });
+    
+    if (!hasValidDates) return null;
+    
+    const formatDate = (date) => {
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    
+    const minStr = formatDate(minDate);
+    const maxStr = formatDate(maxDate);
+    
+    return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
+  }, [requests]);
   return (
     <div className="tr-workspace">
       {/* ── Inner Sub-tabs ────────────────────────────────────────────────────── */}
@@ -456,20 +518,21 @@ export function TeamRequestsTab() {
           data-active={innerTab === 'all'}
           onClick={() => setInnerTab('all')}
         >
-          All Requests<span className="tr-subtab-badge">{counts.all}</span>
+          All Requests<span className="tr-subtab-badge">{isLoading ? 0 : counts.all}</span>
         </button>
         <button
           className="tr-subtab"
           data-active={innerTab === 'sameday'}
           onClick={() => setInnerTab('sameday')}
         >
-          Requests by dates<span className="tr-subtab-badge">{sdlEmployees.length} Employees</span>
+          Requests by dates
         </button>
         <div className="tr-subtab-indicator" data-tab={innerTab} />
       </div>
 
       {/* ── KPI Strip ────────────────────────────────────────────────────────── */}
-      <div className="tr-kpi-strip">
+      {innerTab === 'all' && (
+        <div className="tr-kpi-strip">
         {[
           {
             type: 'leave',
@@ -516,7 +579,7 @@ export function TeamRequestsTab() {
               <Icon size={16} color={color} />
             </div>
             <div className="tr-kpi-body">
-              <div className="tr-kpi-count">{count}</div>
+              <div className="tr-kpi-count">{isLoading ? 0 : count}</div>
               <div className="tr-kpi-label">{label}</div>
             </div>
             <div className="tr-kpi-trend" style={{ color: count > 0 ? '#92400e' : '#065f46' }}>
@@ -524,7 +587,8 @@ export function TeamRequestsTab() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* ── All Requests: compact toolbar + status pills ─────────────────────── */}
       {innerTab === 'all' && (
@@ -562,7 +626,12 @@ export function TeamRequestsTab() {
                 width="sort"
               />
             </div>
-            <div className="tr-all-toolbar-right">
+            <div className="tr-all-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {statusF === 'pending' && pendingDateRangeText && (
+                <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                  Pending from: {pendingDateRangeText}
+                </span>
+              )}
               <div className="tr-view-toggle">
                 <button
                   className="tr-view-btn"
@@ -640,25 +709,30 @@ export function TeamRequestsTab() {
               <table className="tr-table">
                 <thead className="tr-thead">
                   <tr>
-                    <th className="tr-th" style={{ width: '24%' }}>
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '20%' : '24%' }}>
                       Consultant
                     </th>
-                    <th className="tr-th" style={{ width: '15%' }}>
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '14%' : '15%' }}>
                       Leave Type
                     </th>
-                    <th className="tr-th" style={{ width: '23%' }}>
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '20%' : '23%' }}>
                       Dates
                     </th>
-                    <th className="tr-th" style={{ width: '9%' }}>
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '9%' }}>
                       Work Days
                     </th>
-                    <th className="tr-th" style={{ width: '9%' }}>
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '10%' : '9%' }}>
                       Applied On
                     </th>
                     <th className="tr-th" style={{ width: '10%' }}>
                       Status
                     </th>
-                    <th className="tr-th" style={{ width: '10%' }}>
+                    {statusF === 'pending' && (
+                      <th className="tr-th" style={{ width: '10%' }}>
+                        Pending Since
+                      </th>
+                    )}
+                    <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>
                       Actions
                     </th>
                   </tr>
@@ -666,7 +740,7 @@ export function TeamRequestsTab() {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={statusF === 'pending' ? 8 : 7}>
                         <div className="tr-empty">
                           <CheckCircle2 size={32} className="tr-empty-icon" />
                           <p className="tr-empty-text">No requests match the current filters.</p>
@@ -758,6 +832,11 @@ export function TeamRequestsTab() {
                               {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                             </span>
                           </td>
+                          {statusF === 'pending' && (
+                            <td className="tr-td" style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}>
+                              {req.status === 'pending' ? getRelativePendingTime(req.requestedAt) : '-'}
+                            </td>
+                          )}
                           <td className="tr-td">
                             <div className="tr-actions">
                               {req.status === 'pending' && (

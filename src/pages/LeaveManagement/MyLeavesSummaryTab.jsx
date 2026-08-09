@@ -43,7 +43,7 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
       else if (leave.status === 3) statusStr = 'approved';
       else if (leave.status === 2) statusStr = 'rejected';
       else if (leave.status === 4) statusStr = 'self-rejected';
-      else if (leave.status_code) statusStr = leave.status_code.toLowerCase();
+      else if (leave.status_code) statusStr = leave.status_code.toLowerCase().replace('_', '-');
       
       return { ...leave, statusStr };
     });
@@ -96,9 +96,6 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
   const filteredLeaves = useMemo(() => {
     return dateFilteredLeaves.filter(leave => {
       if (filterStatus === 'all') return true;
-      if (filterStatus === 'rejected') {
-        return leave.statusStr === 'rejected' || leave.statusStr === 'self-rejected';
-      }
       return leave.statusStr === filterStatus;
     });
   }, [dateFilteredLeaves, filterStatus]);
@@ -126,7 +123,11 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
             </button>
             <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
               <span className="leave-filter-label">Rejected</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected' || l.statusStr === 'self-rejected').length}</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
+            </button>
+            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')}>
+              <span className="leave-filter-label">Self Rejected</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
             </button>
           </div>
 
@@ -241,8 +242,8 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
                     </td>
                     <td className="leave-table-cell">
                       <div className="leave-table-actions">
-                        <button className="leave-table-action-button" style={{ color: '#64748b' }} title="View Details" onClick={() => setViewModalLeave(leave)}>
-                          <Eye className="leave-table-action-icon" size={16}/>
+                        <button className="leave-table-action-button action-view" title="View Details" onClick={() => setViewModalLeave(leave)}>
+                          <Eye className="leave-table-action-icon" />
                         </button>
                       </div>
                     </td>

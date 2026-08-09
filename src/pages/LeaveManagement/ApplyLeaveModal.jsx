@@ -806,59 +806,64 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                         Customize leave hours for each business day in the range:
                       </div>
-                      {eachDay(startDate, end).map((day) => {
-                        const dStr = dateStr(day);
-                        const startStr = dateStr(startDate);
-                        const endStr = dateStr(end);
-                        const isStartDay = dStr === startStr;
-                        const isEndDay = dStr === endStr;
-                        const isMiddleDay = !isStartDay && !isEndDay;
+                      {(() => {
+                        const bizDaysArr = eachDay(startDate, end).filter(day => {
+                          const dStr = dateStr(day);
+                          return !isSaudiWeekend(day) && !PUBLIC_HOLIDAYS.includes(dStr);
+                        });
 
-                        const isWeekend = isSaudiWeekend(day);
-                        const isHol = PUBLIC_HOLIDAYS.includes(dStr);
-                        if (isWeekend || isHol) return null;
-                        const currentVal = dailyConfigs[dStr] || 'full';
-                        return (
-                          <div key={dStr} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
-                            <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                              {fmtShort(day)}
-                            </span>
-                            <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
-                              {[
-                                ['full', 'Full Day'],
-                                ['morning', '1st Half'],
-                                ['afternoon', '2nd Half'],
-                              ].map(([val, lbl]) => {
-                                const isDisabled = 
-                                  (isMiddleDay && val !== 'full') ||
-                                  (isStartDay && val === 'morning') ||
-                                  (isEndDay && val === 'afternoon');
-                                
-                                return (
-                                  <button
-                                    key={val}
-                                    type="button"
-                                    className="al-duration-chip"
-                                    style={{ 
-                                      padding: '3px 8px', 
-                                      fontSize: '11px', 
-                                      opacity: isDisabled ? 0.4 : 1, 
-                                      cursor: isDisabled ? 'not-allowed' : 'pointer' 
-                                    }}
-                                    data-active={currentVal === val}
-                                    disabled={isDisabled}
-                                    onClick={() => {
-                                      if (!isDisabled) setDailyConfigs(prev => ({ ...prev, [dStr]: val }));
-                                    }}
-                                  >
-                                    {lbl}
-                                  </button>
-                                );
-                              })}
+                        return bizDaysArr.map((day, index) => {
+                          const dStr = dateStr(day);
+                          const isStartDay = index === 0;
+                          const isEndDay = index === bizDaysArr.length - 1;
+                          const isMiddleDay = !isStartDay && !isEndDay;
+                          const currentVal = dailyConfigs[dStr] || 'full';
+
+                          return (
+                            <div key={dStr} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
+                              <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                                {fmtShort(day)}
+                              </span>
+                              <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
+                                {[
+                                  ['full', 'Full Day'],
+                                  ['morning', '1st Half'],
+                                  ['afternoon', '2nd Half'],
+                                ].map(([val, lbl]) => {
+                                  let isDisabled = false;
+                                  if (bizDaysArr.length > 1) {
+                                    isDisabled = 
+                                      (isMiddleDay && val !== 'full') ||
+                                      (isStartDay && val === 'morning') ||
+                                      (isEndDay && val === 'afternoon');
+                                  }
+                                  
+                                  return (
+                                    <button
+                                      key={val}
+                                      type="button"
+                                      className="al-duration-chip"
+                                      style={{ 
+                                        padding: '3px 8px', 
+                                        fontSize: '11px', 
+                                        opacity: isDisabled ? 0.4 : 1, 
+                                        cursor: isDisabled ? 'not-allowed' : 'pointer' 
+                                      }}
+                                      data-active={currentVal === val}
+                                      disabled={isDisabled}
+                                      onClick={() => {
+                                        if (!isDisabled) setDailyConfigs(prev => ({ ...prev, [dStr]: val }));
+                                      }}
+                                    >
+                                      {lbl}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   ) : (
                     <div className="al-duration-chips">

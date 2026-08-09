@@ -175,30 +175,66 @@
 }
 
 .leave-table-action-button {
-  background: transparent;
-  border: 1px solid var(--border-primary);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-family: var(--font-family);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.1s;
+  white-space: nowrap;
 }
 
-.leave-table-action-button:hover {
+.leave-table-action-button.action-cancel {
+  background: var(--c-danger-light);
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.leave-table-action-button.action-cancel:hover {
+  background: var(--c-danger);
+  color: #fff;
+  border-color: var(--c-danger);
+}
+.leave-table-action-button.action-cancel .leave-table-action-icon {
+  color: inherit;
+}
+
+.leave-table-action-button.action-edit {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+.leave-table-action-button.action-edit:hover {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+.leave-table-action-button.action-edit .leave-table-action-icon {
+  color: inherit;
+}
+
+.leave-table-action-button.action-view {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-primary);
+}
+.leave-table-action-button.action-view:hover {
   background: var(--bg-hover);
-  border-color: var(--c-primary);
+  color: var(--text-primary);
+}
+.leave-table-action-button.action-view .leave-table-action-icon {
+  color: inherit;
 }
 
 .leave-table-action-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--text-secondary);
-}
-
-.leave-table-action-button:hover .leave-table-action-icon {
-  color: var(--c-primary);
+  width: 14px;
+  height: 14px;
 }
 
 /* Responsive Design */
