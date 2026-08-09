@@ -211,13 +211,11 @@ export function ConsultantsPage() {
     }
   };
 
-  const hasMounted = useRef(false);
   // Refetch the main list whenever we switch back to the consultants tab
   useEffect(() => {
-    if (hasMounted.current && activeTab === 'consultants') {
+    if (activeTab === 'consultants') {
       loadEmployees();
     }
-    hasMounted.current = true;
   }, [activeTab, loadEmployees]);
 
   const openDrawer = (mode) => {
@@ -359,10 +357,16 @@ export function ConsultantsPage() {
     if (!formData.role || !formData.roleId) return toast.error('Role selection is required');
     if (!formData.designation && formData.designation !== 0)
       return toast.error('Designation is required');
+    if (!formData.manager && !formData.managerId) return toast.error('Reporting Manager is required');
     if (!formData.username?.trim() && !formData.userId?.trim())
       return toast.error('Username / Employee ID is required');
     if (!isEditing && !formData.password?.trim())
       return toast.error('Initial Password is required');
+
+    if (formData.physicalPcAvailable) {
+      if (!formData.computerLocation) return toast.error('Computer Location is required');
+      if (!formData.location) return toast.error('Work Location is required');
+    }
 
     setIsSaving(true);
     try {
@@ -828,7 +832,7 @@ export function ConsultantsPage() {
                             ]}
                           />
                         </EfField>
-                        <EfField label="Reporting Manager">
+                        <EfField label="Reporting Manager" required>
                           <Select
                             value={String(
                               formData.managerId || formData.manager_id || formData.manager || '',
@@ -882,7 +886,7 @@ export function ConsultantsPage() {
                             }))}
                           />
                         </EfField>
-                        <EfField label="Role">
+                        <EfField label="Role" required>
                           <Select
                             value={formData.role || ''}
                             onChange={(v) => patch({ role: v })}
@@ -978,7 +982,7 @@ export function ConsultantsPage() {
                             onChange={(e) => patch({ webexId: e.target.value })}
                           />
                         </EfField>
-                        <EfField label="WORK LOCATION">
+                        <EfField label="WORK LOCATION" required={formData.physicalPcAvailable}>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {dynamicLocations
                               .filter((loc) => loc.name && loc.name.toLowerCase() !== 'hybrid')
@@ -1040,7 +1044,7 @@ export function ConsultantsPage() {
                                 onChange={(e) => patch({ computerName: e.target.value })}
                               />
                             </EfField>
-                            <EfField label="COMPUTER LOCATION">
+                            <EfField label="COMPUTER LOCATION" required>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <Select
                                   value={formData.computerLocation || ''}

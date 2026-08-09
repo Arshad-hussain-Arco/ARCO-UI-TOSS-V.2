@@ -154,12 +154,6 @@ export function LeaveManagementPage() {
     fetchData();
   }, [user, calendarYear, calendarMonth, activeTab, refreshKey]);
 
-  useEffect(() => {
-    return () => {
-      localStorage.removeItem('leaveManagementActiveTab');
-    };
-  }, []);
-
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
       setCalendarMonth(11);
@@ -200,6 +194,32 @@ export function LeaveManagementPage() {
     user?.role?.toLowerCase()?.includes('admin')
   );
 
+  const pendingDateRangeText = useMemo(() => {
+    const pendingLeaves = leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending'));
+    if (pendingLeaves.length === 0) return null;
+
+    let minDate = new Date(8640000000000000);
+    let maxDate = new Date(-8640000000000000);
+    let hasValidDates = false;
+
+    pendingLeaves.forEach(leave => {
+      const start = new Date(leave.start_date || leave.date);
+      const end = new Date(leave.end_date || leave.date || leave.start_date);
+
+      if (!isNaN(start.getTime())) {
+        if (start < minDate) minDate = start;
+        hasValidDates = true;
+      }
+      if (!isNaN(end.getTime())) {
+        if (end > maxDate) maxDate = end;
+        hasValidDates = true;
+      }
+    });
+
+    if (!hasValidDates) return null;
+    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
+  }, [leaves]);
   return (
     <div className="leave-management">
       {modalType && (
@@ -468,20 +488,20 @@ export function LeaveManagementPage() {
                       )}
                       <div className="view-mode-segmented">
                         <button
-                        className="view-mode-segment"
-                        data-active={viewMode === 'list'}
-                        onClick={() => setViewMode('list')}
-                      >
-                        <List className="view-mode-icon" />
-                      </button>
-                      <button
-                        className="view-mode-segment"
-                        data-active={viewMode === 'calendar'}
-                        onClick={() => setViewMode('calendar')}
-                      >
-                        <CalendarDays className="view-mode-icon" />
-                      </button>
-                    </div>
+                          className="view-mode-segment"
+                          data-active={viewMode === 'list'}
+                          onClick={() => setViewMode('list')}
+                        >
+                          <List className="view-mode-icon" />
+                        </button>
+                        <button
+                          className="view-mode-segment"
+                          data-active={viewMode === 'calendar'}
+                          onClick={() => setViewMode('calendar')}
+                        >
+                          <CalendarDays className="view-mode-icon" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="export-button-wrapper">
@@ -598,15 +618,15 @@ export function LeaveManagementPage() {
                                 <div className="leave-table-actions">
                                   {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                     <>
-                                      <button 
-                                        className="leave-table-action-button action-cancel" 
+                                      <button
+                                        className="leave-table-action-button action-cancel"
                                         title="Cancel Request"
                                         onClick={() => setCancelModalLeave(leave)}
                                       >
                                         <X className="leave-table-action-icon" />
                                       </button>
-                                      <button 
-                                        className="leave-table-action-button action-edit" 
+                                      <button
+                                        className="leave-table-action-button action-edit"
                                         title="Edit Request"
                                         onClick={() => setEditModalLeave(leave)}
                                       >

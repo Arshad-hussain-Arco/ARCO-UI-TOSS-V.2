@@ -26,10 +26,10 @@ function getAvatarBg(id) {
 function parsePhotoUrl(photoUrl) {
   if (!photoUrl) return null;
   let url = photoUrl;
-  
+
   if (url.startsWith('data:image')) return url;
   if (url.startsWith('http') || url.startsWith('/')) return url;
-  
+
   if (url.startsWith('ZGF0Y')) {
     try {
       url = atob(url);
@@ -43,10 +43,10 @@ function parsePhotoUrl(photoUrl) {
     if (url.startsWith('iVBORw')) mime = 'image/png';
     else if (url.startsWith('R0lGOD')) mime = 'image/gif';
     else if (url.startsWith('UklGR')) mime = 'image/webp';
-    
+
     return `data:${mime};base64,${url}`;
   }
-  
+
   return url;
 }
 
@@ -312,10 +312,7 @@ export function LeaveConfigurationTab() {
   const [expandedRows, setExpandedRows] = useState({});
 
   const toggleRow = (id) => {
-    setExpandedRows(prev => {
-      const currentlyExpanded = prev[id] !== false;
-      return { ...prev, [id]: !currentlyExpanded };
-    });
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const renderTreeRow = (emp, depth = 0) => {
