@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, Plus } from 'lucide-react';
+import { RefreshCw, CheckCircle, Plus, Loader2 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 
@@ -141,7 +141,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -151,14 +151,15 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
       : form.selectedDate;
 
     setIsSaving(true);
-    setTimeout(() => {
-      onSave({
+    try {
+      await onSave({
         ...form,
         selectedDate: annualDate,
         dayOfWeek: (form.selectedDays || []).join(', '),
       });
+    } finally {
       setIsSaving(false);
-    }, 250);
+    }
   };
 
   return (
@@ -609,10 +610,10 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
           >
             Cancel
           </button>
-          <button type="submit" className="eod-modal-btn primary-green" disabled={isSaving}>
+          <button type="submit" className="eod-modal-btn primary-green" disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {isSaving ? (
               <>
-                <RefreshCw size={12} className="eod-pulse-icon" /> Saving...
+                <Loader2 size={16} className="spin-animation" /> Saving...
               </>
             ) : isEdit ? (
               <>

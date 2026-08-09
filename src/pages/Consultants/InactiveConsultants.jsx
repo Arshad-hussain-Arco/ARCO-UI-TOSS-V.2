@@ -5,6 +5,7 @@ import {
   Users,
   ChevronDown,
   Lock,
+  X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { useToast } from '@hooks/useToast';
@@ -116,7 +117,12 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
               className="consultants-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-            />
+             style={{ paddingRight: '32px' }} />
+      {searchQuery && (
+        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+          <X size={14} />
+        </button>
+      )}
           </div>
           <div className="consultants-filter-group">
             <div className="consultants-dropdown-wrapper" ref={teamRef}>
@@ -177,23 +183,25 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
             </div>
             <button
               className="consultants-reset-button"
-              onClick={() => {
+              onClick={(e) => {
+                const icon = e.currentTarget.querySelector('.consultants-reset-icon');
+                if (icon) {
+                  icon.classList.add('spin-animation');
+                  setTimeout(() => icon.classList.remove('spin-animation'), 500);
+                }
                 setSearchQuery('');
                 setSelectedTeam('All Teams');
                 setSelectedDesignation('All Designations');
               }}
             >
-              <RotateCcw className="consultants-reset-icon" />
+              <RotateCcw className="consultants-reset-icon" size={14} />
+              <span>Reset</span>
             </button>
           </div>
         </div>
       </div>
       
-      {activatingId && (
-        <div style={{ padding: '8px 16px', color: 'var(--c-primary)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border-light)' }}>
-          <Loader message="Activating consultant..." inline={true} />
-        </div>
-      )}
+      {/* Standalone loader removed to prevent layout shift */}
 
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">
@@ -202,6 +210,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
               key={c.id}
               consultant={c}
               isInactive={true}
+              isActivating={activatingId === (c.emp_id || c.id)}
               onActivate={handleActivate}
               onAvatarClick={() => onProfileView && onProfileView(c.id)}
             />

@@ -189,24 +189,71 @@
 .header-pinned-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--c-primary);
-  background: var(--c-primary-light);
-  border-radius: 8px;
-  text-decoration: none;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #006633;
+  background: #e6f4ed;
+  border: 1px solid #006633;
+  border-radius: 6px;
   white-space: nowrap;
-  transition:
-    background 0.15s ease,
-    box-shadow 0.15s ease;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .header-pinned-item:hover {
-  background: color-mix(in srgb, var(--c-primary-light) 70%, var(--c-primary) 30%);
+  background-color: #006633;
+  color: #ffffff;
   text-decoration: none;
-  box-shadow: var(--shadow-sm);
+}
+
+/* Group Pinned Links Dropdowns */
+.header-pinned-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.header-pinned-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 200px;
+  background-color: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-secondary, #cbd5e1);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  padding: 6px;
+  z-index: 1000;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-pinned-dropdown-menu[data-open="true"] {
+  display: flex;
+}
+
+.header-pinned-dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #4b5563);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.header-pinned-dropdown-link:hover {
+  background-color: var(--bg-hover, #f3f4f6);
+  color: var(--c-primary, #006633);
+  text-decoration: none;
 }
 
 /* Icon Buttons */
@@ -231,8 +278,7 @@
 }
 
 .header-icon-button[data-active='true'] {
-  color: var(--c-primary);
-  background-color: var(--c-primary-light);
+  color: var(--c-primary);  background-color: var(--c-primary-light);
 }
 
 .header-icon {

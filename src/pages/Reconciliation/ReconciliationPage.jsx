@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Check, ArrowUpRight, AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { DotsLoader } from '../../components/ui/DotsLoader/DotsLoader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
@@ -64,12 +64,12 @@ function StepperBar({ currentStep }) {
   );
 }
 
-function buildInitialMappings(srcCols, dstCols) {
+function buildInitialMappings(srcCols, columnMeta = {}) {
   return srcCols.map((src) => {
     return {
       src,
       dst: '__skip__',
-      dataType: 'Categorical',
+      dataType: columnMeta?.[src]?.dataType || 'Categorical',
       tolerance: '0.00',
       roundOff: 'None',
       exclude: false,
@@ -208,7 +208,7 @@ export function ReconciliationPage() {
       // Rebuild mappings only if file 1 was added or changed
       if (updated[0]?.columns && (!prevFiles[0] || prevFiles[0].name !== updated[0].name)) {
         setTimeout(() => {
-          setColMappings(buildInitialMappings(updated[0].columns, updated[1]?.columns ?? []));
+          setColMappings(buildInitialMappings(updated[0].columns, updated[0].columnMeta));
         }, 0);
       }
       return updated;
@@ -417,7 +417,7 @@ export function ReconciliationPage() {
         <div className="rwiz-reconcile-overlay" role="status" aria-live="polite">
           <div className="rwiz-reconcile-card">
             <div className="rwiz-reconcile-spinner">
-              <DotsLoader size={40} className="rwiz-reconcile-spinner-icon" color="#8cc63f" />
+              <Spinner size="lg" className="rwiz-reconcile-spinner-icon" />
             </div>
             <h3 className="rwiz-reconcile-title">Running Reconciliation</h3>
             <p className="rwiz-reconcile-phase">{STATUS_MESSAGES[reconcilePhase]}</p>

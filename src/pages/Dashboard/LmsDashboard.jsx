@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import React, { useState, useEffect } from "react";
 import { colors } from "../../styles/tokens";
 import { StatCard, Pill, ProgressBar, AlertRow, Avatar } from "../../components/ui";
@@ -312,7 +313,7 @@ export default function LmsDashboard() {
           className={`lms-tab-btn ${activeTab === "utilization" ? "active" : ""}`}
           onClick={() => setActiveTab("utilization")}
         >
-          Leave Utilization
+          Team leave Utilization
         </button>
         <button
           className={`lms-tab-btn ${activeTab === "balances" ? "active" : ""}`}
@@ -407,7 +408,12 @@ export default function LmsDashboard() {
                 value={deptSearch}
                 onChange={(e) => setDeptSearch(e.target.value)}
                 className="lms-input"
-              />
+               style={{ paddingRight: '32px' }} />
+      {deptSearch && (
+        <button type="button" className="search-clear-btn" onClick={() => setDeptSearch('')}>
+          <X size={14} />
+        </button>
+      )}
               <button
                 className="lms-btn lms-btn-secondary"
                 onClick={() => fetchDeptStats(1)}
@@ -554,7 +560,12 @@ export default function LmsDashboard() {
                 value={balSearch}
                 onChange={(e) => setBalSearch(e.target.value)}
                 className="lms-input"
-              />
+               style={{ paddingRight: '32px' }} />
+      {balSearch && (
+        <button type="button" className="search-clear-btn" onClick={() => setBalSearch('')}>
+          <X size={14} />
+        </button>
+      )}
               <button
                 className="lms-btn lms-btn-secondary"
                 onClick={() => fetchBalances(1, balSearch)}

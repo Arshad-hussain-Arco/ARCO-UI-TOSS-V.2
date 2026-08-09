@@ -807,9 +807,14 @@ export function ProjectMonitoringPage() {
 
                 <button
                   type="button"
-                  className="pm-icon-btn"
+                  className="pm-reset-btn"
                   title="Reset Filters"
-                  onClick={() => {
+                  onClick={(e) => {
+                    const icon = e.currentTarget.querySelector('.pm-reset-icon');
+                    if (icon) {
+                      icon.classList.add('spin-animation');
+                      setTimeout(() => icon.classList.remove('spin-animation'), 500);
+                    }
                     setSearchQuery('');
                     setStatusFilter('');
                     setStartDate(null);
@@ -817,7 +822,8 @@ export function ProjectMonitoringPage() {
                     setSelectedCategory('all');
                   }}
                 >
-                  <RotateCcw size={15} />
+                  <RotateCcw className="pm-reset-icon" size={15} />
+                  <span>Reset</span>
                 </button>
 
                 <div className="pm-toolbar-divider" />

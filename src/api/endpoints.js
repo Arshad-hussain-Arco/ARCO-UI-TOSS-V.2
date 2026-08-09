@@ -5,6 +5,7 @@ const endpoints = {
     verify: '/auth/verify/',
     logout: '/auth/logout/',
     userInfo: '/auth/user-info/',
+    updateUserInfo: '/auth/update-user-info/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
@@ -43,6 +44,16 @@ const endpoints = {
     createHomeData: '/dashboard/home-data/create/',
     updateHomeData: (id) => `/dashboard/home-data/${id}/update/`,
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
+  },
+  dashboard: {
+    summary: '/dashboard/summary/',
+    leaveUtilization: '/dashboard/leave-utilization/',
+    announcements: '/dashboard/announcements/',
+    dismissAnnouncement: (id) => `/dashboard/announcements/${id}/dismiss/`,
+    leaveRequestsTrend: '/dashboard/leave-requests-trend/',
+    departmentStats: '/dashboard/department-stats/',
+    onLeave: '/dashboard/on-leave/',
+    pendingApprovals: '/dashboard/pending-approvals/',
   },
   me: {
     balance: (id) => `/leaves/me/${id}/balance/`,
@@ -178,6 +189,7 @@ const endpoints = {
     teams: '/employees/teams/',
     teamDetail: (id) => `/employees/teams/${id}/`,
     designationsTeams: '/employees/designation-teams/',
+    photo: (id) => `/employees/emp-photo/${id}/`,
     photoUpload: (id) => `/employees/emp-photo/${id}/upload/`,
     photoDelete: (id) => `/employees/emp-photo/${id}/delete/`,
     teamHeadcount: '/employees/team-headcount/',

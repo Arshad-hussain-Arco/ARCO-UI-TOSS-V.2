@@ -9,6 +9,8 @@ import {
   Search,
   Trash2,
   X,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
@@ -91,25 +93,68 @@ function toDateInputValue(dateValue) {
   return `${year}-${month}-${day}`;
 }
 
-function computeDayOfWeek(dateStr) {
-  if (!dateStr) return '';
-  const d = parseDateValue(dateStr);
+function computeDayOfWeek(dateStrVal) {
+  if (!dateStrVal) return '';
+  const d = parseDateValue(dateStrVal);
   if (!d || Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-function computeStatus(dateStr) {
-  if (!dateStr) return 'Upcoming';
-  const date = parseDateValue(dateStr);
-  if (!date || Number.isNaN(date.getTime())) return 'Upcoming';
+function dateStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function eachDay(s, e) {
+  const days = [];
+  const cur = new Date(s);
+  cur.setHours(0, 0, 0, 0);
+  const fin = new Date(e);
+  fin.setHours(0, 0, 0, 0);
+  while (cur <= fin) {
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+function formatHolidayDates(dates) {
+  if (!dates || dates.length === 0) return '';
+  if (dates.length === 1) return formatDate(dates[0]);
+  
+  // Sort dates asc
+  const sorted = [...dates].sort((a, b) => new Date(a) - new Date(b));
+  const start = sorted[0];
+  const end = sorted[sorted.length - 1];
+  
+  const startD = new Date(start);
+  const endD = new Date(end);
+  
+  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  return `${fmt(startD)} - ${fmt(endD)}`;
+}
+
+function computeStatus(datesVal) {
+  if (!datesVal) return 'Upcoming';
+  const datesList = Array.isArray(datesVal) ? datesVal : [datesVal];
+  if (datesList.length === 0) return 'Upcoming';
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const targetDate = new Date(date);
-  targetDate.setHours(0, 0, 0, 0);
+  // Sort dates
+  const sorted = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+  const startD = new Date(sorted[0]);
+  startD.setHours(0, 0, 0, 0);
+  const endD = new Date(sorted[sorted.length - 1]);
+  endD.setHours(0, 0, 0, 0);
 
-  return targetDate.getTime() < today.getTime() ? 'Past' : 'Upcoming';
+  if (today >= startD && today <= endD) {
+    return 'Ongoing';
+  } else if (today < startD) {
+    return 'Upcoming';
+  } else {
+    return 'Past';
+  }
 }
 
 /** Empty combined leave-type-with-policy form, matching the /hr/leave-types-with-policy/ payload. */
@@ -399,6 +444,7 @@ export function LeaveConfigurationPage() {
   // { code, name, leave_type: {...}, policy: {...} | null }
   const [combinedLeaveTypes, setCombinedLeaveTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Work locations, for the "Requires Work Location" leave-type setting's dropdown
   const [workLocations, setWorkLocations] = useState([]);
@@ -424,11 +470,11 @@ export function LeaveConfigurationPage() {
       setIsLoading(true);
       try {
         const hData = await leaveService.listHolidays();
-        // Adjust field names if backend returns something different (e.g., holiday_name vs name)
         const mappedHolidays = (hData || []).map(h => ({
           ...h,
           id: h.id,
           name: h.holiday_name || h.name,
+          dates: h.dates || (h.date ? [h.date] : []),
           date: h.date || (h.dates && h.dates[0]) || '',
           day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
           type: h.type || 'Public Holiday',
@@ -477,13 +523,10 @@ export function LeaveConfigurationPage() {
         const data = await leaveService.getWorkScheduleSummary();
         if (active) {
           setWorkScheduleSummary(data);
-          // Pre-select the currently applied weekend days so the checkboxes reflect
-          // the org's current assignment as soon as the tab opens.
+          // The user explicitly requested that no days be checked by default upon loading,
+          // so we intentionally do NOT pre-populate selectedCustomDays here from the backend.
           if (data?.meta?.distinct_schedules === 1) {
-            const group = data.results[0];
-            setSelectedCustomDays(
-              group.work_schedule === 'CUSTOM' ? group.custom_weekend_days || [] : [],
-            );
+            setSelectedCustomDays([]);
           }
         }
       } catch (err) {
@@ -537,6 +580,9 @@ export function LeaveConfigurationPage() {
     };
   }, []);
 
+  // Delete Target state for Holidays confirmation popup
+  const [deleteTargetHoliday, setDeleteTargetHoliday] = useState(null);
+
   // ── Inline Edit State for Holidays ────────────────────────────────────────
   const [editingHolidayId, setEditingHolidayId] = useState(null);
   const [holidayEditForm, setHolidayEditForm] = useState({
@@ -552,7 +598,8 @@ export function LeaveConfigurationPage() {
   const [editingHoliday, setEditingHoliday] = useState(null);
   const [holidayForm, setHolidayForm] = useState({
     name: '',
-    date: '',
+    startDate: '',
+    endDate: '',
     day: '',
     type: 'Public Holiday',
     status: 'Upcoming',
@@ -573,13 +620,13 @@ export function LeaveConfigurationPage() {
   // ── Section 1: Holiday Handlers ─────────────────────────────────────────────
   const openAddHolidayModal = () => {
     setEditingHoliday(null);
-    const todayStr = toDateInputValue(new Date());
     setHolidayForm({
       name: '',
-      date: todayStr,
-      day: computeDayOfWeek(todayStr),
+      startDate: '',
+      endDate: '',
+      day: '',
       type: 'Public Holiday',
-      status: computeStatus(todayStr),
+      status: '',
       description: '',
     });
     setIsHolidayModalOpen(true);
@@ -589,6 +636,8 @@ export function LeaveConfigurationPage() {
     setEditingHoliday(h);
     setHolidayForm({
       ...h,
+      startDate: h.date || '',
+      endDate: h.date || '',
       day: computeDayOfWeek(h.date),
       status: computeStatus(h.date),
     });
@@ -661,14 +710,29 @@ export function LeaveConfigurationPage() {
   };
 
   const handleSaveHoliday = async () => {
-    if (!holidayForm.name || !holidayForm.date) {
+    if (!holidayForm.name || !holidayForm.startDate) {
       toast.error('Please enter holiday name and date');
       return;
     }
 
+    setIsSaving(true);
+    
+    // Generate dates list from startDate to endDate
+    const datesList = [];
+    if (holidayForm.startDate) {
+      const targetEnd = holidayForm.endDate || holidayForm.startDate;
+      const startD = parseDateValue(holidayForm.startDate);
+      const endD = parseDateValue(targetEnd);
+      if (startD && endD) {
+        eachDay(startD, endD).forEach((d) => {
+          datesList.push(dateStr(d));
+        });
+      }
+    }
+
     const payload = {
       holiday_name: holidayForm.name,
-      dates: [holidayForm.date],
+      dates: datesList.length > 0 ? datesList : [holidayForm.startDate],
       description: holidayForm.description,
       emp_id: 10 // Assuming current user ID 10
     };
@@ -688,6 +752,7 @@ export function LeaveConfigurationPage() {
         ...h,
         id: h.id,
         name: h.holiday_name || h.name,
+        dates: h.dates || (h.date ? [h.date] : []),
         date: h.date || (h.dates && h.dates[0]) || '',
         day: h.day || (h.date ? computeDayOfWeek(h.date) : ''),
         type: h.type || 'Public Holiday',
@@ -698,6 +763,8 @@ export function LeaveConfigurationPage() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to save holiday');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -717,14 +784,23 @@ export function LeaveConfigurationPage() {
     }
   };
 
-  const handleDeleteHoliday = async (id) => {
+  const handleDeleteHoliday = (holiday) => {
+    setDeleteTargetHoliday(holiday);
+  };
+
+  const executeDeleteHoliday = async () => {
+    if (!deleteTargetHoliday) return;
+    setIsSaving(true);
     try {
-      await leaveService.deleteHoliday(id, { emp_id: 10 });
-      setHolidays((prev) => prev.filter((h) => h.id !== id));
-      toast.success('Holiday deleted');
+      await leaveService.deleteHoliday(deleteTargetHoliday.id, { emp_id: 10 });
+      setHolidays((prev) => prev.filter((h) => h.id !== deleteTargetHoliday.id));
+      toast.success(`Deleted holiday: ${deleteTargetHoliday.name}`);
+      setDeleteTargetHoliday(null);
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete holiday');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -804,6 +880,7 @@ export function LeaveConfigurationPage() {
 
     const payload = combinedFormToPayload(combinedForm);
 
+    setIsSaving(true);
     try {
       setCombinedCodeError('');
       if (editingCombinedCode) {
@@ -826,6 +903,8 @@ export function LeaveConfigurationPage() {
         toast.error('Failed to save leave type & policy');
         console.error(err);
       }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -941,7 +1020,7 @@ export function LeaveConfigurationPage() {
           onClick={() => { setActiveTab('work-schedule'); setSearchQuery(''); }}
         >
           <Calendar size={16} />
-          <span>Work Schedule</span>
+          <span>weekend configurations</span>
         </button>
       </div>
 
@@ -957,7 +1036,7 @@ export function LeaveConfigurationPage() {
         >
           <option value="holidays">Holidays ({holidays?.length || 0})</option>
           <option value="leave-types-policies">Leave Types &amp; Policies ({combinedLeaveTypes?.length || 0})</option>
-          <option value="work-schedule">Work Schedule</option>
+          <option value="work-schedule">weekend configurations</option>
         </select>
       </div>
 
@@ -1048,11 +1127,11 @@ export function LeaveConfigurationPage() {
                                 />
                               </div>
                             ) : (
-                              formatDate(h.date)
+                              formatHolidayDates(h.dates && h.dates.length > 0 ? h.dates : h.date ? [h.date] : [])
                             )}
                           </td>
                           <td style={{ color: '#64748b' }}>
-                            {isEditing ? computeDayOfWeek(holidayEditForm.date) : computeDayOfWeek(h.date)}
+                            {isEditing ? computeDayOfWeek(holidayEditForm.date) : (h.dates && h.dates.length > 1 ? 'Multiple Days' : computeDayOfWeek(h.date || (h.dates && h.dates[0])))}
                           </td>
                           <td>
                             {isEditing ? (
@@ -1075,13 +1154,18 @@ export function LeaveConfigurationPage() {
                           </td>
                           <td>
                             {isEditing ? (
-                              <span className={computeStatus(holidayEditForm.date) === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past'}>
-                                {computeStatus(holidayEditForm.date)}
-                              </span>
+                              (() => {
+                                const stat = computeStatus(holidayEditForm.date);
+                                const cls = stat === 'Ongoing' ? 'lc-tag-ongoing' : stat === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past';
+                                return <span className={cls}>{stat}</span>;
+                              })()
                             ) : (
-                              <span className={computeStatus(h.date) === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past'}>
-                                {computeStatus(h.date)}
-                              </span>
+                              (() => {
+                                const targetDates = h.dates && h.dates.length > 0 ? h.dates : h.date ? [h.date] : [];
+                                const stat = computeStatus(targetDates);
+                                const cls = stat === 'Ongoing' ? 'lc-tag-ongoing' : stat === 'Upcoming' ? 'lc-tag-upcoming' : 'lc-tag-past';
+                                return <span className={cls}>{stat}</span>;
+                              })()
                             )}
                           </td>
 
@@ -1106,24 +1190,24 @@ export function LeaveConfigurationPage() {
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             {isEditing ? (
-                              <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
                                 <button
                                   type="button"
-                                  className="lc-btn-primary"
-                                  style={{ height: '32px', padding: '0 12px' }}
+                                  className="lc-inline-btn save"
+                                  title="Save Changes"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px' }}
                                   onClick={() => handleSaveHolidayInlineEdit(h.id)}
                                 >
-                                  <Check size={14} />
-                                  Save Changes
+                                  <Check size={16} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
-                                  style={{ width: 'auto', padding: '0 12px' }}
+                                  className="lc-inline-btn cancel"
+                                  title="Cancel"
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#ef4444' }}
                                   onClick={cancelHolidayInlineEdit}
                                 >
-                                  <X size={14} />
-                                  Cancel
+                                  <X size={16} />
                                 </button>
                               </div>
                             ) : (
@@ -1140,7 +1224,7 @@ export function LeaveConfigurationPage() {
                                   type="button"
                                   className="lc-ghost-btn danger"
                                   title="Delete Holiday"
-                                  onClick={() => handleDeleteHoliday(h.id)}
+                                  onClick={() => handleDeleteHoliday(h)}
                                 >
                                   <Trash2 size={15} />
                                 </button>
@@ -1282,72 +1366,98 @@ export function LeaveConfigurationPage() {
         )}
         {/* ── TAB 3: WORK SCHEDULE ── */}
         {activeTab === 'work-schedule' && (
-          <div className="lc-card-panel">
+          <div className="lc-card-panel" style={{ flex: 'none' }}>
             <div style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>Work Schedule Settings</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>weekend configurations Settings</h3>
 
-              {isSummaryLoading && (
-                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>Loading current schedule…</div>
-              )}
-
-              {!isSummaryLoading && workScheduleSummary?.meta?.distinct_schedules > 1 && (
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px' }}>
-                    Employees are currently split across multiple schedules. Applying below will set everyone to the selected days.
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {workScheduleSummary.results.map((group, idx) => (
-                      <div
-                        key={`${group.work_schedule}-${idx}`}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                        }}
-                      >
-                        <div>
-                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                            {getScheduleLabel(group.work_schedule)}
-                          </span>
-                          {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
-                            <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
-                              ({formatCustomWeekendDays(group.custom_weekend_days)})
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
-                          {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              {isSummaryLoading ? (
+                <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
+                  <Loader message="Loading current schedule..." />
                 </div>
-              )}
+              ) : (
+                <>
+                  {workScheduleSummary?.meta?.distinct_schedules > 1 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '8px' }}>
+                        Employees are currently split across multiple schedules. Applying below will set everyone to the selected days.
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {workScheduleSummary.results.map((group, idx) => (
+                          <div
+                            key={`${group.work_schedule}-${idx}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                                {getScheduleLabel(group.work_schedule)}
+                              </span>
+                              {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
+                                <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
+                                  ({formatCustomWeekendDays(group.custom_weekend_days)})
+                                </span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                              {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div className="ss-modal-form-group">
-                  <label className="ss-modal-label">Select Weekend Days</label>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
-                    {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="ss-modal-form-group">
+                  <div style={{ marginBottom: '20px' }}>
+                    <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => (
-                      <label key={day.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCustomDays.includes(day.value)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCustomDays([...selectedCustomDays, day.value]);
-                            } else {
-                              setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
-                            }
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => {
+                      const isSelected = selectedCustomDays.includes(day.value);
+                      return (
+                        <label 
+                          key={day.value} 
+                          htmlFor={`ws-weekend-day-${day.value}`}
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '12px', 
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: 'var(--text-primary)',
+                            userSelect: 'none'
                           }}
-                          style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#334155' }}>{day.label}</span>
-                      </label>
-                    ))}
+                        >
+                          <input
+                            id={`ws-weekend-day-${day.value}`}
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCustomDays([...selectedCustomDays, day.value]);
+                              } else {
+                                setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
+                              }
+                            }}
+                            style={{ 
+                              width: '18px', 
+                              height: '18px', 
+                              accentColor: 'var(--c-primary)',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <span>{day.label}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1363,6 +1473,8 @@ export function LeaveConfigurationPage() {
                   Apply Work Schedule
                 </button>
               </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1381,57 +1493,92 @@ export function LeaveConfigurationPage() {
               className="lc-ghost-btn"
               style={{ padding: '0 16px', width: 'auto' }}
               onClick={() => setIsHolidayModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
-            <button type="button" className="lc-btn-primary" onClick={handleSaveHoliday}>
-              Save Holiday
+            <button type="button" className="lc-btn-primary" onClick={handleSaveHoliday} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Holiday'}
             </button>
           </>
         }
       >
-        <div className="lc-modal-grid">
+        <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Holiday Name */}
-          <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name">
+          <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
               Holiday Name
             </label>
             <input
               id="holiday-name"
               type="text"
               className="ss-input"
-              style={{ width: '100%' }}
+              style={{
+                width: '100%',
+                padding: '0 12px',
+                height: '38px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '13px'
+              }}
               value={holidayForm.name}
               placeholder="e.g. Founding Day"
               onChange={(e) => setHolidayForm((prev) => ({ ...prev, name: e.target.value }))}
             />
           </div>
 
-          {/* Date */}
+          {/* Start Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-date">
-              Date
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+              Start Date
             </label>
             <DatePicker
-              value={parseDateValue(holidayForm.date)}
+              value={parseDateValue(holidayForm.startDate)}
               onChange={(value) => {
-                const dateStr = toDateInputValue(value);
-                setHolidayForm((prev) => ({
-                  ...prev,
-                  date: dateStr,
-                  day: computeDayOfWeek(dateStr),
-                  status: computeStatus(dateStr)
-                }));
+                const dateStrVal = toDateInputValue(value);
+                setHolidayForm((prev) => {
+                  const updated = {
+                    ...prev,
+                    startDate: dateStrVal,
+                    day: computeDayOfWeek(dateStrVal),
+                    status: computeStatus(dateStrVal)
+                  };
+                  if (prev.endDate && parseDateValue(prev.endDate) < value) {
+                    updated.endDate = dateStrVal;
+                  }
+                  return updated;
+                });
               }}
-              placeholder="Select holiday date"
+              placeholder="Select start date"
               width="100%"
               showClear={false}
             />
           </div>
 
-          {/* Computed Day (Read-only Info Field) */}
+          {/* End Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-day">
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+              End Date
+            </label>
+            <DatePicker
+              value={parseDateValue(holidayForm.endDate)}
+              onChange={(value) => {
+                const dateStrVal = toDateInputValue(value);
+                setHolidayForm((prev) => ({
+                  ...prev,
+                  endDate: dateStrVal
+                }));
+              }}
+              minDate={parseDateValue(holidayForm.startDate) || undefined}
+              placeholder="Select end date"
+              width="100%"
+              showClear={false}
+            />
+          </div>
+
+          {/* Computed Day & Status Row */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
               Day of Week (Computed)
             </label>
             <div
@@ -1441,21 +1588,28 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f9fafb',
-                border: '1px solid #d1d5db',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
-                fontSize: '14px',
-                color: '#475569',
+                fontSize: '13px',
+                color: holidayForm.startDate ? '#475569' : '#94a3b8',
                 fontWeight: 500
               }}
             >
-              {holidayForm.date ? computeDayOfWeek(holidayForm.date) : 'Select a date'}
+              {holidayForm.startDate ? (
+                holidayForm.endDate && holidayForm.endDate !== holidayForm.startDate ? (
+                  'Multiple Days'
+                ) : (
+                  computeDayOfWeek(holidayForm.startDate)
+                )
+              ) : (
+                'Day of Week will be computed'
+              )}
             </div>
           </div>
 
-          {/* Computed Status (Read-only Info Badge) */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-status">
+            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
               Status (Computed)
             </label>
             <div
@@ -1465,27 +1619,27 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f9fafb',
-                border: '1px solid #d1d5db',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #cbd5e1',
                 borderRadius: '6px',
-                fontSize: '14px',
+                fontSize: '13px',
               }}
             >
-              {holidayForm.date ? (
-                computeStatus(holidayForm.date) === 'Upcoming' ? (
-                  <span className="lc-tag-upcoming" style={{ fontSize: '12px', padding: '2px 8px' }}>Upcoming</span>
+              {holidayForm.startDate ? (
+                computeStatus(holidayForm.startDate) === 'Upcoming' ? (
+                  <span className="lc-tag-upcoming" style={{ fontSize: '11px', padding: '2px 8px' }}>Upcoming</span>
                 ) : (
-                  <span className="lc-tag-past" style={{ fontSize: '12px', padding: '2px 8px' }}>Past</span>
+                  <span className="lc-tag-past" style={{ fontSize: '11px', padding: '2px 8px' }}>Past</span>
                 )
               ) : (
-                <span style={{ color: '#94a3b8' }}>Select a date</span>
+                <span style={{ color: '#94a3b8' }}>Status will be computed</span>
               )}
             </div>
           </div>
 
           {/* Holiday Type */}
-          <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-type">
+          <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
               Holiday Type
             </label>
             <CreatableSelect
@@ -1499,15 +1653,22 @@ export function LeaveConfigurationPage() {
 
 
           {/* Description */}
-          <div className="ss-modal-form-group lc-modal-grid-span-2">
-            <label className="ss-modal-label" htmlFor="holiday-description">
+          <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
               Description
             </label>
             <input
               id="holiday-description"
               type="text"
               className="ss-input"
-              style={{ width: '100%' }}
+              style={{
+                width: '100%',
+                padding: '0 12px',
+                height: '38px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '13px'
+              }}
               placeholder="Add a concise holiday summary"
               value={holidayForm.description}
               onChange={(e) => setHolidayForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -1531,11 +1692,12 @@ export function LeaveConfigurationPage() {
               className="lc-ghost-btn"
               style={{ padding: '0 16px', width: 'auto' }}
               onClick={() => setIsCombinedModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
-            <button type="button" className="lc-btn-primary" onClick={handleSaveCombined}>
-              Save Leave Type
+            <button type="button" className="lc-btn-primary" onClick={handleSaveCombined} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Leave Type'}
             </button>
           </>
         }
@@ -2198,6 +2360,65 @@ export function LeaveConfigurationPage() {
             </div>
           </div>
         </div>
+        </div>
+      </AdminModal>
+
+      {/* Confirm Delete Holiday Modal */}
+      <AdminModal
+        isOpen={!!deleteTargetHoliday}
+        onClose={() => setDeleteTargetHoliday(null)}
+        title="Confirm Deletion"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-primary, #e2e8f0)',
+                backgroundColor: '#ffffff',
+                color: 'var(--text-primary, #0f172a)',
+                cursor: 'pointer',
+                fontWeight: '500',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={() => setDeleteTargetHoliday(null)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="lc-btn-primary"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                cursor: 'pointer',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={executeDeleteHoliday}
+              disabled={isSaving}
+            >
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '13px', color: 'var(--text-primary)' }}>
+          Are you sure you want to delete the holiday <strong>{deleteTargetHoliday?.name}</strong>?
         </div>
       </AdminModal>
     </div>

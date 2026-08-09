@@ -24,7 +24,8 @@ export function LeaveRequestDrawer({
   isSubmittingAction,
   onClose,
   onApprove,
-  onReject
+  onReject,
+  isReadOnly
 }) {
   if (!liveReq) return null;
 
@@ -112,8 +113,7 @@ export function LeaveRequestDrawer({
           <div className="tr-dsec-title">Request Information</div>
           <div className="tr-drow">
             <span className="tr-drow-label">Request Type</span>
-            <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type]?.css}`}>
-              {TYPE_CONFIG[liveReq.type]?.Icon && React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+            <span className="tr-drow-value">
               {liveReq.leaveType ?? TYPE_CONFIG[liveReq.type]?.label}
             </span>
           </div>
@@ -155,11 +155,13 @@ export function LeaveRequestDrawer({
             <div className="tr-drow">
               <span className="tr-drow-label">Duration</span>
               <span className="tr-drow-value">
-                {liveReq.duration === 'full'
+                {liveReq.duration === 'full' || liveReq.duration === 'Full Day' || !liveReq.duration
                   ? 'Full Day'
-                  : liveReq.duration === 'morning'
+                  : liveReq.duration === 'morning' || liveReq.duration === 'First Half'
                     ? 'First Half'
-                    : 'Second Half'}
+                    : liveReq.duration === 'afternoon' || liveReq.duration === 'Second Half'
+                      ? 'Second Half'
+                      : liveReq.duration}
               </span>
             </div>
           )}
@@ -182,8 +184,7 @@ export function LeaveRequestDrawer({
                       ? 'Reason for WFH'
                       : 'Reason'}
               </span>
-              <span className={`tr-type-badge ${TYPE_CONFIG[liveReq.type]?.css}`} style={{ maxWidth: 220 }}>
-                {TYPE_CONFIG[liveReq.type]?.Icon && React.createElement(TYPE_CONFIG[liveReq.type].Icon, { size: 10 })}
+              <span className="tr-drow-value" style={{ maxWidth: 220 }}>
                 {liveReq.reason}
               </span>
             </div>
@@ -406,7 +407,7 @@ export function LeaveRequestDrawer({
         </div>
 
         {/* Manager Notes */}
-        {(drawerAction !== 'view' || liveReq.status === 'pending') && (
+        {!isReadOnly && (drawerAction !== 'view' || liveReq.status === 'pending') && (
           <div className="tr-dsec">
             <div className="tr-dsec-title">Manager Notes</div>
             <textarea
@@ -430,7 +431,7 @@ export function LeaveRequestDrawer({
 
       <div className="tr-drawer-footer">
         <div className="tr-footer-left">
-          {rejectErr && (
+          {!isReadOnly && rejectErr && (
             <span className="tr-footer-left-label">
               <AlertCircle size={11} />
               Comments required to reject
@@ -438,9 +439,9 @@ export function LeaveRequestDrawer({
           )}
         </div>
         <button className="tr-btn tr-btn-ghost" onClick={onClose}>
-          Cancel
+          {isReadOnly ? 'Close' : 'Cancel'}
         </button>
-        {liveReq.status === 'pending' && (
+        {!isReadOnly && liveReq.status === 'pending' && (
           <>
             {(drawerAction === 'view' || drawerAction === 'reject') && (
               <button 

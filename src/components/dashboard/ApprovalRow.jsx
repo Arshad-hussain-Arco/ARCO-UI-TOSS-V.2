@@ -125,7 +125,7 @@ export function ApprovalRow({ row, onResolved }) {
         <td>{row.age_days}d</td>
         <td>
           {row.sla_breached ? (
-            <Pill variant="red">🚨 SLA BREACH</Pill>
+            <Pill variant="red">SLA BREACH</Pill>
           ) : (
             <Pill variant="green">IN SLA</Pill>
           )}

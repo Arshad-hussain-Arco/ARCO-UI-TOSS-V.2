@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Users, Briefcase, ChevronDown, Copy, Plus, Edit2, Trash2 } from 'lucide-react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Users, Briefcase, ChevronDown, Copy, Plus, Edit, Trash, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -37,8 +37,8 @@ function EmployeeCard({ consultant, onClick }) {
         <div className="tv-emp-name">{consultant.name}</div>
         <div className="tv-emp-meta">
           <div className="tv-emp-designation">{consultant.designation || consultant.role}</div>
-          <div 
-            className="tv-emp-id-copy" 
+          <div
+            className="tv-emp-id-copy"
             onClick={(e) => handleCopy(e, consultant.userId || 'N/A')}
             onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, consultant.userId || 'N/A')}
             role="button"
@@ -106,22 +106,21 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
               <div className="tv-ah-progress-fill add" style={{ width: `${addDev}%` }} />
             </div>
           </div>
-          
+
           <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
-            <button 
-              className="tv-icon-btn edit" 
+            <button
+              className="tv-icon-btn edit"
               title="Edit Team"
               onClick={(e) => { e.stopPropagation(); onEdit(team); }}
             >
-              <Edit2 size={16} />
+              <Edit size={16} />
             </button>
-            <button 
-              className="tv-icon-btn delete" 
+            <button
+              className="tv-icon-btn delete"
               title="Delete Team"
-              style={{ color: '#ef4444' }}
               onClick={(e) => { e.stopPropagation(); onDelete(team); }}
             >
-              <Trash2 size={16} />
+              <Trash size={16} />
             </button>
           </div>
 
@@ -132,16 +131,16 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
       {isExpanded && (
         <div className="tv-accordion-body">
           <div className="tv-body-content">
-              {activeMembers.length > 0 && (
-                <div className="tv-members-section">
-                  <h4 className="tv-section-title">TEAM MEMBERS</h4>
-                  <div className="tv-members-grid">
-                    {activeMembers.map(emp => (
-                      <EmployeeCard key={emp.id} consultant={emp} onClick={onProfileView} />
-                    ))}
-                  </div>
+            {activeMembers.length > 0 && (
+              <div className="tv-members-section">
+                <h4 className="tv-section-title">TEAM MEMBERS</h4>
+                <div className="tv-members-grid">
+                  {activeMembers.map(emp => (
+                    <EmployeeCard key={emp.id} consultant={emp} onClick={onProfileView} />
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -149,7 +148,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView }) {
+export function TeamsView({ onProfileView, onTeamChanged }) {
   const { user } = useAuth();
 
   const fetchTeams = useCallback(async () => {
@@ -182,16 +181,40 @@ export function TeamsView({ onProfileView }) {
   const [expandedTeamId, setExpandedTeamId] = useState(null);
   const [teamMembersCache, setTeamMembersCache] = useState({});
   const toast = useToast();
+  const stripRef = useRef(null);
+
+  const scrollStrip = (dir) => {
+    if (stripRef.current) {
+      stripRef.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
+    }
+  };
+
+  const [showSlider, setShowSlider] = useState(false);
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (stripRef.current) {
+        setShowSlider(stripRef.current.scrollWidth > stripRef.current.clientWidth);
+      }
+    };
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    // Slight delay in case images/fonts load
+    setTimeout(checkOverflow, 100);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [teams]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   const [form, setForm] = useState({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+  const [formErrors, setFormErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
     setEditingTeam(null);
     setForm({ name: '', pri_dev_contr_per: '', add_dev_contr_per: '' });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
@@ -202,19 +225,30 @@ export function TeamsView({ onProfileView }) {
       pri_dev_contr_per: team.pri_dev_contr_per || '',
       add_dev_contr_per: team.add_dev_contr_per || ''
     });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
   const handleSaveTeam = async () => {
-    if (!form.name.trim()) {
-      toast.error('Team Name is required');
+    const errors = {};
+    if (!form.name.trim()) errors.name = 'Team Name is required';
+    if (form.pri_dev_contr_per === '') errors.pri_dev_contr_per = 'Primary Contribution is required';
+    if (form.add_dev_contr_per === '') errors.add_dev_contr_per = 'Additional Contribution is required';
+    const pri = parseFloat(form.pri_dev_contr_per);
+    const add = parseFloat(form.add_dev_contr_per);
+    if (form.pri_dev_contr_per !== '' && pri < 0) errors.pri_dev_contr_per = 'Cannot be negative';
+    if (form.add_dev_contr_per !== '' && add < 0) errors.add_dev_contr_per = 'Cannot be negative';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({});
+    setIsSaving(true);
     try {
       const payload = {
         name: form.name.trim(),
-        pri_dev_contr_per: form.pri_dev_contr_per ? parseFloat(form.pri_dev_contr_per) : null,
-        add_dev_contr_per: form.add_dev_contr_per ? parseFloat(form.add_dev_contr_per) : null
+        pri_dev_contr_per: pri,
+        add_dev_contr_per: add
       };
       if (editingTeam) {
         await consultantService.updateTeam(editingTeam.id, payload);
@@ -225,22 +259,29 @@ export function TeamsView({ onProfileView }) {
       }
       setIsModalOpen(false);
       refetch();
+      if (onTeamChanged) onTeamChanged();
     } catch (err) {
       console.error(err);
       toast.error('Failed to save team');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const executeDelete = async () => {
     if (!deleteTarget) return;
+    setIsSaving(true);
     try {
       await consultantService.deleteTeam(deleteTarget.id);
       toast.success('Team deleted successfully');
       setDeleteTarget(null);
       refetch();
+      if (onTeamChanged) onTeamChanged();
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete team');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -267,45 +308,67 @@ export function TeamsView({ onProfileView }) {
   return (
     <div className="teams-tab-container">
       {/* Top Summary Cards */}
-      <div className="tv-summary-strip">
-        {teamsData.map((team) => {
-          const isActive = expandedTeamId === team.id;
-          const hc = headcountMap[team.id];
-          return (
-            <div 
-              key={team.id} 
-              className={`tv-summary-card ${isActive ? 'active' : ''}`}
-              {...activatable(() => handleCardClick(team.id), { isPressed: isActive })}
-            >
-              <div className="tv-sc-header">
-                <span className="tv-sc-name">{team.name || team.team_name}</span>
-                <Users size={16} className={isActive ? 'text-brand' : 'text-gray-400'} />
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {showSlider && (
+          <button
+            onClick={() => scrollStrip(-1)}
+            className="tv-slider-btn"
+            style={{ position: 'absolute', left: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
+
+        <div className="tv-summary-strip" ref={stripRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {teamsData.map((team) => {
+            const isActive = expandedTeamId === team.id;
+            const hc = headcountMap[team.id];
+            return (
+              <div
+                key={team.id}
+                className={`tv-summary-card ${isActive ? 'active' : ''}`}
+                {...activatable(() => handleCardClick(team.id), { isPressed: isActive })}
+              >
+                <div className="tv-sc-header">
+                  <span className="tv-sc-name">{team.name || team.team_name}</span>
+                  <Users size={16} className={isActive ? 'text-brand' : 'text-gray-400'} />
+                </div>
+                <div className="tv-sc-stats">
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val">{hc ? hc.active : '--'}</span>
+                    <span className="tv-sc-lbl">Active</span>
+                  </div>
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val leave">{hc ? hc.on_leave : '--'}</span>
+                    <span className="tv-sc-lbl">On Leave</span>
+                  </div>
+                  <div className="tv-sc-stat">
+                    <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
+                    <span className="tv-sc-lbl">WFH</span>
+                  </div>
+                  <div className="tv-sc-stat total">
+                    <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
+                    <span className="tv-sc-lbl">Total</span>
+                  </div>
+                </div>
               </div>
-              <div className="tv-sc-stats">
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val">{hc ? hc.active : '--'}</span>
-                  <span className="tv-sc-lbl">Active</span>
-                </div>
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val leave">{hc ? hc.on_leave : '--'}</span>
-                  <span className="tv-sc-lbl">On Leave</span>
-                </div>
-                <div className="tv-sc-stat">
-                  <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
-                  <span className="tv-sc-lbl">WFH</span>
-                </div>
-                <div className="tv-sc-stat total">
-                  <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
-                  <span className="tv-sc-lbl">Total</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {showSlider && (
+          <button
+            onClick={() => scrollStrip(1)}
+            className="tv-slider-btn"
+            style={{ position: 'absolute', right: '-14px', zIndex: 2, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
+          >
+            <ChevronRight size={18} />
+          </button>
+        )}
       </div>
 
       <div className="teams-tab-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '0px' }}>
-        <button className="tv-add-btn" onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 12px', height: '32px', backgroundColor: '#005028', color: '#ffffff', borderRadius: '6px', fontSize: '13px', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s ease', whiteSpace: 'nowrap' }}>
+        <button className="consultants-add-button" onClick={openAddModal}>
           <Plus size={16} />
           <span>Add Team</span>
         </button>
@@ -315,8 +378,8 @@ export function TeamsView({ onProfileView }) {
       <div className="tv-accordions-list">
         {teamsData.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
-            <TeamAccordion 
-              team={team} 
+            <TeamAccordion
+              team={team}
               isExpanded={expandedTeamId === team.id}
               onToggle={() => handleCardClick(team.id)}
               onProfileView={onProfileView}
@@ -341,51 +404,56 @@ export function TeamsView({ onProfileView }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setIsModalOpen(false)}
+              disabled={isSaving}
             >
               Cancel
             </button>
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={handleSaveTeam}
+              disabled={isSaving}
             >
-              {editingTeam ? 'Update' : 'Add Team'}
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : (editingTeam ? 'Update' : 'Add Team')}
             </button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '8px 0' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Team Name</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Team Name</label>
             <input
               type="text"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
+            {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
             <input
               type="number"
               step="0.01"
               value={form.pri_dev_contr_per}
-              onChange={(e) => setForm({ ...form, pri_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+              onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
+            {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
+            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
             <input
               type="number"
               step="0.01"
               value={form.add_dev_contr_per}
-              onChange={(e) => setForm({ ...form, add_dev_contr_per: e.target.value })}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+              onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
             />
+            {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>
         </div>
       </AdminModal>
@@ -401,23 +469,25 @@ export function TeamsView({ onProfileView }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e2e8f0', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setDeleteTarget(null)}
+              disabled={isSaving}
             >
               Cancel
             </button>
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeDelete}
+              disabled={isSaving}
             >
-              Delete
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete'}
             </button>
           </>
         }
       >
-        <div style={{ padding: '16px 0', fontSize: '14px', color: '#334155' }}>
+        <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the team <strong>{deleteTarget?.name || deleteTarget?.team_name}</strong>?
         </div>
       </AdminModal>

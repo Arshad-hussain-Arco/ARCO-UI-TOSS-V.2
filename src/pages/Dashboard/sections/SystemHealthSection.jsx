@@ -1,8 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Activity, AlertCircle, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
-/** Y-axis gridline labels, in minutes. */
-const Y_AXIS_TICKS = [120, 90, 60, 30, 0];
+// Removed static Y_AXIS_TICKS
 
 /**
  * System health cards alongside the seven-day runtime bar chart.
@@ -18,11 +17,36 @@ const Y_AXIS_TICKS = [120, 90, 60, 30, 0];
 function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) {
   const { slaThreshold } = insights;
 
-  // The tallest bar defines the chart's scale, so a single slow day rescales all.
   const maxRuntime = useMemo(
-    () => Math.max(...runtimeTrend.map((entry) => entry.runtime)),
-    [runtimeTrend],
+    () => Math.max(...runtimeTrend.map((entry) => entry.runtime), slaThreshold),
+    [runtimeTrend, slaThreshold],
   );
+
+  const chartMax = useMemo(() => {
+    if (!maxRuntime || maxRuntime <= 0) return 120;
+    const roughStep = maxRuntime / 4;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const norm = roughStep / magnitude;
+    
+    let niceStep;
+    if (norm <= 1) niceStep = 1;
+    else if (norm <= 2) niceStep = 2;
+    else if (norm <= 2.5) niceStep = 2.5;
+    else if (norm <= 5) niceStep = 5;
+    else niceStep = 10;
+    
+    return niceStep * magnitude * 4;
+  }, [maxRuntime]);
+
+  const yTicks = useMemo(() => {
+    return [
+      chartMax,
+      chartMax * 0.75,
+      chartMax * 0.5,
+      chartMax * 0.25,
+      0
+    ];
+  }, [chartMax]);
 
   return (
     <>
@@ -88,6 +112,56 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
       </div>
 
 
+      <div className="dc-span-8">
+        <section className="dc-card dc-health-right" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <h2 className="dc-section-title">Runtime Trend – Last 7 Days</h2>
+
+          <div className="dc-chart-wrap" style={{ flex: 1 }}>
+            <div className="dc-y-axis" aria-hidden="true">
+              {yTicks.map((tick) => (
+                <span key={tick} className="dc-y-lbl">
+                  {tick}m
+                </span>
+              ))}
+            </div>
+
+            <div className="dc-chart-area">
+              <div
+                className="dc-sla-line"
+                style={{ bottom: `${(slaThreshold / chartMax) * 100}%` }}
+              >
+                <span className="dc-sla-lbl">SLA</span>
+              </div>
+
+              <div className="dc-bars">
+                {runtimeTrend.map((entry) => (
+                  <div key={entry.day} className="dc-bar-col">
+                    <div
+                      className={`dc-bar ${entry.runtime > slaThreshold ? 'dc-bar-breach' : 'dc-bar-ok'}`}
+                      style={{ height: `${chartMax ? (entry.runtime / chartMax) * 100 : 0}%` }}
+                      title={`${entry.day}: ${entry.runtime}m, ${entry.failed} failed`}
+                    >
+                      {entry.failed > 0 ? <span className="dc-bar-badge">{entry.failed}</span> : null}
+                    </div>
+                    <span className="dc-x-lbl">{entry.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="dc-chart-insights" style={{ marginTop: 'auto', paddingTop: '10px' }}>
+            <div className="dc-insight dc-insight-warn">
+              <AlertTriangle size={11} />
+              Longest: {insights.longest.script} – {insights.longest.duration}
+            </div>
+            <div className="dc-insight dc-insight-err">
+              <AlertCircle size={11} />
+              Most Failed: {insights.mostFailed}
+            </div>
+          </div>
+        </section>
+      </div>
     </>
   );
 }

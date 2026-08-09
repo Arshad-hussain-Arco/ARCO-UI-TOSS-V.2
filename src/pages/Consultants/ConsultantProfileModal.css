@@ -17,7 +17,7 @@
 }
 
 .cp-modal-content {
-  background: white;
+  background: var(--surface-primary);
   width: 100%;
   max-width: 800px;
   max-height: 90vh;
@@ -62,7 +62,7 @@
   height: 72px;
   border-radius: 12px;
   background: var(--c-primary, #00664F);
-  color: white;
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,7 +128,7 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
-  background: white;
+  background: var(--surface-primary);
 }
 
 .cp-section {
@@ -251,7 +251,7 @@
 
 .cp-leave-progress {
   height: 6px;
-  background: #e2e8f0;
+  background: var(--bg-tertiary);
   border-radius: 4px;
   overflow: hidden;
   display: flex;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Calendar,
   Users,
@@ -13,7 +13,10 @@ import {
   FileCheck,
   X,
   Edit,
+  Eye,
   SlidersHorizontal,
+  CalendarPlus,
+  Home
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -22,6 +25,8 @@ import { TeamLeaveSummary } from '@components/data-display/TeamLeaveSummary/Team
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
 import { CancelLeaveModal } from './CancelLeaveModal';
+import { MyLeavesSummaryTab } from './MyLeavesSummaryTab';
+import LeaveRequestDrawer from './components/LeaveRequestDrawer';
 import { TeamRequestsTab } from './TeamRequestsTab';
 import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -31,8 +36,10 @@ import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
 import './LeaveManagementPage.css';
 import './LeaveTable.css';
+import './TeamRequests.css';
 const ALL_TABS = [
   { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
+  { id: 'my-leaves-summary', label: 'My Leaves Summary', icon: FileText },
   { id: 'team-requests', label: 'Team Leave Requests', icon: Users },
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3 },
   { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, adminOnly: true },
@@ -59,10 +66,13 @@ import { Loader } from '@components/feedback/Loader/Loader';
 export function LeaveManagementPage() {
   useDocumentTitle('Leave Management');
 
-  const [activeTab, setActiveTab] = useState('my-leaves');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('leaveManagementActiveTab') || 'my-leaves';
+  });
   const [modalType, setModalType] = useState(null);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
+  const [viewModalLeave, setViewModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -81,7 +91,7 @@ export function LeaveManagementPage() {
   useEffect(() => {
     const fetchData = async () => {
       // Fetch only if we're on the relevant tab that needs this data
-      if (activeTab !== 'my-leaves') return;
+      if (activeTab !== 'my-leaves' && activeTab !== 'my-leaves-summary') return;
 
       setIsLoading(true);
       try {
@@ -143,6 +153,12 @@ export function LeaveManagementPage() {
     };
     fetchData();
   }, [user, calendarYear, calendarMonth, activeTab, refreshKey]);
+
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('leaveManagementActiveTab');
+    };
+  }, []);
 
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
@@ -220,13 +236,39 @@ export function LeaveManagementPage() {
           }}
         />
       )}
+
+      {viewModalLeave && (
+        <LeaveRequestDrawer
+          open={!!viewModalLeave}
+          liveReq={{
+            id: viewModalLeave.id,
+            employeeName: user?.username || user?.employee_name || 'You',
+            employeeId: user?.emp_id || user?.employee_id || '-',
+            leaveType: viewModalLeave.leave_type || viewModalLeave.type,
+            startDate: viewModalLeave.start_date || viewModalLeave.date,
+            endDate: viewModalLeave.end_date || viewModalLeave.date,
+            bizDays: viewModalLeave.business_days || viewModalLeave.in_days || 0,
+            requestedOn: viewModalLeave.created_at || new Date().toISOString(),
+            status: viewModalLeave.status === 1 ? 'pending' : (viewModalLeave.status === 3 ? 'approved' : (viewModalLeave.status === 2 ? 'rejected' : (viewModalLeave.status === 4 ? 'self-rejected' : viewModalLeave.status_code?.toLowerCase() || 'pending'))),
+            reason: viewModalLeave.leave_reason || viewModalLeave.reason,
+            duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
+          }}
+          drawerAction="view"
+          isReadOnly={true}
+          onClose={() => setViewModalLeave(null)}
+        />
+      )}
       <div className="leave-management-tabs">
         {ALL_TABS.filter(tab => !tab.adminOnly || user?.isAdmin === 1 || user?.isAdmin === true || user?.role === 'admin' || user?.roleName?.includes('HR') || user?.role?.toLowerCase()?.includes('admin')).map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                localStorage.setItem('leaveManagementActiveTab', tab.id);
+                setFilterStatus('all');
+              }}
               className="leave-management-tab"
               data-active={activeTab === tab.id}
             >
@@ -342,6 +384,7 @@ export function LeaveManagementPage() {
               />
               <LeaveCard
                 title="Offshore Work"
+                subtitle="Inside KSA"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.OW?.entitled ?? 0}
                 left={leaveBalances?.OW?.available ?? 0}
@@ -349,6 +392,16 @@ export function LeaveManagementPage() {
                 total={leaveBalances?.OW?.entitled ?? 0}
                 isUnlimited={leaveBalances?.OW?.is_unlimited}
                 color="#6366f1"
+              />
+              <LeaveCard
+                title="WFH"
+                subtitle="Outside KSA"
+                isLoading={isLoading}
+                centerCount={leaveBalances?.WFH?.entitled ?? 0}
+                left={leaveBalances?.WFH?.available ?? 0}
+                used={leaveBalances?.WFH?.used ?? 0}
+                total={leaveBalances?.WFH?.entitled ?? 0}
+                color="#d97706"
               />
             </div>
 
@@ -363,7 +416,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('all')}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{leaves.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -371,7 +424,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -379,7 +432,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 3 || l.status_code?.toLowerCase() === 'approved')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -387,7 +440,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 2 || l.status_code?.toLowerCase() === 'rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -395,7 +448,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase() === 'self-rejected')).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => (l.status === 4 || l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected')).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -403,12 +456,18 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('offshore')}
                       >
                         <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{leaves.filter(l => l.leave_type === 'OW').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                     </div>
 
-                    <div className="view-mode-segmented">
-                      <button
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      {(filterStatus === 'pending') && pendingDateRangeText && (
+                        <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                          Pending from: {pendingDateRangeText}
+                        </span>
+                      )}
+                      <div className="view-mode-segmented">
+                        <button
                         className="view-mode-segment"
                         data-active={viewMode === 'list'}
                         onClick={() => setViewMode('list')}
@@ -422,6 +481,7 @@ export function LeaveManagementPage() {
                       >
                         <CalendarDays className="view-mode-icon" />
                       </button>
+                    </div>
                     </div>
 
                     <div className="export-button-wrapper">
@@ -489,7 +549,7 @@ export function LeaveManagementPage() {
                       </thead>
                       <tbody className="leave-table-tbody">
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
@@ -499,7 +559,7 @@ export function LeaveManagementPage() {
                           // Mapping standard abbreviation codes to readable text if needed
                           const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
                           const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
 
                           return (
                             <tr key={leave.id} className="leave-table-row">
@@ -525,26 +585,28 @@ export function LeaveManagementPage() {
                                   {statusStr}
                                 </span>
                               </td>
+
                               <td className="leave-table-cell" data-label="Comments">
-                                {(leave.approval_reason || leave.rejected_reason) ? (
-                                  <button className="leave-table-icon-button" title={leave.approval_reason || leave.rejected_reason}>
-                                    <FileCheck className="leave-table-icon" />
-                                  </button>
-                                ) : null}
+                                {(leave.comments || leave.approval_reason || leave.rejected_reason) ? (
+                                  <span style={{ fontSize: '13px', color: '#666' }}>
+                                    {leave.comments || leave.approval_reason || leave.rejected_reason}
+                                  </span>
+                                ) : '-'}
                               </td>
+
                               <td className="leave-table-cell" data-label="Action">
                                 <div className="leave-table-actions">
                                   {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                     <>
                                       <button 
-                                        className="leave-table-action-button" 
+                                        className="leave-table-action-button action-cancel" 
                                         title="Cancel Request"
                                         onClick={() => setCancelModalLeave(leave)}
                                       >
                                         <X className="leave-table-action-icon" />
                                       </button>
                                       <button 
-                                        className="leave-table-action-button" 
+                                        className="leave-table-action-button action-edit" 
                                         title="Edit Request"
                                         onClick={() => setEditModalLeave(leave)}
                                       >
@@ -558,7 +620,7 @@ export function LeaveManagementPage() {
                           );
                         })}
                         {leaves.filter(leave => {
-                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+                          const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase().replace('_', '-') || 'pending')));
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).length === 0 && (
                             <tr className="leave-table-row">
@@ -590,7 +652,9 @@ export function LeaveManagementPage() {
 
         {activeTab === 'leave-config' && <LeaveConfigurationTab />}
 
-
+        {activeTab === 'my-leaves-summary' && (
+          <MyLeavesSummaryTab leaves={leaves} setViewModalLeave={setViewModalLeave} />
+        )}
       </div>
     </div>
   );

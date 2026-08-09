@@ -28,7 +28,7 @@ export function ReconciliationUserGuidePage() {
             <li><strong>JSON</strong> (JavaScript Object Notation)</li>
           </ul>
           <div className="ru-doc-note">
-            <strong>Note:</strong> Both files must be of the same format (e.g., both CSV or both Excel).
+            <strong>Note:</strong> You can upload any combination of supported file types (e.g., XML and CSV).
           </div>
         </section>
 
@@ -60,7 +60,7 @@ export function ReconciliationUserGuidePage() {
           <div className="ru-doc-note">
             <strong>Important Notes:</strong>
             <ul>
-              <li>Both files must be the same format.</li>
+              <li>Any combination of supported formats can be reconciled.</li>
               <li>Large files are supported.</li>
               <li>You can replace a file anytime by uploading a new one.</li>
             </ul>

@@ -55,20 +55,12 @@ export function EnvironmentDashboardPage() {
   const [expandedConfigs, setExpandedConfigs] = useState({});
 
   const toggleConfigRowAccordion = (configId) => {
-    setExpandedConfigs(prev => ({
-      ...prev,
-      [configId]: !prev[configId],
-    }));
+    setExpandedConfigs(prev => {
+      // If clicking the already open one, close it. Otherwise, open ONLY the clicked one.
+      if (prev[configId]) return {};
+      return { [configId]: true };
+    });
   };
-
-  // Expand ALL accordions by default when configList first loads
-  useEffect(() => {
-    if (configList.length > 0) {
-      const allExpanded = {};
-      configList.forEach((c) => { allExpanded[c.id] = true; });
-      setExpandedConfigs(allExpanded);
-    }
-  }, [configList.length]); // only re-run when count changes (initial load)
 
   useEffect(() => {
     if (data) {
@@ -365,10 +357,10 @@ export function EnvironmentDashboardPage() {
                 >
                   Export
                 </Button>
-
+                
                 {globalExportDropdownOpen && (
                   <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
-                    <div
+                    <div 
                       style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -391,14 +383,14 @@ export function EnvironmentDashboardPage() {
                     >
                       <FileText size={14} /> PDF
                     </div>
-                    <div
+                    <div 
                       style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       onClick={() => {
                         if (filteredConfigs.length > 0) {
                           const data = filteredConfigs.map(c => ({
-                            'Type': c.featureType, 'Version': c.version, 'File Name': c.fileName,
+                            'Type': c.featureType, 'Version': c.version, 'File Name': c.fileName, 
                             'File Size': c.size, 'Uploaded By': c.uploadedBy, 'Upload Date': c.createdDate, 'File Location': c.storageLocation
                           }));
                           const ws = XLSX.utils.json_to_sheet(data);
@@ -436,8 +428,8 @@ export function EnvironmentDashboardPage() {
                       <div className="env-config-badges">
                         <span
                           className={`env-badge ${config.featureType === 'Infra'
-                            ? 'env-badge-infra'
-                            : 'env-badge-status'
+                              ? 'env-badge-infra'
+                              : 'env-badge-status'
                             }`}
                         >
                           {config.featureType === 'Infra' ? (
@@ -551,7 +543,7 @@ export function EnvironmentDashboardPage() {
         <div className="env-accordion-content">
           {/* No legend required, just raw environments as accordions */}
 
-          <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '24px', }}>
+          <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px' }}>
             {configList.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                 No configurations found.
@@ -572,25 +564,25 @@ export function EnvironmentDashboardPage() {
                 }));
 
                 const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
-                const filteredRecords = searchQuery
-                  ? fileData.records.filter(r =>
-                    Object.values(r).some(val =>
-                      val !== null && val !== undefined && String(val).toLowerCase().includes(searchQuery)
+                const filteredRecords = searchQuery 
+                  ? fileData.records.filter(r => 
+                      Object.values(r).some(val => 
+                        val !== null && val !== undefined && String(val).toLowerCase().includes(searchQuery)
+                      )
                     )
-                  )
                   : fileData.records;
 
                 return (
                   <div key={config.id} className="config-card" style={{ flexShrink: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     {/* Header: Icon, Name, Search, Export */}
-                    <div
-                      className="env-tab-toolbar"
-                      style={{
-                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none',
-                        padding: '20px 20px',
-                        background: '#f8fafc',
-                        display: 'flex',
-                        justifyContent: 'space-between',
+                    <div 
+                      className="env-tab-toolbar" 
+                      style={{ 
+                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none', 
+                        padding: '20px 20px', 
+                        background: '#f8fafc', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
                         alignItems: 'center',
                         cursor: 'pointer'
                       }}
@@ -602,7 +594,7 @@ export function EnvironmentDashboardPage() {
                         </div>
                         <span>{config.featureType || config.fileName}</span>
                       </div>
-
+                      
                       <div style={{ display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -612,32 +604,32 @@ export function EnvironmentDashboardPage() {
                               placeholder="Search records..."
                               value={configRowSearchQueries[config.id] || ''}
                               onChange={(e) => setConfigRowSearchQueries(prev => ({ ...prev, [config.id]: e.target.value }))}
-                              style={{
-                                padding: '6px 12px 6px 32px',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px',
-                                fontSize: '13px',
+                              style={{ 
+                                padding: '6px 12px 6px 32px', 
+                                border: '1px solid #cbd5e1', 
+                                borderRadius: '6px', 
+                                fontSize: '13px', 
                                 width: '180px',
                                 outline: 'none'
                               }}
                             />
                           </div>
-                          <div
+                          <div 
                             style={{ position: 'relative' }}
                             onMouseLeave={() => setExportDropdownOpen(null)}
                           >
-                            <Button
-                              variant="outline"
-                              size="sm"
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
                               leadingIcon={Download}
                               onMouseEnter={() => setExportDropdownOpen(config.id)}
                             >
                               Export
                             </Button>
-
+                            
                             {exportDropdownOpen === config.id && (
                               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
-                                <div
+                                <div 
                                   style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -658,7 +650,7 @@ export function EnvironmentDashboardPage() {
                                 >
                                   <FileText size={14} /> PDF
                                 </div>
-                                <div
+                                <div 
                                   style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -686,20 +678,20 @@ export function EnvironmentDashboardPage() {
                             )}
                           </div>
                         </div>
-                        <div
+                        <div 
                           style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid #e2e8f0', height: '32px', cursor: 'pointer' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleConfigRowAccordion(config.id);
                           }}
                         >
-                          <ChevronDown
-                            size={18}
-                            style={{
-                              color: '#64748b',
+                          <ChevronDown 
+                            size={18} 
+                            style={{ 
+                              color: '#64748b', 
                               transform: expandedConfigs[config.id] ? 'rotate(180deg)' : 'none',
                               transition: 'transform 0.2s ease',
-                            }}
+                            }} 
                           />
                         </div>
                       </div>
