@@ -981,7 +981,7 @@ export function TeamRequestsTab() {
                                 </>
                               )}
                               <button
-                                className="tr-act-btn tr-act-view"
+                                className="tr-act-btn"
                                 title="View"
                                 onClick={() => openDrawer(req, 'view')}
                               >
