@@ -3,7 +3,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { useEffect, useState } from 'react';
 import './LeaveCard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
-function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading }) {
+function LeaveCard({ title, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited }) {
   const [bgColor, setBgColor] = useState('#e5e7eb');
   useEffect(() => {
     const updateBgColor = () => {
@@ -18,10 +18,13 @@ function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color
     });
     return () => observer.disconnect();
   }, []);
+  // An unlimited leave type has no numeric cap to chart — show a plain
+  // background ring instead of a used/left split, since "left" is
+  // meaningless (there's no total to divide it against).
   const data = {
     datasets: [
       {
-        data: [used, left],
+        data: isUnlimited ? [0, 1] : [used, left],
         backgroundColor: [color, bgColor],
         borderWidth: 0,
         cutout: '75%',
@@ -80,13 +83,13 @@ function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color
       <div className="leave-card-chart-container">
         <div className="leave-card-chart">
           <Doughnut data={data} options={options} />
-          <div className="leave-card-center-value">{centerCount}</div>
+          <div className="leave-card-center-value">{isUnlimited ? '∞' : centerCount}</div>
         </div>
       </div>
 
       <div className="leave-card-stats">
         <div className="leave-card-stat">
-          <span className="leave-card-stat-value">{left}</span>
+          <span className="leave-card-stat-value">{isUnlimited ? 'Unlimited' : left}</span>
           <span className="leave-card-stat-label">Left</span>
         </div>
         <div className="leave-card-stat">
