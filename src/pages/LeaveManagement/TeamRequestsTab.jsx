@@ -23,6 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  FileEdit,
+  Ban,
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { TimelineCalendar } from '@components/data-display/TimelineCalendar/TimelineCalendar';
@@ -31,6 +33,8 @@ import { useAuth } from '@hooks/useAuth';
 import { LEAVE_REQUESTS as INITIAL_REQUESTS } from '@mocks/data/leaveRequests';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import LeaveRequestDrawer from './components/LeaveRequestDrawer';
+import { EditLeaveModal } from './EditLeaveModal';
+import { CancelLeaveModal } from './CancelLeaveModal';
 import './TeamRequests.css';
 import { activatable } from '@utils/interactive';
 export const AVATAR_COLORS = [
@@ -214,11 +218,61 @@ export async function fetchAndMapTeamLeaves(managerId) {
       manager: req.manager_name,
       designation: req.designation,
       reason: req.leave_reason,
+      // Set only when the employee exceeded a Flexible-mode entitlement and
+      // supplied a reason for it — distinct from the normal leave_reason.
+      justification: req.justification || null,
       balance: null, // As discussed, real backend does not have this currently
       conflicts: [], // As discussed
       // Original endpoints if needed:
       approve_endpoint: req.approve_endpoint,
       reject_endpoint: req.reject_endpoint,
+      // Untouched backend leave object — EditLeaveModal/CancelLeaveModal
+      // expect real field names (emp_id, leave_type, start_date, ...),
+      // not this row's camelCase display shape, so keep it around for
+      // when a manager opens either modal on-behalf from this table.
+      raw: req,
+    };
+  });
+}
+
+// Modification requests (PUT /me/leaves/<id>/modify/ on an already-APPROVED
+// leave) sit in a separate backend table (LeaveModificationRequest) with its
+// own approve/reject endpoints — they never show up in getTeamLeaves(). This
+// maps them into the same row shape the table/drawer already render, so they
+// appear in "Team Leave Requests" alongside ordinary pending leave requests.
+export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) {
+  const response = await leaveService.getPendingModRequests(managerId);
+  const results = Array.isArray(response) ? response : (response?.results || []);
+
+  return results.map((req) => {
+    const dir = employeeDirectory[req.emp_id];
+    return {
+      id: `mod-${req.id}`,
+      modRequestId: req.id,
+      leaveId: req.leave_id,
+      isModRequest: true,
+      employeeId: `EMP${req.emp_id}`,
+      employeeName: dir?.employeeName || `Employee #${req.emp_id}`,
+      team: dir?.team || '—',
+      designation: dir?.designation,
+      manager: dir?.manager,
+      type: dir?.type || 'leave',
+      leaveType: 'Modification Request',
+      startDate: req.new_start_date,
+      endDate: req.new_end_date,
+      origStartDate: req.orig_start_date,
+      origEndDate: req.orig_end_date,
+      duration: req.new_duration === 'FIRST_HALF' ? 'morning' : req.new_duration === 'SECOND_HALF' ? 'afternoon' : 'full',
+      inDays: req.new_in_days,
+      bizDays: req.new_business_days,
+      requestedOn: req.created_at ? req.created_at.split('T')[0] : '',
+      status: (req.status || 'pending').toLowerCase(),
+      priority: 'normal',
+      reason: req.modification_reason || req.new_leave_reason,
+      origReason: req.orig_leave_reason,
+      justification: req.justification || null,
+      balance: null,
+      conflicts: [],
     };
   });
 }
@@ -228,23 +282,47 @@ export function TeamRequestsTab() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    const fetchTeamLeavesWrapper = async () => {
-      try {
-        setIsLoading(true);
-        const managerId = user?.emp_id || user?.id || 1;
-        const mappedRequests = await fetchAndMapTeamLeaves(managerId);
-        setRequests(mappedRequests);
-      } catch (error) {
-        console.error("Failed to fetch team leaves:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchTeamLeavesWrapper();
+  const [editModalLeave, setEditModalLeave] = useState(null);
+  const [cancelModalLeave, setCancelModalLeave] = useState(null);
+
+  const refetch = React.useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const managerId = user?.emp_id || user?.id || 1;
+      const mappedLeaves = await fetchAndMapTeamLeaves(managerId);
+
+      // Build a quick emp_id -> {employeeName, team, ...} lookup from the
+      // leave requests we already have names for, so modification-request
+      // rows (which the backend returns with no employee name/team) can
+      // still display something meaningful instead of just an emp_id.
+      const employeeDirectory = {};
+      mappedLeaves.forEach((r) => {
+        const empId = Number(String(r.employeeId).replace('EMP', ''));
+        if (!employeeDirectory[empId]) {
+          employeeDirectory[empId] = {
+            employeeName: r.employeeName, team: r.team,
+            designation: r.designation, manager: r.manager, type: r.type,
+          };
+        }
+      });
+
+      const mappedModRequests = await fetchAndMapModRequests(managerId, employeeDirectory)
+        .catch((error) => {
+          console.error('Failed to fetch modification requests:', error);
+          return [];
+        });
+
+      setRequests([...mappedLeaves, ...mappedModRequests]);
+    } catch (error) {
+      console.error("Failed to fetch team leaves:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -290,10 +368,11 @@ export function TeamRequestsTab() {
       wfh: requests.filter((r) => r.type === 'wfh').length,
       offshore: requests.filter((r) => r.type === 'offshore').length,
       compoff: requests.filter((r) => r.type === 'compoff').length,
-      pendLeave: requests.filter((r) => r.status === 'pending' && r.type === 'leave').length,
-      pendWfh: requests.filter((r) => r.status === 'pending' && r.type === 'wfh').length,
-      pendOffshore: requests.filter((r) => r.status === 'pending' && r.type === 'offshore').length,
-      pendCompoff: requests.filter((r) => r.status === 'pending' && r.type === 'compoff').length,
+      pendLeave: requests.filter((r) => r.status === 'pending' && r.type === 'leave' && !r.isModRequest).length,
+      pendWfh: requests.filter((r) => r.status === 'pending' && r.type === 'wfh' && !r.isModRequest).length,
+      pendOffshore: requests.filter((r) => r.status === 'pending' && r.type === 'offshore' && !r.isModRequest).length,
+      pendCompoff: requests.filter((r) => r.status === 'pending' && r.type === 'compoff' && !r.isModRequest).length,
+      pendModifications: requests.filter((r) => r.status === 'pending' && r.isModRequest).length,
     }),
     [requests],
   );
@@ -352,7 +431,8 @@ export function TeamRequestsTab() {
       if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
       else list = list.filter((r) => r.status === statusF);
     }
-    if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
+    if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
+    else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
     if (leaveTypeF !== 'all')
       list = list.filter(
         (r) =>
@@ -385,11 +465,20 @@ export function TeamRequestsTab() {
     if (!drawerReq || isSubmittingAction) return;
     try {
       setIsSubmittingAction(true);
-      const payload = {
-        manager_id: user?.emp_id || user?.id || 1,
-        reason: managerNote || 'Approved'
-      };
-      await leaveService.approveLeave(drawerReq.id, payload);
+      if (drawerReq.isModRequest) {
+        // Modification requests use their own approve endpoint (mod_id, not
+        // leave_id) and only take a "comment" field — approving applies the
+        // new dates/reason to the underlying leave and auto-approves it.
+        await leaveService.approveModRequest(drawerReq.modRequestId, {
+          comment: managerNote || 'Approved',
+        });
+      } else {
+        const payload = {
+          manager_id: user?.emp_id || user?.id || 1,
+          reason: managerNote || 'Approved'
+        };
+        await leaveService.approveLeave(drawerReq.id, payload);
+      }
       setShowConfirm(false);
       setRequests((prev) =>
         prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'approved' } : r)),
@@ -413,11 +502,19 @@ export function TeamRequestsTab() {
     }
     try {
       setIsSubmittingAction(true);
-      const payload = {
-        manager_id: user?.emp_id || user?.id || 1,
-        reason: managerNote
-      };
-      await leaveService.rejectLeave(drawerReq.id, payload);
+      if (drawerReq.isModRequest) {
+        // Rejecting a modification request leaves the underlying leave
+        // completely unchanged — only the request itself is marked rejected.
+        await leaveService.rejectModRequest(drawerReq.modRequestId, {
+          comment: managerNote,
+        });
+      } else {
+        const payload = {
+          manager_id: user?.emp_id || user?.id || 1,
+          reason: managerNote
+        };
+        await leaveService.rejectLeave(drawerReq.id, payload);
+      }
       setShowConfirm(false);
       setRequests((prev) =>
         prev.map((r) => (r.id === drawerReq.id ? { ...r, status: 'rejected' } : r)),
@@ -565,6 +662,14 @@ export function TeamRequestsTab() {
             color: '#92400e',
             bg: '#fef3c7',
             Icon: Gift,
+          },
+          {
+            type: 'modification',
+            label: 'Pending Modifications',
+            count: counts.pendModifications,
+            color: '#be123c',
+            bg: '#ffe4e6',
+            Icon: FileEdit,
           },
         ].map(({ type, label, count, color, bg, Icon }) => (
           <div
@@ -857,6 +962,24 @@ export function TeamRequestsTab() {
                                   </button>
                                 </>
                               )}
+                              {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                                <>
+                                  <button
+                                    className="tr-act-btn"
+                                    title="Edit on behalf"
+                                    onClick={() => setEditModalLeave(req.raw)}
+                                  >
+                                    <FileEdit size={10} />
+                                  </button>
+                                  <button
+                                    className="tr-act-btn"
+                                    title="Cancel on behalf"
+                                    onClick={() => setCancelModalLeave(req.raw)}
+                                  >
+                                    <Ban size={10} />
+                                  </button>
+                                </>
+                              )}
                               <button
                                 className="tr-act-btn tr-act-view"
                                 title="View"
@@ -1132,6 +1255,24 @@ export function TeamRequestsTab() {
                             </button>
                           </>
                         )}
+                        {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                          <>
+                            <button
+                              className="tr-act-btn"
+                              title="Edit on behalf"
+                              onClick={() => setEditModalLeave(req.raw)}
+                            >
+                              <FileEdit size={10} />
+                            </button>
+                            <button
+                              className="tr-act-btn"
+                              title="Cancel on behalf"
+                              onClick={() => setCancelModalLeave(req.raw)}
+                            >
+                              <Ban size={10} />
+                            </button>
+                          </>
+                        )}
                         <button
                           className="tr-act-btn tr-act-view"
                           title="View"
@@ -1168,6 +1309,28 @@ export function TeamRequestsTab() {
         onApprove={handleApprove}
         onReject={handleReject}
       />
+
+      {/* ── Edit / Cancel on behalf ────────────────────────────────────────────── */}
+      {editModalLeave && (
+        <EditLeaveModal
+          leave={editModalLeave}
+          onClose={() => setEditModalLeave(null)}
+          onSuccess={() => {
+            setEditModalLeave(null);
+            refetch();
+          }}
+        />
+      )}
+      {cancelModalLeave && (
+        <CancelLeaveModal
+          leave={cancelModalLeave}
+          onClose={() => setCancelModalLeave(null)}
+          onSuccess={() => {
+            setCancelModalLeave(null);
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

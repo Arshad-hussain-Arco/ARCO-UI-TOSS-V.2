@@ -654,6 +654,23 @@
   border-radius: 2px;
   flex-shrink: 0;
 }
+.al-cal-legend-own {
+  border-bottom: 1px solid var(--border-primary);
+}
+.al-cal-legend-dot-striped {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 1px solid var(--text-tertiary);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--text-tertiary),
+    var(--text-tertiary) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+}
 
 .al-cal-grid {
   display: grid;
@@ -719,6 +736,105 @@
 }
 .al-cal-day-pending-leave {
   background: var(--c-warning-light);
+}
+
+/* Rule 3 — employee's own pending/approved Actual/Nominal requests.
+   Color = type (Leave orange, WFH blue, Offshore purple); pattern =
+   status (pending striped, approved solid). Blocked from selection via
+   isRuleIneligible, so these are always shown as not-allowed. */
+.al-cal-day-own-leave-approved,
+.al-cal-day-own-leave-pending,
+.al-cal-day-own-wfh-approved,
+.al-cal-day-own-wfh-pending,
+.al-cal-day-own-offshore-approved,
+.al-cal-day-own-offshore-pending {
+  cursor: not-allowed !important;
+}
+.al-cal-day-own-leave-approved {
+  background: #fb923c66;
+}
+.al-cal-day-own-leave-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #fb923c66,
+    #fb923c66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+.al-cal-day-own-wfh-approved {
+  background: #60a5fa66;
+}
+.al-cal-day-own-wfh-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #60a5fa66,
+    #60a5fa66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+.al-cal-day-own-offshore-approved {
+  background: #a78bfa66;
+}
+.al-cal-day-own-offshore-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #a78bfa66,
+    #a78bfa66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Custom hover tooltip for blocked (own-request) days — shows instantly on
+   mouse-over instead of the browser's native `title` delay, styled to
+   match the rest of the calendar. Only rendered when data-tooltip is set. */
+.al-cal-day[data-tooltip] {
+  position: relative;
+}
+.al-cal-day[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary, #1f2937);
+  color: var(--bg-primary, #fff);
+  font-size: 10px;
+  line-height: 1.35;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 4px;
+  white-space: normal;
+  width: 180px;
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.al-cal-day[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: var(--text-primary, #1f2937);
+  z-index: 20;
+  pointer-events: none;
+}
+/* Bottom two grid rows: flip the tooltip above the cell instead, so it
+   isn't clipped by .al-cal-wrap's overflow:hidden at the calendar's edge. */
+.al-cal-day[data-tooltip]:nth-last-child(-n + 14):hover::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.al-cal-day[data-tooltip]:nth-last-child(-n + 14):hover::before {
+  top: auto;
+  bottom: 100%;
+  border-bottom-color: transparent;
+  border-top-color: var(--text-primary, #1f2937);
 }
 
 .al-cal-day-in-range {

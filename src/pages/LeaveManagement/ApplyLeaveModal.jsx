@@ -4,6 +4,7 @@ import { useToast } from '@hooks/useToast';
 import { leaveService } from '@services/leaveService';
 import {
   X,
+  Plus,
   Upload,
   Check,
   AlertTriangle,
@@ -23,19 +24,64 @@ import { calculateLeaveDuration } from '@utils/leaveCalculations';
 import {
   CURRENT_EMPLOYEE as SELF,
   EXISTING_LEAVES,
-  LEAVE_APPLICATION_EMPLOYEES as EMPLOYEES,
-  LEAVE_TYPES,
-  PUBLIC_HOLIDAYS,
 } from '@mocks/data/leaveApplication';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 
 import './ApplyLeaveModal.css';
 function dateStr(d) {
-  return d.toISOString().slice(0, 10);
+  // Local date components, NOT toISOString() — that converts to UTC first,
+  // which rolls local midnight back to the previous day for any user in a
+  // positive UTC-offset timezone, shifting every calendar/dayMap lookup
+  // (weekend/holiday/own_request) back by one day.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
-function isSaudiWeekend(d) {
-  const w = d.getDay();
-  return w === 5 || w === 6;
+// Real per-day info, sourced from GET /api/me/<id>/calendar/ (leaveService.getCalendar)
+// — dayMap is { 'YYYY-MM-DD': { status, is_weekend, is_org_holiday, claim_types, leave_type } }.
+// Replaces the old isSaudiWeekend()/PUBLIC_HOLIDAYS mocks with the employee's
+// actual configured work schedule, the org's real Holiday records, and every
+// active Claim type's custom dates — all resolved server-side (build_day_info,
+// leaves/utils.py) so the frontend never reimplements that logic. A day
+// missing from dayMap (not yet loaded, or outside the fetched range) is
+// treated as a working day — acceptable loading-state fallback.
+function isRealWeekend(d, dayMap) {
+  return !!dayMap?.[dateStr(d)]?.is_weekend;
+}
+function isRealHoliday(d, dayMap) {
+  return !!dayMap?.[dateStr(d)]?.is_org_holiday;
+}
+function getClaimTypesForDate(d, dayMap) {
+  return dayMap?.[dateStr(d)]?.claim_types || [];
+}
+// Non-working day = weekend OR org holiday OR registered under any Claim
+// type's custom dates — the "from"/"to" boundary of an Actual/Nominal leave
+// (Leave/WFH/OW) must never land on one of these (mid-range days aren't
+// restricted — see InlineCalendar's handleDayClick, which only ever sets a
+// boundary, never a mid-range day, in this UI).
+function isNonWorkingDay(d, dayMap) {
+  return isRealWeekend(d, dayMap) || isRealHoliday(d, dayMap) || getClaimTypesForDate(d, dayMap).length > 0;
+}
+// Rule 3 (cross-type overlap prevention): a date already covered by the
+// employee's own PENDING/APPROVED Actual/Nominal request (Leave/WFH/OW) —
+// sourced from calendar `own_request` (leaveService.getCalendar). Claims
+// never populate this and never block/are blocked (see backend
+// _is_claim_leave_type exclusion). Unlike a skipped non-working day, this
+// is a genuine conflict — it must be unselectable at any position in a
+// range, not just at the from/to boundary.
+function getOwnRequest(d, dayMap) {
+  return dayMap?.[dateStr(d)]?.own_request || null;
+}
+function isOverlapBlocked(d, dayMap) {
+  return !!getOwnRequest(d, dayMap);
+}
+const OWN_REQUEST_LABELS = { LEAVE: 'Leave', WFH: 'WFH', OFFSHORE: 'Offshore Work' };
+function ownRequestTooltip(own) {
+  if (!own) return '';
+  const label = OWN_REQUEST_LABELS[own.category] || own.category;
+  const status = own.status === 'APPROVED' ? 'Approved' : 'Pending';
+  return `Blocked — ${status} ${label} request (#${own.leave_id}) already covers this date`;
 }
 function eachDay(s, e) {
   const days = [];
@@ -49,15 +95,15 @@ function eachDay(s, e) {
   }
   return days;
 }
-function countBiz(s, e) {
-  return eachDay(s, e).filter((d) => !isSaudiWeekend(d) && !PUBLIC_HOLIDAYS.includes(dateStr(d)))
+function countBiz(s, e, dayMap) {
+  return eachDay(s, e).filter((d) => !isRealWeekend(d, dayMap) && !isRealHoliday(d, dayMap))
     .length;
 }
-function countHols(s, e, holidays = PUBLIC_HOLIDAYS) {
-  return eachDay(s, e).filter((d) => holidays.includes(dateStr(d)) && !isSaudiWeekend(d)).length;
+function countHols(s, e, dayMap) {
+  return eachDay(s, e).filter((d) => isRealHoliday(d, dayMap)).length;
 }
-function countWknd(s, e) {
-  return eachDay(s, e).filter((d) => isSaudiWeekend(d)).length;
+function countWknd(s, e, dayMap) {
+  return eachDay(s, e).filter((d) => isRealWeekend(d, dayMap)).length;
 }
 function existingLeaveStatus(d) {
   const s = dateStr(d);
@@ -91,6 +137,21 @@ function InlineCalendar({
   onDayHover,
   onPrev,
   onNext,
+  dateMode = 'future',
+  // Set of 'YYYY-MM-DD' strings this leave type actually qualifies for —
+  // e.g. a Claim type's Weekend/Company Holiday/Custom Dates rule. null
+  // means "no extra restriction beyond dateMode" (not loaded, or not a
+  // rule-restricted flow).
+  eligibleDateSet = null,
+  // Real per-day status map (see isRealWeekend/isRealHoliday above) —
+  // drives the weekend/holiday highlighting, replacing the old
+  // isSaudiWeekend()/PUBLIC_HOLIDAYS mocks.
+  calendarDayMap = null,
+  // Rule 1 (Actual/Nominal Leave): when true, non-working days
+  // (weekend/holiday/Claim custom date) are greyed out and unclickable as
+  // boundary selections — not used for Claims, which target non-working
+  // days by design.
+  restrictToWorkingDays = false,
 }) {
   const MONTHS = [
     'January',
@@ -114,12 +175,32 @@ function InlineCalendar({
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   const rangeEnd = endDate ?? (startDate && hoverDate && hoverDate > startDate ? hoverDate : null);
+  function isRuleIneligible(d) {
+    // Claims are retroactive — today itself never qualifies, only strictly
+    // past dates do. Beyond that, if a specific eligible-dates set was
+    // resolved for the selected Claim type (Weekend/Company Holiday/Custom
+    // Dates), a date must also appear in it.
+    if (dateMode === 'past' && dateStr(d) === dateStr(today)) return true;
+    if (eligibleDateSet && !eligibleDateSet.has(dateStr(d))) return true;
+    if (restrictToWorkingDays && isNonWorkingDay(d, calendarDayMap)) return true;
+    // Rule 3 — own pending/approved Leave/WFH/OW always blocks selection,
+    // regardless of restrictToWorkingDays (which only governs Rule 1).
+    if (isOverlapBlocked(d, calendarDayMap)) return true;
+    return false;
+  }
   function dayClass(d) {
     const cls = ['al-cal-day'];
-    if (d < today) cls.push('al-cal-day-past');
+    const isIneligible = (dateMode === 'past' ? d > today : d < today) || isRuleIneligible(d);
+    if (isIneligible) cls.push('al-cal-day-past');
     if (dateStr(d) === dateStr(today)) cls.push('al-cal-day-today');
-    if (isSaudiWeekend(d)) cls.push('al-cal-day-weekend');
-    if (PUBLIC_HOLIDAYS.includes(dateStr(d))) cls.push('al-cal-day-holiday');
+    if (isRealWeekend(d, calendarDayMap)) cls.push('al-cal-day-weekend');
+    if (isRealHoliday(d, calendarDayMap)) cls.push('al-cal-day-holiday');
+    const own = getOwnRequest(d, calendarDayMap);
+    if (own) {
+      const categoryClass = { LEAVE: 'leave', WFH: 'wfh', OFFSHORE: 'offshore' }[own.category] || 'leave';
+      const statusClass = own.status === 'APPROVED' ? 'approved' : 'pending';
+      cls.push(`al-cal-day-own-${categoryClass}-${statusClass}`);
+    }
     const ex = existingLeaveStatus(d);
     if (ex === 'approved') cls.push('al-cal-day-approved-leave');
     else if (ex === 'pending') cls.push('al-cal-day-pending-leave');
@@ -165,6 +246,28 @@ function InlineCalendar({
           </div>
         ))}
       </div>
+      {/* Rule 3 — legend for the employee's own blocked Leave/WFH/Offshore
+          dates: colour = type, solid vs. striped = approved vs. pending. */}
+      <div className="al-cal-legend al-cal-legend-own">
+        {[
+          ['#fb923c', 'Leave'],
+          ['#60a5fa', 'WFH'],
+          ['#a78bfa', 'Offshore'],
+        ].map(([bg, lbl]) => (
+          <div key={lbl} className="al-cal-legend-item">
+            <div className="al-cal-legend-dot" style={{ background: `${bg}66`, border: `1px solid ${bg}` }} />
+            {lbl}
+          </div>
+        ))}
+        <div className="al-cal-legend-item">
+          <div className="al-cal-legend-dot al-cal-legend-dot-striped" />
+          Pending
+        </div>
+        <div className="al-cal-legend-item">
+          <div className="al-cal-legend-dot" style={{ background: '#94a3b866', border: '1px solid #94a3b8' }} />
+          Approved (solid)
+        </div>
+      </div>
       <div className="al-cal-grid">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
           <div key={d} className="al-cal-day-header">
@@ -178,9 +281,11 @@ function InlineCalendar({
             <div
               key={i}
               className={dayClass(d)}
+              data-tooltip={ownRequestTooltip(getOwnRequest(d, calendarDayMap)) || undefined}
               {...activatable(
                 () => {
-                  if (d >= today) onDayClick(d);
+                  const eligible = (dateMode === 'past' ? d < today : d >= today) && !isRuleIneligible(d);
+                  if (eligible) onDayClick(d);
                 },
                 { label: d.toDateString() },
               )}
@@ -189,7 +294,7 @@ function InlineCalendar({
             >
               <span className="al-cal-day-num">{d.getDate()}</span>
               <div className="al-cal-dots">
-                {PUBLIC_HOLIDAYS.includes(dateStr(d)) && (
+                {isRealHoliday(d, calendarDayMap) && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-info)' }} />
                 )}
                 {existingLeaveStatus(d) === 'approved' && (
@@ -205,7 +310,11 @@ function InlineCalendar({
       </div>
       <div className="al-cal-hint">
         {!startDate
-          ? 'Click a date to start selection'
+          ? dateMode === 'past'
+            ? eligibleDateSet
+              ? 'Click a highlighted past date to start selection'
+              : 'Click a past date to start selection'
+            : 'Click a date to start selection'
           : !endDate
             ? 'Click end date or click same date for single day'
             : `${fmtShort(startDate)} \u2192 ${fmtShort(endDate)}`}
@@ -213,35 +322,49 @@ function InlineCalendar({
     </div>
   );
 }
-function getValidations(startDate, end, lt, charged) {
+function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = null) {
   if (!startDate || !lt) return [];
   const e = end ?? startDate;
   const rows = [];
-  if (lt.balance === 999) {
-    rows.push({ key: 'balance', label: 'Unpaid \u2014 no balance deducted', status: 'info' });
+  if (isClaim) {
+    // Comp-off / Weekend Work is a claim (credits balance) rather than a
+    // debit, so any date is claimable — no balance check applies.
+    rows.push({ key: 'balance', label: 'Claim \u2014 any date can be selected', status: 'info' });
+  } else if (lt.isUnlimited) {
+    rows.push({ key: 'balance', label: 'Unlimited \u2014 no balance deducted', status: 'info' });
   } else if (charged <= lt.balance) {
     rows.push({ key: 'balance', label: 'Sufficient balance available', status: 'ok' });
+  } else if (lt.isFlexible) {
+    // Flexible leave types are allowed to exceed their balance as long as
+    // a justification is provided (handled separately via
+    // needsFlexJustification/flexJustification) — so this is a warning to
+    // surface in the panel, not a hard submit-blocking error.
+    rows.push({ key: 'balance', label: 'Exceeds available balance — justification required', status: 'warn' });
   } else {
     rows.push({ key: 'balance', label: 'Insufficient leave balance', status: 'error' });
   }
-  const conflict = EXISTING_LEAVES.some((l) => {
-    const s = dateStr(startDate);
-    const ev = dateStr(e);
-    return !(ev < l.start || s > l.end);
-  });
+  // Rule 3 — full-range check against the employee's own pending/approved
+  // Leave/WFH/OW requests (calendarDayMap own_request). Boundary gating
+  // (isDateDisabled/handleDayClick) can't catch a mid-range conflict since
+  // clicks only ever set a from/to boundary in this UI, so this walks
+  // every day in the selected range. Backend _check_overlap is
+  // authoritative regardless.
+  const conflictDays = isClaim ? [] : eachDay(startDate, e).filter((d) => isOverlapBlocked(d, dayMap));
   rows.push({
     key: 'overlap',
-    label: conflict ? 'Overlaps existing leave' : 'No leave overlap',
-    status: conflict ? 'error' : 'ok',
+    label: conflictDays.length
+      ? `Conflicts with your existing request on ${conflictDays.length} day${conflictDays.length > 1 ? 's' : ''}`
+      : 'No leave overlap',
+    status: conflictDays.length ? 'error' : 'ok',
   });
-  const wknd = countWknd(startDate, e);
+  const wknd = countWknd(startDate, e, dayMap);
   if (wknd > 0)
     rows.push({
       key: 'weekend',
       label: `${wknd} weekend day${wknd > 1 ? 's' : ''} included`,
       status: 'info',
     });
-  const hols = countHols(startDate, e);
+  const hols = countHols(startDate, e, dayMap);
   if (hols > 0)
     rows.push({
       key: 'holiday',
@@ -259,37 +382,82 @@ function getValidations(startDate, end, lt, charged) {
   const today = /* @__PURE__ */ new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.floor((startDate.getTime() - today.getTime()) / 864e5);
-  if (lt.noticePeriod !== 'None' && lt.noticePeriod !== 'Same day' && diff < 3) {
+  if (!isClaim && (lt.minNoticeDays ?? 0) > 0 && diff < lt.minNoticeDays) {
     rows.push({ key: 'notice', label: `Notice period: ${lt.noticePeriod}`, status: 'warn' });
   }
   rows.push({ key: 'blackout', label: 'No blackout period conflict', status: 'ok' });
   return rows;
+}
+// Maps one eligible-leave-types API entry (+ matching balance entry, if any)
+// into the shape the form/summary/policy panels read from.
+function buildLeaveTypeItem(entry, balances) {
+  const bal = balances?.[entry.code];
+  const isUnlimited = !!(entry.is_unlimited || bal?.is_unlimited);
+  // Guard against an unprovisioned/stale balance record: if the balances
+  // service reports a 0 entitlement (with nothing used or pending — i.e.
+  // this isn't "used it all up", it's "never synced") while the
+  // eligible-types entry says the employee is actually entitled to more,
+  // trust the eligible-types entitlement instead of the stale 0.
+  const balLooksUnprovisioned =
+    bal &&
+    Number(bal.entitled ?? 0) === 0 &&
+    Number(bal.used ?? 0) === 0 &&
+    Number(bal.pending ?? 0) === 0 &&
+    Number(entry.entitled_days ?? 0) > 0;
+  const available = isUnlimited
+    ? null
+    : balLooksUnprovisioned
+      ? Number(entry.entitled_days)
+      : Number(bal?.available ?? entry.entitled_days ?? 0);
+  const minNoticeDays = Number(entry.min_notice_days ?? 0);
+  return {
+    id: entry.code,
+    code: entry.code,
+    label: entry.leave_type,
+    balance: available,
+    isUnlimited,
+    isFlexible: !isUnlimited && !!entry.is_flexible,
+    entitledDays: entry.entitled_days != null ? Number(entry.entitled_days) : null,
+    requiresAttachment: false,
+    maxConsecutive: entry.max_consecutive ?? Infinity,
+    carryForward: !!entry.is_carry_forward_allowed,
+    advanceLeave: false,
+    minNoticeDays,
+    noticePeriod:
+      minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,
+    policy: entry.requires_approval
+      ? 'Requires manager approval per organization policy.'
+      : 'Does not require manager approval.',
+    gender: entry.gender_restriction || undefined,
+  };
 }
 function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const MODAL_TITLES = {
     leave: 'Apply Leave',
     wfh: 'Apply WFH',
     offshore: 'Apply Offshore Work',
-    compoff: 'Book Comp-off / Weekend Work',
+    compoff: 'Submit Claim',
   };
   const SUBMIT_LABELS = {
     leave: 'Submit Leave',
     wfh: 'Submit WFH Request',
     offshore: 'Submit Offshore Work Request',
-    compoff: 'Claim Request',
+    compoff: 'Submit Claim',
   };
   const SUCCESS_TITLES = {
     leave: 'Leave Applied Successfully',
     wfh: 'WFH Request Submitted',
     offshore: 'Offshore Work Request Submitted',
-    compoff: 'Comp-off / Weekend Work Claimed',
+    compoff: 'Claim Submitted',
   };
   const showLeaveType = type === 'leave';
   const showDuration = type === 'leave' || type === 'wfh';
-  const showReason = type !== 'offshore';
+  // Offshore has its own Reason field too — distinct from the excess-quota
+  // justification (only shown when the request pushes OW over its quota).
+  const showReason = true;
   const showClaimType = type === 'compoff';
   const reasonLabel =
-    type === 'compoff' ? 'Claim Reason' : type === 'wfh' ? 'Reason for WFH' : 'Reason';
+    type === 'compoff' ? 'Claim Reason' : type === 'wfh' ? 'Reason for WFH' : type === 'offshore' ? 'Reason for Offshore Work' : 'Reason';
   const { user } = useAuth();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -298,11 +466,21 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [requiresJustification, setRequiresJustification] = useState(false);
   const [justificationText, setJustificationText] = useState('');
   const [quotaInfo, setQuotaInfo] = useState(null);
+  const [flexJustification, setFlexJustification] = useState('');
   const [leaveType, setLeaveType] = useState(null);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [duration, setDuration] = useState('full');
-  const [claimType, setClaimType] = useState('compoff');
+  // Holds the selected Claim leave type's actual code (e.g. 'CWW',
+  // 'CCompOff', or any custom Claim type HR created) — no longer a fixed
+  // 'compoff'/'weekend' choice, see claimTypeItems below.
+  const [claimType, setClaimType] = useState(null);
+  const [claimEligibleDates, setClaimEligibleDates] = useState(null); // null = not yet loaded/not applicable
+  // Explicit multi-select of individual dates for the Claim flow — a range
+  // doesn't fit since eligible dates for a Claim type aren't necessarily
+  // contiguous (e.g. two unrelated declared-working Sundays weeks apart).
+  const [selectedClaimDates, setSelectedClaimDates] = useState([]); // array of Date
+  const [pendingClaimDate, setPendingClaimDate] = useState(null);
   const [reason, setReason] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [empItems, setEmpItems] = useState([]);
@@ -317,6 +495,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [hoverDate, setHoverDate] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Server's authoritative day-by-day breakdown (Rule 1 response contract) —
+  // which requested days were counted vs. skipped and why, shown after a
+  // successful Leave/WFH/OW submission.
+  const [lastDayBreakdown, setLastDayBreakdown] = useState(null);
   const [refNum] = useState(`LV-${Date.now().toString().slice(-6)}`);
   const [dailyConfigs, setDailyConfigs] = useState({}); // { '2026-08-07': 'full' }
 
@@ -337,46 +519,205 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   }, [startDate, endDate]);
 
   const activeEmp = applyFor === 'behalf' && behalfEmp ? behalfEmp : SELF;
+  const effectiveEmpId = applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id;
+  const [eligibleTypes, setEligibleTypes] = useState([]);
+  const [leaveBalances, setLeaveBalances] = useState({});
+  // Real per-day status ('WEEKEND' | 'ON_HOLIDAY' | ...) for whatever range
+  // the calendar/summary currently need — see the fetch effect below.
+  const [calendarDayMap, setCalendarDayMap] = useState({});
+  useEffect(() => {
+    if (!effectiveEmpId) {
+      setEligibleTypes([]);
+      setLeaveBalances({});
+      return;
+    }
+    leaveService
+      .getEligibleLeaveTypes(effectiveEmpId)
+      .then((data) => setEligibleTypes(Array.isArray(data) ? data : data?.results || []))
+      .catch((err) => {
+        console.error('Failed to fetch eligible leave types', err);
+        setEligibleTypes([]);
+      });
+    leaveService
+      .getLeaveBalance(effectiveEmpId)
+      .then((data) => setLeaveBalances(data?.balances || {}))
+      .catch((err) => {
+        console.error('Failed to fetch leave balance', err);
+        setLeaveBalances({});
+      });
+  }, [effectiveEmpId]);
+  useEffect(() => {
+    // Eligible types/balances differ per employee — drop a stale selection
+    // when switching who the request is being applied for.
+    setLeaveType(null);
+  }, [effectiveEmpId]);
+  const ltItems = useMemo(
+    () =>
+      eligibleTypes
+        .filter((t) => t.active)
+        .map((t) => buildLeaveTypeItem(t, leaveBalances)),
+    [eligibleTypes, leaveBalances],
+  );
+  // Every active Claim-category leave type the employee is eligible for
+  // (CWW, CCompOff, and any custom Claim type HR created) — replaces the
+  // old fixed 'compoff'/'weekend' choice with a generic, data-driven list.
+  const claimTypeItems = useMemo(
+    () => eligibleTypes.filter((t) => t.active && t.category === 'CLAIM'),
+    [eligibleTypes],
+  );
+  useEffect(() => {
+    // Drop a stale claim-type selection if it's no longer in the eligible
+    // list (e.g. employee switched, or the type was deactivated).
+    if (claimType && !claimTypeItems.some((t) => t.code === claimType)) {
+      setClaimType(null);
+    }
+  }, [claimTypeItems, claimType]);
+  // WFH / Offshore Work / Claim flows have an implicit leave type (no
+  // dropdown, or a claim-specific one) — resolve it from the same
+  // eligible-types + balances data. For Claims, fixedCode IS the selected
+  // claim's own code (e.g. 'CWW') — Claims don't have their own balance
+  // (see isClaimType below), so this is only used for label/notice display.
+  const fixedCode =
+    type === 'wfh' ? 'WFH' : type === 'offshore' ? 'OW' : type === 'compoff' ? claimType : null;
+  const fixedTypeEntry = useMemo(() => {
+    if (!fixedCode) return null;
+    const match = eligibleTypes.find((t) => t.code === fixedCode);
+    if (match) return buildLeaveTypeItem(match, leaveBalances);
+    const bal = leaveBalances[fixedCode];
+    if (!bal) return null;
+    return {
+      id: fixedCode,
+      code: fixedCode,
+      label: fixedCode,
+      balance: bal.is_unlimited ? null : Number(bal.available ?? 0),
+      isUnlimited: !!bal.is_unlimited,
+      requiresAttachment: false,
+      maxConsecutive: Infinity,
+      carryForward: false,
+      minNoticeDays: 0,
+      noticePeriod: 'Same day',
+      policy: '',
+    };
+  }, [fixedCode, eligibleTypes, leaveBalances]);
+  const effectiveLeaveType = showLeaveType ? leaveType : fixedTypeEntry;
+  const isUnlimitedSel = !!effectiveLeaveType?.isUnlimited;
+  const isFlexibleSel = !!effectiveLeaveType?.isFlexible;
   const end = endDate ?? startDate;
   const isMultiDay = !!(startDate && end && dateStr(startDate) !== dateStr(end));
   const reqDays = startDate && end ? eachDay(startDate, end).length : 0;
-  const bizDays = startDate && end ? countBiz(startDate, end) : 0;
-  const wkndDays = startDate && end ? countWknd(startDate, end) : 0;
-  const holCount = startDate && end ? countHols(startDate, end) : 0;
-
-  // Charged leaves: sum of active business days configured
-  const charged = useMemo(() => {
-    if (!startDate || !end) return 0;
-    let sum = 0;
-    eachDay(startDate, end).forEach((d) => {
-      if (isSaudiWeekend(d) || PUBLIC_HOLIDAYS.includes(dateStr(d))) return;
-      const cfg = dailyConfigs[dateStr(d)] || 'full';
-      sum += cfg === 'full' ? 1 : 0.5;
-    });
-    return sum;
-  }, [startDate, end, dailyConfigs]);
-
-  const avail = leaveType?.balance ?? 0;
-  const remaining = leaveType ? Math.max(0, avail - charged) : 0;
-  const barPct = avail > 0 ? Math.max(0, remaining / avail) * 100 : 100;
-  const validations = useMemo(
-    () => getValidations(startDate, end ?? null, leaveType, charged),
-    [startDate, end, leaveType, charged],
-  );
+  const bizDays = startDate && end ? countBiz(startDate, end, calendarDayMap) : 0;
+  const wkndDays = startDate && end ? countWknd(startDate, end, calendarDayMap) : 0;
+  const holCount = startDate && end ? countHols(startDate, end, calendarDayMap) : 0;
+  const isClaimType = type === 'compoff';
+  const charged = isClaimType
+    ? selectedClaimDates.length
+    : isMultiDay ? bizDays : duration === 'full' ? bizDays || 0 : 0.5;
+  const avail = effectiveLeaveType ? (isUnlimitedSel ? null : Number(effectiveLeaveType.balance ?? 0)) : 0;
+  const remaining =
+    effectiveLeaveType && !isUnlimitedSel ? Math.max(0, avail - charged) : null;
+  // Flexible-mode entitlements allow exceeding the available balance, but the
+  // backend requires a justification in that case — compute proactively on
+  // the client since the balance data is already available here.
+  const needsFlexJustification = !isClaimType && isFlexibleSel && !isUnlimitedSel && charged > avail;
+  const barPct = !isUnlimitedSel && avail > 0 ? Math.max(0, (remaining ?? 0) / avail) * 100 : 100;
+  const validations = useMemo(() => {
+    if (isClaimType) {
+      // Claims have their own selection flow (selectedClaimDates), not
+      // startDate/endDate — no balance to check, the date picker itself
+      // already restricts selection to eligible dates.
+      return selectedClaimDates.length > 0
+        ? [{ key: 'balance', label: 'Claim — no balance deducted', status: 'info' }]
+        : [];
+    }
+    return getValidations(startDate, end ?? null, effectiveLeaveType, charged, isClaimType, calendarDayMap);
+  }, [isClaimType, selectedClaimDates, startDate, end, effectiveLeaveType, charged, calendarDayMap]);
   const hasError = validations.some((v) => v.status === 'error');
   const canSubmit =
-    !!startDate &&
+    (isClaimType ? selectedClaimDates.length > 0 : !!startDate) &&
     !hasError &&
     (applyFor === 'self' || !!behalfEmp) &&
     (!showLeaveType || !!leaveType) &&
+    (!showClaimType || !!claimType) &&
     (!showReason || reason.trim().length > 5) &&
-    (leaveType?.requiresAttachment ? attachments.length > 0 : true);
+    (leaveType?.requiresAttachment ? attachments.length > 0 : true) &&
+    (!needsFlexJustification || flexJustification.trim().length > 0);
   useEffect(() => {
     if (applyFor === 'self') setBehalfEmp(null);
   }, [applyFor]);
   useEffect(() => {
     if (isMultiDay) setDuration('full');
   }, [isMultiDay]);
+  // Real weekend/holiday markers for the calendar grid + duration/holiday/
+  // weekend counts — covers the union of the visible month and the
+  // selected range so both the grid display and the summary panel have
+  // data, in a single call to the employee's real calendar
+  // (leaveService.getCalendar / MyCalendarView), which resolves weekends
+  // against the employee's actual work schedule and holidays against the
+  // real Holiday records — replaces the old isSaudiWeekend()/
+  // PUBLIC_HOLIDAYS mocks entirely.
+  useEffect(() => {
+    if (!effectiveEmpId) {
+      setCalendarDayMap({});
+      return;
+    }
+    let active = true;
+    const monthStart = new Date(calYear, calMonth, 1);
+    const monthEnd = new Date(calYear, calMonth + 1, 0);
+    const rangeStart = startDate && startDate < monthStart ? startDate : monthStart;
+    const rangeEndBound = end && end > monthEnd ? end : monthEnd;
+    leaveService
+      .getCalendar(effectiveEmpId, { start: dateStr(rangeStart), end: dateStr(rangeEndBound) })
+      .then((data) => {
+        if (!active) return;
+        const map = {};
+        (data?.calendar || []).forEach((day) => {
+          map[day.date] = day;
+        });
+        setCalendarDayMap(map);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch calendar data', err);
+        if (active) setCalendarDayMap({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [effectiveEmpId, calYear, calMonth, startDate, end]);
+  // Claims are retroactive — once a Claim type is selected, fetch which
+  // dates in the last 12 months actually qualify under its configured
+  // rule (Weekend/Company Holiday/Custom Dates), so the date picker can
+  // disable everything else instead of letting the user pick a date
+  // that'll just be rejected on submit. A fixed lookback window (rather
+  // than tracking the date picker's internal month navigation, which
+  // isn't exposed to this component) keeps this simple — 12 months covers
+  // any realistic retroactive claim.
+  useEffect(() => {
+    if (!isClaimType || !claimType || !effectiveEmpId) {
+      setClaimEligibleDates(null);
+      return;
+    }
+    let active = true;
+    const queryStart = new Date(today);
+    queryStart.setDate(queryStart.getDate() - 365);
+    const queryEnd = new Date(today.getTime() - 864e5); // yesterday — claims never include today
+    leaveService
+      .getClaimEligibleDates({
+        emp_id: effectiveEmpId,
+        leave_type_code: claimType,
+        start: dateStr(queryStart),
+        end: dateStr(queryEnd),
+      })
+      .then((data) => {
+        if (active) setClaimEligibleDates(data?.eligible_dates || []);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch claim-eligible dates', err);
+        if (active) setClaimEligibleDates([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isClaimType, claimType, effectiveEmpId, today]);
   useEffect(() => {
     if (user?.mySubordinates?.length > 0 && user?.emp_id) {
       import('@services/consultantService').then(({ default: consultantService }) => {
@@ -402,6 +743,12 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     } else setCalMonth((m) => m + 1);
   }
   function handleDayClick(d) {
+    // Rule 1 (Actual/Nominal Leave): the from/to boundary must be a
+    // working day — every click here sets one or the other (there's no
+    // separate "mid-range click" in this UI), so gating the click itself
+    // is sufficient. Doesn't apply to Claims, which target non-working
+    // days by design.
+    if (!isClaimType && (isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap))) return;
     if (!startDate || endDate) {
       setStartDate(d);
       setEndDate(null);
@@ -419,7 +766,11 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     setStartDate(null);
     setEndDate(null);
     setDuration('full');
-    setClaimType('compoff');
+    setClaimType(null);
+    setClaimEligibleDates(null);
+    setSelectedClaimDates([]);
+    setPendingClaimDate(null);
+    setLastDayBreakdown(null);
     setReason('');
     setAttachments([]);
     setBehalfEmp(null);
@@ -427,14 +778,14 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     setRequiresJustification(false);
     setJustificationText('');
     setQuotaInfo(null);
+    setFlexJustification('');
   }
   function barClass() {
-    const pct = avail > 0 ? remaining / avail : 1;
+    const pct = avail > 0 ? (remaining ?? 0) / avail : 1;
     if (pct <= 0.1) return 'bar-danger';
     if (pct <= 0.3) return 'bar-warn';
     return '';
   }
-  const ltItems = LEAVE_TYPES.map((lt) => ({ ...lt }));
   if (submitted)
     return (
       <div className="al-overlay" {...dismissBackdrop(() => onClose(true))}>
@@ -460,6 +811,21 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
               <Clock size={10} />
               Pending Approval
             </div>
+            {/* Rule 1 response contract: which requested days were counted
+                vs. skipped, and why — server-authoritative, from the apply
+                response's day_breakdown. */}
+            {lastDayBreakdown?.some((d) => !d.counted) && (
+              <div style={{ textAlign: 'left', margin: '16px 0', padding: '10px 12px', background: 'var(--c-info-light, #eff6ff)', border: '1px solid var(--c-info, #3b82f6)', borderRadius: 6, fontSize: 12 }}>
+                <strong>Some days weren&apos;t counted:</strong>
+                <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                  {lastDayBreakdown.filter((d) => !d.counted).map((d) => (
+                    <li key={d.date}>
+                      {d.date} — {d.reason === 'WEEKEND' ? 'weekend' : d.reason === 'ON_HOLIDAY' ? 'company holiday' : d.hint}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="al-success-actions">
               <button type="button" className="al-btn al-btn-outline" onClick={() => onClose(true)}>
                 View My Leaves
@@ -497,17 +863,20 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 <div className="al-confirm-row">
                   <span className="al-confirm-row-label">Claim Type</span>
                   <span className="al-confirm-row-value">
-                    {claimType === 'compoff' ? 'Compensatory Off' : 'Weekend Work'}
+                    {claimTypeItems.find((t) => t.code === claimType)?.leave_type || claimType}
                   </span>
                 </div>
               )}
               <div className="al-confirm-row">
                 <span className="al-confirm-row-label">Dates</span>
                 <span className="al-confirm-row-value">
-                  {startDate ? fmtDate(startDate) : '\u2014'}
-                  {end && dateStr(end) !== dateStr(startDate) ? ` \u2192 ${fmtDate(end)}` : ''}
+                  {isClaimType
+                    ? selectedClaimDates.map((d) => fmtShort(d)).join(', ') || '\u2014'
+                    : startDate ? fmtDate(startDate) : '\u2014'}
+                  {!isClaimType && end && dateStr(end) !== dateStr(startDate) ? ` \u2192 ${fmtDate(end)}` : ''}
                 </span>
               </div>
+              {!isClaimType && (
               <div className="al-confirm-row">
                 <span className="al-confirm-row-label">Duration</span>
                 <span className="al-confirm-row-value">
@@ -520,6 +889,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         : 'Afternoon (Second Half)'}
                 </span>
               </div>
+              )}
               <div className="al-confirm-row">
                 <span className="al-confirm-row-label">Requested Days</span>
                 <span className="al-confirm-row-value">
@@ -531,9 +901,14 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                   <span className="al-confirm-row-label">Remaining Balance</span>
                   <span
                     className="al-confirm-row-value"
-                    style={{ color: remaining <= 0 ? 'var(--c-danger)' : 'var(--c-success)' }}
+                    style={{
+                      color:
+                        !isUnlimitedSel && remaining <= 0
+                          ? 'var(--c-danger)'
+                          : 'var(--c-success)',
+                    }}
                   >
-                    {avail === 999 ? 'N/A' : `${remaining} day${remaining !== 1 ? 's' : ''}`}
+                    {isUnlimitedSel ? 'Unlimited' : `${remaining} day${remaining !== 1 ? 's' : ''}`}
                   </span>
                 </div>
               )}
@@ -571,69 +946,80 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     try {
                       setIsSubmitting(true);
                       
-                      const backendLeaveType = (() => {
-                        if (type === 'wfh') return 'WFH';
-                        if (type === 'offshore') return 'OW';
-                        if (type === 'compoff') return claimType === 'compoff' ? 'CompOff' : 'WW';
-                        if (showLeaveType && leaveType) {
-                          const m = { annual: 'AL', sick: 'SL', compoff: 'CompOff', emergency: 'AL', maternity: 'ML' };
-                          return m[leaveType.id] || 'AL';
-                        }
-                        return 'AL';
-                      })();
+                      let backendLeaveType = '';
+                      if (type === 'wfh') backendLeaveType = 'WFH';
+                      else if (type === 'offshore') backendLeaveType = 'OW';
+                      // claimType already holds the real leave_type_code
+                      // (e.g. 'CWW', 'CCompOff', or any custom Claim type
+                      // HR created) — sourced straight from the
+                      // eligible-leave-types API, same as leaveType.code
+                      // below.
+                      else if (type === 'compoff') backendLeaveType = claimType;
+                      else if (showLeaveType && leaveType) {
+                        // leaveType.code/id is the real backend leave-type code
+                        // (sourced from the eligible-leave-types API), so it can
+                        // be used directly.
+                        backendLeaveType = leaveType.code || leaveType.id || 'AL';
+                      }
 
                       const basePayload = {
                         emp_id: applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id,
                         leave_type: backendLeaveType,
-                        reason: reason || (type === 'compoff' ? 'Comp-off / Weekend Work' : (type === 'offshore' ? 'Offshore Work' : '')),
-                        location: user?.location?.toLowerCase() === 'on site' ? 1 : 2
+                        // Claims use `dates` (an explicit list) instead of
+                        // a range — see ClaimSubmitSerializer on the
+                        // backend for why a range doesn't fit.
+                        ...(isClaimType
+                          ? { dates: selectedClaimDates.map(dateStr) }
+                          : {
+                              start_date: dateStr(startDate),
+                              end_date: end ? dateStr(end) : dateStr(startDate),
+                            }),
+                        reason: reason || (type === 'compoff' ? 'Claim' : ''),
+                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
                       };
                       if (type === 'offshore' && requiresJustification) {
                         basePayload.justification = justificationText;
                       }
+                      if (needsFlexJustification && flexJustification.trim()) {
+                        payload.justification = flexJustification.trim();
+                      }
+
                       if (applyFor === 'behalf') {
                         basePayload.manager_id = user?.emp_id;
                       }
-
-                      // Split requests daily to allow mixed duration configurations
-                      const days = eachDay(startDate, end);
-                      for (const day of days) {
-                        const dStr = dateStr(day);
-                        const isWeekend = isSaudiWeekend(day);
-                        const isHol = PUBLIC_HOLIDAYS.includes(dStr);
-                        // Skip weekends and public holidays for leaves/wfh
-                        if ((type === 'leave' || type === 'wfh') && (isWeekend || isHol)) {
-                          continue;
-                        }
-
-                        const dayConfig = dailyConfigs[dStr] || 'full';
-                        const dayPayload = {
-                          ...basePayload,
-                          start_date: dStr,
-                          end_date: dStr,
-                          duration: dayConfig === 'morning' ? 'FIRST_HALF' : dayConfig === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
-                        };
-
-                        if (applyFor === 'behalf') {
-                          await leaveService.applyLeaveOnBehalf(dayPayload);
-                        } else {
-                          if (type === 'offshore') {
-                            const res = await leaveService.applyOwLeave(dayPayload);
-                            if (res?.requires_justification && !dayPayload.justification) {
-                              setRequiresJustification(true);
-                              setQuotaInfo(res.quota_info);
-                              setIsSubmitting(false);
-                              return;
-                            }
-                          } else if (type === 'wfh') {
-                            await leaveService.requestWfh(dayPayload);
-                          } else if (type === 'compoff' && claimType === 'compoff') {
-                            await leaveService.claimCompOff(dayPayload);
-                          } else if (type === 'compoff' && claimType === 'weekend') {
-                            await leaveService.claimWeekend(dayPayload);
-                          } else {
-                            await leaveService.applyLeave(dayPayload);
+                      
+                      if (applyFor === 'behalf') {
+                        const res = await leaveService.applyLeaveOnBehalf(payload);
+                        setLastDayBreakdown(res?.day_breakdown || null);
+                      } else {
+                        if (type === 'offshore') {
+                          const res = await leaveService.applyOwLeave(payload);
+                          if (res?.requires_justification && !payload.justification) {
+                            setRequiresJustification(true);
+                            setQuotaInfo(res.quota_info);
+                            setIsSubmitting(false);
+                            return;
                           }
+                          setLastDayBreakdown(res?.day_breakdown || null);
+                        } else if (type === 'wfh') {
+                          // WFH now goes through the same generic apply
+                          // endpoint as regular leave (leave_type: 'WFH'
+                          // in the payload already carries this) instead
+                          // of its own dedicated request-wfh endpoint.
+                          const res = await leaveService.applyLeave(payload);
+                          setLastDayBreakdown(res?.day_breakdown || null);
+                        } else if (type === 'compoff') {
+                          // Generic claim submission — works for any
+                          // Claim-category leave type, not just CWW/CCompOff.
+                          await leaveService.claimSubmit({
+                            emp_id: payload.emp_id,
+                            leave_type_code: backendLeaveType,
+                            dates: payload.dates,
+                            reason: payload.reason,
+                          });
+                        } else {
+                          const res = await leaveService.applyLeave(payload);
+                          setLastDayBreakdown(res?.day_breakdown || null);
                         }
                       }
 
@@ -649,6 +1035,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       setRequiresJustification(false);
                       setJustificationText('');
                       setQuotaInfo(null);
+                      setFlexJustification('');
                     } catch (error) {
                       const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to submit request. Please try again.';
                       toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
@@ -751,51 +1138,135 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 </div>
               )}
 
-              {/* Claim Type — only for 'compoff' */}
+              {/* Claim Type — generic, lists every active Claim-category
+                  leave type the employee is eligible for (not just
+                  CWW/CCompOff) */}
               {showClaimType && (
                 <div className="al-form-group">
-                  <span className="al-label al-label-required">Leave Claim Type</span>
+                  <span className="al-label al-label-required">Claim Type</span>
                   <Select
-                    value={claimType}
-                    onChange={(v) => setClaimType(v)}
-                    options={[
-                      { value: 'compoff', label: 'Compensatory Off' },
-                      { value: 'weekend', label: 'Weekend Work' },
-                    ]}
+                    value={claimType ?? ''}
+                    onChange={(v) => {
+                      setClaimType(v);
+                      // Previously-selected dates may not qualify under
+                      // the newly-chosen type's rule — clear them rather
+                      // than silently submit a mismatch.
+                      setSelectedClaimDates([]);
+                      setPendingClaimDate(null);
+                    }}
+                    placeholder={
+                      claimTypeItems.length === 0
+                        ? 'No claim types available'
+                        : 'Select claim type…'
+                    }
+                    options={claimTypeItems.map((t) => ({ value: t.code, label: t.leave_type }))}
                     width="leaveType"
                   />
                 </div>
               )}
 
-              {/* Dates row */}
-              <div className="al-row-2">
-                <div className="al-form-group">
-                  <span className="al-label al-label-required">Start Date</span>
-                  <DatePicker
-                    value={startDate}
-                    onChange={(d) => {
-                      setStartDate(d);
-                      if (d && endDate && endDate < d) setEndDate(null);
-                    }}
-                    minDate={today}
-                    placeholder="Select start date"
-                    width="100%"
-                  />
+              {/* Dates — a range for Leave/WFH/OW, an explicit multi-select
+                  of individual dates for Claims (see selectedClaimDates) */}
+              {!isClaimType ? (
+                <div className="al-row-2">
+                  <div className="al-form-group">
+                    <span className="al-label al-label-required">Start Date</span>
+                    <DatePicker
+                      value={startDate}
+                      onChange={(d) => {
+                        setStartDate(d);
+                        if (d && endDate && endDate < d) setEndDate(null);
+                      }}
+                      minDate={today}
+                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap)}
+                      placeholder="Select start date"
+                      width="100%"
+                    />
+                  </div>
+                  <div className="al-form-group">
+                    <label className="al-label">
+                      End Date{' '}
+                      <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>(optional)</span>
+                    </label>
+                    <DatePicker
+                      value={endDate}
+                      onChange={(d) => setEndDate(d)}
+                      minDate={startDate || today}
+                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap)}
+                      placeholder="Select end date"
+                      width="100%"
+                    />
+                  </div>
                 </div>
+              ) : (
                 <div className="al-form-group">
-                  <label className="al-label">
-                    End Date{' '}
-                    <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>(optional)</span>
-                  </label>
-                  <DatePicker
-                    value={endDate}
-                    onChange={(d) => setEndDate(d)}
-                    minDate={startDate || today}
-                    placeholder="Select end date"
-                    width="100%"
-                  />
+                  <span className="al-label al-label-required">Claim Date(s)</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <DatePicker
+                      value={pendingClaimDate}
+                      onChange={setPendingClaimDate}
+                      maxDate={new Date(today.getTime() - 864e5)}
+                      isDateDisabled={
+                        claimType && claimEligibleDates
+                          ? (d) => !claimEligibleDates.includes(dateStr(d))
+                          : undefined
+                      }
+                      placeholder={claimType ? 'Select a date' : 'Select a claim type first'}
+                      disabled={!claimType}
+                      width="220px"
+                    />
+                    <button
+                      type="button"
+                      className="al-btn al-btn-outline"
+                      disabled={!pendingClaimDate}
+                      onClick={() => {
+                        if (!pendingClaimDate) return;
+                        const key = dateStr(pendingClaimDate);
+                        setSelectedClaimDates((prev) =>
+                          prev.some((d) => dateStr(d) === key)
+                            ? prev
+                            : [...prev, pendingClaimDate].sort((a, b) => a - b),
+                        );
+                        setPendingClaimDate(null);
+                      }}
+                    >
+                      <Plus className="al-btn-icon" /> Add
+                    </button>
+                  </div>
+                  {claimType && claimEligibleDates && claimEligibleDates.length === 0 && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-tertiary)' }}>
+                      No claimable dates found for this type in the last 12 months.
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                    {selectedClaimDates.length === 0 ? (
+                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                        No dates added yet.
+                      </span>
+                    ) : (
+                      selectedClaimDates.map((d) => (
+                        <span
+                          key={dateStr(d)}
+                          className="al-sum-type-badge"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          {fmtShort(d)}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${dateStr(d)}`}
+                            onClick={() =>
+                              setSelectedClaimDates((prev) => prev.filter((x) => dateStr(x) !== dateStr(d)))
+                            }
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Duration — only for leave/wfh */}
               {showDuration && startDate && (
@@ -891,7 +1362,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 </div>
               )}
 
-              {/* Reason — hidden for offshore */}
+              {/* Reason */}
               {showReason && (
                 <div className="al-form-group">
                   <span className="al-label al-label-required">{reasonLabel}</span>
@@ -902,7 +1373,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         ? 'Briefly describe the reason for this claim\u2026'
                         : type === 'wfh'
                           ? 'Briefly describe the reason for working from home\u2026'
-                          : 'Briefly describe the reason for this leave request\u2026'
+                          : type === 'offshore'
+                            ? 'Briefly describe the reason for this offshore work request\u2026'
+                            : 'Briefly describe the reason for this leave request\u2026'
                     }
                     maxLength={400}
                     value={reason}
@@ -912,6 +1385,45 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                   <span className={`al-char-counter${reason.length > 360 ? ' al-char-warn' : ''}`}>
                     {reason.length}/400
                   </span>
+                </div>
+              )}
+
+              {/* Flexible-entitlement justification — required when this
+                  request exceeds the available balance for a Flexible-mode
+                  leave type. */}
+              {needsFlexJustification && (
+                <div className="al-form-group">
+                  <span className="al-label al-label-required">Justification</span>
+                  <div
+                    style={{
+                      marginBottom: 6,
+                      padding: '8px 10px',
+                      background: 'var(--c-danger-light, #fef2f2)',
+                      border: '1px solid var(--c-danger, #ef4444)',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: 'var(--c-danger)',
+                      fontSize: 12,
+                    }}
+                  >
+                    <AlertTriangle size={14} />
+                    This request exceeds your available balance. Please provide a reason.
+                  </div>
+                  <textarea
+                    className={`al-textarea${!flexJustification.trim() ? ' has-error' : ''}`}
+                    placeholder="Explain why this request should be allowed despite exceeding your balance…"
+                    maxLength={400}
+                    value={flexJustification}
+                    onChange={(e) => setFlexJustification(e.target.value)}
+                    style={{ minHeight: 66 }}
+                  />
+                  {!flexJustification.trim() && (
+                    <span className="al-field-error" style={{ color: 'var(--c-danger)', fontSize: 11 }}>
+                      Justification is required to submit this request.
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -995,20 +1507,27 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 </div>
               )}
 
-              {/* Calendar */}
-              <div>
-                <InlineCalendar
-                  year={calYear}
-                  month={calMonth}
-                  startDate={startDate}
-                  endDate={endDate}
-                  hoverDate={hoverDate}
-                  onDayClick={handleDayClick}
-                  onDayHover={setHoverDate}
-                  onPrev={prevMonth}
-                  onNext={nextMonth}
-                />
-              </div>
+              {/* Calendar — Claims use the multi-select date list above
+                  instead (a grid isn't a great fit for non-contiguous
+                  date selection) */}
+              {!isClaimType && (
+                <div>
+                  <InlineCalendar
+                    year={calYear}
+                    month={calMonth}
+                    startDate={startDate}
+                    endDate={endDate}
+                    hoverDate={hoverDate}
+                    onDayClick={handleDayClick}
+                    onDayHover={setHoverDate}
+                    onPrev={prevMonth}
+                    onNext={nextMonth}
+                    dateMode="future"
+                    calendarDayMap={calendarDayMap}
+                    restrictToWorkingDays
+                  />
+                </div>
+              )}
             </div>
 
             {/* ── Summary ────────────────────────────────────────────────── */}
@@ -1029,7 +1548,15 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
               <div className="al-sum-body">
                 {/* Leave type + dates */}
                 <div className="al-sum-section">
-                  {!showLeaveType ? (
+                  {showClaimType ? (
+                    claimType ? (
+                      <div className="al-sum-type-badge">
+                        {claimTypeItems.find((t) => t.code === claimType)?.leave_type || claimType}
+                      </div>
+                    ) : (
+                      <div className="al-sum-type-empty">No claim type selected</div>
+                    )
+                  ) : !showLeaveType ? (
                     <div className="al-sum-type-badge">{MODAL_TITLES[type]}</div>
                   ) : leaveType ? (
                     <div className="al-sum-type-badge">{leaveType.label}</div>
@@ -1078,14 +1605,28 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                   ))}
                 </div>
 
-                {/* Balance — only for leave type */}
-                {showLeaveType && (
+                {/* Claims don't carry their own balance — approval credits
+                    a separate entitlement instead (see Credits To in the
+                    leave type's policy), so a numeric balance here would
+                    just be a misleading always-zero. */}
+                {isClaimType && (
+                  <div className="al-sum-section">
+                    <p className="al-sum-section-title">Balance</p>
+                    <p className="al-policy-hint">
+                      Claims don&apos;t carry their own balance — approval credits a
+                      separate leave type&apos;s entitlement instead.
+                    </p>
+                  </div>
+                )}
+
+                {/* Balance — for the selected/implicit leave type */}
+                {(showLeaveType || !!effectiveLeaveType) && !isClaimType && (
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Balance</p>
                     <div className="al-sum-row">
                       <span className="al-sum-label">Available</span>
                       <span className="al-sum-value">
-                        {leaveType ? (avail === 999 ? 'Unpaid' : `${avail}d`) : '\u2014'}
+                        {effectiveLeaveType ? (isUnlimitedSel ? 'Unlimited' : `${avail}d`) : '\u2014'}
                       </span>
                     </div>
                     <div className="al-sum-row">
@@ -1095,16 +1636,16 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     <div className="al-sum-row">
                       <span className="al-sum-label">Remaining</span>
                       <span
-                        className={`al-sum-value ${leaveType && charged > 0 && remaining <= 0 ? 'v-danger' : leaveType && charged > 0 ? 'v-success' : ''}`}
+                        className={`al-sum-value ${effectiveLeaveType && charged > 0 && !isUnlimitedSel && remaining <= 0 ? 'v-danger' : effectiveLeaveType && charged > 0 ? 'v-success' : ''}`}
                       >
-                        {leaveType && charged > 0
-                          ? avail === 999
-                            ? 'N/A'
+                        {effectiveLeaveType && charged > 0
+                          ? isUnlimitedSel
+                            ? 'Unlimited'
                             : `${remaining}d`
                           : '\u2014'}
                       </span>
                     </div>
-                    {leaveType && avail !== 999 && (
+                    {effectiveLeaveType && !isUnlimitedSel && (
                       <div className="al-bal-bar-track">
                         <div
                           className={`al-bal-bar-fill ${barClass()}`}
@@ -1157,14 +1698,23 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                   </div>
                 )}
 
-                {/* Policy note */}
-                {showLeaveType && leaveType && (
+                {/* Policy note — skipped for Claims: notice/max-consecutive/
+                    carry-forward are configured on the claim type's own
+                    policy record but aren't actually enforced for claims
+                    (approval-gated by the manager instead), so showing
+                    them here would be misleading. */}
+                {!!effectiveLeaveType && !isClaimType && (
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Policy</p>
                     {[
-                      ['Notice', leaveType.noticePeriod],
-                      ['Max consec.', `${leaveType.maxConsecutive}d`],
-                      ['Carry fwd', leaveType.carryForward ? 'Yes' : 'No'],
+                      ['Notice', effectiveLeaveType.noticePeriod],
+                      [
+                        'Max consec.',
+                        Number.isFinite(effectiveLeaveType.maxConsecutive)
+                          ? `${effectiveLeaveType.maxConsecutive}d`
+                          : 'No limit',
+                      ],
+                      ['Carry fwd', effectiveLeaveType.carryForward ? 'Yes' : 'No'],
                     ].map(([l, v]) => (
                       <div key={l} className="al-sum-row">
                         <span className="al-sum-label">{l}</span>
@@ -1173,7 +1723,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         </span>
                       </div>
                     ))}
-                    <p className="al-policy-hint">{leaveType.policy}</p>
+                    {effectiveLeaveType.policy && (
+                      <p className="al-policy-hint">{effectiveLeaveType.policy}</p>
+                    )}
                   </div>
                 )}
               </div>
