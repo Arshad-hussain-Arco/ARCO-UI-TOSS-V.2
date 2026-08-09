@@ -194,6 +194,32 @@ export function LeaveManagementPage() {
     user?.role?.toLowerCase()?.includes('admin')
   );
 
+  const pendingDateRangeText = useMemo(() => {
+    const pendingLeaves = leaves.filter(l => (l.status === 1 || l.status_code?.toLowerCase() === 'pending'));
+    if (pendingLeaves.length === 0) return null;
+
+    let minDate = new Date(8640000000000000);
+    let maxDate = new Date(-8640000000000000);
+    let hasValidDates = false;
+
+    pendingLeaves.forEach(leave => {
+      const start = new Date(leave.start_date || leave.date);
+      const end = new Date(leave.end_date || leave.date || leave.start_date);
+
+      if (!isNaN(start.getTime())) {
+        if (start < minDate) minDate = start;
+        hasValidDates = true;
+      }
+      if (!isNaN(end.getTime())) {
+        if (end > maxDate) maxDate = end;
+        hasValidDates = true;
+      }
+    });
+
+    if (!hasValidDates) return null;
+    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
+  }, [leaves]);
   return (
     <div className="leave-management">
       {modalType && (
