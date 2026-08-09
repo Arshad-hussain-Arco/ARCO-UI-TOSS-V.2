@@ -209,6 +209,11 @@ export async function fetchAndMapTeamLeaves(managerId) {
       startDate: req.start_date,
       endDate: req.end_date,
       duration: req.leave_duration === 'FULL_DAY' ? 'full' : req.leave_duration === 'FIRST_HALF' ? 'morning' : req.leave_duration === 'SECOND_HALF' ? 'afternoon' : req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
+      // Multi-day partial-day boundaries — set only when start_date !==
+      // end_date; kept as raw API enum values (FULL_DAY/FIRST_HALF/
+      // SECOND_HALF) for the drawer's label mapping to consume.
+      fromDateDuration: req.from_date_duration,
+      toDateDuration: req.to_date_duration,
       inDays: req.in_days,
       bizDays: req.business_days,
       requestedOn: req.requested_date ? req.requested_date.split('T')[0] : '',
@@ -263,6 +268,8 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
       origStartDate: req.orig_start_date,
       origEndDate: req.orig_end_date,
       duration: req.new_duration === 'FIRST_HALF' ? 'morning' : req.new_duration === 'SECOND_HALF' ? 'afternoon' : 'full',
+      fromDateDuration: req.from_date_duration,
+      toDateDuration: req.to_date_duration,
       inDays: req.new_in_days,
       bizDays: req.new_business_days,
       requestedOn: req.created_at ? req.created_at.split('T')[0] : '',

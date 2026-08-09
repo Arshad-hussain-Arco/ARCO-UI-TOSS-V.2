@@ -95,9 +95,11 @@ function eachDay(s, e) {
   }
   return days;
 }
+function bizDaysArray(s, e, dayMap) {
+  return eachDay(s, e).filter((d) => !isRealWeekend(d, dayMap) && !isRealHoliday(d, dayMap));
+}
 function countBiz(s, e, dayMap) {
-  return eachDay(s, e).filter((d) => !isRealWeekend(d, dayMap) && !isRealHoliday(d, dayMap))
-    .length;
+  return bizDaysArray(s, e, dayMap).length;
 }
 function countHols(s, e, dayMap) {
   return eachDay(s, e).filter((d) => isRealHoliday(d, dayMap)).length;
@@ -609,9 +611,21 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const wkndDays = startDate && end ? countWknd(startDate, end, calendarDayMap) : 0;
   const holCount = startDate && end ? countHols(startDate, end, calendarDayMap) : 0;
   const isClaimType = type === 'compoff';
+  // Multi-day: sum each business day's contribution from dailyConfigs (full=1,
+  // half=0.5) — intermediate days are locked to 'full' in the UI, only the
+  // From/To rows can hold a half-day value.
+  const multiDayBizArr = useMemo(
+    () => (startDate && end ? bizDaysArray(startDate, end, calendarDayMap) : []),
+    [startDate, end, calendarDayMap],
+  );
   const charged = isClaimType
     ? selectedClaimDates.length
-    : isMultiDay ? bizDays : duration === 'full' ? bizDays || 0 : 0.5;
+    : isMultiDay
+      ? multiDayBizArr.reduce(
+          (sum, day) => sum + ((dailyConfigs[dateStr(day)] || 'full') === 'full' ? 1 : 0.5),
+          0,
+        )
+      : duration === 'full' ? bizDays || 0 : 0.5;
   const avail = effectiveLeaveType ? (isUnlimitedSel ? null : Number(effectiveLeaveType.balance ?? 0)) : 0;
   const remaining =
     effectiveLeaveType && !isUnlimitedSel ? Math.max(0, avail - charged) : null;
@@ -975,7 +989,27 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                               end_date: end ? dateStr(end) : dateStr(startDate),
                             }),
                         reason: reason || (type === 'compoff' ? 'Claim' : ''),
-                        duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY'
+                        ...(isClaimType
+                          ? {}
+                          : isMultiDay
+                            ? {
+                                // Multi-day: the legacy single `duration` field
+                                // doesn't apply — each boundary date carries its
+                                // own value from the per-day list (dailyConfigs).
+                                // Intermediate dates are always full day, no
+                                // field needed for them.
+                                from_date_duration:
+                                  (dailyConfigs[dateStr(startDate)] || 'full') === 'afternoon'
+                                    ? 'SECOND_HALF'
+                                    : 'FULL_DAY',
+                                to_date_duration:
+                                  (dailyConfigs[dateStr(end)] || 'full') === 'morning'
+                                    ? 'FIRST_HALF'
+                                    : 'FULL_DAY',
+                              }
+                            : {
+                                duration: duration === 'morning' ? 'FIRST_HALF' : duration === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
+                              }),
                       };
                       if (type === 'offshore' && requiresJustification) {
                         basePayload.justification = justificationText;
