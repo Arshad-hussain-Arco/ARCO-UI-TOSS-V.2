@@ -3,7 +3,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { useEffect, useState } from 'react';
 import './LeaveCard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
-function LeaveCard({ title, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited }) {
+function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited }) {
   const [bgColor, setBgColor] = useState('#e5e7eb');
   useEffect(() => {
     const updateBgColor = () => {

@@ -246,7 +246,24 @@ export function ConsultantsPage() {
 
   const handleEdit = (c) => {
     setEditingTarget(c);
-    setFormData({ ...c });
+    setFormData({ 
+      ...c,
+      username: c.username || c.user_name || c.userId || '',
+      joiningDate: c.joiningDate || c.joining_date || '',
+      webexId: c.webexId || c.webex_id || '',
+      includeInCp: c.includeInCp !== undefined ? c.includeInCp : (c.include_in_cp === 1 || c.include_in_cp === true),
+      visaExpire: c.visaExpire || c.visa_expiry || '',
+      visaRenewal: c.visaRenewal || c.visa_renewal || '',
+      nextVisaExit: c.nextVisaExit || c.next_visa_exit || '',
+      computerName: c.computerName || c.computer_name || '',
+      computerLocation: c.computerLocation || c.computer_location || '',
+      computerLocationReference: c.computerLocationReference || c.computer_location_ref || '',
+      physicalPcAvailable: c.physicalPcAvailable !== undefined ? c.physicalPcAvailable : (c.physical_pc_available === 1 || c.physical_pc_available === true),
+      accountStatus: c.accountStatus || c.status || 'active',
+      roleId: c.roleId || c.role_id,
+      teamId: c.teamId || c.team_id,
+      managerId: c.managerId || c.manager_id,
+    });
     openDrawer('add-edit');
   };
 

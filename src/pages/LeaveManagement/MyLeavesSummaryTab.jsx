@@ -102,6 +102,40 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
 
 
 
+  const pendingDateRangeText = useMemo(() => {
+    const pendingLeaves = normalizedLeaves.filter(l => l.statusStr === 'pending');
+    if (pendingLeaves.length === 0) return null;
+    
+    let minDate = new Date(8640000000000000);
+    let maxDate = new Date(-8640000000000000);
+    let hasValidDates = false;
+    
+    pendingLeaves.forEach(leave => {
+      const start = new Date(leave.start_date || leave.date);
+      const end = new Date(leave.end_date || leave.date || leave.start_date);
+      
+      if (!isNaN(start.getTime())) {
+        if (start < minDate) minDate = start;
+        hasValidDates = true;
+      }
+      if (!isNaN(end.getTime())) {
+        if (end > maxDate) maxDate = end;
+        hasValidDates = true;
+      }
+    });
+    
+    if (!hasValidDates) return null;
+    
+    const formatDate = (date) => {
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    
+    const minStr = formatDate(minDate);
+    const maxStr = formatDate(maxDate);
+    
+    return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
+  }, [normalizedLeaves]);
+
   const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
 
   return (
@@ -121,6 +155,10 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
             </button>
+            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
+              <span className="leave-filter-label">Pending</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
+            </button>
             <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
               <span className="leave-filter-label">Rejected</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
@@ -132,6 +170,11 @@ export function MyLeavesSummaryTab({ leaves = [], setViewModalLeave }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {filterStatus === 'pending' && pendingDateRangeText && (
+              <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                Pending from: {pendingDateRangeText}
+              </span>
+            )}
             <div className="export-button-wrapper">
               <button className="export-button font-[Helvetica]" onClick={() => setShowExportDropdown(!showExportDropdown)}>
               <Download className="export-button-icon" />

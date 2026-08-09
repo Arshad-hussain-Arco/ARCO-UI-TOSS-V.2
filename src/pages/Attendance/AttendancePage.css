@@ -59,20 +59,7 @@
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.3);
 }
 
-.attendance-subtab-indicator[data-tab='on-duty'] {
-  left: 24px;
-  width: 106px;
-}
-
-.attendance-subtab-indicator[data-tab='on-leave'] {
-  left: 150px;
-  width: 67px;
-}
-
-.attendance-subtab-indicator[data-tab='report'] {
-  left: 237px;
-  width: 130px;
-}
+/* Removed hardcoded data-tab indicator styles, now driven by React refs dynamically */
 
 /* Filters */
 /* ── Compact filter bar (single row) ── */

@@ -190,7 +190,7 @@
 
 .tr-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   padding: 10px 16px;
   background: var(--surface-primary);
@@ -505,6 +505,11 @@
   color: #991b1b;
 }
 
+.tr-status-self_rejected {
+  background: #e2e8f0;
+  color: #475569;
+}
+
 /* ─── Priority Badge ──────────────────────────────────────────────── */
 
 .tr-priority-high {
@@ -541,9 +546,16 @@
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   transition: all 0.1s;
   white-space: nowrap;
+}
+
+.tr-act-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .tr-act-approve {
@@ -570,16 +582,7 @@
   border-color: var(--c-danger);
 }
 
-.tr-act-view {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-color: var(--border-primary);
-}
-
-.tr-act-view:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+/* .tr-act-view styles removed as they are now the default for .tr-act-btn */
 
 /* ─── Date cell ───────────────────────────────────────────────────── */
 

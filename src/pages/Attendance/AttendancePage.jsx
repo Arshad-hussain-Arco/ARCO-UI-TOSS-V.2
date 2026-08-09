@@ -171,10 +171,8 @@ function StatusBadge({ code }) {
   );
 }
 
-function InlineLegend({ codesUsed }) {
-  const items = codesUsed.length > 0
-    ? ATTENDANCE_CODE_MAP.filter(c => codesUsed.includes(c.code))
-    : ATTENDANCE_CODE_MAP;
+function InlineLegend() {
+  const items = ATTENDANCE_CODE_MAP;
   return (
     <div className="att-inline-legend">
       {items.map(({ code, label, color }) => (
@@ -215,6 +213,20 @@ export function AttendancePage() {
 
   const [dutyData, setDutyData] = useState(null);
   const [isDutyLoading, setIsDutyLoading] = useState(false);
+
+  // ── Dynamic Tab Indicator ──
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const tabsRef = useRef({});
+
+  useEffect(() => {
+    const activeTabEl = tabsRef.current[subTab];
+    if (activeTabEl) {
+      setIndicatorStyle({
+        left: activeTabEl.offsetLeft,
+        width: activeTabEl.offsetWidth,
+      });
+    }
+  }, [subTab]);
 
   useEffect(() => {
     const managerId = user?.emp_id || user?.id || 1;
@@ -524,13 +536,14 @@ export function AttendancePage() {
         {['on-duty', 'on-wfh', 'on-leave', 'report'].map(id => (
           <button
             key={id}
+            ref={el => (tabsRef.current[id] = el)}
             className={`attendance-subtab${subTab === id ? ' attendance-subtab-active' : ''}`}
             onClick={() => setSubTab(id)}
           >
             {id === 'on-duty' ? 'On Duty Today' : id === 'on-wfh' ? 'On WFH Today' : id === 'on-leave' ? 'On Leave' : 'Attendance Report'}
           </button>
         ))}
-        <div className="attendance-subtab-indicator" data-tab={subTab} />
+        <div className="attendance-subtab-indicator" style={{ left: indicatorStyle.left, width: indicatorStyle.width }} />
       </div>
 
       {/* ── Filters — compact single row ── */}
@@ -930,8 +943,8 @@ export function AttendancePage() {
                 {/* Inline legend as tfoot — visually attached to table */}
                 <tfoot>
                   <tr>
-                    <td colSpan={reportDates.length + 2} className="att-legend-tfoot">
-                      <InlineLegend codesUsed={codesUsed} />
+                    <td colSpan={reportDates.length + 3} className="att-legend-tfoot">
+                      <InlineLegend />
                     </td>
                   </tr>
                 </tfoot>
