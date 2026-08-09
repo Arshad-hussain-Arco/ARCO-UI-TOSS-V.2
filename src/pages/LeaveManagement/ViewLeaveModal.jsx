@@ -9,7 +9,7 @@ export function ViewLeaveModal({ leave, onClose }) {
   
   const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
   const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave Request';
-  const statusStr = leave.status === 1 ? 'pending' : (leave.status === 3 ? 'approved' : (leave.status === 2 ? 'rejected' : (leave.status === 4 ? 'self-rejected' : leave.status_code?.toLowerCase() || 'pending')));
+  const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
 
   return (
     <div className="al-overlay" onClick={() => onClose()}>

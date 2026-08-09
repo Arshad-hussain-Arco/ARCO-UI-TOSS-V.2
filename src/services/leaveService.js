@@ -44,9 +44,9 @@ export const leaveService = {
       throw error;
     }
   },
-  getMyLeaves: async (empId) => {
+  getMyLeaves: async (empId, params = {}) => {
     try {
-      const response = await httpClient.get(endpoints.me.leaves(empId));
+      const response = await httpClient.get(endpoints.me.leaves(empId), { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching leaves:', error);
