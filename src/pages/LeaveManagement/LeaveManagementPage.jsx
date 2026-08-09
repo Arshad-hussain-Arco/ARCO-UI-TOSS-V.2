@@ -285,6 +285,8 @@ export function LeaveManagementPage() {
             status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
             duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
+            fromDateDuration: viewModalLeave.from_date_duration,
+            toDateDuration: viewModalLeave.to_date_duration,
           }}
           drawerAction="view"
           isReadOnly={true}

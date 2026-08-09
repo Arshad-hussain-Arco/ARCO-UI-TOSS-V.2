@@ -15,6 +15,17 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const [newEnd, setNewEnd] = useState(leave.end_date || '');
   const [newReason, setNewReason] = useState(leave.leave_reason || '');
   const [newDuration, setNewDuration] = useState(leave.leave_duration || 'FULL_DAY');
+  // Multi-day partial-day selection — one row per date in the range, mirroring
+  // ApplyLeaveModal's per-day list. Only the From/To boundary rows can hold a
+  // half-day value; every date strictly between them is locked to 'full'.
+  // Keyed by ISO date string, e.g. { '2026-08-07': 'full' }. Seeded from the
+  // leave's existing from/to values if present.
+  const [dailyConfigs, setDailyConfigs] = useState(() => {
+    const cfg = {};
+    if (leave.start_date && leave.from_date_duration === 'SECOND_HALF') cfg[leave.start_date] = 'afternoon';
+    if (leave.end_date && leave.to_date_duration === 'FIRST_HALF') cfg[leave.end_date] = 'morning';
+    return cfg;
+  });
   const [modReason, setModReason] = useState('');
   const [flexJustification, setFlexJustification] = useState('');
 
@@ -54,6 +65,49 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
     }
   }, [newStart]);
 
+  const isMultiDay = !!(newStart && newEnd && newStart !== newEnd);
+
+  // Every date (as 'YYYY-MM-DD') from newStart to newEnd, inclusive.
+  const rangeDays = (() => {
+    if (!newStart || !newEnd) return [];
+    const out = [];
+    const cur = new Date(`${newStart}T00:00:00`);
+    const fin = new Date(`${newEnd}T00:00:00`);
+    while (cur <= fin) {
+      out.push(cur.toISOString().slice(0, 10));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return out;
+  })();
+
+  // Re-evaluate whenever the date range changes: the option sets are
+  // mutually exclusive per row-position, so a value that was valid under the
+  // old shape must be reset to Full Day rather than silently submitted as
+  // invalid — e.g. a middle row's half-day pick becomes invalid if the range
+  // shrinks and that date is now the last (To) row.
+  useEffect(() => {
+    if (!isMultiDay) {
+      setDailyConfigs({});
+    } else {
+      setNewDuration('FULL_DAY');
+      setDailyConfigs((prev) => {
+        const next = {};
+        rangeDays.forEach((d, index) => {
+          const isStartDay = index === 0;
+          const isEndDay = index === rangeDays.length - 1;
+          const isMiddleDay = !isStartDay && !isEndDay;
+          let val = prev[d] || 'full';
+          if (isMiddleDay) val = 'full';
+          if (isStartDay && val === 'morning') val = 'full';
+          if (isEndDay && val === 'afternoon') val = 'full';
+          next[d] = val;
+        });
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMultiDay, newStart, newEnd]);
+
   // For OW leaves, "Leave Reason" doubles as the excess-quota justification
   // if this edit pushes the leave over the 10-day OW quota — the backend
   // only actually requires it in that case, but there's no way to know that
@@ -65,11 +119,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // balance; the backend remains the source of truth for exact billing.
   const newDays = (() => {
     if (!newStart || !newEnd) return 0;
-    const s = new Date(newStart);
-    const e = new Date(newEnd);
-    const diff = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
-    if (newStart === newEnd && newDuration !== 'FULL_DAY') return 0.5;
-    return diff;
+    if (newStart === newEnd) return newDuration !== 'FULL_DAY' ? 0.5 : 1;
+    return rangeDays.reduce((sum, d) => sum + ((dailyConfigs[d] || 'full') === 'full' ? 1 : 0.5), 0);
   })();
   const originalDays = Number(leave.total_days ?? leave.no_of_days ?? 0);
   // Incremental days this edit adds beyond what's already booked — comparing
@@ -100,6 +151,16 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
       const justificationField = needsFlexJustification && flexJustification.trim()
         ? { justification: flexJustification.trim() }
         : {};
+      // Single-day: unchanged legacy `new_duration` field. Multi-day: the
+      // two new boundary fields instead, read off the per-day list's first
+      // and last row — intermediate dates are always full day and need no
+      // field.
+      const durationFields = isMultiDay
+        ? {
+            from_date_duration: (dailyConfigs[newStart] || 'full') === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
+            to_date_duration: (dailyConfigs[newEnd] || 'full') === 'morning' ? 'FIRST_HALF' : 'FULL_DAY',
+          }
+        : { new_duration: newDuration };
 
       if (isOnBehalf) {
         res = await leaveService.editLeaveOnBehalf(leave.id, {
@@ -107,7 +168,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
           new_start: newStart,
           new_end: newEnd,
           new_reason: newReason,
-          new_duration: newDuration,
+          ...durationFields,
           ...justificationField,
         });
       } else if (isOW) {
@@ -116,7 +177,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
           new_start: newStart,
           new_end: newEnd,
           new_reason: newReason,
-          new_duration: newDuration,
+          ...durationFields,
           mod_reason: modReason,
           ...justificationField,
         });
@@ -131,7 +192,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
           new_start_date: newStart,
           new_end_date: newEnd,
           new_reason: newReason,
-          new_duration: newDuration,
+          ...durationFields,
           modification_reason: modReason,
           ...justificationField,
         });
@@ -193,7 +254,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
             </div>
           </div>
 
-          {newStart === newEnd && (
+          {!isMultiDay ? (
             <div className="al-form-group" style={{ marginTop: '10px' }}>
               <label className="al-label">Duration</label>
               <select
@@ -205,6 +266,63 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                 <option value="FIRST_HALF">First Half</option>
                 <option value="SECOND_HALF">Second Half</option>
               </select>
+            </div>
+          ) : (
+            <div className="al-form-group" style={{ marginTop: '10px' }}>
+              <span className="al-label">Duration Selection</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '10px', backgroundColor: 'var(--bg-secondary)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Customize leave hours for each day in the range:
+                </div>
+                {rangeDays.map((d, index) => {
+                  const isStartDay = index === 0;
+                  const isEndDay = index === rangeDays.length - 1;
+                  const isMiddleDay = !isStartDay && !isEndDay;
+                  const currentVal = dailyConfigs[d] || 'full';
+
+                  return (
+                    <div key={d} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                        {d}
+                      </span>
+                      <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
+                        {[
+                          ['full', 'Full Day'],
+                          ['morning', '1st Half'],
+                          ['afternoon', '2nd Half'],
+                        ].map(([val, lbl]) => {
+                          const isDisabled =
+                            rangeDays.length > 1 &&
+                            ((isMiddleDay && val !== 'full') ||
+                              (isStartDay && val === 'morning') ||
+                              (isEndDay && val === 'afternoon'));
+
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              className="al-duration-chip"
+                              style={{
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                opacity: isDisabled ? 0.4 : 1,
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              }}
+                              data-active={currentVal === val}
+                              disabled={isDisabled}
+                              onClick={() => {
+                                if (!isDisabled) setDailyConfigs((prev) => ({ ...prev, [d]: val }));
+                              }}
+                            >
+                              {lbl}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
