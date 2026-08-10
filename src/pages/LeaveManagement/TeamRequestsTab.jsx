@@ -176,6 +176,35 @@ export function getRelativePendingTime(isoString) {
   }
 }
 
+export function getDurationDisplay(req) {
+  const formatDurationStr = (duration) => {
+    if (!duration) return '';
+    const map = {
+      'FULL_DAY': 'Full Day',
+      'FIRST_HALF': 'First Half',
+      'SECOND_HALF': 'Second Half',
+      'full': 'Full Day',
+      'morning': 'First Half',
+      'afternoon': 'Second Half',
+      'full_day': 'Full Day'
+    };
+    return map[duration] || duration;
+  };
+
+  if (req.fromDateDuration || req.toDateDuration) {
+    const fromStr = formatDurationStr(req.fromDateDuration);
+    const toStr = formatDurationStr(req.toDateDuration);
+    if (fromStr && toStr) {
+      return `${fromStr} to ${toStr}`;
+    } else if (fromStr) {
+      return fromStr;
+    } else if (toStr) {
+      return toStr;
+    }
+  }
+  return formatDurationStr(req.duration);
+}
+
 export const TYPE_CONFIG = {
   leave: { label: 'Leave', css: 'tr-type-leave', Icon: Briefcase },
   wfh: { label: 'WFH', css: 'tr-type-wfh', Icon: Home },
@@ -917,15 +946,8 @@ export function TeamRequestsTab() {
                                   : `${fmtFullDate(req.startDate)} - ${fmtFullDate(req.endDate)}`}
                               </span>
                               <span className="tr-date-subtext">
-                                {req.startDate === req.endDate
-                                  ? `(${
-                                      req.duration === 'full'
-                                        ? 'Full Day'
-                                        : req.duration === 'morning'
-                                          ? 'First Half'
-                                          : 'Second Half'
-                                    })`
-                                  : `(${req.inDays} ${req.inDays === 1 ? 'day' : 'days'})`}
+                                ({req.inDays} {req.inDays === 1 ? 'day' : 'days'})
+                                {getDurationDisplay(req) ? ` • ${getDurationDisplay(req)}` : ''}
                               </span>
                             </div>
                           </td>
