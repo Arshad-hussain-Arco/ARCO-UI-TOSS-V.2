@@ -26,13 +26,34 @@ export function ViewLeaveModal({ leave, onClose }) {
           </button>
         </div>
         <div className="al-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>{displayType}</span>
              <span className="leave-table-status" data-status={statusStr} style={{ textTransform: 'capitalize' }}>
                 {statusStr.replace('-', ' ')}
              </span>
           </div>
+
+          {leave.is_mod_request && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: '8px',
+              padding: '10px 12px', borderRadius: '6px',
+              background: 'var(--c-info-light, #eff6ff)', border: '1px solid var(--c-info, #3b82f6)',
+              fontSize: '13px', color: 'var(--text-primary)',
+            }}>
+              <Info size={15} style={{ color: 'var(--c-info, #3b82f6)', flexShrink: 0, marginTop: 1 }} />
+              <span>
+                This is a requested change to an already-approved leave, awaiting manager
+                re-approval — the dates/duration below are what&apos;s being requested, not yet in effect.
+                {leave.orig_start_date && (
+                  <> Originally: {new Date(leave.orig_start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {leave.orig_end_date && leave.orig_end_date !== leave.orig_start_date
+                    ? ` – ${new Date(leave.orig_end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                    : ''}.</>
+                )}
+              </span>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
              <div>

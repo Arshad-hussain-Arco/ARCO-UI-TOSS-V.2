@@ -1,6 +1,9 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 
+const GENDER_CODE = { male: 'M', female: 'F', other: 'O' };
+const toGenderCode = (g) => GENDER_CODE[String(g || '').toLowerCase()] || g;
+
 export const consultantService = {
   getEmployeesList: async () => {
     const response = await httpClient.get(endpoints.consultants.list);
@@ -24,6 +27,8 @@ export const consultantService = {
       extension: payload.extension || null,
       address: payload.address,
       role_id: payload.roleId || payload.role_id || payload.role,
+      manager_id: payload.managerId || payload.manager_id ? Number(payload.managerId || payload.manager_id) : null,
+      gender: toGenderCode(payload.gender),
       webex_id: payload.webexId,
       include_in_cp: payload.includeInCp || false,
       visa: payload.visa,
@@ -51,6 +56,7 @@ export const consultantService = {
       team_id: Number(payload.teamId || payload.team_id || payload.team),
       role_id: Number(payload.roleId || payload.role_id || payload.role),
       manager_id: payload.managerId || payload.manager_id ? Number(payload.managerId || payload.manager_id) : null,
+      gender: toGenderCode(payload.gender),
       status: payload.accountStatus ? payload.accountStatus.toUpperCase() : 'ACTIVE',
       joining_date: payload.joiningDate || payload.joining_date,
       mobile: payload.mobile || payload.phone,

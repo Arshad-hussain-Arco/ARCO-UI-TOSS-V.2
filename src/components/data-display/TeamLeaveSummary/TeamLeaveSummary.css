@@ -156,69 +156,7 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Export */
-.team-summary-export-wrapper {
-  position: relative;
-}
 
-.team-summary-export-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  background: var(--c-primary);
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  white-space: nowrap;
-}
-
-.team-summary-export-btn:hover {
-  background: var(--c-primary-hover);
-  border-color: var(--c-primary-hover);
-}
-
-.team-summary-export-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  box-shadow: var(--shadow-md);
-  min-width: 156px;
-  z-index: 100;
-  overflow: hidden;
-}
-
-.team-summary-export-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 9px 12px;
-  background: var(--surface-primary);
-  border: none;
-  font-size: 12px;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 0.12s ease;
-  text-align: left;
-}
-
-.team-summary-export-option:hover {
-  background: var(--bg-hover);
-  color: var(--c-primary);
-}
-
-.team-summary-export-option:not(:last-child) {
-  border-bottom: 1px solid var(--border-tertiary);
-}
 
 /* ─── Department View Accordions ──────────────────────────────────────────── */
 .team-summary-departments {

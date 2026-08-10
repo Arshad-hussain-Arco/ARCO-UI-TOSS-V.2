@@ -53,6 +53,25 @@ export const leaveService = {
       throw error;
     }
   },
+  // The employee's own pending/approved/rejected requests to modify an
+  // already-APPROVED leave — shown alongside getMyLeaves() in the Leaves
+  // tab so a pending edit awaiting manager re-approval is visible.
+  getMyModRequests: async (empId, params = {}) => {
+    try {
+      const response = await httpClient.get(endpoints.me.modRequests(empId), { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching modification requests:', error);
+      throw error;
+    }
+  },
+  // Employee withdraws their own pending request to modify an already-
+  // approved leave, before the manager reviews it. The original leave is
+  // untouched by this — only the pending request itself is cancelled.
+  cancelModRequest: async (modId, payload) => {
+    const response = await httpClient.post(endpoints.me.cancelModRequest(modId), payload);
+    return response.data;
+  },
   getTeamLeaves: async (managerId) => {
     try {
       const response = await httpClient.get(endpoints.me.teamLeaves(managerId));

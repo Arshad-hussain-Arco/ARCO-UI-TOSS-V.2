@@ -24,6 +24,7 @@ import {
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import { TeamLeaveSummary } from '@components/data-display/TeamLeaveSummary/TeamLeaveSummary';
+import { ExportButton } from '@components/ui/ExportButton';
 
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
@@ -193,7 +194,6 @@ export function LeaveManagementPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(currentDate.getMonth());
@@ -202,6 +202,8 @@ export function LeaveManagementPage() {
   const [leaveBalances, setLeaveBalances] = useState(null);
   const [eligibleLeaveTypes, setEligibleLeaveTypes] = useState([]);
   const [leaves, setLeaves] = useState([]);
+  const [modRequests, setModRequests] = useState([]);
+  const [cancellingModId, setCancellingModId] = useState(null);
   const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -285,6 +287,16 @@ export function LeaveManagementPage() {
           console.error("Failed to fetch leaves", e);
         }
 
+        try {
+          // Pending/approved/rejected requests to modify an already-APPROVED
+          // leave — shown as their own rows in MyLeavesSummaryTab so the
+          // employee can see an edit is awaiting manager re-approval.
+          const modResponse = await leaveService.getMyModRequests(targetEmpId);
+          setModRequests(Array.isArray(modResponse) ? modResponse : (modResponse?.results || []));
+        } catch (e) {
+          console.error("Failed to fetch modification requests", e);
+        }
+
       } catch (error) {
         console.error("Failed to fetch leave data", error);
       } finally {
@@ -310,6 +322,49 @@ export function LeaveManagementPage() {
       setCalendarMonth(calendarMonth + 1);
     }
   };
+  // Pending requests to modify an already-APPROVED leave, reshaped into
+  // the same field names MyLeavesSummaryTab/ViewLeaveModal already read
+  // off a plain Leave record (start_date/end_date/in_days/business_days/
+  // leave_reason/status_code) but using the requested NEW values — shown
+  // as their own rows (distinct 'MOD_PENDING' status) alongside the
+  // employee's regular leaves so a pending edit awaiting manager
+  // re-approval is visible. Approved/rejected mod requests aren't shown
+  // here — their outcome is already reflected on the original leave row.
+  const leavesWithModRequests = useMemo(() => {
+    const pendingMods = modRequests
+      .filter((m) => m.status === 'PENDING')
+      .map((m) => ({
+        id: `mod-${m.id}`,
+        leave_type: leaves.find((l) => l.id === m.leave_id)?.leave_type || 'Leave',
+        start_date: m.new_start_date,
+        end_date: m.new_end_date,
+        in_days: m.new_in_days,
+        business_days: m.new_business_days,
+        leave_reason: m.new_leave_reason || m.modification_reason,
+        status_code: 'MOD_PENDING',
+        comments: m.modification_reason || 'Awaiting manager re-approval',
+        requested_date: m.created_at,
+        is_mod_request: true,
+        mod_request_id: m.id,
+        original_leave_id: m.leave_id,
+        orig_start_date: m.orig_start_date,
+        orig_end_date: m.orig_end_date,
+      }));
+    return [...leaves, ...pendingMods];
+  }, [leaves, modRequests]);
+
+  const handleCancelModRequest = async (modRequestId) => {
+    try {
+      setCancellingModId(modRequestId);
+      await leaveService.cancelModRequest(modRequestId, { emp_id: user?.emp_id });
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      console.error('Failed to cancel modification request', e);
+    } finally {
+      setCancellingModId(null);
+    }
+  };
+
   // "Apply for: Myself | On Behalf" should only show for users who can
   // actually apply on behalf of someone — a manager with direct/indirect
   // reports, or HR/admin (matches the backend's _is_hr() / _can_manage_target()
@@ -589,7 +644,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('all')}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -597,7 +652,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -605,7 +660,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -613,7 +668,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -621,7 +676,15 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
+                      </button>
+                      <button
+                        className="leave-filter-chip"
+                        data-active={filterStatus === 'mod-pending'}
+                        onClick={() => setFilterStatus('mod-pending')}
+                      >
+                        <span className="leave-filter-label">Modification Requests</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.is_mod_request).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -629,7 +692,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('offshore')}
                       >
                         <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.leave_type === 'OW').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                     </div>
 
@@ -652,39 +715,12 @@ export function LeaveManagementPage() {
                       </div>
                     </div>
 
-                    <div className="export-button-wrapper">
-                      <button
-                        className="export-button font-[Helvetica]"
-                        onClick={() => setShowExportDropdown(!showExportDropdown)}
-                      >
-                        <Download className="export-button-icon" />
-                        <span className="export-button-label font-[Helvetica]">Export</span>
-                        <ChevronDown className="export-button-chevron" />
-                      </button>
-
-                      {showExportDropdown && (
-                        <div className="export-dropdown">
-                          <button
-                            className="export-dropdown-item"
-                            onClick={() => {
-                              setShowExportDropdown(false);
-                            }}
-                          >
-                            <FileSpreadsheet className="export-dropdown-icon" />
-                            <span className="export-dropdown-label">Excel</span>
-                          </button>
-                          <button
-                            className="export-dropdown-item"
-                            onClick={() => {
-                              setShowExportDropdown(false);
-                            }}
-                          >
-                            <FileText className="export-dropdown-icon" />
-                            <span className="export-dropdown-label">PDF</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <ExportButton
+                      excel
+                      pdf
+                      onExcelExport={() => {}}
+                      onPdfExport={() => {}}
+                    />
                   </div>
                 </div>
 
@@ -734,7 +770,7 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        {leaves.filter(leave => {
+                        {leavesWithModRequests.filter(leave => {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).sort((a, b) => {
@@ -806,30 +842,41 @@ export function LeaveManagementPage() {
 
                               <td className="leave-table-cell" data-label="Action">
                                 <div className="leave-table-actions">
-                                  {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
-                                    <>
-                                      <button
-                                        className="leave-table-action-button action-cancel"
-                                        title="Cancel Request"
-                                        onClick={() => setCancelModalLeave(leave)}
-                                      >
-                                        <X className="leave-table-action-icon" />
-                                      </button>
-                                      <button
-                                        className="leave-table-action-button action-edit"
-                                        title="Edit Request"
-                                        onClick={() => setEditModalLeave(leave)}
-                                      >
-                                        <Edit className="leave-table-action-icon" />
-                                      </button>
-                                    </>
+                                  {leave.is_mod_request ? (
+                                    <button
+                                      className="leave-table-action-button action-cancel"
+                                      title="Withdraw Modification Request"
+                                      disabled={cancellingModId === leave.mod_request_id}
+                                      onClick={() => handleCancelModRequest(leave.mod_request_id)}
+                                    >
+                                      <X className="leave-table-action-icon" />
+                                    </button>
+                                  ) : (
+                                    statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
+                                      <>
+                                        <button
+                                          className="leave-table-action-button action-cancel"
+                                          title="Cancel Request"
+                                          onClick={() => setCancelModalLeave(leave)}
+                                        >
+                                          <X className="leave-table-action-icon" />
+                                        </button>
+                                        <button
+                                          className="leave-table-action-button action-edit"
+                                          title="Edit Request"
+                                          onClick={() => setEditModalLeave(leave)}
+                                        >
+                                          <Edit className="leave-table-action-icon" />
+                                        </button>
+                                      </>
+                                    )
                                   )}
                                 </div>
                               </td>
                             </tr>
                           );
                         })}
-                        {leaves.filter(leave => {
+                        {leavesWithModRequests.filter(leave => {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).length === 0 && (
@@ -864,7 +911,7 @@ export function LeaveManagementPage() {
 
         {activeTab === 'my-leaves-summary' && (
           <MyLeavesSummaryTab
-            leaves={leaves}
+            leaves={leavesWithModRequests}
             setViewModalLeave={setViewModalLeave}
             selectedYear={summaryYear}
             onYearChange={setSummaryYear}
@@ -872,6 +919,8 @@ export function LeaveManagementPage() {
             onFromDateChange={setSummaryFrom}
             toDate={summaryTo}
             onToDateChange={setSummaryTo}
+            onCancelModRequest={handleCancelModRequest}
+            cancellingModId={cancellingModId}
           />
         )}
       </div>

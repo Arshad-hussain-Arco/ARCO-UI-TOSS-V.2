@@ -29,6 +29,7 @@ import './ProjectMonitoringPage.css';
 import LifecycleToggle from './components/LifecycleToggle';
 import StatusFilter from './components/StatusFilter';
 import ProjectRow from './components/ProjectRow';
+import ProjectSummary from './components/ProjectSummary';
 import { getStageInfo } from './utils/statusMapper';
 import { getBusinessStageInfo } from './utils/businessLifecycleMap';
 import {
@@ -179,7 +180,7 @@ const STAGE_COLORS = {
   deployed: 'var(--c-success)',
   completed: 'var(--c-success)',
   'testing-blocked': 'var(--c-danger)',
-  deferred: 'var(--text-secondary)',
+  deferred: '#6b7280',
 };
 
 const STAGE_LABELS = {
@@ -313,9 +314,7 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
                       <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
                     </td>
                     <td style={{ maxWidth: 220 }}>
-                      <span style={{ fontSize: 12, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
-                        {p.summary}
-                      </span>
+                      <ProjectSummary summary={p.summary} />
                     </td>
                     <td>
                       <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || 'var(--c-primary)' }}>

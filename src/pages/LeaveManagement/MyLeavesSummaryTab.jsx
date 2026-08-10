@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Download, Eye, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
+import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
 import { getRelativePendingTime } from './TeamRequestsTab';
+import { ExportButton } from '@components/ui/ExportButton';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -38,6 +39,8 @@ export function MyLeavesSummaryTab({
   onFromDateChange,
   toDate,
   onToDateChange,
+  onCancelModRequest,
+  cancellingModId,
 }) {
   const formatDurationStr = (duration) => {
     if (!duration) return '';
@@ -66,7 +69,6 @@ export function MyLeavesSummaryTab({
 
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -195,25 +197,12 @@ export function MyLeavesSummaryTab({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div className="export-button-wrapper">
-              <button className="export-button font-[Helvetica]" onClick={() => setShowExportDropdown(!showExportDropdown)}>
-              <Download className="export-button-icon" />
-              <span className="export-button-label font-[Helvetica]">Export</span>
-              <ChevronDown className="export-button-chevron" />
-            </button>
-            {showExportDropdown && (
-              <div className="export-dropdown">
-                <button className="export-dropdown-item" onClick={() => setShowExportDropdown(false)}>
-                  <FileSpreadsheet className="export-dropdown-icon" />
-                  <span className="export-dropdown-label">Excel</span>
-                </button>
-                <button className="export-dropdown-item" onClick={() => setShowExportDropdown(false)}>
-                  <FileText className="export-dropdown-icon" />
-                  <span className="export-dropdown-label">PDF</span>
-                </button>
-              </div>
-            )}
-          </div>
+            <ExportButton
+              excel
+              pdf
+              onExcelExport={() => {}}
+              onPdfExport={() => {}}
+            />
           </div>
         </div>
 
@@ -335,6 +324,16 @@ export function MyLeavesSummaryTab({
                         <button className="leave-table-action-button action-view" title="View Details" onClick={() => setViewModalLeave(leave)}>
                           <Eye className="leave-table-action-icon" />
                         </button>
+                        {leave.is_mod_request && onCancelModRequest && (
+                          <button
+                            className="leave-table-action-button action-cancel"
+                            title="Withdraw Modification Request"
+                            disabled={cancellingModId === leave.mod_request_id}
+                            onClick={() => onCancelModRequest(leave.mod_request_id)}
+                          >
+                            <X className="leave-table-action-icon" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

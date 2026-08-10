@@ -59,11 +59,13 @@ const endpoints = {
     balance: (id) => `/leaves/me/${id}/balance/`,
     eligibleLeaveTypes: (id) => `/leaves/me/${id}/eligible-leave-types/`,
     leaves: (id) => `/leaves/me/${id}/leaves/`,
+    modRequests: (id) => `/leaves/me/${id}/mod-requests/`,
     employeeLeaveByYear: (id) => `/leaves/employee-leave-by-year/${id}/`,
     teamLeaves: (id) => `/leaves/me/my-team-leaves/${id}/`,
     calendar: (id) => `/leaves/me/${id}/calendar/`,
     applyLeave: `/leaves/me/leaves/apply/`,
     modifyLeave: (id) => `/leaves/me/leaves/${id}/modify/`,
+    cancelModRequest: (modId) => `/leaves/me/leaves/mod-requests/${modId}/cancel/`,
     cancelLeave: (id) => `/leaves/me/leaves/${id}/cancel/`,
     leaveHistory: (id) => `/leaves/me/leaves/${id}/history/`,
     // Deprecated aliases — kept working server-side, but the UI should use

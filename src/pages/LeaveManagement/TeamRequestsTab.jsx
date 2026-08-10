@@ -3,10 +3,6 @@ import {
   Search,
   List,
   CalendarDays,
-  Download,
-  ChevronDown,
-  FileSpreadsheet,
-  FileText,
   Check,
   X,
   Eye,
@@ -28,6 +24,7 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
+import { ExportButton } from '@components/ui/ExportButton';
 import { TimelineCalendar } from '@components/data-display/TimelineCalendar/TimelineCalendar';
 import { SortIcon } from './LeaveManagementPage';
 import { useToast } from '@hooks/useToast';
@@ -375,8 +372,6 @@ export function TeamRequestsTab() {
   const [tableSortField, setTableSortField] = useState(null);
   const [tableSortOrder, setTableSortOrder] = useState('asc');
   const [viewMode, setViewMode] = useState('list');
-  const [showExport, setShowExport] = useState(false);
-  const exportRef = useRef(null);
   const today = /* @__PURE__ */ new Date();
   const [sdlYear, setSdlYear] = useState(today.getFullYear());
   const [sdlMonth, setSdlMonth] = useState(today.getMonth());
@@ -395,13 +390,6 @@ export function TeamRequestsTab() {
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
-  useEffect(() => {
-    const h = (e) => {
-      if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
   const counts = useMemo(
     () => ({
       all: requests.length,
@@ -816,25 +804,12 @@ export function TeamRequestsTab() {
                   <CalendarDays size={14} />
                 </button>
               </div>
-              <div className="tr-export-wrap" ref={exportRef}>
-                <button className="tr-export-btn" onClick={() => setShowExport((o) => !o)}>
-                  <Download size={13} />
-                  <span>Export</span>
-                  <ChevronDown size={11} />
-                </button>
-                {showExport && (
-                  <div className="tr-export-dropdown">
-                    <button className="tr-export-item" onClick={() => setShowExport(false)}>
-                      <FileSpreadsheet size={13} />
-                      <span>Export as Excel</span>
-                    </button>
-                    <button className="tr-export-item" onClick={() => setShowExport(false)}>
-                      <FileText size={13} />
-                      <span>Export as PDF</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              <ExportButton
+                excel
+                pdf
+                onExcelExport={() => {}}
+                onPdfExport={() => {}}
+              />
             </div>
           </div>
 

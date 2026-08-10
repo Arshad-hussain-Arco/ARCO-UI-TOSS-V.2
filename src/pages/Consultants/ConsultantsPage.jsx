@@ -42,7 +42,7 @@ const pageTabs = [
 const emptyForm = {
   name: '',
   username: '',
-  password: '',
+  password: 'password123456*',
   designation: '',
   team: '',
   joiningDate: '',
@@ -63,7 +63,7 @@ const emptyForm = {
   remarks: '',
   manager: '',
   gender: '',
-  physicalPcAvailable: '',
+  physicalPcAvailable: false,
   computerName: '',
   computerLocation: '',
   computerLocationReference: '',
@@ -383,20 +383,24 @@ export function ConsultantsPage() {
 
     // Form Validation
     if (!formData.name?.trim()) return toast.error('Full Name is required');
+    if (!formData.gender?.trim()) return toast.error('Gender is required');
     if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email))
       return toast.error('Valid Email Address is required');
+    if (!formData.mobile?.trim()) return toast.error('Mobile Number is required');
     if (!formData.role || !formData.roleId) return toast.error('Role selection is required');
     if (!formData.designation && formData.designation !== 0)
       return toast.error('Designation is required');
+    if (!formData.team && !formData.teamId) return toast.error('Team is required');
     if (!formData.manager && !formData.managerId) return toast.error('Reporting Manager is required');
+    if (!formData.joiningDate) return toast.error('Joining Date is required');
     if (!formData.username?.trim() && !formData.userId?.trim())
       return toast.error('Username / Employee ID is required');
     if (!isEditing && !formData.password?.trim())
       return toast.error('Initial Password is required');
+    if (!formData.location) return toast.error('Work Location is required');
 
     if (formData.physicalPcAvailable) {
       if (!formData.computerLocation) return toast.error('Computer Location is required');
-      if (!formData.location) return toast.error('Work Location is required');
     }
 
     setIsSaving(true);
@@ -713,7 +717,7 @@ export function ConsultantsPage() {
                           </div>
                         </EfField>
 
-                        <EfField label="Gender">
+                        <EfField label="Gender" required>
                           <Select
                             value={formData.gender || ''}
                             onChange={(v) => patch({ gender: v })}
@@ -738,7 +742,7 @@ export function ConsultantsPage() {
                           </div>
                         </EfField>
 
-                        <EfField label="Mobile Number">
+                        <EfField label="Mobile Number" required>
                           <div className="ef-input-wrap">
                             <span className="ef-input-icon">
                               <Phone size={12} />
@@ -838,7 +842,7 @@ export function ConsultantsPage() {
                             </button>
                           </div>
                         </EfField>
-                        <EfField label="Team">
+                        <EfField label="Team" required>
                           <Select
                             value={String(
                               formData.teamId || formData.team_id || formData.team || '',
@@ -878,7 +882,7 @@ export function ConsultantsPage() {
                             ]}
                           />
                         </EfField>
-                        <EfField label="Joining Date">
+                        <EfField label="Joining Date" required>
                           <DatePicker
                             value={formData.joiningDate ? new Date(formData.joiningDate) : null}
                             onChange={(d) =>
@@ -907,27 +911,14 @@ export function ConsultantsPage() {
                             />
                           </div>
                         </EfField>
-                        <EfField label="Account Status">
+                        <EfField label="Account Status" required>
                           <Select
-                            value={formData.status || 'active'}
-                            onChange={(v) => patch({ status: v })}
+                            value={formData.accountStatus || 'active'}
+                            onChange={(v) => patch({ accountStatus: v })}
                             options={STATIC_STATUSES.map((s) => ({
                               value: s,
                               label: s.charAt(0).toUpperCase() + s.slice(1),
                             }))}
-                          />
-                        </EfField>
-                        <EfField label="Role" required>
-                          <Select
-                            value={formData.role || ''}
-                            onChange={(v) => patch({ role: v })}
-                            options={[
-                              { value: '', label: 'Select role' },
-                              ...dynamicRoles.map((r) => ({
-                                value: r.name || r.roleName,
-                                label: r.name || r.roleName,
-                              })),
-                            ]}
                           />
                         </EfField>
                         {!isEditing && (
@@ -944,7 +935,7 @@ export function ConsultantsPage() {
 
                       <div style={{ marginTop: '24px' }}>
                         <EfSwitchRow
-                          label="Include in CP"
+                          label="Include in Capacity Planning"
                           checked={formData.includeInCp}
                           onChange={(v) => patch({ includeInCp: v })}
                         />
@@ -1013,7 +1004,7 @@ export function ConsultantsPage() {
                             onChange={(e) => patch({ webexId: e.target.value })}
                           />
                         </EfField>
-                        <EfField label="WORK LOCATION" required={formData.physicalPcAvailable}>
+                        <EfField label="WORK LOCATION" required>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {dynamicLocations
                               .filter((loc) => loc.name && loc.name.toLowerCase() !== 'hybrid')
