@@ -320,7 +320,7 @@ export function EditDocumentModal({ isOpen, onClose, targetDocument, targetType,
                   }}
                 />
                 {replacementFile && (
-                  <span style={{ fontSize: '12px', color: '#10b981', marginTop: '4px', display: 'block' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--c-success)', marginTop: '4px', display: 'block' }}>
                     New file selected: {replacementFile.name}
                   </span>
                 )}
@@ -355,7 +355,7 @@ export function DeleteConfirmationModal({ isOpen, onClose, targetName, onConfirm
           </button>
         </div>
         <div className="doc-modal-body">
-          <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+          <p style={{ margin: 0, fontSize: '14px', }}>
             Are you sure you want to delete <strong>{targetName || 'this item'}</strong>? This action cannot be undone.
           </p>
         </div>
@@ -363,11 +363,11 @@ export function DeleteConfirmationModal({ isOpen, onClose, targetName, onConfirm
           <button type="button" className="doc-modal-btn ghost" onClick={onClose} disabled={isDeleting}>
             Cancel
           </button>
-          <button 
-            type="button" 
-            className="doc-modal-btn primary" 
-            style={{ backgroundColor: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
-            onClick={onConfirm} 
+          <button
+            type="button"
+            className="doc-modal-btn primary"
+            style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: 'var(--surface-primary)' }}
+            onClick={onConfirm}
             disabled={isDeleting}
           >
             {isDeleting ? 'Deleting...' : 'Delete'}

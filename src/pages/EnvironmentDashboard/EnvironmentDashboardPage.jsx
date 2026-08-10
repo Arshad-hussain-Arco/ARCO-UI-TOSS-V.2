@@ -359,10 +359,10 @@ export function EnvironmentDashboardPage() {
                 </Button>
                 
                 {globalExportDropdownOpen && (
-                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
                     <div 
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       onClick={() => {
                         if (filteredConfigs.length > 0) {
@@ -384,8 +384,8 @@ export function EnvironmentDashboardPage() {
                       <FileText size={14} /> PDF
                     </div>
                     <div 
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       onClick={() => {
                         if (filteredConfigs.length > 0) {
@@ -545,7 +545,7 @@ export function EnvironmentDashboardPage() {
 
           <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px' }}>
             {configList.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                 No configurations found.
               </div>
             ) : (
@@ -573,14 +573,14 @@ export function EnvironmentDashboardPage() {
                   : fileData.records;
 
                 return (
-                  <div key={config.id} className="config-card" style={{ flexShrink: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <div key={config.id} className="config-card" style={{ flexShrink: 0, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                     {/* Header: Icon, Name, Search, Export */}
                     <div 
                       className="env-tab-toolbar" 
                       style={{ 
-                        borderBottom: expandedConfigs[config.id] ? '1px solid #e2e8f0' : 'none', 
+                        borderBottom: expandedConfigs[config.id] ? '1px solid var(--border-secondary)' : 'none', 
                         padding: '20px 20px', 
-                        background: '#f8fafc', 
+                        background: 'var(--bg-secondary)', 
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         alignItems: 'center',
@@ -588,7 +588,7 @@ export function EnvironmentDashboardPage() {
                       }}
                       onClick={() => toggleConfigRowAccordion(config.id)}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: '600', fontSize: '15px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-primary)', fontWeight: '600', fontSize: '15px' }}>
                         <div style={{ background: '#e0e7ff', color: '#4f46e5', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Database size={16} />
                         </div>
@@ -598,7 +598,7 @@ export function EnvironmentDashboardPage() {
                       <div style={{ display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b' }} />
+                            <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)' }} />
                             <input
                               type="text"
                               placeholder="Search records..."
@@ -606,7 +606,7 @@ export function EnvironmentDashboardPage() {
                               onChange={(e) => setConfigRowSearchQueries(prev => ({ ...prev, [config.id]: e.target.value }))}
                               style={{ 
                                 padding: '6px 12px 6px 32px', 
-                                border: '1px solid #cbd5e1', 
+                                border: '1px solid var(--border-secondary)', 
                                 borderRadius: '6px', 
                                 fontSize: '13px', 
                                 width: '180px',
@@ -628,10 +628,10 @@ export function EnvironmentDashboardPage() {
                             </Button>
                             
                             {exportDropdownOpen === config.id && (
-                              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
+                              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, minWidth: '120px', overflow: 'hidden' }}>
                                 <div 
-                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: '#334155' }}
-                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                   onClick={() => {
                                     if (filteredRecords.length > 0) {
@@ -651,8 +651,8 @@ export function EnvironmentDashboardPage() {
                                   <FileText size={14} /> PDF
                                 </div>
                                 <div 
-                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0', color: '#334155' }}
-                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-secondary)', color: 'var(--text-primary)' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                   onClick={() => {
                                     if (filteredRecords.length > 0) {
@@ -679,7 +679,7 @@ export function EnvironmentDashboardPage() {
                           </div>
                         </div>
                         <div 
-                          style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid #e2e8f0', height: '32px', cursor: 'pointer' }}
+                          style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid var(--border-secondary)', height: '32px', cursor: 'pointer' }}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleConfigRowAccordion(config.id);
@@ -688,7 +688,7 @@ export function EnvironmentDashboardPage() {
                           <ChevronDown 
                             size={18} 
                             style={{ 
-                              color: '#64748b', 
+                              color: 'var(--text-secondary)', 
                               transform: expandedConfigs[config.id] ? 'rotate(180deg)' : 'none',
                               transition: 'transform 0.2s ease',
                             }} 

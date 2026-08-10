@@ -280,11 +280,11 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                           transition: 'all 0.15s ease',
                           border: isSelected
                             ? '1px solid var(--c-primary, #005a36)'
-                            : '1px solid var(--border-color, #e2e8f0)',
+                            : '1px solid var(--border-color)',
                           background: isSelected
                             ? 'var(--c-primary, #005a36)'
-                            : 'var(--bg-secondary, #f8fafc)',
-                          color: isSelected ? '#ffffff' : 'var(--text-primary, #1e293b)',
+                            : 'var(--bg-secondary)',
+                          color: isSelected ? 'var(--surface-primary)' : 'var(--text-primary)',
                         }}
                       >
                         {label}
@@ -341,7 +341,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                     className="eod-modal-input"
                     value="Last Day of Month (L)"
                     disabled
-                    style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                    style={{ background: 'var(--bg-secondary)', color: '#005a36', fontWeight: 600 }}
                   />
                 ) : (
                   <input
@@ -403,11 +403,11 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                           transition: 'all 0.15s ease',
                           border: isSelected
                             ? '1px solid var(--c-primary, #005a36)'
-                            : '1px solid var(--border-color, #e2e8f0)',
+                            : '1px solid var(--border-color)',
                           background: isSelected
                             ? 'var(--c-primary, #005a36)'
-                            : 'var(--bg-secondary, #f8fafc)',
-                          color: isSelected ? '#ffffff' : 'var(--text-primary, #1e293b)',
+                            : 'var(--bg-secondary)',
+                          color: isSelected ? 'var(--surface-primary)' : 'var(--text-primary)',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
@@ -448,7 +448,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                       className="eod-modal-input"
                       value="Last Day of Quarter (L)"
                       disabled
-                      style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                      style={{ background: 'var(--bg-secondary)', color: '#005a36', fontWeight: 600 }}
                     />
                   ) : (
                     <input
@@ -540,7 +540,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                       className="eod-modal-input"
                       value={`Last Day of ${MONTHS.find((m) => m.value === form.selectedMonth)?.label || 'Month'} (L)`}
                       disabled
-                      style={{ background: 'var(--bg-secondary, #f8fafc)', color: '#005a36', fontWeight: 600 }}
+                      style={{ background: 'var(--bg-secondary)', color: '#005a36', fontWeight: 600 }}
                     />
                   ) : (
                     <input
@@ -573,7 +573,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                   }}
                 />
                 {errors.time && <span className="eod-field-error">{errors.time}</span>}
-                <span style={{ fontSize: 11, color: '#64748b', marginTop: 4, display: 'block' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, display: 'block' }}>
                   Runs once a year on {form.selectedDayOfMonth === 'L' ? `Last Day of ${MONTHS.find((m) => m.value === form.selectedMonth)?.label}` : `${MONTHS.find((m) => m.value === form.selectedMonth)?.label} ${form.selectedDayOfMonth}`}
                 </span>
               </div>

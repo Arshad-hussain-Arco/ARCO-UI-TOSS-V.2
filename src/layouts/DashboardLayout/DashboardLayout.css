@@ -30,7 +30,7 @@
 }
 
 .page-outlet::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: var(--bg-secondary);
 }
 
 .page-outlet::-webkit-scrollbar-thumb {
@@ -39,7 +39,7 @@
 }
 
 .page-outlet::-webkit-scrollbar-thumb:hover {
-  background: #1B4D3E;
+  background: var(--c-primary-dark);
 }
 
 .dashboard-main[data-sidebar-collapsed='true'] {

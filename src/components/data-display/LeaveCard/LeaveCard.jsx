@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import './LeaveCard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
 function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited }) {
-  const [bgColor, setBgColor] = useState('#e5e7eb');
+  const [bgColor, setBgColor] = useState('var(--border-primary)');
   useEffect(() => {
     const updateBgColor = () => {
       const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      setBgColor(isDark ? '#374151' : '#e5e7eb');
+      setBgColor(isDark ? 'var(--surface-tertiary)' : 'var(--border-primary)');
     };
     updateBgColor();
     const observer = new MutationObserver(updateBgColor);

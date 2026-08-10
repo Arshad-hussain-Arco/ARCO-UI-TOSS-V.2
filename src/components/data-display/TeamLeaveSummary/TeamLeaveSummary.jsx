@@ -33,12 +33,12 @@ const LEAVE_CATEGORIES = [
   { key: 'offshoreWorkDays', label: 'Offshore Work', shortLabel: 'Offshore', color: '#0891b2' },
   { key: 'weekendWorkDays', label: 'Weekend Work', shortLabel: 'Weekend', color: '#7c3aed' },
   { key: 'visaDays', label: 'Visa Purpose', shortLabel: 'Visa', color: '#be185d' },
-  { key: 'paternityDays', label: 'Paternity', shortLabel: 'Paternity', color: '#059669' },
+  { key: 'paternityDays', label: 'Paternity', shortLabel: 'Paternity', color: 'var(--c-success)' },
 ];
 const AVATAR_COLORS = [
   '#4f46e5',
   '#0891b2',
-  '#059669',
+  'var(--c-success)',
   '#d97706',
   '#be185d',
   '#7c3aed',

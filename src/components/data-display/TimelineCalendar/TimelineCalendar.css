@@ -199,7 +199,7 @@
 
 .tl-day-item.is-selected .tl-day-name,
 .tl-day-item.is-selected .tl-day-num {
-  color: #ffffff !important;
+  color: var(--surface-primary) !important;
 }
 
 /* Indicators container */
@@ -217,13 +217,13 @@
 }
 
 .leave-dot {
-  background-color: #10b981;
+  background-color: var(--c-success);
 }
 
 .holiday-dot {
-  background-color: #f59e0b;
+  background-color: var(--c-warning);
 }
 
 .tl-day-item.is-selected .tl-dot {
-  background-color: #ffffff;
+  background-color: var(--surface-primary);
 }

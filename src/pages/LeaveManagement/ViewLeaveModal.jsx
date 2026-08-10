@@ -34,7 +34,7 @@ export function ViewLeaveModal({ leave, onClose }) {
              </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'var(--bg-tertiary, #f8fafc)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', background: 'var(--bg-tertiary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
              <div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                    <Calendar size={14}/> Start Date
@@ -69,7 +69,7 @@ export function ViewLeaveModal({ leave, onClose }) {
              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                  <AlignLeft size={16}/> Leave Reason
              </div>
-             <div style={{ fontSize: '14px', color: 'var(--text-primary)', background: '#fff', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-primary)', minHeight: '60px' }}>
+             <div style={{ fontSize: '14px', color: 'var(--text-primary)', background: 'var(--surface-primary)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-primary)', minHeight: '60px' }}>
                  {leave.leave_reason || leave.reason || 'No reason provided.'}
              </div>
           </div>
@@ -79,14 +79,14 @@ export function ViewLeaveModal({ leave, onClose }) {
                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                    <AlignLeft size={16}/> Comments (Approval / Rejection)
                </div>
-               <div style={{ fontSize: '14px', color: 'var(--text-primary)', background: '#fff', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-primary)', minHeight: '60px' }}>
+               <div style={{ fontSize: '14px', color: 'var(--text-primary)', background: 'var(--surface-primary)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-primary)', minHeight: '60px' }}>
                    {leave.approval_reason || leave.rejected_reason}
                </div>
             </div>
           )}
           
         </div>
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-tertiary, #f8fafc)', borderRadius: '0 0 8px 8px' }}>
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-primary)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-tertiary)', borderRadius: '0 0 8px 8px' }}>
            <button className="al-btn al-btn-ghost" onClick={() => onClose()}>Close</button>
         </div>
       </div>

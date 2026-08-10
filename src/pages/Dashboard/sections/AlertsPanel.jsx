@@ -56,13 +56,13 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
 
   // Workforce Insights mock data (supports future API easily by replacing this array with a state variable)
   const insights = [
-    { id: 'in1', text: 'Team availability falls below 70% on Friday.', severity: 'warning', icon: AlertTriangle, color: '#f59e0b', badge: 'Warning' },
-    { id: 'in2', text: 'Three employees from the Development team are on leave next Monday.', severity: 'warning', icon: AlertTriangle, color: '#f59e0b', badge: 'Warning' },
-    { id: 'in3', text: 'Five team members are scheduled to be on leave this week.', severity: 'info', icon: Calendar, color: '#3b82f6', badge: 'Info' },
-    { id: 'in4', text: 'Two leave requests have been pending approval for more than two days.', severity: 'critical', icon: ShieldAlert, color: '#ef4444', badge: 'Critical' },
-    { id: 'in5', text: 'Development department currently has the lowest availability.', severity: 'info', icon: BarChart3, color: '#3b82f6', badge: 'Info' },
-    { id: 'in6', text: 'Overall team availability this week is 92%.', severity: 'success', icon: CheckCircle2, color: '#10b981', badge: 'Good' },
-    { id: 'in7', text: 'No overlapping leaves in the QA team this week.', severity: 'success', icon: CheckCircle2, color: '#10b981', badge: 'Good' }
+    { id: 'in1', text: 'Team availability falls below 70% on Friday.', severity: 'warning', icon: AlertTriangle, color: 'var(--c-warning)', badge: 'Warning' },
+    { id: 'in2', text: 'Three employees from the Development team are on leave next Monday.', severity: 'warning', icon: AlertTriangle, color: 'var(--c-warning)', badge: 'Warning' },
+    { id: 'in3', text: 'Five team members are scheduled to be on leave this week.', severity: 'info', icon: Calendar, color: 'var(--c-info)', badge: 'Info' },
+    { id: 'in4', text: 'Two leave requests have been pending approval for more than two days.', severity: 'critical', icon: ShieldAlert, color: 'var(--c-danger)', badge: 'Critical' },
+    { id: 'in5', text: 'Development department currently has the lowest availability.', severity: 'info', icon: BarChart3, color: 'var(--c-info)', badge: 'Info' },
+    { id: 'in6', text: 'Overall team availability this week is 92%.', severity: 'success', icon: CheckCircle2, color: 'var(--c-success)', badge: 'Good' },
+    { id: 'in7', text: 'No overlapping leaves in the QA team this week.', severity: 'success', icon: CheckCircle2, color: 'var(--c-success)', badge: 'Good' }
   ];
 
   const visibleInsights = showAllInsights ? insights : insights.slice(0, 4);
@@ -75,14 +75,14 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
         <section style={{ padding: '14px 14px 4px 14px', borderBottom: '1px solid var(--border-primary)' }} aria-label="Key Alerts">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}>
-              <Bell size={13} style={{ color: '#006838' }} />
+              <Bell size={13} style={{ color: 'var(--c-primary)' }} />
               <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Notifications
               </h2>
             </div>
             <button 
               onClick={dismissAll} 
-              style={{ background: 'none', border: 'none', color: '#006838', fontSize: '10px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--c-primary)', fontSize: '10px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
             >
               Clear all
             </button>
@@ -105,7 +105,7 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
                   boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: alert.severity === 'warning' ? '#f59e0b' : '#ef4444', flexShrink: 0, marginTop: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: alert.severity === 'warning' ? 'var(--c-warning)' : 'var(--c-danger)', flexShrink: 0, marginTop: '2px' }}>
                   <AlertTriangle size={12} />
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '14px', minWidth: 0 }}>
@@ -128,7 +128,7 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
       {/* SECTION 2: Key Insights (Insights feed) */}
       <section style={{ padding: '14px 14px 4px 14px', borderBottom: '1px solid var(--border-primary)' }} aria-label="Key Insights">
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
-          <TrendingUp size={13} style={{ color: '#006838' }} />
+          <TrendingUp size={13} style={{ color: 'var(--c-primary)' }} />
           <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Key Insights
           </h2>
@@ -139,19 +139,19 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
             const Icon = insight.icon;
             
             // Map colors based on severity
-            let statusColor = '#3b82f6'; // Blue for Info
+            let statusColor = 'var(--c-info)'; // Blue for Info
             let badgeBg = '#eff6ff';
             let badgeColor = '#1e40af';
             if (insight.severity === 'warning') {
-              statusColor = '#f59e0b';
+              statusColor = 'var(--c-warning)';
               badgeBg = '#fef3c7';
               badgeColor = '#92400e';
             } else if (insight.severity === 'critical') {
-              statusColor = '#ef4444';
-              badgeBg = '#fef2f2';
-              badgeColor = '#b91c1c';
+              statusColor = 'var(--c-danger)';
+              badgeBg = 'var(--c-danger-light)';
+              badgeColor = 'var(--c-danger)';
             } else if (insight.severity === 'success') {
-              statusColor = '#10b981';
+              statusColor = 'var(--c-success)';
               badgeBg = '#d1fae5';
               badgeColor = '#065f46';
             }
@@ -219,7 +219,7 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
             style={{
               background: 'none',
               border: 'none',
-              color: '#006838',
+              color: 'var(--c-primary)',
               fontSize: '11px',
               fontWeight: 600,
               cursor: 'pointer',

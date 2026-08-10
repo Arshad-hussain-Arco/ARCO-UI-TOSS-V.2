@@ -87,10 +87,8 @@
   transition: all 0.12s ease;
   flex-shrink: 0;
 }
-.al-close-btn:hover {
+.al-close-btn:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
 }
 
 /* ── Body ───────────────────────────────────────────────────── */
@@ -160,8 +158,8 @@
   font-family: var(--font-family);
   white-space: nowrap;
 }
-.al-seg-btn:hover {
-  color: var(--text-primary);
+.al-seg-btn:hover   {
+  background: var(--bg-hover);
 }
 .al-seg-btn[data-active='true'] {
   background: var(--surface-primary);
@@ -626,10 +624,8 @@
   align-items: center;
   transition: all 0.12s;
 }
-.al-cal-nav-btn:hover {
+.al-cal-nav-btn:hover   {
   background: var(--bg-hover);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
 }
 
 .al-cal-legend {
@@ -799,8 +795,8 @@
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--text-primary, #1f2937);
-  color: var(--bg-primary, #fff);
+  background: var(--text-primary);
+  color: var(--bg-primary);
   font-size: 10px;
   line-height: 1.35;
   font-weight: 500;
@@ -820,7 +816,7 @@
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-bottom-color: var(--text-primary, #1f2937);
+  border-bottom-color: var(--text-primary);
   z-index: 20;
   pointer-events: none;
 }
@@ -834,7 +830,7 @@
   top: auto;
   bottom: 100%;
   border-bottom-color: transparent;
-  border-top-color: var(--text-primary, #1f2937);
+  border-top-color: var(--text-primary);
 }
 
 .al-cal-day-in-range {
@@ -1173,17 +1169,15 @@
   border: 1px solid var(--border-primary);
   color: var(--text-secondary);
 }
-.al-btn-ghost:hover {
+.al-btn-ghost:hover   {
   background: var(--bg-hover);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
 }
 .al-btn-outline {
   background: transparent;
   border: 1px solid var(--border-secondary);
   color: var(--text-primary);
 }
-.al-btn-outline:hover {
+.al-btn-outline:hover   {
   background: var(--bg-hover);
 }
 .al-btn-primary {
@@ -1191,10 +1185,9 @@
   border: 1px solid var(--c-primary);
   color: var(--text-inverse);
 }
-.al-btn-primary:hover:not(:disabled) {
-  background: var(--c-primary-hover);
-  border-color: var(--c-primary-hover);
-  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+.al-btn-primary:hover:not(:disabled)   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .al-btn-primary:disabled {
   opacity: 0.45;

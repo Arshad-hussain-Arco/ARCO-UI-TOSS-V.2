@@ -348,8 +348,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                 style={{
                   marginBottom: 6,
                   padding: '8px 10px',
-                  background: 'var(--c-danger-light, #fef2f2)',
-                  border: '1px solid var(--c-danger, #ef4444)',
+                  background: 'var(--c-danger-light)',
+                  border: '1px solid var(--c-danger)',
                   borderRadius: '6px',
                   display: 'flex',
                   alignItems: 'center',

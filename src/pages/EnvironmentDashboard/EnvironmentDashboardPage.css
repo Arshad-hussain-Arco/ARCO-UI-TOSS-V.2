@@ -145,9 +145,8 @@
   flex-shrink: 0;
 }
 
-.env-details-path-copy-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--c-primary);
+.env-details-path-copy-btn:hover   {
+  background: var(--bg-hover);
 }
 
 /* Accordion Content Collapse Behavior - Absolute Collapse with zero height */
@@ -390,16 +389,13 @@
   transition: all 0.15s ease;
 }
 
-.env-action-btn-compact:hover {
-  background-color: var(--bg-secondary);
-  color: var(--c-primary);
-  border-color: var(--border-secondary);
+.env-action-btn-compact:hover   {
+  background: var(--bg-hover);
 }
 
-.env-action-btn-compact.danger:hover {
-  background-color: var(--c-danger-light);
-  color: var(--c-danger);
-  border-color: var(--c-danger);
+.env-action-btn-compact.danger:hover   {
+  background: var(--c-danger);
+  color: #ffffff;
 }
 
 /* ── Environment Details Workspace Legend and Rows Alignment ───────────── */
@@ -478,8 +474,8 @@ button.env-row-header {
   user-select: none;
 }
 
-button.env-row-header:hover {
-  background-color: var(--bg-hover);
+button.env-row-header:hover   {
+  background: var(--bg-hover);
 }
 
 button.env-row-header[data-expanded='true'] {
@@ -687,10 +683,8 @@ button.env-row-header[data-expanded='true'] .env-toggle-icon {
   flex-shrink: 0;
 }
 
-.env-copy-table-btn:hover {
-  color: var(--c-primary);
-  border-color: var(--border-secondary);
-  background-color: var(--bg-secondary);
+.env-copy-table-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .env-empty-box {

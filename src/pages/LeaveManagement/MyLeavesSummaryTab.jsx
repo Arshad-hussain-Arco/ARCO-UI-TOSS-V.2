@@ -121,7 +121,7 @@ export function MyLeavesSummaryTab({
     <div className="my-leaves-summary-tab" style={{ marginTop: '20px' }}>
       
       {/* Filters Toolbar */}
-      <div className="leave-filters-section" style={{ marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+      <div className="leave-filters-section" style={{ marginBottom: '16px', background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
         
         {/* Top row: Status Tabs & Export */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>

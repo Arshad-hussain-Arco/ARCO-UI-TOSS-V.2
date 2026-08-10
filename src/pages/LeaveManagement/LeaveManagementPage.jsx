@@ -349,7 +349,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.AL?.used ?? 0}
                 total={leaveBalances?.AL?.entitled ?? 0}
                 isUnlimited={leaveBalances?.AL?.is_unlimited}
-                color="#006633"
+                color="var(--c-primary)"
               />
               <LeaveCard
                 title="Carry Over"
@@ -378,7 +378,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.SL?.used ?? 0}
                 total={leaveBalances?.SL?.entitled ?? 0}
                 isUnlimited={leaveBalances?.SL?.is_unlimited}
-                color="#dc2626"
+                color="var(--c-danger)"
               />
               <LeaveCard
                 title="Weekend Work"
@@ -388,7 +388,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.WW?.used ?? 0}
                 total={leaveBalances?.WW?.entitled ?? 0}
                 isUnlimited={leaveBalances?.WW?.is_unlimited}
-                color="#f59e0b"
+                color="var(--c-warning)"
               />
               <LeaveCard
                 title="Booked Leave"
@@ -397,7 +397,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={leaveBalances?.AL?.used ?? 0}
                 total={leaveBalances?.AL?.used ?? 0}
-                color="#059669"
+                color="var(--c-success)"
               />
               <LeaveCard
                 title="Upcoming"
@@ -406,7 +406,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={0}
                 total={0}
-                color="#3b82f6"
+                color="var(--c-info)"
               />
               <LeaveCard
                 title="Completed"
@@ -415,7 +415,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={0}
                 total={0}
-                color="#10b981"
+                color="var(--c-success)"
               />
               <LeaveCard
                 title="Offshore Work"

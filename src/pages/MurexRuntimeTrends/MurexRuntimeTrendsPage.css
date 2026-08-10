@@ -297,15 +297,15 @@
 }
 
 .murex-kpi-value.trend-up {
-  color: #10b981;
+  color: var(--c-success);
 }
 
 .murex-kpi-value.trend-down {
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 .murex-kpi-value.outlier {
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 .murex-kpi-divider {
@@ -490,7 +490,7 @@
   left: 0;
   top: 0;
   height: 100%;
-  background: #10b981;
+  background: var(--c-success);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -503,11 +503,11 @@
 }
 
 .murex-insight-minmax-values .min-val {
-  color: #10b981;
+  color: var(--c-success);
 }
 
 .murex-insight-minmax-values .max-val {
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 .murex-insight-sparkline-section {
@@ -543,7 +543,7 @@
 
 .murex-insight-sparkline-bar {
   flex: 1;
-  background: #3b82f6;
+  background: var(--c-info);
   border-radius: 2px 2px 0 0;
   min-height: 2px;
   transition: all 0.15s ease;
@@ -551,7 +551,7 @@
 }
 
 .murex-insight-sparkline-bar:hover {
-  background: #2563eb;
+  background: var(--c-info);
 }
 
 /* Management Tab */
@@ -826,8 +826,8 @@
 }
 
 .murex-status-badge.inactive {
-  background: #e5e7eb;
-  color: #6b7280;
+  background: var(--border-primary);
+  color: var(--text-secondary);
 }
 
 .murex-script-actions {
@@ -1151,7 +1151,7 @@
   flex: 1;
   height: 5px;
   border-radius: 3px;
-  background: linear-gradient(to right, #f3f4f6, #dbeafe, #93c5fd, #3b82f6, #1e40af);
+  background: linear-gradient(to right, var(--bg-tertiary), #dbeafe, #93c5fd, var(--c-info), #1e40af);
 }
 
 /* Monthly Heatmap */
@@ -1238,15 +1238,15 @@
 }
 
 .murex-drawer-metric-value.success {
-  color: #10b981;
+  color: var(--c-success);
 }
 
 .murex-drawer-metric-value.warning {
-  color: #f59e0b;
+  color: var(--c-warning);
 }
 
 .murex-drawer-metric-value.error {
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 /* Activity Timeline - Ultra Compact */
@@ -1276,15 +1276,15 @@
 }
 
 .murex-drawer-activity-dot.success {
-  background: #10b981;
+  background: var(--c-success);
 }
 
 .murex-drawer-activity-dot.warning {
-  background: #f59e0b;
+  background: var(--c-warning);
 }
 
 .murex-drawer-activity-dot.error {
-  background: #ef4444;
+  background: var(--c-danger);
 }
 
 .murex-drawer-activity-content {
@@ -1315,11 +1315,11 @@
 }
 
 .murex-drawer-activity-duration.warning {
-  color: #f59e0b;
+  color: var(--c-warning);
 }
 
 .murex-drawer-activity-duration.error {
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 .murex-drawer-activity-time {
@@ -1358,12 +1358,12 @@
 }
 
 .murex-script-detail-row {
-  background: var(--bg-secondary, #f8fafc) !important;
+  background: var(--bg-secondary) !important;
 }
 
 .murex-detail-accordion-content {
   padding: 16px 20px;
-  border-bottom: 2px solid var(--border-primary, #e2e8f0);
+  border-bottom: 2px solid var(--border-primary);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1393,8 +1393,8 @@
 }
 
 .murex-detail-heatmap-wrapper {
-  background: var(--surface-primary, #ffffff);
-  border: 1px solid var(--border-primary, #cbd5e1);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -1421,8 +1421,8 @@
 }
 
 .murex-modal-summary-card {
-  background: var(--bg-secondary, #f8fafc);
-  border: 1px solid var(--border-primary, #e2e8f0);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   padding: 8px 12px;
   display: flex;
@@ -1431,25 +1431,25 @@
 }
 
 .murex-modal-summary-card.warning {
-  background: #fef2f2;
+  background: var(--c-danger-light);
   border-color: #fca5a5;
 }
 
 .murex-modal-card-label {
   font-size: 10px;
   font-weight: 600;
-  color: var(--text-tertiary, #64748b);
+  color: var(--text-tertiary);
   text-transform: uppercase;
 }
 
 .murex-modal-card-val {
   font-size: 13px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
 }
 
 .murex-modal-card-val.warning {
-  color: #dc2626;
+  color: var(--c-danger);
 }
 
 /* All Run Durations section */
@@ -1469,10 +1469,10 @@
 }
 
 .murex-run-item {
-  border: 1px solid var(--border-primary, #e2e8f0);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   overflow: hidden;
-  background: var(--surface-primary, #ffffff);
+  background: var(--surface-primary);
 }
 
 .murex-run-item.outlier {
@@ -1484,8 +1484,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: var(--bg-secondary, #f8fafc);
-  border-bottom: 1px solid var(--border-tertiary, #f1f5f9);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
 }
 
 .murex-run-item.outlier .murex-run-item-header {
@@ -1517,8 +1517,8 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 10px;
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--c-danger-light);
+  color: var(--c-danger);
   font-size: 10px;
   font-weight: 700;
 }
@@ -1529,8 +1529,8 @@
   gap: 6px;
   padding: 4px 12px;
   border-radius: 5px;
-  border: 1px solid var(--border-secondary, #cbd5e1);
-  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
   color: #005A36;
   font-size: 11px;
   font-weight: 600;
@@ -1545,8 +1545,8 @@
 
 .murex-gantt-chart-container {
   padding: 12px 14px;
-  background: var(--surface-primary, #ffffff);
-  border-top: 1px solid var(--border-tertiary, #e2e8f0);
+  background: var(--surface-primary);
+  border-top: 1px solid var(--border-tertiary);
 }
 
 .murex-gantt-summary-bar {
@@ -1701,7 +1701,7 @@
   font-size: 9px;
   font-weight: 700;
   background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  color: var(--c-info);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   white-space: nowrap;
@@ -1712,7 +1712,7 @@
   border-radius: 10px;
   font-size: 9px;
   font-weight: 700;
-  color: #fff;
+  color: var(--surface-primary);
   text-transform: uppercase;
   letter-spacing: 0.4px;
   white-space: nowrap;
@@ -1775,12 +1775,12 @@
   height: 26px;
   border-radius: 5px;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--surface-primary);
 }
 
-.murex-job-metric-icon.blue  { background: #2563eb; }
-.murex-job-metric-icon.green { background: #10b981; }
-.murex-job-metric-icon.red   { background: #ef4444; }
+.murex-job-metric-icon.blue  { background: var(--c-info); }
+.murex-job-metric-icon.green { background: var(--c-success); }
+.murex-job-metric-icon.red   { background: var(--c-danger); }
 .murex-job-metric-icon.purple { background: #8b5cf6; }
 
 .murex-job-metric-info {
@@ -1810,9 +1810,9 @@
   text-overflow: ellipsis;
 }
 
-.murex-job-metric-value.blue   { color: #2563eb; }
-.murex-job-metric-value.green  { color: #10b981; }
-.murex-job-metric-value.red    { color: #ef4444; }
+.murex-job-metric-value.blue   { color: var(--c-info); }
+.murex-job-metric-value.green  { color: var(--c-success); }
+.murex-job-metric-value.red    { color: var(--c-danger); }
 .murex-job-metric-value.purple { color: #8b5cf6; }
 
 /* Last Run Row */
@@ -1889,7 +1889,7 @@
   left: 0;
   top: 0;
   height: 100%;
-  background: linear-gradient(90deg, #10b981, #3b82f6);
+  background: linear-gradient(90deg, var(--c-success), var(--c-info));
   border-radius: 4px;
   transition: width 0.4s ease;
 }
@@ -1902,13 +1902,13 @@
 .murex-job-minmax-min {
   font-size: 9px;
   font-weight: 600;
-  color: #10b981;
+  color: var(--c-success);
 }
 
 .murex-job-minmax-max {
   font-size: 9px;
   font-weight: 600;
-  color: #ef4444;
+  color: var(--c-danger);
 }
 
 /* Responsive: stack chart and panel vertically on narrow screens */

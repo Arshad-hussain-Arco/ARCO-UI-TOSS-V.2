@@ -21,12 +21,12 @@
 
 .lms-btn-success {
   background: #22935F; /* colors.green.icon */
-  color: #FFFFFF;
+  color: var(--surface-primary);
 }
 
 .lms-btn-danger {
   background: #A32D2D; /* colors.red.icon */
-  color: #FFFFFF;
+  color: var(--surface-primary);
 }
 
 /* Modal Overlay & Card */
@@ -45,7 +45,7 @@
 }
 
 .approval-modal-content {
-  background: #FFFFFF; /* colors.surface */
+  background: var(--surface-primary); /* colors.surface */
   border-radius: 12px;
   width: 90%;
   max-width: 480px;
@@ -113,7 +113,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid #E3E7E4; /* colors.border */
-  background: #FFFFFF;
+  background: var(--surface-primary);
   color: #16211D;
   font-size: 0.9rem;
   resize: vertical;
@@ -122,7 +122,7 @@
 
 .approval-modal-textarea:focus {
   outline: none;
-  border-color: #1B4D3E; /* colors.brand */
+  border-color: var(--c-primary-dark); /* colors.brand */
 }
 
 .approval-modal-error {

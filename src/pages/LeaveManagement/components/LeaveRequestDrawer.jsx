@@ -205,7 +205,7 @@ export function LeaveRequestDrawer({
                 className="tr-drow-value"
                 style={{
                   maxWidth: 220,
-                  color: 'var(--c-danger, #ef4444)',
+                  color: 'var(--c-danger)',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '6px',
