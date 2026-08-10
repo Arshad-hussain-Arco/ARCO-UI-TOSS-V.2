@@ -39,6 +39,31 @@ export function MyLeavesSummaryTab({
   toDate,
   onToDateChange,
 }) {
+  const formatDurationStr = (duration) => {
+    if (!duration) return '';
+    const map = {
+      'FULL_DAY': 'Full Day',
+      'FIRST_HALF': 'First Half',
+      'SECOND_HALF': 'Second Half'
+    };
+    return map[duration] || duration;
+  };
+
+  const getDurationDisplay = (leave) => {
+    if (leave.from_date_duration || leave.to_date_duration) {
+      const fromStr = formatDurationStr(leave.from_date_duration);
+      const toStr = formatDurationStr(leave.to_date_duration);
+      if (fromStr && toStr) {
+        return `${fromStr} to ${toStr}`;
+      } else if (fromStr) {
+        return fromStr;
+      } else if (toStr) {
+        return toStr;
+      }
+    }
+    return formatDurationStr(leave.leave_duration);
+  };
+
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -279,6 +304,7 @@ export function MyLeavesSummaryTab({
                 
                 const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave';
                 const days = leave.in_days || leave.business_days || 0;
+                const durationText = getDurationDisplay(leave);
 
                 return (
                   <tr key={leave.id || idx} className="leave-table-row">
@@ -286,7 +312,10 @@ export function MyLeavesSummaryTab({
                     <td className="leave-table-cell">
                       <div className="leave-table-dates">
                         <span className="leave-table-date-text text-[14px]">{dateDisplay}</span>
-                        <span className="leave-table-date-duration">({days} day{days !== 1 ? 's' : ''})</span>
+                        <span className="leave-table-date-duration">
+                          ({days} day{days !== 1 ? 's' : ''})
+                          {durationText ? ` • ${durationText}` : ''}
+                        </span>
                       </div>
                     </td>
                     <td className="leave-table-cell">{leave.business_days || days}</td>

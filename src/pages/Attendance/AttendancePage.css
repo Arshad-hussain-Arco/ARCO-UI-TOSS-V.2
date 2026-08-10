@@ -601,7 +601,126 @@
   color: #a5b4fc;
 }
 
-/* Timeline View */
+/* Timeline Filters - Match Leave Management Tabs */
+.att-timeline-folder-tabs {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: transparent;
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 16px;
+}
+
+.att-folder-tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: none !important;
+  padding: 8px 18px;
+  height: 38px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
+}
+
+.att-folder-tab:hover:not([data-active='true']) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.att-folder-tab[data-active='true'] {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--surface-primary);
+  border-radius: 8px 8px 0 0;
+  color: var(--c-primary);
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.att-folder-tab-label {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.att-folder-tab-badge {
+  background-color: var(--border-strong);
+  color: var(--text-secondary);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.att-folder-tab[data-active='true'] .att-folder-tab-badge {
+  background-color: var(--c-primary);
+  color: #ffffff;
+}
+
+.attendance-timeline-team-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.attendance-timeline-team-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background-color: #f4f6f8; /* Very light gray */
+  border-bottom: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+[data-theme='dark'] .attendance-timeline-team-header {
+  background-color: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+
+.att-team-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8; /* Match the gray icon in image */
+}
+
+[data-theme='dark'] .att-team-header-icon {
+  color: #64748b;
+}
 .attendance-timeline-wrapper {
   flex: 1;
   overflow: auto;
@@ -713,6 +832,7 @@
   font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
+  overflow: hidden; /* Ensures profile images stay within the circle */
 }
 
 .attendance-timeline-consultant-info {
