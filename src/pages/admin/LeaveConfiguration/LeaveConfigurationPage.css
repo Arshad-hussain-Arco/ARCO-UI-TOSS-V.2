@@ -169,7 +169,7 @@
   padding: 0 18px;
   font-size: 13px;
   font-weight: 600;
-  color:  #ffffff;
+  color: #ffffff;
   background-color: var(--c-primary);
   border: none;
   border-radius: 6px;
@@ -179,7 +179,7 @@
 }
 
 .lc-btn-primary:hover {
-  background-color: #00522c;
+  background-color: var(--c-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -533,8 +533,8 @@
 }
 
 .lc-locked-field {
-  height: 36px;
-  padding: 0 12px;
+  min-height: 36px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   background-color: var(--bg-secondary);
@@ -544,6 +544,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: not-allowed;
+  line-height: 1.4;
 }
 
 /* Gender restriction radio cards */

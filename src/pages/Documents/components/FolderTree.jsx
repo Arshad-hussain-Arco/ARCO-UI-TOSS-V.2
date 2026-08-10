@@ -71,7 +71,7 @@ export function FolderTree({
           </span>
           <div className="doc-file-actions-group">
             <button
-              className="doc-file-row-action-btn edit"
+              className="action-icon-btn edit"
               onClick={(e) => {
                 e.stopPropagation();
                 onEditDocument(file, 'file');
@@ -81,7 +81,7 @@ export function FolderTree({
               <Edit2 size={13} />
             </button>
             <button
-              className="doc-file-row-action-btn delete"
+              className="action-icon-btn delete"
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteDocument(file.id, file.name);
@@ -144,7 +144,7 @@ export function FolderTree({
               {folder.id !== 'root' && (
                 <div className="doc-folder-actions">
                   <button
-                    className="doc-folder-action-btn edit"
+                    className="action-icon-btn edit"
                     onClick={(e) => {
                       e.stopPropagation();
                       onEditDocument(folder, 'folder');
@@ -154,7 +154,7 @@ export function FolderTree({
                     <Edit2 size={12} />
                   </button>
                   <button
-                    className="doc-folder-action-btn delete"
+                    className="action-icon-btn delete"
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteDocument(folder.id, folder.name);

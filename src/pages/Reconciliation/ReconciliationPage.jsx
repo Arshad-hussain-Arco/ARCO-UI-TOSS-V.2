@@ -394,17 +394,7 @@ export function ReconciliationPage() {
   return (
     <div className="rwiz-page">
       {/* Top Bar / Header Breadcrumb */}
-      <div className="rwiz-page-header">
-        <div className="rwiz-page-title-wrap">
-          <FileText className="rwiz-page-title-icon" size={24} />
-          <h1 className="rwiz-page-title">File Reconciliation System</h1>
-          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
-            <FileText size={14} />
-            <span>User Guide</span>
-            <ExternalLink size={14} />
-          </Link>
-        </div>
-      </div>
+
 
       {/* Stepper (Outside Card) */}
       <StepperBar currentStep={step} />

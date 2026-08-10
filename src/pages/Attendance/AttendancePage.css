@@ -272,7 +272,7 @@
   align-items: center;
   gap: 5px;
   padding: 5px 11px;
-  background-color: var(--brand-primary);
+  background-color: var(--c-primary);
   color:  #ffffff;
   border: none;
   border-radius: 4px;

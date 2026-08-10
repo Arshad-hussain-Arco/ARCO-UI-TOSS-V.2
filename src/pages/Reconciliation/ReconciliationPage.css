@@ -1118,6 +1118,9 @@
   margin-bottom: 2px;
   flex-shrink: 0;
   align-self: center;
+  background: var(--c-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
 }
 
 /* Export Modal */

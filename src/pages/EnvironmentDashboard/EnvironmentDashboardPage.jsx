@@ -474,14 +474,14 @@ export function EnvironmentDashboardPage() {
 
                     <div className="env-config-card-footer">
                       <button
-                        className="env-action-btn-compact"
+                        className="action-icon-btn edit"
                         onClick={() => handleOpenEdit(config)}
                         title="Edit Configuration"
                       >
                         <Edit size={14} />
                       </button>
                       <button
-                        className="env-action-btn-compact danger"
+                        className="action-icon-btn delete"
                         onClick={() => handleOpenDelete(config)}
                         title="Delete Configuration"
                       >

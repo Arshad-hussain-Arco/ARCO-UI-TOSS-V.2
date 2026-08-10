@@ -202,3 +202,35 @@
     font-size: 14px;
   }
 }
+
+/* React Big Calendar Toolbar Theme Overrides */
+.rbc-toolbar button {
+  color: var(--text-primary) !important;
+  background-color: var(--surface-primary) !important;
+  border-color: var(--border-primary) !important;
+  transition: all 0.2s ease;
+}
+
+.rbc-toolbar button:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.rbc-toolbar button:active,
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button.rbc-active:hover {
+  background-color: var(--c-primary) !important;
+  border-color: var(--c-primary) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.rbc-toolbar button:focus {
+  outline: none;
+}
+
+.rbc-toolbar .rbc-toolbar-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
