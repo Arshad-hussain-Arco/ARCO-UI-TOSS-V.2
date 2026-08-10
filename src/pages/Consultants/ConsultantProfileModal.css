@@ -36,11 +36,11 @@
 
 .cp-modal-header {
   padding: 24px 32px;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
+  border-bottom: 1px solid var(--border-light);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: var(--bg-secondary, #f8fafc);
+  background: var(--bg-secondary);
 }
 
 .cp-modal-header-info {
@@ -81,7 +81,7 @@
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
   letter-spacing: -0.5px;
 }
 
@@ -112,14 +112,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .cp-close-btn:hover {
-  background: var(--bg-hover, #f1f5f9);
-  color: var(--text-primary, #0f172a);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .cp-modal-body {
@@ -141,7 +141,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: flex;
@@ -153,7 +153,7 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border-light, #e2e8f0);
+  background: var(--border-light);
 }
 
 .cp-grid {
@@ -171,7 +171,7 @@
 .cp-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary, #475569);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -180,7 +180,7 @@
 .cp-value {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
 }
 
 /* Leave Summary Widgets */
@@ -191,8 +191,8 @@
 }
 
 .cp-leave-card {
-  background: var(--bg-secondary, #f8fafc);
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -215,7 +215,7 @@
 .cp-leave-name {
   font-size: 13px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
 }
 
 .cp-leave-available {
@@ -238,14 +238,14 @@
 }
 
 .cp-leave-stat-label {
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .cp-leave-stat-val {
-  color: var(--text-secondary, #475569);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -258,11 +258,11 @@
 }
 
 .cp-progress-used {
-  background: var(--c-warning, #f59e0b);
+  background: var(--c-warning);
   height: 100%;
 }
 .cp-progress-pending {
-  background: var(--c-info, #3b82f6);
+  background: var(--c-info);
   height: 100%;
 }
 

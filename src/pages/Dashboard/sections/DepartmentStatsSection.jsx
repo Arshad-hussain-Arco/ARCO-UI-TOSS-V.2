@@ -31,7 +31,7 @@ function DepartmentStatsSectionComponent({ departmentStats }) {
               <div className="thc-bar-track" title={`${activePercent}% active`}>
                 <div
                   className="thc-bar-fill"
-                  style={{ width: `${activePercent}%`, background: 'var(--c-info, #3b82f6)' }}
+                  style={{ width: `${activePercent}%`, background: 'var(--c-info)' }}
                 />
               </div>
 

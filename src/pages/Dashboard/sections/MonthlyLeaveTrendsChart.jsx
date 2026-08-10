@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       }}>
         <div style={{ fontWeight: 600, marginBottom: '2px', color: 'var(--text-secondary)' }}>{label}</div>
         <div>
-          <span style={{ fontWeight: 700, color: '#006838' }}>{value}</span> 
+          <span style={{ fontWeight: 700, color: 'var(--c-primary)' }}>{value}</span>
           <span> {value === 1 ? 'Consultant' : 'Consultants'} on Leave</span>
         </div>
       </div>
@@ -55,7 +55,7 @@ function MonthlyLeaveTrendsChartComponent() {
   return (
     <div className="dc-card" style={{ display: 'flex', flexDirection: 'column', minHeight: '340px', padding: '20px' }}>
       <div style={{ marginBottom: '16px' }}>
-        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-primar', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Monthly Leave Trends
         </h3>
         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total leave applications count by month</span>
@@ -67,32 +67,32 @@ function MonthlyLeaveTrendsChartComponent() {
           <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
             <defs>
               <linearGradient id="leaveTrendGradRefined" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#006838" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#006838" stopOpacity={0.0}/>
+                <stop offset="5%" stopColor="var(--c-primary)" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="var(--c-primary)" stopOpacity={0.0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-primary)" />
-            <XAxis 
-              dataKey="name" 
-              stroke="var(--text-tertiary)" 
-              fontSize={10} 
-              tickLine={false} 
+            <XAxis
+              dataKey="name"
+              stroke="var(--text-tertiary)"
+              fontSize={10}
+              tickLine={false}
               axisLine={false}
             />
-            <YAxis 
-              stroke="var(--text-tertiary)" 
-              fontSize={10} 
-              tickLine={false} 
+            <YAxis
+              stroke="var(--text-tertiary)"
+              fontSize={10}
+              tickLine={false}
               axisLine={false}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Area 
-              type="monotone" 
-              dataKey="leaveCount" 
-              stroke="#006838" 
+            <Area
+              type="monotone"
+              dataKey="leaveCount"
+              stroke="var(--c-primary)"
               strokeWidth={2}
-              fillOpacity={1} 
-              fill="url(#leaveTrendGradRefined)" 
+              fillOpacity={1}
+              fill="url(#leaveTrendGradRefined)"
               name="Leaves"
             />
           </AreaChart>

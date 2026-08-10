@@ -192,7 +192,7 @@
 .dp-grid-option.is-selected {
   background-color: var(--c-primary);
   border-color: var(--c-primary);
-  color: #ffffff;
+  color: var(--surface-primary);
   font-weight: 600;
 }
 
@@ -297,7 +297,7 @@
 
 .dp-day-selected {
   background-color: var(--c-primary) !important;
-  color: #ffffff !important;
+  color: var(--surface-primary) !important;
   font-weight: 600;
   border: none !important;
 }

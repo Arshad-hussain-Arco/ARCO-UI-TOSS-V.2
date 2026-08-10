@@ -11,12 +11,13 @@ import './Breadcrumb.css';
  * @param {Object} props
  * @param {{ label: string, to?: string, onClick?: () => void, onClose?: () => void }[]} props.items
  * @param {string} [props.ariaLabel='Breadcrumb']
+ * @param {React.ReactNode} [props.rightElement]
  */
-function BreadcrumbComponent({ items = [], ariaLabel = 'Breadcrumb' }) {
-  if (items.length === 0) return null;
+function BreadcrumbComponent({ items = [], ariaLabel = 'Breadcrumb', rightElement }) {
+  if (items.length === 0 && !rightElement) return null;
 
   return (
-    <nav className="breadcrumb-nav" aria-label={ariaLabel}>
+    <nav className="breadcrumb-nav" aria-label={ariaLabel} style={{ display: 'flex', alignItems: 'center', }}>
       <ol className="breadcrumb-list">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -44,7 +45,7 @@ function BreadcrumbComponent({ items = [], ariaLabel = 'Breadcrumb' }) {
                         border: 'none',
                         cursor: 'pointer',
                         padding: '2px',
-                        color: '#64748b',
+                        color: 'var(--text-secondary)',
                         display: 'inline-flex',
                         alignItems: 'center',
                         borderRadius: '3px',
@@ -77,6 +78,11 @@ function BreadcrumbComponent({ items = [], ariaLabel = 'Breadcrumb' }) {
           );
         })}
       </ol>
+      {rightElement && (
+        <div className="breadcrumb-right-element">
+          {rightElement}
+        </div>
+      )}
     </nav>
   );
 }

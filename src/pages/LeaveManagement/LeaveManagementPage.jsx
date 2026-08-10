@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Download,
   ChevronDown,
+  ChevronUp,
   FileSpreadsheet,
   FileText,
   FileCheck,
@@ -16,7 +17,9 @@ import {
   Eye,
   SlidersHorizontal,
   CalendarPlus,
-  Home
+  Home,
+  Ship,
+  ArrowUpDown
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -54,14 +57,102 @@ const ALL_TABS = [
 // created), not just a hardcoded pair.
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
-  { modalType: 'leave', label: 'Apply Leave', codes: null },
-  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'] },
-  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'] },
-  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: 'CLAIM' },
+  { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: 'var(--c-primary)' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: 'var(--c-primary)' },
+  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
+  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: 'CLAIM', icon: CalendarPlus, color: '#f59e0b' },
 ];
 
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { getRelativePendingTime } from './TeamRequestsTab';
+
+export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
+  const [showFull, setShowFull] = useState(false);
+  
+  if (!text) return '-';
+  if (text.length <= maxLength) return <span>{text}</span>;
+  
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <span>{text.substring(0, maxLength)}...</span>
+      <span
+        onClick={(e) => { e.stopPropagation(); setShowFull(!showFull); }}
+        style={{
+          color: 'var(--c-primary)',
+          cursor: 'pointer',
+          marginLeft: '4px',
+          fontSize: '13px',
+          fontWeight: '600',
+          textDecoration: 'none',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+      >
+        More
+      </span>
+      {showFull && (
+        <>
+          <div 
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}
+            onClick={(e) => { e.stopPropagation(); setShowFull(false); }}
+          />
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            zIndex: 50,
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            width: 'max-content',
+            maxWidth: '300px',
+            minWidth: '220px',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '10px 14px',
+              borderBottom: '1px solid #f1f5f9',
+              background: '#f8fafc',
+              borderTopLeftRadius: '8px',
+              borderTopRightRadius: '8px',
+            }}>
+              <span style={{ fontWeight: '600', color: '#334155', fontSize: '13px' }}>{title}</span>
+              <X 
+                size={16} 
+                style={{ cursor: 'pointer', color: '#64748b' }} 
+                onClick={(e) => { e.stopPropagation(); setShowFull(false); }} 
+              />
+            </div>
+            <div style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
+              {text}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export const SortIcon = ({ field, sortField, sortOrder }) => {
+  const isActive = field === sortField;
+  
+  return (
+    <ArrowUpDown 
+      size={12} 
+      style={{ 
+        opacity: isActive ? 1 : 0.4, 
+        transition: 'all 0.2s ease'
+      }} 
+    />
+  );
+};
 
 export function LeaveManagementPage() {
   useDocumentTitle('Leave Management');
@@ -75,6 +166,8 @@ export function LeaveManagementPage() {
   const [viewModalLeave, setViewModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortField, setSortField] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
@@ -90,6 +183,15 @@ export function LeaveManagementPage() {
   const [summaryYear, setSummaryYear] = useState(String(currentDate.getFullYear()));
   const [summaryFrom, setSummaryFrom] = useState(null);
   const [summaryTo, setSummaryTo] = useState(null);
+
+  // Clear the active tab state when navigating away from this page
+  // This ensures it resets to the first tab when coming back from another page,
+  // but since React cleanup doesn't run on F5 (refresh), it correctly stays on the same tab during refresh.
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('leaveManagementActiveTab');
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -207,6 +309,15 @@ export function LeaveManagementPage() {
     user?.role?.toLowerCase()?.includes('admin')
   );
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = leaves.filter(l => l.status_code?.toLowerCase() === 'pending');
     if (pendingLeaves.length === 0) return null;
@@ -323,7 +434,7 @@ export function LeaveManagementPage() {
                 <input type="text" placeholder="Search leaves..." className="my-leaves-search" />
               </div>
               <div className="my-leaves-actions">
-                {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category }) => {
+                {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category, icon: Icon, color }) => {
                   const eligible = isActionEligible(codes, category);
                   return (
                     <button
@@ -332,7 +443,9 @@ export function LeaveManagementPage() {
                       disabled={!eligible}
                       title={eligible ? undefined : INELIGIBLE_TOOLTIP}
                       onClick={() => eligible && setModalType(type)}
+                      style={{ '--btn-bg': color }}
                     >
+                      {Icon && <Icon size={16} />}
                       {label}
                     </button>
                   );
@@ -349,7 +462,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.AL?.used ?? 0}
                 total={leaveBalances?.AL?.entitled ?? 0}
                 isUnlimited={leaveBalances?.AL?.is_unlimited}
-                color="#006633"
+                color="var(--c-primary)"
               />
               <LeaveCard
                 title="Carry Over"
@@ -378,7 +491,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.SL?.used ?? 0}
                 total={leaveBalances?.SL?.entitled ?? 0}
                 isUnlimited={leaveBalances?.SL?.is_unlimited}
-                color="#dc2626"
+                color="var(--c-danger)"
               />
               <LeaveCard
                 title="Weekend Work"
@@ -388,7 +501,7 @@ export function LeaveManagementPage() {
                 used={leaveBalances?.WW?.used ?? 0}
                 total={leaveBalances?.WW?.entitled ?? 0}
                 isUnlimited={leaveBalances?.WW?.is_unlimited}
-                color="#f59e0b"
+                color="var(--c-warning)"
               />
               <LeaveCard
                 title="Booked Leave"
@@ -397,7 +510,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={leaveBalances?.AL?.used ?? 0}
                 total={leaveBalances?.AL?.used ?? 0}
-                color="#059669"
+                color="var(--c-success)"
               />
               <LeaveCard
                 title="Upcoming"
@@ -406,7 +519,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={0}
                 total={0}
-                color="#3b82f6"
+                color="var(--c-info)"
               />
               <LeaveCard
                 title="Completed"
@@ -415,7 +528,7 @@ export function LeaveManagementPage() {
                 left={0}
                 used={0}
                 total={0}
-                color="#10b981"
+                color="var(--c-success)"
               />
               <LeaveCard
                 title="Offshore Work"
@@ -496,11 +609,6 @@ export function LeaveManagementPage() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      {(filterStatus === 'pending') && pendingDateRangeText && (
-                        <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                          Pending from: {pendingDateRangeText}
-                        </span>
-                      )}
                       <div className="view-mode-segmented">
                         <button
                           className="view-mode-segment"
@@ -564,21 +672,39 @@ export function LeaveManagementPage() {
                     <table className="leave-table">
                       <colgroup>
                         <col style={{ width: '15%' }} />
-                        <col style={{ width: '25%' }} />
-                        <col style={{ width: '10%' }} />
                         <col style={{ width: '20%' }} />
+                        <col style={{ width: '10%' }} />
+                        <col style={{ width: filterStatus === 'pending' ? '15%' : '25%' }} />
+                        {filterStatus === 'pending' && <col style={{ width: '10%' }} />}
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
                       </colgroup>
                       <thead className="leave-table-thead">
                         <tr className="leave-table-header-row">
-                          <th className="leave-table-header">LEAVE TYPE</th>
-                          <th className="leave-table-header">DATES</th>
-                          <th className="leave-table-header">WORK DAYS</th>
-                          <th className="leave-table-header">LEAVE REASON</th>
-                          <th className="leave-table-header">STATUS</th>
-                          <th className="leave-table-header">COMMENTS</th>
+                          <th className="leave-table-header" onClick={() => handleSort('leave_type')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leave_type" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
+                          <th className="leave-table-header" onClick={() => handleSort('start_date')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="start_date" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
+                          <th className="leave-table-header" onClick={() => handleSort('business_days')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>WORK DAYS <SortIcon field="business_days" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
+                          <th className="leave-table-header" onClick={() => handleSort('leave_reason')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE REASON <SortIcon field="leave_reason" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
+                          {filterStatus === 'pending' && (
+                            <th className="leave-table-header" onClick={() => handleSort('requested_date')} style={{ cursor: 'pointer' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requested_date" sortField={sortField} sortOrder={sortOrder} /></div>
+                            </th>
+                          )}
+                          <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
+                          <th className="leave-table-header" onClick={() => handleSort('comments')} style={{ cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>COMMENTS <SortIcon field="comments" sortField={sortField} sortOrder={sortOrder} /></div>
+                          </th>
                           <th className="leave-table-header">ACTION</th>
                         </tr>
                       </thead>
@@ -586,6 +712,22 @@ export function LeaveManagementPage() {
                         {leaves.filter(leave => {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+                        }).sort((a, b) => {
+                          if (!sortField) return 0;
+                          let aVal = a[sortField];
+                          let bVal = b[sortField];
+                          
+                          if (sortField === 'comments') {
+                            aVal = a.comments || a.approval_reason || a.rejected_reason || '';
+                            bVal = b.comments || b.approval_reason || b.rejected_reason || '';
+                          }
+                          
+                          if (aVal === bVal) return 0;
+                          if (aVal == null) return 1;
+                          if (bVal == null) return -1;
+                          
+                          const result = aVal > bVal ? 1 : -1;
+                          return sortOrder === 'asc' ? result : -result;
                         }).map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
@@ -613,8 +755,13 @@ export function LeaveManagementPage() {
                                 {leave.business_days}
                               </td>
                               <td className="leave-table-cell" data-label="Leave Reason">
-                                {leave.leave_reason}
+                                <TruncatedText text={leave.leave_reason} maxLength={30} title="Leave Reason" />
                               </td>
+                              {filterStatus === 'pending' && (
+                                <td className="leave-table-cell" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                  {getRelativePendingTime(leave.requested_date || leave.created_at)}
+                                </td>
+                              )}
                               <td className="leave-table-cell" data-label="Status">
                                 <span className="leave-table-status" data-status={statusStr}>
                                   {statusStr}
@@ -624,7 +771,7 @@ export function LeaveManagementPage() {
                               <td className="leave-table-cell" data-label="Comments">
                                 {(leave.comments || leave.approval_reason || leave.rejected_reason) ? (
                                   <span style={{ fontSize: '13px', color: '#666' }}>
-                                    {leave.comments || leave.approval_reason || leave.rejected_reason}
+                                    <TruncatedText text={leave.comments || leave.approval_reason || leave.rejected_reason} maxLength={30} title="Comments" />
                                   </span>
                                 ) : '-'}
                               </td>

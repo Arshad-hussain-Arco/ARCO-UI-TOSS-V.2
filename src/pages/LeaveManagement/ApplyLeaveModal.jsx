@@ -295,7 +295,7 @@ function InlineCalendar({
           Pending
         </div>
         <div className="al-cal-legend-item">
-          <div className="al-cal-legend-dot" style={{ background: '#94a3b866', border: '1px solid #94a3b8' }} />
+          <div className="al-cal-legend-dot" style={{ background: '#94a3b866', border: '1px solid var(--text-tertiary)' }} />
           Approved (solid)
         </div>
       </div>
@@ -689,7 +689,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     if (applyFor === 'self') setBehalfEmp(null);
   }, [applyFor]);
   useEffect(() => {
-    if (isMultiDay) setDuration('full');
+    if (isMultiDay) {
+      setDuration('full');
+      setDailyConfigs({});
+    }
   }, [isMultiDay]);
   // Real weekend/holiday markers for the calendar grid + duration/holiday/
   // weekend counts — covers the union of the visible month and the
@@ -860,7 +863,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 vs. skipped, and why — server-authoritative, from the apply
                 response's day_breakdown. */}
             {lastDayBreakdown?.some((d) => !d.counted) && (
-              <div style={{ textAlign: 'left', margin: '16px 0', padding: '10px 12px', background: 'var(--c-info-light, #eff6ff)', border: '1px solid var(--c-info, #3b82f6)', borderRadius: 6, fontSize: 12 }}>
+              <div style={{ textAlign: 'left', margin: '16px 0', padding: '10px 12px', background: 'var(--c-info-light, #eff6ff)', border: '1px solid var(--c-info)', borderRadius: 6, fontSize: 12 }}>
                 <strong>Some days weren&apos;t counted:</strong>
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
                   {lastDayBreakdown.filter((d) => !d.counted).map((d) => (
@@ -958,7 +961,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                 </div>
               )}
               {requiresJustification && quotaInfo && (
-                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--c-danger-light, #fef2f2)', border: '1px solid var(--c-danger, #ef4444)', borderRadius: '6px' }}>
+                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--c-danger-light)', border: '1px solid var(--c-danger)', borderRadius: '6px' }}>
                   <div className="al-confirm-row-label" style={{ marginBottom: 8, color: 'var(--c-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <AlertTriangle size={14} />
                     {quotaInfo.billing_note}
@@ -1462,8 +1465,8 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     style={{
                       marginBottom: 6,
                       padding: '8px 10px',
-                      background: 'var(--c-danger-light, #fef2f2)',
-                      border: '1px solid var(--c-danger, #ef4444)',
+                      background: 'var(--c-danger-light)',
+                      border: '1px solid var(--c-danger)',
                       borderRadius: '6px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1822,6 +1825,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             <button
               type="button"
               className="al-btn al-btn-primary"
+              disabled={!canSubmit}
               onClick={() => setShowConfirm(true)}
             >
               <Check className="al-btn-icon" /> {SUBMIT_LABELS[type]}

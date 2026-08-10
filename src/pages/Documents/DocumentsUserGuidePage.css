@@ -1,0 +1,161 @@
+.du-guide-page {
+  padding: 40px;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.du-guide-document {
+  background: var(--surface-primary);
+  width: 100%;
+  max-width: 900px;
+  padding: 60px 80px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-secondary);
+}
+
+.du-doc-title {
+  text-align: center;
+  background-color: #ffff00;
+  color: #000;
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.du-doc-section {
+  margin-bottom: 40px;
+}
+
+.du-doc-section h2 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  color: #000;
+}
+
+.du-doc-section h3 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: #000;
+}
+
+.du-doc-section h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.du-doc-section p {
+  margin-bottom: 12px;
+}
+
+.du-doc-section ul,
+.du-doc-section ol {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.du-doc-section li {
+  margin-bottom: 8px;
+}
+
+.du-doc-note {
+  background-color: #ffff00;
+  padding: 2px 6px;
+  display: inline-block;
+  margin: 16px 0;
+  color: #000;
+}
+
+.du-doc-highlight {
+  background-color: #ffff00;
+  padding: 2px 6px;
+  display: inline-block;
+  margin: 16px 0;
+  font-weight: 600;
+  color: #000;
+}
+
+.du-doc-thankyou {
+  text-align: center;
+  font-weight: 400 !important;
+  background: transparent !important;
+  font-size: 20px !important;
+  margin-top: 60px !important;
+}
+
+.du-doc-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 24px auto;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+code {
+  background-color: var(--bg-secondary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+  color: var(--text-primary);
+}
+
+/* Math Equation Styles */
+.du-math-equation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--bg-secondary);
+}
+
+.du-math-label {
+  white-space: nowrap;
+}
+
+.du-math-fraction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.du-math-numerator {
+  padding: 4px 8px;
+  border-bottom: 2px solid var(--bg-secondary);
+  width: 100%;
+}
+
+.du-math-denominator {
+  padding: 4px 8px;
+}
+
+.du-math-multiplier {
+  white-space: nowrap;
+}

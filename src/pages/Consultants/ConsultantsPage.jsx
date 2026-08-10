@@ -246,7 +246,38 @@ export function ConsultantsPage() {
 
   const handleEdit = (c) => {
     setEditingTarget(c);
-    setFormData({ ...c });
+
+    let locName = c.location || c.location_name || '';
+    if (locName && !isNaN(locName)) {
+      const found = dynamicLocations.find(l => String(l.id) === String(locName));
+      if (found) locName = found.name;
+    }
+
+    let compLocName = c.computerLocation || c.computer_location || '';
+    if (compLocName && !isNaN(compLocName)) {
+      const found = dynamicCompLocations.find(cl => String(cl.id) === String(compLocName));
+      if (found) compLocName = found.name;
+    }
+
+    setFormData({ 
+      ...c,
+      username: c.username || c.user_name || c.userId || '',
+      joiningDate: c.joiningDate || c.joining_date || '',
+      webexId: c.webexId || c.webex_id || '',
+      includeInCp: c.includeInCp !== undefined ? c.includeInCp : (c.include_in_cp === 1 || c.include_in_cp === true),
+      visaExpire: c.visaExpire || c.visa_expiry || '',
+      visaRenewal: c.visaRenewal || c.visa_renewal || '',
+      nextVisaExit: c.nextVisaExit || c.next_visa_exit || '',
+      computerName: c.computerName || c.computer_name || '',
+      computerLocation: compLocName,
+      location: locName,
+      computerLocationReference: c.computerLocationReference || c.computer_location_ref || '',
+      physicalPcAvailable: c.physicalPcAvailable !== undefined ? c.physicalPcAvailable : (c.physical_pc_available === 1 || c.physical_pc_available === true),
+      accountStatus: c.accountStatus || c.status || 'active',
+      roleId: c.roleId || c.role_id,
+      teamId: c.teamId || c.team_id,
+      managerId: c.managerId || c.manager_id,
+    });
     openDrawer('add-edit');
   };
 
@@ -547,8 +578,8 @@ export function ConsultantsPage() {
               onClick={() => setIsAddDesignationModalOpen(false)}
               style={{
                 padding: '6px 24px',
-                backgroundColor: '#ef4444',
-                color: '#fff',
+                backgroundColor: 'var(--c-danger)',
+                color: 'var(--surface-primary)',
                 borderRadius: '4px',
                 border: 'none',
                 fontWeight: '500',
@@ -562,8 +593,8 @@ export function ConsultantsPage() {
               onClick={handleAddDesignation}
               style={{
                 padding: '6px 32px',
-                backgroundColor: '#10b981',
-                color: '#fff',
+                backgroundColor: 'var(--c-success)',
+                color: 'var(--surface-primary)',
                 borderRadius: '4px',
                 border: 'none',
                 fontWeight: '500',
@@ -1003,13 +1034,13 @@ export function ConsultantsPage() {
                                       fontSize: '13px',
                                       fontWeight: '500',
                                       border: isSelected
-                                        ? '1px solid #10b981'
+                                        ? '1px solid var(--c-success)'
                                         : '1px solid var(--border-primary)',
                                       backgroundColor: isSelected
                                         ? '#ecfdf5'
                                         : 'var(--surface-primary)',
                                       color: isSelected
-                                        ? '#10b981'
+                                        ? 'var(--c-success)'
                                         : 'var(--text-secondary)',
                                       cursor: 'pointer',
                                     }}
@@ -1276,8 +1307,8 @@ export function ConsultantsPage() {
               onClick={() => setIsAddComputerLocationModalOpen(false)}
               style={{
                 padding: '6px 24px',
-                backgroundColor: '#ef4444',
-                color: '#fff',
+                backgroundColor: 'var(--c-danger)',
+                color: 'var(--surface-primary)',
                 borderRadius: '4px',
                 border: 'none',
                 fontWeight: '500',
@@ -1291,8 +1322,8 @@ export function ConsultantsPage() {
               onClick={handleAddComputerLocation}
               style={{
                 padding: '6px 32px',
-                backgroundColor: '#10b981',
-                color: '#fff',
+                backgroundColor: 'var(--c-success)',
+                color: 'var(--surface-primary)',
                 borderRadius: '4px',
                 border: 'none',
                 fontWeight: '500',

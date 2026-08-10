@@ -65,10 +65,10 @@ export const consultantService = {
       visa_renewal: payload.visaRenewal || payload.visa_renewal,
       next_visa_exit: payload.nextVisaExit || payload.next_visa_exit,
       location: payload.location,
-      computer_name: payload.computerName || '',
-      computer_location: payload.computerLocation || '',
-      computer_location_ref: payload.computerLocationReference || '',
-      physical_pc_available: payload.physicalPcAvailable ? 1 : 0,
+      computer_name: payload.computerName || payload.computer_name || '',
+      computer_location: payload.computerLocation || payload.computer_location || '',
+      computer_location_ref: payload.computerLocationReference || payload.computer_location_ref || '',
+      physical_pc_available: (payload.physicalPcAvailable || payload.physical_pc_available) ? 1 : 0,
       remarks: payload.remarks || '',
     };
     const response = await httpClient.put(endpoints.consultants.update, data);

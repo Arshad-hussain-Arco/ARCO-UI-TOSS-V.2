@@ -15,6 +15,7 @@ import { ConsultantsStats } from '@components/data-display/ConsultantsStats/Cons
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
+import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
 export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
   const activeConsultants = useMemo(() => {
@@ -172,22 +173,13 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
                 </div>
               )}
             </div>
-            <button
-              className="consultants-reset-button"
-              onClick={(e) => {
-                const icon = e.currentTarget.querySelector('.consultants-reset-icon');
-                if (icon) {
-                  icon.classList.add('spin-animation');
-                  setTimeout(() => icon.classList.remove('spin-animation'), 500);
-                }
+            <ResetButton
+              onClick={() => {
                 setSearchQuery('');
                 setSelectedTeam('All Teams');
                 setSelectedDesignation('All Designations');
               }}
-            >
-              <RotateCcw className="consultants-reset-icon" size={14} />
-              <span>Reset</span>
-            </button>
+            />
             <button className="consultants-add-button" onClick={onAdd}>
               <Plus className="consultants-add-icon" />
               <span className="consultants-add-label">Add Consultant</span>
