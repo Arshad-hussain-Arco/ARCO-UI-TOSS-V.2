@@ -1,5 +1,17 @@
 /* Murex Runtime Trends - Ultra Compact Enterprise Design */
+:root {
+  --murex-text: #000000;
+}
+[data-theme='dark'] {
+  --murex-text: #ffffff;
+}
+
 .murex-runtime-page {
+  --text-primary: var(--murex-text) !important;
+  --text-secondary: var(--murex-text) !important;
+  --text-tertiary: var(--murex-text) !important;
+  --text-muted: var(--murex-text) !important;
+  color: var(--murex-text) !important;
   padding: 10px 14px;
   width: 100%;
   height: 100%;
@@ -166,8 +178,8 @@
 }
 
 .murex-time-btn.active {
-  background: var(--c-primary);
-  color: var(--text-inverse);
+  background: transparent;
+  color: var(--c-primary);
 }
 
 .murex-threshold-inputs {
@@ -230,10 +242,68 @@
 
 .murex-tab.active {
   background: var(--c-primary);
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 
 /* Tab Content */
+.murex-tab-content {
+  flex: 1;
+}
+
+/* Modal Form Elements and Buttons */
+.murex-form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.murex-form-input:focus {
+  outline: none;
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.murex-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.murex-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.murex-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.murex-btn-cancel:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.murex-btn-primary {
+  background: var(--c-primary);
+  color: #ffffff; 
+}
+
+.murex-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
 .murex-tab-content {
   flex: 1;
   min-height: 0;
@@ -1707,15 +1777,15 @@
   white-space: nowrap;
 }
 
-.murex-job-health-badge {
-  padding: 2px 8px;
+.murex-job-health-badge { 
   border-radius: 10px;
   font-size: 9px;
   font-weight: 700;
-  color: var(--surface-primary);
+  color:  #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  white-space: nowrap;
+  white-space: nowrap; 
+  padding: 2px 8px;
 }
 
 /* Card Body: Chart (70%) + Details Panel (30%) */
@@ -1775,7 +1845,7 @@
   height: 26px;
   border-radius: 5px;
   flex-shrink: 0;
-  color: var(--surface-primary);
+  color:  #ffffff;
 }
 
 .murex-job-metric-icon.blue  { background: var(--c-info); }

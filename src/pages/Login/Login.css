@@ -44,8 +44,8 @@
   min-height: 100vh;
   display: flex;
   align-items: stretch;
-  background: #f4f7f6;
-  background-image: url(../../assets/images/login-bg.svg);
+  background-image: linear-gradient(rgba(27, 27, 27, 0), rgba(255, 255, 255, 0)),
+    url(../../assets/images/login-bg.svg);
   background-position: center left;
   background-repeat: no-repeat;
   background-size: cover;

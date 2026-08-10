@@ -28,6 +28,7 @@ import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { ExportButton } from '@components/ui/ExportButton';
 import { format } from 'date-fns';
 import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
@@ -203,7 +204,6 @@ export function AttendancePage() {
     new Set(['management', 'frontend', 'backend', 'uiux', 'data']),
   );
   const [activeKPI, setActiveKPI] = useState(null);
-  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
 
   const [wfhData, setWfhData] = useState(null);
   const [isWfhLoading, setIsWfhLoading] = useState(false);
@@ -549,7 +549,6 @@ export function AttendancePage() {
 
   const handleExportCSV = useCallback(() => {
     exportToCSV(filteredReportRows, reportDates, `attendance_${filterYear}_${MONTH_NAMES[Number(filterMonth)]}.csv`);
-    setExportDropdownOpen(false);
   }, [filteredReportRows, reportDates, filterYear, filterMonth]);
 
   const handleClearDateRange = useCallback(() => {
@@ -699,26 +698,12 @@ export function AttendancePage() {
         )}
 
         {/* Export */}
-        <div className="att-export-wrapper">
-          <button
-            className="attendance-export-btn"
-            onClick={() => setExportDropdownOpen(p => !p)}
-          >
-            <Download size={14} />
-            Export
-            <ChevronDown size={12} />
-          </button>
-          {exportDropdownOpen && (
-            <div className="attendance-export-dropdown">
-              <button className="attendance-export-option" onClick={handleExportCSV}>
-                <FileSpreadsheet size={14} /> Export as CSV
-              </button>
-              <button className="attendance-export-option" onClick={() => setExportDropdownOpen(false)}>
-                <FileText size={14} /> Export as PDF
-              </button>
-            </div>
-          )}
-        </div>
+        <ExportButton
+          excel
+          pdf
+          onExcelExport={handleExportCSV}
+          onPdfExport={() => {}}
+        />
       </div>
 
       {/* ── KPI Cards — On Duty tab only ── */}

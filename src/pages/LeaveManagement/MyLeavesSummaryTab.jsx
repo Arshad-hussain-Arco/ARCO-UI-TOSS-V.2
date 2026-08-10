@@ -4,6 +4,7 @@ import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
 import { getRelativePendingTime } from './TeamRequestsTab';
+import { ExportButton } from '@components/ui/ExportButton';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -43,7 +44,6 @@ export function MyLeavesSummaryTab({
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
@@ -172,25 +172,12 @@ export function MyLeavesSummaryTab({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div className="export-button-wrapper">
-              <button className="export-button font-[Helvetica]" onClick={() => setShowExportDropdown(!showExportDropdown)}>
-              <Download className="export-button-icon" />
-              <span className="export-button-label font-[Helvetica]">Export</span>
-              <ChevronDown className="export-button-chevron" />
-            </button>
-            {showExportDropdown && (
-              <div className="export-dropdown">
-                <button className="export-dropdown-item" onClick={() => setShowExportDropdown(false)}>
-                  <FileSpreadsheet className="export-dropdown-icon" />
-                  <span className="export-dropdown-label">Excel</span>
-                </button>
-                <button className="export-dropdown-item" onClick={() => setShowExportDropdown(false)}>
-                  <FileText className="export-dropdown-icon" />
-                  <span className="export-dropdown-label">PDF</span>
-                </button>
-              </div>
-            )}
-          </div>
+            <ExportButton
+              excel
+              pdf
+              onExcelExport={() => {}}
+              onPdfExport={() => {}}
+            />
           </div>
         </div>
 
