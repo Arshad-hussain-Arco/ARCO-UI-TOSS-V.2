@@ -177,9 +177,9 @@
 }
 
 .cp-export-btn.excel {
-  background-color: #e6f4ed;
-  color: var(--c-primary);
-  border-color: #c2e7d5;
+  background-color: var(--c-primary);
+  color: #ffffff;
+  border-color: transparent;
 }
 
 .cp-export-btn.excel:hover   {
@@ -188,9 +188,9 @@
 }
 
 .cp-export-btn.pdf {
-  background-color: #fee2e2;
-  color: #dc2626;
-  border-color: #fee2e2;
+  background-color: var(--c-primary);
+  color: #ffffff;
+  border-color: transparent;
 }
 .cp-export-btn.pdf:hover  {
   filter: brightness(0.92);

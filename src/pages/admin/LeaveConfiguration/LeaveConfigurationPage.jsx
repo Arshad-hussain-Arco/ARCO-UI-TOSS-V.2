@@ -1510,7 +1510,7 @@ export function LeaveConfigurationPage() {
         <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Holiday Name */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Holiday Name
             </label>
             <input
@@ -1533,7 +1533,7 @@ export function LeaveConfigurationPage() {
 
           {/* Start Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Start Date
             </label>
             <DatePicker
@@ -1561,7 +1561,7 @@ export function LeaveConfigurationPage() {
 
           {/* End Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               End Date
             </label>
             <DatePicker
@@ -1582,7 +1582,7 @@ export function LeaveConfigurationPage() {
 
           {/* Computed Day & Status Row */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Day of Week (Computed)
             </label>
             <div
@@ -1613,7 +1613,7 @@ export function LeaveConfigurationPage() {
           </div>
 
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Status (Computed)
             </label>
             <div
@@ -1643,7 +1643,7 @@ export function LeaveConfigurationPage() {
 
           {/* Holiday Type */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Holiday Type
             </label>
             <CreatableSelect
@@ -1658,7 +1658,7 @@ export function LeaveConfigurationPage() {
 
           {/* Description */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Description
             </label>
             <input

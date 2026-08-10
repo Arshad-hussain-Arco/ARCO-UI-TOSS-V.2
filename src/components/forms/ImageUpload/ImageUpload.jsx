@@ -86,7 +86,7 @@ export function ImageUpload({
             <div className="ui-image-upload-overlay">
               <button
                 type="button"
-                className="ui-image-action-btn"
+                className="action-icon-btn edit"
                 onClick={(e) => {
                   e.stopPropagation();
                   inputRef.current?.click();
@@ -96,7 +96,7 @@ export function ImageUpload({
               </button>
               <button
                 type="button"
-                className="ui-image-action-btn danger"
+                className="action-icon-btn delete"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange(null);

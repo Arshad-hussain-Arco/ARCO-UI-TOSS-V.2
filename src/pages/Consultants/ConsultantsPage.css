@@ -305,7 +305,7 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--surface-primary);
+  color:  #ffffff;
   cursor: pointer;
   transition: background-color 0.2s ease;
   white-space: nowrap;
@@ -560,12 +560,12 @@
 
 .con-drawer-btn-primary {
   background: var(--c-primary);
-  color: var(--surface-primary);
+  color: #ffffff;
   border-color: var(--c-primary);
 }
 
 .con-drawer-btn-primary:hover {
-  background: var(--c-primary-hover, #005528);
+  background: var(--c-primary-hover);
 }
 
 .con-drawer-btn-danger {

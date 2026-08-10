@@ -1183,7 +1183,7 @@
 .al-btn-primary {
   background: var(--c-primary);
   border: 1px solid var(--c-primary);
-  color: var(--text-inverse);
+  color: #ffffff;
 }
 .al-btn-primary:hover:not(:disabled)   {
   filter: brightness(0.92);

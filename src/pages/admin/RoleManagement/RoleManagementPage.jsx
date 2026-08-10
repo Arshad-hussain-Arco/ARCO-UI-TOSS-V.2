@@ -495,7 +495,7 @@ export function RoleManagementPage() {
                                 <div className="rm-action-btns">
                                   <button
                                     type="button"
-                                    className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
+                                    className={`action-icon-btn edit ${isExpanded ? 'active' : ''}`}
                                     {...activatable(() => handleToggleConfigure(role.id), {
                                       label: `Configure permissions for ${role.name}`,
                                       isExpanded,
@@ -508,7 +508,7 @@ export function RoleManagementPage() {
 
                                   <button
                                     type="button"
-                                    className="rm-btn-action delete"
+                                    className="action-icon-btn delete"
                                     title="Delete Role"
                                     {...activatable(() => handleDeleteRole(role.id), {
                                       label: `Delete ${role.name}`,

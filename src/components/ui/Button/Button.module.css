@@ -71,7 +71,7 @@
 /* ── Variants ──────────────────────────────────────────────────────────────── */
 .primary {
   background: var(--c-primary);
-  color: var(--text-inverse);
+  color: #ffffff;
 }
 
 .primary:hover:not(:disabled) {
@@ -110,7 +110,7 @@
 
 .danger {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color: #ffffff;
 }
 
 .danger:hover:not(:disabled) {
