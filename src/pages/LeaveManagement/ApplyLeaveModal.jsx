@@ -659,7 +659,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     if (applyFor === 'self') setBehalfEmp(null);
   }, [applyFor]);
   useEffect(() => {
-    if (isMultiDay) setDuration('full');
+    if (isMultiDay) {
+      setDuration('full');
+      setDailyConfigs({});
+    }
   }, [isMultiDay]);
   // Real weekend/holiday markers for the calendar grid + duration/holiday/
   // weekend counts — covers the union of the visible month and the
@@ -1790,6 +1793,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             <button
               type="button"
               className="al-btn al-btn-primary"
+              disabled={!canSubmit}
               onClick={() => setShowConfirm(true)}
             >
               <Check className="al-btn-icon" /> {SUBMIT_LABELS[type]}

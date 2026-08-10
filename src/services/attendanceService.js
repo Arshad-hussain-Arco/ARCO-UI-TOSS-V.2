@@ -11,7 +11,10 @@ export const attendanceService = {
       ]);
       
       const payload = quotaRes.data?.data || quotaRes.data;
-      const teamMembers = Array.isArray(payload) ? payload : (payload?.results || []);
+      let teamMembers = Array.isArray(payload) ? payload : (payload?.results || []);
+      if (calendarRes.data?.team_members && calendarRes.data.team_members.length > 0) {
+        teamMembers = calendarRes.data.team_members;
+      }
       const calendar = calendarRes.data?.calendar || [];
 
       return {

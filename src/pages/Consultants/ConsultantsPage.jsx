@@ -246,6 +246,19 @@ export function ConsultantsPage() {
 
   const handleEdit = (c) => {
     setEditingTarget(c);
+
+    let locName = c.location || c.location_name || '';
+    if (locName && !isNaN(locName)) {
+      const found = dynamicLocations.find(l => String(l.id) === String(locName));
+      if (found) locName = found.name;
+    }
+
+    let compLocName = c.computerLocation || c.computer_location || '';
+    if (compLocName && !isNaN(compLocName)) {
+      const found = dynamicCompLocations.find(cl => String(cl.id) === String(compLocName));
+      if (found) compLocName = found.name;
+    }
+
     setFormData({ 
       ...c,
       username: c.username || c.user_name || c.userId || '',
@@ -256,7 +269,8 @@ export function ConsultantsPage() {
       visaRenewal: c.visaRenewal || c.visa_renewal || '',
       nextVisaExit: c.nextVisaExit || c.next_visa_exit || '',
       computerName: c.computerName || c.computer_name || '',
-      computerLocation: c.computerLocation || c.computer_location || '',
+      computerLocation: compLocName,
+      location: locName,
       computerLocationReference: c.computerLocationReference || c.computer_location_ref || '',
       physicalPcAvailable: c.physicalPcAvailable !== undefined ? c.physicalPcAvailable : (c.physical_pc_available === 1 || c.physical_pc_available === true),
       accountStatus: c.accountStatus || c.status || 'active',
