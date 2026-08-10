@@ -21,6 +21,7 @@ import {
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import projectService from '@services/projectService';
 import './ProjectMonitoringPage.css';
 
@@ -171,14 +172,14 @@ const SAMPLE_PROJECTS = [
 
 const STAGE_COLORS = {
   inception: '#8b5cf6',
-  planning: '#3b82f6',
+  planning: 'var(--c-info)',
   building: '#06b6d4',
-  testing: '#f59e0b',
+  testing: 'var(--c-warning)',
   release: '#fb923c',
-  deployed: '#10b981',
-  completed: '#059669',
-  'testing-blocked': '#ef4444',
-  deferred: '#6b7280',
+  deployed: 'var(--c-success)',
+  completed: 'var(--c-success)',
+  'testing-blocked': 'var(--c-danger)',
+  deferred: 'var(--text-secondary)',
 };
 
 const STAGE_LABELS = {
@@ -245,7 +246,7 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
         <div className="pm-modal-header">
           <div className="pm-modal-title-row">
             <h2 className="pm-modal-title">Projects — {stage.label}</h2>
-            <span className="pm-stage-pill" style={{ background: '#006838' }}>
+            <span className="pm-stage-pill" style={{ background: 'var(--c-primary)' }}>
               {totalCount} Projects
             </span>
           </div>
@@ -297,7 +298,7 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
                 <tr>
                   <td colSpan={9}>
                     <div className="pm-empty-state">
-                      <Search size={32} color="#cbd5e1" />
+                      <Search size={32} color="var(--border-secondary)" />
                       <p>No projects found matching your search criteria.</p>
                     </div>
                   </td>
@@ -309,22 +310,22 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
                       <span className="pm-project-code">{p.code}</span>
                     </td>
                     <td>
-                      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{p.id}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
                     </td>
                     <td style={{ maxWidth: 220 }}>
-                      <span style={{ fontSize: 12, color: '#334155', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
+                      <span style={{ fontSize: 12, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={p.summary}>
                         {p.summary}
                       </span>
                     </td>
                     <td>
-                      <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || '#006838' }}>
+                      <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || 'var(--c-primary)' }}>
                         {p.stage}
                       </span>
                     </td>
-                    <td style={{ fontSize: 11, color: '#334155' }}>{p.itdl}</td>
-                    <td style={{ fontSize: 11, color: '#64748b' }}>{p.backupItdl}</td>
-                    <td style={{ fontSize: 11, color: '#334155' }}>{p.po}</td>
-                    <td style={{ fontSize: 11, color: '#64748b' }}>{p.pmo}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.itdl}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.backupItdl}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.po}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.pmo}</td>
                     <td>
                       <span className="pm-comment-text" title={p.lastComment}>{p.lastComment || 'No comments'}</span>
                     </td>
@@ -369,6 +370,25 @@ export function ProjectMonitoringPage() {
 
   const [projectsList, setProjectsList] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  const [tableWidth, setTableWidth] = useState(0);
+  const resizeObserverRef = useRef(null);
+
+  const tableContainerRef = useCallback((node) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver(() => {
+        setTableWidth(node.clientWidth);
+      });
+      observer.observe(node);
+      resizeObserverRef.current = observer;
+      setTableWidth(node.clientWidth);
+    }
+  }, []);
 
   // Toggle mode handler
   const handleToggleLifecycleMode = (isDevMode) => {
@@ -638,7 +658,7 @@ export function ProjectMonitoringPage() {
             <div className="pm-chart-card pm-chart-card--velocity">
               <div className="pm-velocity-header">
                 <h3 className="pm-card-title" style={{ margin: 0 }}>
-                  <CheckCircle size={14} color="#059669" /> Delivery Velocity &amp; Completion Trends
+                  <CheckCircle size={14} color="var(--c-success)" /> Delivery Velocity &amp; Completion Trends
                 </h3>
                 <div className="pm-timeframe-controls">
                   {['Monthly', 'Quarterly', 'HalfYearly', 'Annually'].map((tf) => (
@@ -679,11 +699,11 @@ export function ProjectMonitoringPage() {
 
               <div className="pm-velocity-legend">
                 <span className="pm-velocity-legend-item">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#10b981', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--c-success)', display: 'inline-block' }} />
                   Completed
                 </span>
                 <span className="pm-velocity-legend-item">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#e2e8f0', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--border-secondary)', display: 'inline-block' }} />
                   Target
                 </span>
               </div>
@@ -692,14 +712,14 @@ export function ProjectMonitoringPage() {
             {/* Dynamic Team Overview Cards (Matches Image 1) */}
             <div className="pm-chart-card pm-chart-card--compact-org">
               <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
-                <Users size={14} color="#006838" /> Team Overview Role Counts
+                <Users size={14} color="var(--c-primary)" /> Team Overview Role Counts
               </h3>
               <div className="pm-compact-org-list">
                 {calculateTeamRoleCounts(projectsList, 'itdl').slice(0, 5).map((item) => (
                   <div key={item.name} className="pm-compact-org-row" onClick={() => setDrilldownStage({ key: 'itdl', label: item.name, count: item.count, type: 'member' })}>
                     <span className="pm-compact-org-name">{item.name}</span>
                     <div className="pm-compact-org-bar-wrap">
-                      <div className="pm-compact-org-bar-fill" style={{ width: `${Math.min((item.count / 20) * 100, 100)}%`, background: '#006838' }} />
+                      <div className="pm-compact-org-bar-fill" style={{ width: `${Math.min((item.count / 20) * 100, 100)}%`, background: 'var(--c-primary)' }} />
                     </div>
                     <div className="pm-compact-org-right">
                       <span className="pm-compact-org-count">{item.count}</span>
@@ -732,7 +752,7 @@ export function ProjectMonitoringPage() {
                         tabIndex={0}
                       >
                         <span className="pm-itdl-member-name">{member.name}</span>
-                        <span className="pm-itdl-member-count" style={{ background: '#006838', color: '#fff', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{member.count}</span>
+                        <span className="pm-itdl-member-count" style={{ background: 'var(--c-primary)', color: 'var(--surface-primary)', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{member.count}</span>
                       </div>
                     ))}
                   </div>
@@ -805,26 +825,16 @@ export function ProjectMonitoringPage() {
                   onToggle={handleToggleLifecycleMode}
                 />
 
-                <button
-                  type="button"
-                  className="pm-reset-btn"
+                <ResetButton
                   title="Reset Filters"
-                  onClick={(e) => {
-                    const icon = e.currentTarget.querySelector('.pm-reset-icon');
-                    if (icon) {
-                      icon.classList.add('spin-animation');
-                      setTimeout(() => icon.classList.remove('spin-animation'), 500);
-                    }
+                  onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('');
                     setStartDate(null);
                     setEndDate(null);
                     setSelectedCategory('all');
                   }}
-                >
-                  <RotateCcw className="pm-reset-icon" size={15} />
-                  <span>Reset</span>
-                </button>
+                />
 
                 <div className="pm-toolbar-divider" />
 
@@ -840,7 +850,11 @@ export function ProjectMonitoringPage() {
           </div>
 
           {/* Sticky Master Table Container */}
-          <div className="pm-table-container pm-table-sticky-container">
+          <div
+            ref={tableContainerRef}
+            className="pm-table-container pm-table-sticky-container"
+            style={{ '--table-visible-width': `${tableWidth}px` }}
+          >
             <table className="pm-master-table">
               <thead>
                 <tr>
@@ -865,7 +879,7 @@ export function ProjectMonitoringPage() {
                   <tr>
                     <td colSpan={4}>
                       <div className="pm-empty-state">
-                        <Search size={32} color="#cbd5e1" />
+                        <Search size={32} color="var(--border-secondary)" />
                         <p>No projects match your filters. Try adjusting your search criteria.</p>
                       </div>
                     </td>

@@ -13,7 +13,7 @@ export const BUSINESS_PHASES = [
     key: 'planning',
     label: 'Planning',
     description: 'Architecture design, capacity planning, schedule alignment & estimation.',
-    color: '#3b82f6',
+    color: 'var(--c-info)',
   },
   {
     key: 'building',
@@ -25,7 +25,7 @@ export const BUSINESS_PHASES = [
     key: 'testing',
     label: 'Testing',
     description: 'Quality assurance, SIT, UAT validation & regression testing.',
-    color: '#f59e0b',
+    color: 'var(--c-warning)',
   },
   {
     key: 'release',
@@ -37,13 +37,13 @@ export const BUSINESS_PHASES = [
     key: 'deployed',
     label: 'Deployed',
     description: 'Code deployed to live production environment.',
-    color: '#10b981',
+    color: 'var(--c-success)',
   },
   {
     key: 'completed',
     label: 'Completed',
     description: 'Handover complete, operational sign-off & project closure.',
-    color: '#059669',
+    color: 'var(--c-success)',
   },
 ];
 

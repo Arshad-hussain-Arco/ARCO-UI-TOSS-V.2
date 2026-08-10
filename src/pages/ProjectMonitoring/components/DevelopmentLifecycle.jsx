@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
 import { DEVELOPMENT_PHASES } from '../utils/developmentLifecycleMap';
 import { getStepState } from '../utils/statusMapper';
 import ProgressTooltip from './ProgressTooltip';
@@ -13,10 +12,7 @@ export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false 
       title: phase.label,
       description: phase.description,
       state,
-      position: {
-        x: rect.left + rect.width / 2 - 100,
-        y: rect.top - 60,
-      },
+      targetRect: rect,
     });
   };
 
@@ -38,7 +34,6 @@ export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false 
                 onMouseEnter={(e) => handleMouseEnter(e, phase, state)}
                 onMouseLeave={handleMouseLeave}
               >
-                {state === 'completed' && <Check size={11} className="pm-chip-check-icon" />}
                 <span className="pm-chip-text">{phase.label}</span>
               </div>
             );
@@ -50,7 +45,7 @@ export function DevelopmentLifecycle({ currentStageIdx = 0, isCompleted = false 
         title={activeTooltip?.title}
         description={activeTooltip?.description}
         state={activeTooltip?.state}
-        position={activeTooltip?.position}
+        targetRect={activeTooltip?.targetRect}
         visible={!!activeTooltip}
       />
     </div>

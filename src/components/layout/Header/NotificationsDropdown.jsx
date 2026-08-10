@@ -26,13 +26,13 @@ const TYPE_MAP = {
 };
 
 const HUES = {
-  blue:    '#3b82f6',
-  emerald: '#10b981',
-  red:     '#ef4444',
-  slate:   '#64748b',
-  amber:   '#f59e0b',
+  blue:    'var(--c-info)',
+  emerald: 'var(--c-success)',
+  red:     'var(--c-danger)',
+  slate:   'var(--text-secondary)',
+  amber:   'var(--c-warning)',
   purple:  '#8b5cf6',
-  orange:  '#f97316',
+  orange:  'var(--c-warning)',
   cyan:    '#06b6d4',
 };
 

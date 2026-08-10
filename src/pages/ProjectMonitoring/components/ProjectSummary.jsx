@@ -1,23 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ProgressTooltip from './ProgressTooltip';
 
 export function ProjectSummary({ summary }) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [targetRect, setTargetRect] = useState(null);
+  const timeoutRef = useRef(null);
 
   const handleMouseEnter = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const tooltipHeight = 70;
-    // Render above if space permits, otherwise below
-    const topPos = rect.top - tooltipHeight > 10 ? rect.top - tooltipHeight : rect.bottom + 8;
-    setTooltipPos({
-      x: Math.max(10, Math.min(rect.left, window.innerWidth - 320)),
-      y: topPos,
-    });
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setTargetRect(e.currentTarget.getBoundingClientRect());
     setShowTooltip(true);
   };
 
   const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShowTooltip(false);
+    }, 100);
+  };
+
+  const handleTooltipMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  };
+
+  const handleTooltipMouseLeave = () => {
     setShowTooltip(false);
   };
 
@@ -35,8 +40,10 @@ export function ProjectSummary({ summary }) {
       <ProgressTooltip
         title="Project Description"
         description={summary}
-        position={tooltipPos}
+        targetRect={targetRect}
         visible={showTooltip}
+        onMouseEnter={handleTooltipMouseEnter}
+        onMouseLeave={handleTooltipMouseLeave}
       />
     </div>
   );

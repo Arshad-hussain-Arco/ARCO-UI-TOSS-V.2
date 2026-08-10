@@ -1,0 +1,47 @@
+/* Shared Reusable Reset Button Style matching Consultants page Reset button */
+.global-reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 32px;
+  border: 1px solid var(--border-primary, #eaeaea);
+  border-radius: 6px;
+  background-color: var(--bg-primary, #ffffff);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #666666);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.global-reset-button:hover:not(:disabled) {
+  border-color: var(--text-secondary, #666666);
+  color: var(--text-primary, #111111);
+}
+
+.global-reset-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.global-reset-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+@keyframes spin-anim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.spin-animation {
+  animation: spin-anim 0.5s linear;
+}
