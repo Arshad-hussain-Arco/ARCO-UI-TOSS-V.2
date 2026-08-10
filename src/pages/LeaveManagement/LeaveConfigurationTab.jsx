@@ -336,7 +336,7 @@ export function LeaveConfigurationTab() {
               <div className="lc-emp-cell">
                 <div className="lc-avatar" style={{ backgroundColor: getAvatarBg(emp.id) }}>
                   {emp.photo ? (
-                    <img src={emp.photo} alt={emp.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    <img src={emp.photo} alt={emp.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', backgroundColor: '#ffffff' }} />
                   ) : (
                     getInitials(emp.name)
                   )}
@@ -474,7 +474,7 @@ export function LeaveConfigurationTab() {
                   </th>
                   <th onClick={() => handleSort('team')} className="sortable">
                     <div className="th-content">
-                      <span>Team / Manager</span>
+                      <span>Team</span>
                       <ArrowUpDown size={12} />
                     </div>
                   </th>

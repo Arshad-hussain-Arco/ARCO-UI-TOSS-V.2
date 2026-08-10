@@ -303,30 +303,32 @@ export function LeaveRequestDrawer({
                 </div>
               ))}
             </div>
-            {teamAvailability.others.slice(0, 4).map((r) => (
-              <div key={r.id} className="tr-avail-name-row">
-                <div
-                  className="tr-avatar"
-                  style={{
-                    width: 20,
-                    height: 20,
-                    fontSize: 8,
-                    background: avatarColor(r.employeeName),
-                  }}
-                >
-                  {initials(r.employeeName)}
+            <div className="tr-avail-names" style={{ marginTop: '12px' }}>
+              {teamAvailability.others.slice(0, 4).map((r) => (
+                <div key={r.id} className="tr-avail-name-row">
+                  <div
+                    className="tr-avatar"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      fontSize: 8,
+                      background: avatarColor(r.employeeName),
+                    }}
+                  >
+                    {initials(r.employeeName)}
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-primary)', flex: 1 }}>
+                    {r.employeeName}
+                  </span>
+                  <span
+                    className={`tr-type-badge ${TYPE_CONFIG[r.type]?.css}`}
+                    style={{ fontSize: 9.5, padding: '1px 5px' }}
+                  >
+                    {r.leaveType ?? TYPE_CONFIG[r.type]?.label}
+                  </span>
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--text-primary)', flex: 1 }}>
-                  {r.employeeName}
-                </span>
-                <span
-                  className={`tr-type-badge ${TYPE_CONFIG[r.type]?.css}`}
-                  style={{ fontSize: 9.5, padding: '1px 5px' }}
-                >
-                  {r.leaveType ?? TYPE_CONFIG[r.type]?.label}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
             {teamAvailability.total >= 3 && (
               <div className="tr-conflict-card" style={{ marginTop: 8 }}>
                 <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} />

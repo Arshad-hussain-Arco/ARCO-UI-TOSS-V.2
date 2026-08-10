@@ -117,6 +117,20 @@ export function AuthProvider({ children }) {
     storage.remove(STORAGE_KEYS.AUTH_TOKEN);
     storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
     storage.remove(STORAGE_KEYS.AUTH_USER);
+    
+    // Clear all temporary UI states (tabs, views) from localStorage so they reset on next login
+    const keysToKeep = [STORAGE_KEYS.THEME, STORAGE_KEYS.SIDEBAR_COLLAPSED];
+    const allKeys = Object.keys(window.localStorage);
+    
+    allKeys.forEach((key) => {
+      if (!keysToKeep.includes(key)) {
+        window.localStorage.removeItem(key);
+      }
+    });
+    
+    // Also clear sessionStorage just in case future tabs use it
+    window.sessionStorage.clear();
+
     setUser(null);
   }, []);
 
