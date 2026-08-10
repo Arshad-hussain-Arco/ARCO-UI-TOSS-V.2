@@ -429,7 +429,7 @@
 }
 
 .lc-table th:nth-child(7) {
-  background: linear-gradient(180deg, var(--c-success-light) 0%, var(--c-success-light) 100%);
+  background: linear-gradient(180deg,  #10b981 0%,   #d1fae5  100%);
   color: var(--c-success);
 }
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export function ProgressTooltip({ title, subtitle, description, state, position, visible }) {
   if (!visible) return null;
@@ -9,7 +10,7 @@ export function ProgressTooltip({ title, subtitle, description, state, position,
     future: 'var(--text-tertiary)',
   };
 
-  return (
+  return createPortal(
     <div
       className="pm-progress-tooltip"
       style={{
@@ -31,7 +32,8 @@ export function ProgressTooltip({ title, subtitle, description, state, position,
       </div>
       {subtitle && <div className="pm-tooltip-subtitle">{subtitle}</div>}
       {description && <div className="pm-tooltip-desc">{description}</div>}
-    </div>
+    </div>,
+    document.body
   );
 }
 

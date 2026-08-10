@@ -853,7 +853,7 @@
   padding: 0 14px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--surface-primary);
+  color:  #ffffff;
   background: var(--c-primary);
   border: none;
   border-radius: 6px;
@@ -902,7 +902,7 @@
   padding: 0 16px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--surface-primary);
+ color:  #ffffff;
   background: var(--c-primary);
   border: none;
   border-radius: 8px;
@@ -1046,7 +1046,7 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   white-space: nowrap;
-  color: var(--surface-primary);
+  color:  #ffffff;
 }
 
 .pm-comment-text {
@@ -2044,8 +2044,7 @@
   left: 410px;
   width: 160px;
   min-width: 160px;
-  max-width: 160px;
-  border-right: 1px solid #f6f6f6;
+  max-width: 160px; 
 }
 
 .pm-col-lifecycle {
@@ -2096,23 +2095,25 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  width: max-content;
+  width: 100%;
 }
 
 .pm-lifecycle-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  position: relative;
   height: 24px;
-  padding: 0 10px;
+  padding: 0 4px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
   transition: all 180ms ease;
   cursor: pointer;
-  flex-shrink: 0;
+  flex: 1;
   user-select: none;
+  box-sizing: border-box;
 }
 
 /* 1. Completed State (Subtle Green with Checkmark) */
@@ -2129,6 +2130,8 @@
 .pm-chip-check-icon {
   color: var(--c-success);
   flex-shrink: 0;
+  position: absolute;
+  left: 6px;
 }
 
 /* 2. Active State (Primary Theme Green Highlight) */
@@ -2344,6 +2347,7 @@
 .pm-tooltip-desc {
   color: var(--border-secondary);
   font-size: 11px;
+  text-align: justify;
 }
 
 /* ── Toolbar Field Uniformity ────────────────────────────────────────────── */
@@ -2574,7 +2578,7 @@
 .pm-modal-title {
   font-size: 15px;
   font-weight: 700;
-  color: #252525;
+  color: var(--text-primary);
   margin: 0;
 }
 
