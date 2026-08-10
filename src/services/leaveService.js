@@ -53,6 +53,18 @@ export const leaveService = {
       throw error;
     }
   },
+  // The employee's own pending/approved/rejected requests to modify an
+  // already-APPROVED leave — shown alongside getMyLeaves() in the Leaves
+  // tab so a pending edit awaiting manager re-approval is visible.
+  getMyModRequests: async (empId, params = {}) => {
+    try {
+      const response = await httpClient.get(endpoints.me.modRequests(empId), { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching modification requests:', error);
+      throw error;
+    }
+  },
   getTeamLeaves: async (managerId) => {
     try {
       const response = await httpClient.get(endpoints.me.teamLeaves(managerId));

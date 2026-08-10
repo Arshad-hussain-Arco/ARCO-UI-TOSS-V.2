@@ -59,6 +59,7 @@ const endpoints = {
     balance: (id) => `/leaves/me/${id}/balance/`,
     eligibleLeaveTypes: (id) => `/leaves/me/${id}/eligible-leave-types/`,
     leaves: (id) => `/leaves/me/${id}/leaves/`,
+    modRequests: (id) => `/leaves/me/${id}/mod-requests/`,
     employeeLeaveByYear: (id) => `/leaves/employee-leave-by-year/${id}/`,
     teamLeaves: (id) => `/leaves/me/my-team-leaves/${id}/`,
     calendar: (id) => `/leaves/me/${id}/calendar/`,
