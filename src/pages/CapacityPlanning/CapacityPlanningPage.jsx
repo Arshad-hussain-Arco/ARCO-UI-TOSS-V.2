@@ -21,6 +21,7 @@ import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
+import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
@@ -63,9 +64,8 @@ export function CapacityPlanningPage() {
   const [activeTeamTab, setActiveTeamTab] = useState('');
   const [collapsedTeams, setCollapsedTeams] = useState(new Set());
   const [weekendIndices, setWeekendIndices] = useState([5, 6]); // Default to Friday/Saturday
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [teamViewSubMode, setTeamViewSubMode] = useState('utilization');
-  const exportRef = useRef(null);
+
 
   // Drill-down Modal State
   const [selectedDrillConsultant, setSelectedDrillConsultant] = useState(null);
@@ -86,16 +86,6 @@ export function CapacityPlanningPage() {
     loadWeekendConfig();
   }, []);
 
-  // Handle clicking outside the export dropdown
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (exportRef.current && !exportRef.current.contains(e.target)) {
-        setShowExportDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
 
   // Fetch capacity data
   const fetchPlan = useCallback(() => capacityService.getCapacityPlanning({ timeRange: 90 }), []);
@@ -500,43 +490,12 @@ export function CapacityPlanningPage() {
               </div>
             )}
 
-            <div className="export-button-wrapper" ref={exportRef}>
-              <button
-                type="button"
-                className="export-button"
-                onClick={() => setShowExportDropdown(!showExportDropdown)}
-              >
-                <Download className="export-button-icon" />
-                <span className="export-button-label">Export</span>
-                <ChevronDown className="export-button-chevron" />
-              </button>
-              {showExportDropdown && (
-                <div className="export-dropdown">
-                  <button
-                    type="button"
-                    className="export-dropdown-item"
-                    onClick={() => {
-                      handleExportExcel();
-                      setShowExportDropdown(false);
-                    }}
-                  >
-                    <FileSpreadsheet className="export-dropdown-icon" />
-                    <span className="export-dropdown-label">Excel</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="export-dropdown-item"
-                    onClick={() => {
-                      handleExportPDF();
-                      setShowExportDropdown(false);
-                    }}
-                  >
-                    <FileText className="export-dropdown-icon" />
-                    <span className="export-dropdown-label">PDF</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <ExportButton
+              excel
+              pdf
+              onExcelExport={handleExportExcel}
+              onPdfExport={handleExportPDF}
+            />
           </div>
         </div>
 

@@ -129,62 +129,7 @@
   color: var(--text-primary);
 }
 
-.tr-export-wrap {
-  position: relative;
-}
 
-.tr-export-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 6px;
-  background: var(--c-primary);
-  font-family: var(--font-family);
-  font-size: 12px;
-  color: #ffffff;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.tr-export-btn:hover   {
-  filter: brightness(0.92);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.tr-export-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 7px;
-  box-shadow: var(--shadow-md);
-  z-index: 200;
-  min-width: 160px;
-  overflow: hidden;
-}
-
-.tr-export-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  font-family: var(--font-family);
-  font-size: 12px;
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
-
-.tr-export-item:hover {
-  background: var(--bg-hover);
-}
 
 /* ─── KPI Strip ───────────────────────────────────────────────────── */
 

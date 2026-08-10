@@ -1,0 +1,122 @@
+.common-export-wrapper {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.common-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  height: 32px;
+  padding: 0 8px;
+  background-color: var(--c-primary);
+  border: 1px solid var(--c-primary);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-inverse);
+  box-sizing: border-box;
+}
+
+.common-export-button:hover:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.common-export-button:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+.common-export-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.common-export-icon-download {
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.common-export-label {
+  font-family: var(--font-family, Helvetica, Arial, sans-serif);
+  font-size: 13px;
+  color: inherit;
+  flex-grow: 1;
+  text-align: left;
+}
+
+.common-export-icon-chevron {
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.common-export-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background-color: var(--surface-elevated, #ffffff);
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
+  overflow: hidden;
+  z-index: 1000;
+  min-width: 140px;
+  box-sizing: border-box;
+  animation: commonDropdownEnter 0.15s ease-out;
+}
+
+@keyframes commonDropdownEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.common-export-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  width: 100%;
+  background-color: var(--surface-primary, #ffffff);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.common-export-dropdown-item:hover {
+  background-color: var(--bg-hover, #f9fafb);
+}
+
+.common-export-dropdown-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-tertiary, #f3f4f6);
+}
+
+.common-export-dropdown-icon {
+  flex-shrink: 0;
+}
+
+.common-export-dropdown-icon.excel {
+  color: var(--c-success, #10b981);
+}
+
+.common-export-dropdown-icon.pdf {
+  color: var(--c-danger, #dc2626);
+}
+
+.common-export-dropdown-label {
+  font-family: var(--font-family, Helvetica, Arial, sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #111827);
+}
