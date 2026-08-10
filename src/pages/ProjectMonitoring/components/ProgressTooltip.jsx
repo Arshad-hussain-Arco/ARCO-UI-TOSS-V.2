@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 export function ProgressTooltip({
@@ -109,8 +109,6 @@ export function ProgressTooltip({
     </div>,
     document.body
   );
-
-  return ReactDOM.createPortal(tooltipContent, document.body);
 }
 
 export default ProgressTooltip;
