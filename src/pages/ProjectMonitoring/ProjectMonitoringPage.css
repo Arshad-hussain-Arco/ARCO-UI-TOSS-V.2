@@ -56,7 +56,7 @@
   transition: all 0.15s ease;
 }
 
-.pm-tab-btn:hover  {
+.pm-tab-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -105,7 +105,7 @@
 .pm-chip.active {
   background: var(--c-primary);
   border-color: var(--c-primary);
-  color:  #ffffff;
+  color: #ffffff;
 }
 
 .pm-chip-badge {
@@ -147,7 +147,7 @@
   transition: all 0.15s ease;
 }
 
-.pm-refresh-text-btn:hover  {
+.pm-refresh-text-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -840,7 +840,7 @@
   box-sizing: border-box;
 }
 
-.pm-icon-btn:hover  {
+.pm-icon-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -853,7 +853,7 @@
   padding: 0 14px;
   font-size: 12px;
   font-weight: 700;
-  color:  #ffffff;
+  color: #ffffff;
   background: var(--c-primary);
   border: none;
   border-radius: 6px;
@@ -863,7 +863,7 @@
   box-sizing: border-box;
 }
 
-.pm-export-btn:hover  {
+.pm-export-btn:hover {
   filter: brightness(0.92);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -890,7 +890,7 @@
   flex-shrink: 0;
 }
 
-.pm-icon-btn:hover  {
+.pm-icon-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -902,7 +902,7 @@
   padding: 0 16px;
   font-size: 12px;
   font-weight: 700;
- color:  #ffffff;
+  color: #ffffff;
   background: var(--c-primary);
   border: none;
   border-radius: 8px;
@@ -911,7 +911,7 @@
   flex-shrink: 0;
 }
 
-.pm-export-btn:hover  {
+.pm-export-btn:hover {
   filter: brightness(0.92);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -1007,7 +1007,7 @@
   transition: all 0.15s ease;
 }
 
-.pm-info-btn:hover  {
+.pm-info-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -1046,7 +1046,7 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   white-space: nowrap;
-  color:  #ffffff;
+  color: #ffffff;
 }
 
 .pm-comment-text {
@@ -1472,7 +1472,7 @@
   transition: all 0.15s ease;
 }
 
-.pm-modal-close-btn:hover  {
+.pm-modal-close-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -2044,7 +2044,7 @@
   left: 410px;
   width: 160px;
   min-width: 160px;
-  max-width: 160px; 
+  max-width: 160px;
 }
 
 .pm-col-lifecycle {
@@ -2172,8 +2172,8 @@
   position: sticky;
   left: 0;
   /* Constrain to the visible table container width — never wider */
-  width: 100%;
-  max-width: 100%;
+  width: var(--table-visible-width, 100%);
+  max-width: var(--table-visible-width, 100%);
   box-sizing: border-box;
   padding: 16px 20px;
   background: var(--bg-secondary);
@@ -2308,9 +2308,21 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   max-width: 300px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
   font-size: 11px;
   line-height: 1.4;
   animation: pm-fade-in 0.15s ease-out;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 2px;
 }
 
 @keyframes pm-fade-in {
@@ -2596,7 +2608,7 @@
   transition: background 0.15s ease;
 }
 
-.pm-modal-close-btn:hover  {
+.pm-modal-close-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -2640,7 +2652,7 @@
   box-sizing: border-box;
 }
 
-.pm-reset-btn:hover  {
+.pm-reset-btn:hover {
   background: var(--bg-hover);
 }
 

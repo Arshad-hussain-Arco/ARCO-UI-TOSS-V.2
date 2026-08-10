@@ -18,13 +18,15 @@ import {
   Edit,
   Trash2,
   Loader2,
-  X
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { CiPlay1 } from "react-icons/ci";
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import { useAsync } from '@hooks/useAsync';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
@@ -760,7 +762,24 @@ export function MurexRuntimeTrendsPage() {
   );
 
   const [activeTab, setActiveTab] = useState('runtime');
-  const [timeRange, setTimeRange] = useState('7d');
+  const [timeRange, setTimeRange] = useState('30d'); // Default selected timeframe: 30d
+  const [filterScriptName, setFilterScriptName] = useState('All');
+  const [filterRuntimeChecked, setFilterRuntimeChecked] = useState(true);
+  const [filterRuntimeType, setFilterRuntimeType] = useState('Min vs Max');
+  const [filterRuntimeOperator, setFilterRuntimeOperator] = useState('>');
+  const [filterRuntimeValue, setFilterRuntimeValue] = useState('1');
+  const [filterRuntimeUnit, setFilterRuntimeUnit] = useState('Minute');
+
+  const handleResetFilters = () => {
+    setFilterScriptName('All');
+    setFilterRuntimeChecked(true);
+    setFilterRuntimeType('Min vs Max');
+    setFilterRuntimeOperator('>');
+    setFilterRuntimeValue('1');
+    setFilterRuntimeUnit('Minute');
+    setTimeRange('30d');
+  };
+
   const selectedScript = scripts.length > 0 ? scripts[0].id : '';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -1101,6 +1120,185 @@ export function MurexRuntimeTrendsPage() {
       <div className="murex-tab-content">
         {activeTab === 'runtime' ? (
           <div className="murex-runtime-tab">
+            {/* Unified Compact Filter Bar */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: 'var(--surface-primary, #ffffff)',
+              border: '1px solid var(--border-primary, #e5e7eb)',
+              borderRadius: '8px',
+              gap: '12px',
+              marginBottom: '14px',
+              flexWrap: 'nowrap',
+              overflowX: 'auto'
+            }}>
+              {/* Left Controls Group */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'nowrap' }}>
+                {/* Element 1: Script Names Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>
+                    Filter by ScriptNames:
+                  </span>
+                  <select 
+                    value={filterScriptName}
+                    onChange={(e) => setFilterScriptName(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-primary, #d1d5db)',
+                      background: 'var(--bg-primary, #ffffff)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="All">All</option>
+                    {scripts.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                  <span style={{
+                    background: '#d1fae5',
+                    color: '#065f46',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 700
+                  }}>
+                    {scripts.length}
+                  </span>
+                </div>
+
+                {/* Element 2: Runtime Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <input 
+                    type="checkbox"
+                    checked={filterRuntimeChecked}
+                    onChange={(e) => setFilterRuntimeChecked(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>
+                    Filter by Runtime:
+                  </span>
+                  <select
+                    value={filterRuntimeType}
+                    onChange={(e) => setFilterRuntimeType(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-primary, #d1d5db)',
+                      background: 'var(--bg-primary, #ffffff)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="Min vs Max">Min vs Max</option>
+                    <option value="Average">Average</option>
+                  </select>
+                  <select
+                    value={filterRuntimeOperator}
+                    onChange={(e) => setFilterRuntimeOperator(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-primary, #d1d5db)',
+                      background: 'var(--bg-primary, #ffffff)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    <option value=">">&gt;</option>
+                    <option value="<">&lt;</option>
+                    <option value="=">=</option>
+                  </select>
+                  <input 
+                    type="number"
+                    value={filterRuntimeValue}
+                    onChange={(e) => setFilterRuntimeValue(e.target.value)}
+                    style={{
+                      width: '45px',
+                      padding: '4px 6px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-primary, #d1d5db)',
+                      background: 'var(--bg-primary, #ffffff)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <select
+                    value={filterRuntimeUnit}
+                    onChange={(e) => setFilterRuntimeUnit(e.target.value)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-primary, #d1d5db)',
+                      background: 'var(--bg-primary, #ffffff)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="Minute">Minute</option>
+                    <option value="Second">Second</option>
+                    <option value="Hour">Hour</option>
+                  </select>
+                </div>
+
+                {/* Element 3: Reset Button */}
+                <ResetButton
+                  onClick={handleResetFilters}
+                  style={{ height: '24px' }}
+                />
+              </div>
+
+              {/* Right Timeframe Pills */}
+              <div style={{
+                display: 'flex',
+                background: 'var(--bg-tertiary, #f3f4f6)',
+                borderRadius: '6px',
+                padding: '2px',
+                gap: '2px',
+                flexShrink: 0
+              }}>
+                {['7d', '15d', '30d'].map((range) => {
+                  const isActive = timeRange === range;
+                  return (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => setTimeRange(range)}
+                      style={{
+                        padding: '3px 10px',
+                        border: 'none',
+                        background: isActive ? 'var(--surface-primary, #ffffff)' : 'transparent',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: isActive ? '#006838' : 'var(--text-secondary, #4b5563)',
+                        cursor: 'pointer',
+                        boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                        transition: 'all 0.12s ease'
+                      }}
+                    >
+                      {range}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Per-Job Unified Cards */}
             <div className="murex-job-cards-list">
               {(scripts.length > 5 ? scripts.slice(0, 3) : scripts).map((script) => (
