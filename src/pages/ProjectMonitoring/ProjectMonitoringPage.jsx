@@ -21,6 +21,7 @@ import {
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import projectService from '@services/projectService';
 import './ProjectMonitoringPage.css';
 
@@ -369,6 +370,25 @@ export function ProjectMonitoringPage() {
 
   const [projectsList, setProjectsList] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  const [tableWidth, setTableWidth] = useState(0);
+  const resizeObserverRef = useRef(null);
+
+  const tableContainerRef = useCallback((node) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver(() => {
+        setTableWidth(node.clientWidth);
+      });
+      observer.observe(node);
+      resizeObserverRef.current = observer;
+      setTableWidth(node.clientWidth);
+    }
+  }, []);
 
   // Toggle mode handler
   const handleToggleLifecycleMode = (isDevMode) => {
@@ -805,26 +825,16 @@ export function ProjectMonitoringPage() {
                   onToggle={handleToggleLifecycleMode}
                 />
 
-                <button
-                  type="button"
-                  className="pm-reset-btn"
+                <ResetButton
                   title="Reset Filters"
-                  onClick={(e) => {
-                    const icon = e.currentTarget.querySelector('.pm-reset-icon');
-                    if (icon) {
-                      icon.classList.add('spin-animation');
-                      setTimeout(() => icon.classList.remove('spin-animation'), 500);
-                    }
+                  onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('');
                     setStartDate(null);
                     setEndDate(null);
                     setSelectedCategory('all');
                   }}
-                >
-                  <RotateCcw className="pm-reset-icon" size={15} />
-                  <span>Reset</span>
-                </button>
+                />
 
                 <div className="pm-toolbar-divider" />
 
@@ -840,7 +850,11 @@ export function ProjectMonitoringPage() {
           </div>
 
           {/* Sticky Master Table Container */}
-          <div className="pm-table-container pm-table-sticky-container">
+          <div
+            ref={tableContainerRef}
+            className="pm-table-container pm-table-sticky-container"
+            style={{ '--table-visible-width': `${tableWidth}px` }}
+          >
             <table className="pm-master-table">
               <thead>
                 <tr>

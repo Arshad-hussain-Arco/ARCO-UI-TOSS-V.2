@@ -1161,6 +1161,7 @@
   gap: 8px;
   padding: 8px 12px;
   background: #f8fafc;
+  z-index: 1111111111;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
 }
@@ -2176,8 +2177,8 @@
   position: sticky;
   left: 0;
   /* Constrain to the visible table container width — never wider */
-  width: 100%;
-  max-width: 100%;
+  width: var(--table-visible-width, 100%);
+  max-width: var(--table-visible-width, 100%);
   box-sizing: border-box;
   padding: 16px 20px;
   background: #f8fafc;
@@ -2312,9 +2313,21 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
   pointer-events: none;
   max-width: 300px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
   font-size: 11px;
   line-height: 1.4;
   animation: pm-fade-in 0.15s ease-out;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 2px;
 }
 
 @keyframes pm-fade-in {
