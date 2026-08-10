@@ -874,11 +874,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
           </p>
         </div>
         <div className="rwiz-step-header-actions">
-          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
-            <FileText size={14} />
-            <span>User Guide</span>
-            <ExternalLink size={14} />
-          </Link>
+
           <button type="button" className="rwiz-btn rwiz-btn-primary" onClick={onReset}>
             <RotateCcw size={13} />
             Start New Reconciliation

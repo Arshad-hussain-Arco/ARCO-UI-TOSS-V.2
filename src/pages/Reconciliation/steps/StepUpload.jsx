@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import { Upload, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, X, AlertCircle, CheckCircle, FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 
 import { useToast } from '@hooks/useToast';
@@ -192,9 +194,18 @@ export function StepUpload({ files, processingFiles, onProcessingChange, onFiles
   return (
     <>
       <div className="rwiz-step-header">
-        <div className="rwiz-step-header-left">
-          <h2 className="rwiz-step-title">Step 1: Upload Files</h2>
-          <p className="rwiz-step-subtitle">Upload, preprocess, and reconcile two data files.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="rwiz-step-header-left">
+            <h2 className="rwiz-step-title">Step 1: Upload Files</h2>
+            <p className="rwiz-step-subtitle">Upload, preprocess, and reconcile two data files.</p>
+          </div>
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
+        </div>
+        <div className="rwiz-step-header-actions">
         </div>
       </div>
 
