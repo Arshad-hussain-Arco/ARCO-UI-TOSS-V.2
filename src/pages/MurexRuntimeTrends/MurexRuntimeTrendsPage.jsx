@@ -35,6 +35,21 @@ import { parseISO, getISOWeek, getDay } from 'date-fns';
 import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
 
+function useChartThemeColor() {
+  const [themeColor, setThemeColor] = useState('#000000');
+  useEffect(() => {
+    const updateTheme = () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      setThemeColor(isDark ? '#ffffff' : '#000000');
+    };
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return themeColor;
+}
+
 /* ─── Plotly Chart Wrapper Component (CDN Auto-Loader) ────────── */
 function PlotlyChart({ data, layout, config, onClick, style }) {
   const containerRef = useRef(null);
@@ -100,7 +115,7 @@ function PlotlyChart({ data, layout, config, onClick, style }) {
 }
 
 /* ─── Stacked Bar Chart Spec for Job Cards ─────────────────────── */
-function buildJobStackedBarSpec(script) {
+function buildJobStackedBarSpec(script, themeColor = '#000000') {
   const trendData = script.trendData || [];
   const history = script.history || [];
   const avgMin = script.minRuntime || 0;
@@ -188,7 +203,7 @@ function buildJobStackedBarSpec(script) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: 'var(--text-secondary)', size: 10, family: 'Inter, system-ui, sans-serif' },
+      font: { color: themeColor, size: 10, family: 'Inter, system-ui, sans-serif' },
       xaxis: {
         tickfont: { size: 9 },
         showgrid: false,
@@ -196,7 +211,7 @@ function buildJobStackedBarSpec(script) {
         tickangle: -30,
       },
       yaxis: {
-        title: { text: 'Minutes', font: { size: 9, color: 'var(--text-tertiary)' } },
+        title: { text: 'Minutes', font: { size: 9, color: themeColor } },
         tickfont: { size: 9 },
         gridcolor: 'rgba(148,163,184,0.15)',
         zeroline: false,
@@ -240,7 +255,8 @@ function buildJobStackedBarSpec(script) {
 /* ─── JobCard Component ─────────────────────────────────────────── */
 function JobCard({ script, onOpenDetail, onTogglePin }) {
   const [isOpen, setIsOpen] = useState(true);
-  const barSpec = useMemo(() => buildJobStackedBarSpec(script), [script]);
+  const themeColor = useChartThemeColor();
+  const barSpec = useMemo(() => buildJobStackedBarSpec(script, themeColor), [script, themeColor]);
 
   const avgRuntimeFmt = script.avgRuntime || '—';
   const minRtFmt = script.minRuntime != null ? `${script.minRuntime}m` : '—';
@@ -425,7 +441,7 @@ function JobCard({ script, onOpenDetail, onTogglePin }) {
 }
 
 /* ─── Heatmap & Gantt Data Generators ─────────────────────────── */
-function getScriptHeatmapSpec(script) {
+function getScriptHeatmapSpec(script, themeColor = '#000000') {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   // Extract all runs and map to ISO week and day
@@ -472,7 +488,7 @@ function getScriptHeatmapSpec(script) {
             y: run.dayIndex - 0.47, // top edge (because y is reversed)
             text: dateString,
             showarrow: false,
-            font: { size: 10, color: 'var(--text-primary)' },
+            font: { size: 10, color: '#000000' },
             xanchor: 'right',
             yanchor: 'top',
           });
@@ -508,6 +524,7 @@ function getScriptHeatmapSpec(script) {
         y: days,
         text: textMatrix,
         texttemplate: '%{text}',
+        textfont: { color: '#000000' },
         type: 'heatmap',
         colorscale: [
           [0.0, '#fef08a'],
@@ -520,7 +537,7 @@ function getScriptHeatmapSpec(script) {
           titleside: 'top',
           thickness: 14,
           len: 0.9,
-          tickfont: { size: 10, color: 'var(--text-secondary)' },
+          tickfont: { size: 10, color: themeColor },
         },
         hoverongaps: false,
         hovertemplate: '<b>%{x}</b><br>Day: %{y}<br>Avg Duration: %{z}m<extra></extra>',
@@ -532,9 +549,9 @@ function getScriptHeatmapSpec(script) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: 'var(--text-primary)', size: 11, family: 'Inter, system-ui, sans-serif' },
-      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: 'var(--text-secondary)' } }, type: 'category' },
-      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: 'var(--text-secondary)' } }, autorange: 'reversed' },
+      font: { color: themeColor, size: 11, family: 'Inter, system-ui, sans-serif' },
+      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: themeColor } }, type: 'category' },
+      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: themeColor } }, autorange: 'reversed' },
       annotations: annotations,
     },
   };
@@ -589,7 +606,7 @@ function getCellExecutionDetails(script, weekLabel, dayLabel) {
   };
 }
 
-function getRunGanttSpec(run) {
+function getRunGanttSpec(run, themeColor = '#000000') {
   const steps = run.steps.map((s) => s.name);
   steps.push('Total CPU', 'Total DB');
 
@@ -649,7 +666,7 @@ function getRunGanttSpec(run) {
         marker: { color: '#5c8aea' }, // cornflower blue
         text: dbTimes.map(formatNum),
         textposition: 'inside',
-        textfont: { color: 'white' },
+        textfont: { color: themeColor },
       },
       {
         x: steps,
@@ -659,7 +676,7 @@ function getRunGanttSpec(run) {
         marker: { color: '#637081' }, // slate gray
         text: cpuTimes.map(formatNum),
         textposition: 'inside',
-        textfont: { color: 'white' },
+        textfont: { color: themeColor },
       },
       {
         x: steps,
@@ -669,7 +686,7 @@ function getRunGanttSpec(run) {
         marker: { color: '#637081' },
         text: totalCpuTimes.map(formatNum),
         textposition: 'auto',
-        textfont: { color: 'white' },
+        textfont: { color: themeColor },
       },
       {
         x: steps,
@@ -679,7 +696,7 @@ function getRunGanttSpec(run) {
         marker: { color: '#5c8aea' },
         text: totalDbTimes.map(formatNum),
         textposition: 'auto',
-        textfont: { color: 'white' },
+        textfont: { color: themeColor },
       },
     ],
     layout: {
@@ -689,7 +706,7 @@ function getRunGanttSpec(run) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: 'var(--text-primary)', size: 10 },
+      font: { color: themeColor, size: 10 },
       yaxis: { title: { text: 'Time (s)', font: { size: 10 } }, tickformat: ',' },
       xaxis: { tickangle: -45 },
       showlegend: true,
@@ -701,6 +718,7 @@ function getRunGanttSpec(run) {
 /** Murex batch runtime trends, heatmaps and per-script health. */
 export function MurexRuntimeTrendsPage() {
   useDocumentTitle('Murex Runtime Trends');
+  const themeColor = useChartThemeColor();
 
   const fetchTrends = useCallback(() => murexService.getRuntimeTrends(), []);
   const { data, isLoading, error, refetch } = useAsync(fetchTrends);
@@ -1142,7 +1160,7 @@ export function MurexRuntimeTrendsPage() {
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #4b5563)' }}>
                     Filter by ScriptNames:
                   </span>
-                  <select 
+                  <select
                     value={filterScriptName}
                     onChange={(e) => setFilterScriptName(e.target.value)}
                     style={{
@@ -1175,7 +1193,7 @@ export function MurexRuntimeTrendsPage() {
 
                 {/* Element 2: Runtime Filter */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                  <input 
+                  <input
                     type="checkbox"
                     checked={filterRuntimeChecked}
                     onChange={(e) => setFilterRuntimeChecked(e.target.checked)}
@@ -1220,7 +1238,7 @@ export function MurexRuntimeTrendsPage() {
                     <option value="<">&lt;</option>
                     <option value="=">=</option>
                   </select>
-                  <input 
+                  <input
                     type="number"
                     value={filterRuntimeValue}
                     onChange={(e) => setFilterRuntimeValue(e.target.value)}
@@ -1286,7 +1304,7 @@ export function MurexRuntimeTrendsPage() {
                         borderRadius: '4px',
                         fontSize: '10px',
                         fontWeight: 600,
-                        color: isActive ? '#006838' : 'var(--text-secondary, #4b5563)',
+                        color: isActive ? ' var(--c-primary)' : 'var(--text-secondary, #4b5563)',
                         cursor: 'pointer',
                         boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
                         transition: 'all 0.12s ease'
@@ -1340,9 +1358,9 @@ export function MurexRuntimeTrendsPage() {
                 </button>
 
                 {remoteCategories.map((category) => (
-                  <div 
-                    key={category.id} 
-                    className="murex-category-item-wrapper" 
+                  <div
+                    key={category.id}
+                    className="murex-category-item-wrapper"
                     style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}
                     onDragOver={(e) => {
                       if (category.id !== null) e.preventDefault();
@@ -1388,10 +1406,10 @@ export function MurexRuntimeTrendsPage() {
                 ))}
               </div>
 
-              <button 
-                className="murex-add-category-btn" 
+              <button
+                className="murex-add-category-btn"
                 onClick={handleAddCategory}
-                style={{ backgroundColor: '#105e35', color: 'var(--surface-primary)', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+                style={{ backgroundColor: 'var(--c-primary)', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
               >
                 <Plus size={14} />
                 <span>Add Category</span>
@@ -1409,12 +1427,12 @@ export function MurexRuntimeTrendsPage() {
                     className="murex-search-input"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                   style={{ paddingRight: '32px' }} />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+                    style={{ paddingRight: '32px' }} />
+                  {searchQuery && (
+                    <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1433,7 +1451,7 @@ export function MurexRuntimeTrendsPage() {
                   <tbody className="murex-script-tbody">
                     {filteredScripts.map((script) => {
                       const isExpanded = expandedScriptIds.has(script.id);
-                      const spec = getScriptHeatmapSpec(script);
+                      const spec = getScriptHeatmapSpec(script, themeColor);
                       return (
                         <Fragment key={script.id}>
                           <tr
@@ -1444,14 +1462,14 @@ export function MurexRuntimeTrendsPage() {
                           >
                             <td className="murex-script-td">
                               <div className="murex-script-name-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CiPlay1 
-                                  size={16} 
-                                  style={{ 
-                                    color: 'var(--primary-color)', 
+                                <CiPlay1
+                                  size={16}
+                                  style={{
+                                    color: 'var(--primary-color)',
                                     cursor: 'pointer',
                                     transition: 'transform 0.3s ease',
                                     transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                                  }} 
+                                  }}
                                   onClick={(e) => { e.stopPropagation(); toggleExpandScript(script.id, e); }}
                                 />
                                 {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
@@ -1588,7 +1606,7 @@ export function MurexRuntimeTrendsPage() {
                 <h4 className="murex-modal-runs-title">All Run Durations</h4>
                 {selectedCellDetails.runs.map((run) => {
                   const isGanttOpen = expandedRunGanttIds.has(run.id);
-                  const ganttSpec = getRunGanttSpec(run);
+                  const ganttSpec = getRunGanttSpec(run, themeColor);
                   const totalDb = run.steps.reduce((a, b) => a + b.dbTime, 0);
                   const totalCpu = run.steps.reduce((a, b) => a + b.cpuTime, 0);
 
@@ -1647,10 +1665,10 @@ export function MurexRuntimeTrendsPage() {
         size={editingCategory ? 'lg' : 'md'}
         footer={
           <>
-            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={() => setShowCategoryModal(false)} disabled={isSavingCategory}>
+            <button className="murex-btn murex-btn-cancel" onClick={() => setShowCategoryModal(false)} disabled={isSavingCategory}>
               Cancel
             </button>
-            <button className="con-drawer-btn con-drawer-btn-primary" onClick={handleSaveCategory} disabled={isSavingCategory}>
+            <button className="murex-btn murex-btn-primary" onClick={handleSaveCategory} disabled={isSavingCategory}>
               {isSavingCategory ? (
                 <>
                   <Loader2 size={16} className="spin-animation" />
@@ -1668,17 +1686,18 @@ export function MurexRuntimeTrendsPage() {
             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Category Name *</label>
             <input
               type="text"
+              className="murex-form-input"
               value={categoryFormName}
               onChange={e => setCategoryFormName(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
             />
           </div>
           <div className="murex-form-group">
             <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Description</label>
             <textarea
+              className="murex-form-input"
               value={categoryFormDescription}
               onChange={e => setCategoryFormDescription(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
+              style={{ resize: 'vertical', minHeight: '80px' }}
             />
           </div>
         </div>
@@ -1695,16 +1714,16 @@ export function MurexRuntimeTrendsPage() {
                   placeholder="Search available scripts..."
                   value={availableSearch}
                   onChange={(e) => setAvailableSearch(e.target.value)}
-                  style={{ paddingRight: '32px',  width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                  style={{ paddingRight: '32px', width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
-      {availableSearch && (
-        <button type="button" className="search-clear-btn" onClick={() => setAvailableSearch('')}>
-          <X size={14} />
-        </button>
-      )}
+                {availableSearch && (
+                  <button type="button" className="search-clear-btn" onClick={() => setAvailableSearch('')}>
+                    <X size={14} />
+                  </button>
+                )}
               </div>
-              <div 
-                className="murex-script-list-scroll" 
+              <div
+                className="murex-script-list-scroll"
                 style={{ border: '1px solid var(--border-color)', borderRadius: '6px', height: '250px', overflowY: 'auto', padding: '8px' }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -1719,9 +1738,9 @@ export function MurexRuntimeTrendsPage() {
                   <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '20px' }}>No scripts found</div>
                 ) : (
                   renderedAvailableScripts.map(script => (
-                    <div 
-                      key={script.id} 
-                      draggable 
+                    <div
+                      key={script.id}
+                      draggable
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', script.script_name)}
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
                     >
@@ -1743,7 +1762,7 @@ export function MurexRuntimeTrendsPage() {
                   placeholder="Search category scripts..."
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
-                  style={{ paddingRight: '32px',  width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
+                  style={{ paddingRight: '32px', width: '100%', padding: '8px 8px 8px 30px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.85rem' }}
                 />
                 {categorySearch && (
                   <button type="button" className="search-clear-btn" onClick={() => setCategorySearch('')}>
@@ -1795,11 +1814,11 @@ export function MurexRuntimeTrendsPage() {
         size="sm"
         footer={
           <>
-            <button className="con-drawer-btn con-drawer-btn-cancel" onClick={() => setDeletingCategory(null)} disabled={isDeletingCategory}>
+            <button className="murex-btn murex-btn-cancel" onClick={() => setDeletingCategory(null)} disabled={isDeletingCategory}>
               Cancel
             </button>
             <button
-              className="con-drawer-btn con-drawer-btn-primary"
+              className="murex-btn murex-btn-primary"
               onClick={confirmDeleteCategory}
               disabled={isDeletingCategory}
               style={{ background: 'var(--c-danger)' }}
