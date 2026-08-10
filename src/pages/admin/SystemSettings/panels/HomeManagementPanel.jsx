@@ -508,7 +508,7 @@ function HomeManagementPanelComponent() {
                 <div className="hm-card-actions" style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 10 }}>
                   <button
                     type="button"
-                    className="hm-action-btn edit"
+                    className="action-icon-btn edit"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleOpenEditModal(card);
@@ -531,7 +531,7 @@ function HomeManagementPanelComponent() {
                   </button>
                   <button
                     type="button"
-                    className="hm-action-btn delete"
+                    className="action-icon-btn delete"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDeleteCard(card);

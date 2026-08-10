@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import logoExpandedUrl from '@assets/images/logo-expanded.png';
+import logoWhiteUrl from '@assets/images/logo(white).png';
 import iconCollapseUrl from '@assets/images/icon-collapse.png';
 import { APP_NAME } from '@constants/app';
 import { SIDEBAR_NAVIGATION } from '@constants/navigation';
 import { useSidebar } from '@hooks/useSidebar';
+import { useTheme } from '@hooks/useTheme';
 
 import { SidebarMenuItem } from './SidebarMenuItem';
 import { useHoverTooltip } from './useHoverTooltip';
@@ -18,6 +20,7 @@ import './Sidebar.css';
  */
 export function Sidebar() {
   const { isCollapsed, toggle, collapseOnMobile } = useSidebar();
+  const { isDarkMode } = useTheme();
   const { pathname } = useLocation();
 
   const [expandedId, setExpandedId] = useState(() => {
@@ -72,7 +75,7 @@ export function Sidebar() {
         ) : (
           <div className="sidebar-logo-container expanded" key="expanded">
             <img
-              src={logoExpandedUrl}
+              src={isDarkMode ? logoWhiteUrl : logoExpandedUrl}
               alt={APP_NAME}
               className="sidebar-logo-img sidebar-logo-expanded-img"
             />

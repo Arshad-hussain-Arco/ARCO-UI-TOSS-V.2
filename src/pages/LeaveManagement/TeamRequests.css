@@ -139,12 +139,12 @@
   gap: 5px;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--border-primary);
+  border: none;
   border-radius: 6px;
-  background: var(--surface-primary);
+  background: var(--c-primary);
   font-family: var(--font-family);
   font-size: 12px;
-  color: var(--text-primary);
+  color: #ffffff;
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -1027,7 +1027,7 @@
 
 .tr-btn-primary {
   background: var(--c-primary);
-  color: var(--surface-primary);
+  color: #ffffff;
 }
 
 .tr-btn-primary:hover   {

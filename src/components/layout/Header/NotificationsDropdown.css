@@ -384,7 +384,7 @@
 }
 
 .nd-item--ur .nd-msg {
-  color: var(--surface-secondary);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -427,7 +427,7 @@
 }
 
 .nd-item:not(.nd-item--ur) .nd-age {
-  color: var(--border-secondary);
+  color: var(--text-tertiary);
 }
 
 .nd-item:not(.nd-item--ur):hover {
@@ -451,62 +451,7 @@
   font-weight: 500;
 }
 
-/* ── Dark mode ── */
-[data-theme='dark'] .nd-panel {
-  background: var(--surface-secondary);
-  border-color: var(--text-primary);
-  box-shadow: 0 12px 40px rgba(0,0,0,.5);
-}
 
-[data-theme='dark'] .nd-hd,
-[data-theme='dark'] .nd-ft {
-  background: var(--surface-secondary);
-  border-color: var(--text-primary);
-}
-
-[data-theme='dark'] .nd-hd-title { color: var(--bg-secondary); }
-
-[data-theme='dark'] .nd-list { background: var(--text-primary); }
-
-[data-theme='dark'] .nd-item {
-  background: var(--surface-secondary);
-  border-bottom-color: var(--text-primary);
-}
-
-[data-theme='dark'] .nd-item:hover { background: #243448; }
-[data-theme='dark'] .nd-item--ur:hover { background: #1b2e22; }
-
-[data-theme='dark'] .nd-msg { color: var(--text-tertiary); }
-[data-theme='dark'] .nd-item--ur .nd-msg { color: var(--border-secondary); }
-[data-theme='dark'] .nd-item--ur .nd-type { color: var(--bg-secondary); }
-
-[data-theme='dark'] .nd-mark-btn {
-  background: var(--text-primary);
-  border-color: var(--text-secondary);
-  color: var(--border-secondary);
-}
-[data-theme='dark'] .nd-mark-btn:hover {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
-  color: var(--surface-primary);
-}
-
-[data-theme='dark'] .nd-close {
-  border-color: var(--text-secondary);
-}
-[data-theme='dark'] .nd-close:hover {
-  background: var(--text-primary);
-  color: var(--border-secondary);
-}
-
-[data-theme='dark'] .nd-tab { color: var(--text-secondary); }
-[data-theme='dark'] .nd-tab:hover { color: var(--text-tertiary); }
-[data-theme='dark'] .nd-tab--active { color: #4ade80; border-bottom-color: #4ade80; }
-
-[data-theme='dark'] .nd-tab-count { background: var(--text-primary); color: var(--text-tertiary); }
-[data-theme='dark'] .nd-empty-ring { background: var(--text-primary); border-color: var(--text-secondary); }
-[data-theme='dark'] .nd-empty-h { color: var(--bg-secondary); }
-[data-theme='dark'] .nd-ft-hint { color: var(--text-secondary); }
 
 /* ── Mobile ── */
 @media (max-width: 480px) {

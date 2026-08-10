@@ -150,8 +150,12 @@
 }
 
 .lms-btn-primary {
-  background: var(--c-primary-dark); /* colors.brand */
-  color: #FFFFFF; /* white text */
+  background: var(--c-primary);
+  color: #ffffff;
+}
+
+.lms-btn-primary:hover {
+  background: var(--c-primary-hover);
 }
 
 .lms-btn-secondary {

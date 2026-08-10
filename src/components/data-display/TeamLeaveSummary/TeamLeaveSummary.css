@@ -168,8 +168,8 @@
   height: 28px;
   padding: 0 10px;
   background: var(--c-primary);
-  color: var(--text-inverse);
-  border: 1px solid var(--c-primary);
+  color: #ffffff;
+  border: none;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
