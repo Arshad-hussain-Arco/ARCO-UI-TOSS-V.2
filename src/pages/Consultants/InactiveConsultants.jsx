@@ -14,6 +14,7 @@ import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
+import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
 export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, designationsData, teamsData }) {
   const fetchInactive = useCallback(async () => {
@@ -181,22 +182,13 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
                 </div>
               )}
             </div>
-            <button
-              className="consultants-reset-button"
-              onClick={(e) => {
-                const icon = e.currentTarget.querySelector('.consultants-reset-icon');
-                if (icon) {
-                  icon.classList.add('spin-animation');
-                  setTimeout(() => icon.classList.remove('spin-animation'), 500);
-                }
+            <ResetButton
+              onClick={() => {
                 setSearchQuery('');
                 setSelectedTeam('All Teams');
                 setSelectedDesignation('All Designations');
               }}
-            >
-              <RotateCcw className="consultants-reset-icon" size={14} />
-              <span>Reset</span>
-            </button>
+            />
           </div>
         </div>
       </div>

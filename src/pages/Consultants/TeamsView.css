@@ -506,10 +506,10 @@
   background-color: var(--bg-secondary);
 }
 .tv-icon-btn.edit:hover {
-  color: #3b82f6;
-  border-color: #3b82f6;
+  color: var(--c-info);
+  border-color: var(--c-info);
 }
 .tv-icon-btn.delete:hover {
-  color: #ef4444;
-  border-color: #ef4444;
+  color: var(--c-danger);
+  border-color: var(--c-danger);
 }

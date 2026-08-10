@@ -22,16 +22,16 @@
 }
 
 .page-content::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: var(--bg-secondary);
 }
 
 .page-content::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: var(--border-secondary);
   border-radius: 3px;
 }
 
 .page-content::-webkit-scrollbar-thumb:hover {
-  background: #1B4D3E;
+  background: var(--c-primary-dark);
 }
 
 @media (max-width: 768px) {

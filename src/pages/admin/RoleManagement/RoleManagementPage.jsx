@@ -399,12 +399,12 @@ export function RoleManagementPage() {
               placeholder="Search roles by name or description…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-             style={{ paddingRight: '32px' }} />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+              style={{ paddingRight: '32px' }} />
+            {searchQuery && (
+              <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="rm-header-top">
 
@@ -502,8 +502,8 @@ export function RoleManagementPage() {
                                     })}
                                   >
                                     <Edit2 size={13} />
-                                    <span>Configure</span>
-                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                    {/* <span>Configure</span> */}
+                                    {/* {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} */}
                                   </button>
 
                                   <button
@@ -515,7 +515,7 @@ export function RoleManagementPage() {
                                     })}
                                   >
                                     <Trash2 size={13} />
-                                    <span>Delete</span>
+                                    {/* <span>Delete</span> */}
                                   </button>
                                 </div>
                               </td>
@@ -651,7 +651,7 @@ export function RoleManagementPage() {
               </button>
             </div>
             <div className="rm-modal-body-content" style={{ padding: '20px' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+              <p style={{ margin: 0, fontSize: '14px', }}>
                 Are you sure you want to delete the role <strong>{roleToDelete.name}</strong>? This action cannot be undone.
               </p>
             </div>
@@ -666,7 +666,7 @@ export function RoleManagementPage() {
               <button
                 type="button"
                 className="rm-btn-primary"
-                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
                 {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
               >
                 Delete
@@ -699,7 +699,7 @@ export function RoleManagementPage() {
               </button>
             </div>
             <div className="rm-modal-body-content" style={{ padding: '20px' }}>
-              <p style={{ margin: 0, fontSize: '14px', color: '#4b5563' }}>
+              <p style={{ margin: 0, fontSize: '14px', }}>
                 You have unsaved changes. Are you sure you want to discard them?
               </p>
             </div>
@@ -714,7 +714,7 @@ export function RoleManagementPage() {
               <button
                 type="button"
                 className="rm-btn-primary"
-                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
                 {...activatable(confirmCancel, { label: 'Discard Changes' })}
               >
                 Discard Changes

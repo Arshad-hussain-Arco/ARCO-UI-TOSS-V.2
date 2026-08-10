@@ -121,7 +121,7 @@
 
 .lc-table td {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-tertiary, #f3f4f6);
+  border-bottom: 1px solid var(--border-tertiary);
   color: var(--text-primary);
   vertical-align: middle;
   white-space: nowrap;
@@ -168,7 +168,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  color: #ffffff;
+  color: var(--surface-primary);
   font-weight: 700;
   font-size: 11px;
   flex-shrink: 0;
@@ -288,31 +288,28 @@
   color: var(--text-secondary);
 }
 
-.lc-act-btn.edit:hover {
-  background: var(--c-primary-light);
-  color: var(--c-primary);
-  border-color: var(--c-primary);
+.lc-act-btn.edit:hover   {
+  background: var(--bg-hover);
 }
 
 .lc-act-btn.save {
   background: var(--c-primary);
-  color: #ffffff;
+  color: var(--surface-primary);
   border-color: var(--c-primary);
 }
 
-.lc-act-btn.save:hover {
-  filter: brightness(0.95);
+.lc-act-btn.save:hover   {
+  background: var(--bg-hover);
 }
 
 .lc-act-btn.cancel {
   background: var(--surface-primary);
-  color: #ef4444;
+  color: var(--c-danger);
   border-color: var(--border-primary);
 }
 
-.lc-act-btn.cancel:hover {
-  background: #fef2f2;
-  border-color: #fca5a5;
+.lc-act-btn.cancel:hover   {
+  background: var(--bg-hover);
 }
 
 .lc-empty-td {
@@ -354,8 +351,8 @@
   left: calc(var(--depth, 1) * 28px - 14px);
   top: -24px;
   bottom: 50%;
-  border-left: 1px solid #cbd5e1;
-  border-bottom: 1px solid #cbd5e1;
+  border-left: 1px solid var(--border-secondary);
+  border-bottom: 1px solid var(--border-secondary);
   width: 14px;
   pointer-events: none;
 }
@@ -370,14 +367,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--text-tertiary);
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
-.lc-expand-btn:hover {
-  background: #e2e8f0;
-  color: #334155;
+.lc-expand-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .lc-expand-placeholder {
@@ -413,7 +409,7 @@
 .lc-edit-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -423,8 +419,8 @@
   justify-content: center;
 }
 
-.lc-edit-btn:hover {
-  color: #334155;
+.lc-edit-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .lc-action-btns {

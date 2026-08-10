@@ -79,7 +79,7 @@ export function OverviewSection() {
             </div>
             <span className="eod-live-banner-pct">{runningEnv.progress}%</span>
           </div>
-          <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '11px', color: '#64748b' }}>
+          <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
             <span>Current: <strong style={{ color: '#000000', fontFamily: 'monospace' }}>{runningEnv.runningJobName || runningEnv.currentStep || '—'}</strong></span>
             {runningEnv.nextJobName && (
               <span>Next: <strong style={{ color: '#6366f1', fontFamily: 'monospace' }}>{runningEnv.nextJobName}</strong></span>

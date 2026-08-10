@@ -45,7 +45,7 @@ function BreadcrumbComponent({ items = [], ariaLabel = 'Breadcrumb', rightElemen
                         border: 'none',
                         cursor: 'pointer',
                         padding: '2px',
-                        color: '#64748b',
+                        color: 'var(--text-secondary)',
                         display: 'inline-flex',
                         alignItems: 'center',
                         borderRadius: '3px',

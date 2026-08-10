@@ -328,7 +328,7 @@ function HomeManagementPanelComponent() {
 
           {isUploading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
-              <Loader2 size={28} className="animate-spin" style={{ color: '#006838' }} />
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--c-primary)' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                 Uploading image...
               </span>
@@ -340,7 +340,7 @@ function HomeManagementPanelComponent() {
                 alt="Thumbnail preview"
                 style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
               />
-              <span style={{ fontSize: '12px', color: '#006838', fontWeight: 600 }}>
+              <span style={{ fontSize: '12px', color: 'var(--c-primary)', fontWeight: 600 }}>
                 Click or drag to change image {file ? `(${file.name})` : ''}
               </span>
             </div>
@@ -348,7 +348,7 @@ function HomeManagementPanelComponent() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Drag & drop image here, or <span style={{ color: '#006838' }}>browse</span>
+                Drag & drop image here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                 {helperText}
@@ -375,14 +375,14 @@ function HomeManagementPanelComponent() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '12px',
-              border: currentWidth === '50%' ? '2px solid #006838' : '1px solid var(--border-primary)',
+              border: currentWidth === '50%' ? '2px solid var(--c-primary)' : '1px solid var(--border-primary)',
               borderRadius: '8px',
               background: currentWidth === '50%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '50%' ? '#006838' : 'var(--text-primary)' }}>50% Width</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '50%' ? 'var(--c-primary)' : 'var(--text-primary)' }}>50% Width</span>
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Half row layout</span>
           </button>
           <button
@@ -395,14 +395,14 @@ function HomeManagementPanelComponent() {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '12px',
-              border: currentWidth === '100%' ? '2px solid #006838' : '1px solid var(--border-primary)',
+              border: currentWidth === '100%' ? '2px solid var(--c-primary)' : '1px solid var(--border-primary)',
               borderRadius: '8px',
               background: currentWidth === '100%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '100%' ? '#006838' : 'var(--text-primary)' }}>100% Width</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '100%' ? 'var(--c-primary)' : 'var(--text-primary)' }}>100% Width</span>
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Full row banner</span>
           </button>
         </div>
@@ -438,7 +438,7 @@ function HomeManagementPanelComponent() {
       {/* 3. Top Header Bar & Action Alignment */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <LayoutGrid size={22} style={{ color: '#006838' }} />
+          <LayoutGrid size={22} style={{ color: 'var(--c-primary)' }} />
           <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             Home Management
           </h2>
@@ -454,8 +454,8 @@ function HomeManagementPanelComponent() {
             padding: '0 20px',
             fontSize: '13px',
             fontWeight: 600,
-            color: '#ffffff',
-            background: '#006838',
+            color: 'var(--surface-primary)',
+            background: 'var(--c-primary)',
             border: 'none',
             borderRadius: '6px',
             boxShadow: '0 2px 4px rgba(0, 104, 56, 0.2)',
@@ -494,7 +494,7 @@ function HomeManagementPanelComponent() {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  background: '#ffffff',
+                  background: 'var(--surface-primary)',
                   borderRadius: '8px',
                   border: '1px solid var(--border-primary)',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
@@ -518,7 +518,7 @@ function HomeManagementPanelComponent() {
                       height: '26px',
                       borderRadius: '50%',
                       border: '1px solid var(--border-primary)',
-                      background: '#ffffff',
+                      background: 'var(--surface-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -541,11 +541,11 @@ function HomeManagementPanelComponent() {
                       height: '26px',
                       borderRadius: '50%',
                       border: '1px solid var(--border-primary)',
-                      background: '#ffffff',
+                      background: 'var(--surface-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#dc2626',
+                      color: 'var(--c-danger)',
                       cursor: 'pointer',
                     }}
                     title="Delete Card"
@@ -646,7 +646,7 @@ function HomeManagementPanelComponent() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <LayoutGrid size={20} style={{ color: '#006838' }} />
+                <LayoutGrid size={20} style={{ color: 'var(--c-primary)' }} />
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {editId ? 'Edit Home Card' : 'Add Home Card'}
                 </h3>
@@ -689,10 +689,10 @@ function HomeManagementPanelComponent() {
                   padding: '12px 16px',
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: activeTab === 'text' ? '#006838' : 'var(--text-secondary)',
+                  color: activeTab === 'text' ? 'var(--c-primary)' : 'var(--text-secondary)',
                   background: activeTab === 'text' ? 'var(--surface-primary)' : 'transparent',
                   border: 'none',
-                  borderBottom: activeTab === 'text' ? '3px solid #006838' : '3px solid transparent',
+                  borderBottom: activeTab === 'text' ? '3px solid var(--c-primary)' : '3px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   textAlign: 'center',
@@ -713,10 +713,10 @@ function HomeManagementPanelComponent() {
                   padding: '12px 16px',
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: activeTab === 'html' ? '#006838' : 'var(--text-secondary)',
+                  color: activeTab === 'html' ? 'var(--c-primary)' : 'var(--text-secondary)',
                   background: activeTab === 'html' ? 'var(--surface-primary)' : 'transparent',
                   border: 'none',
-                  borderBottom: activeTab === 'html' ? '3px solid #006838' : '3px solid transparent',
+                  borderBottom: activeTab === 'html' ? '3px solid var(--c-primary)' : '3px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                   textAlign: 'center',
@@ -762,7 +762,7 @@ function HomeManagementPanelComponent() {
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: activeSubtab === 'article' ? 600 : 500,
-                            color: activeSubtab === 'article' ? '#006838' : 'var(--text-secondary)',
+                            color: activeSubtab === 'article' ? 'var(--c-primary)' : 'var(--text-secondary)',
                             boxShadow: activeSubtab === 'article' ? 'var(--shadow-sm)' : 'none',
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
@@ -780,7 +780,7 @@ function HomeManagementPanelComponent() {
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: activeSubtab === 'content' ? 600 : 500,
-                            color: activeSubtab === 'content' ? '#006838' : 'var(--text-secondary)',
+                            color: activeSubtab === 'content' ? 'var(--c-primary)' : 'var(--text-secondary)',
                             boxShadow: activeSubtab === 'content' ? 'var(--shadow-sm)' : 'none',
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
@@ -991,7 +991,7 @@ function HomeManagementPanelComponent() {
                           </h4>
 
                           {/* Designation */}
-                          <div style={{ fontSize: '12px', fontWeight: 600, color: '#006838', marginBottom: '16px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--c-primary)', marginBottom: '16px' }}>
                             {personDesignation || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Sub Head</span>}
                           </div>
 
@@ -1144,8 +1144,8 @@ function HomeManagementPanelComponent() {
                   padding: '0 20px',
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: '#ffffff',
-                  background: isSaveDisabled ? 'var(--border-primary)' : '#006838',
+                  color: 'var(--surface-primary)',
+                  background: isSaveDisabled ? 'var(--border-primary)' : 'var(--c-primary)',
                   border: 'none',
                   borderRadius: '6px',
                   boxShadow: isSaveDisabled ? 'none' : '0 2px 4px rgba(0, 104, 56, 0.2)',
@@ -1207,8 +1207,8 @@ function HomeManagementPanelComponent() {
                 padding: '0 20px',
                 fontSize: '13px',
                 fontWeight: 600,
-                color: '#ffffff',
-                background: '#dc2626',
+                color: 'var(--surface-primary)',
+                background: 'var(--c-danger)',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
@@ -1222,7 +1222,7 @@ function HomeManagementPanelComponent() {
         }
       >
         <div style={{ textAlign: 'center', padding: '10px 0' }}>
-          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', color: '#f59e0b' }}>
+          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid var(--c-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', color: 'var(--c-warning)' }}>
             <AlertTriangle size={24} />
           </div>
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Confirm Deletion</h3>

@@ -177,7 +177,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
     if (line.includes('ERROR') || line.includes('FAILED') || line.includes('Exception')) return '#f87171';
     if (line.includes('WARN')) return '#facc15';
     if (line.includes('INFO')) return '#60a5fa';
-    return '#d1d5db';
+    return 'var(--border-secondary)';
   };
 
   const iconBtn = {
@@ -229,7 +229,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
         >
           {/* Left: title + view dropdown + job dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--surface-primary)', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
               {env.name} Logs
             </span>
 
@@ -294,7 +294,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               onClick={handleCopy}
               disabled={!currentContent}
               title="Copy to clipboard"
-              style={{ ...iconBtn, color: copied ? '#10b981' : '#ccc', opacity: currentContent ? 1 : 0.4 }}
+              style={{ ...iconBtn, color: copied ? 'var(--c-success)' : '#ccc', opacity: currentContent ? 1 : 0.4 }}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -364,7 +364,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
                 width: '100%', backgroundColor: '#0d0d0d',
                 border: `1px solid ${searchQuery && totalMatches === 0 ? '#f87171' : searchQuery ? '#6366f1' : '#333'}`,
                 borderRadius: '6px', padding: '5px 28px 5px 30px',
-                color: '#fff', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
+                color: 'var(--surface-primary)', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
               }}
             />
       {searchQuery && (
@@ -384,7 +384,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
           {/* Match count + prev / next */}
           {searchQuery && (
             <>
-              <span style={{ fontSize: '11px', color: totalMatches === 0 ? '#f87171' : '#94a3b8', minWidth: '68px', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', color: totalMatches === 0 ? '#f87171' : 'var(--text-tertiary)', minWidth: '68px', whiteSpace: 'nowrap' }}>
                 {totalMatches === 0 ? 'No results' : `${currentMatchIdx + 1} of ${totalMatches}`}
               </span>
               <button
@@ -486,8 +486,8 @@ export function LogViewerModal({ isOpen, onClose, env }) {
                         <mark
                           key={si}
                           style={{
-                            backgroundColor: isActiveLine ? '#f59e0b' : '#6366f1',
-                            color: '#fff',
+                            backgroundColor: isActiveLine ? 'var(--c-warning)' : '#6366f1',
+                            color: 'var(--surface-primary)',
                             borderRadius: '2px',
                             padding: '0 1px',
                             fontWeight: 700,

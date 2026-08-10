@@ -26,7 +26,7 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
   return (
     <div style={{ padding: '14px', borderBottom: '1px solid var(--border-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
-        <Calendar size={14} style={{ color: '#006838' }} />
+        <Calendar size={14} style={{ color: 'var(--c-primary)' }} />
         <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Upcoming Holidays
         </h2>
@@ -53,8 +53,8 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
           let badgeBg = '#eff6ff';
           let badgeColor = '#1e40af';
           if (badge?.tone === 'critical') {
-            badgeBg = '#fef2f2';
-            badgeColor = '#b91c1c';
+            badgeBg = 'var(--c-danger-light)';
+            badgeColor = 'var(--c-danger)';
           } else if (badge?.tone === 'warning') {
             badgeBg = '#fef3c7';
             badgeColor = '#92400e';
@@ -82,7 +82,7 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
                 style={{ 
                   background: '#fcfcfc', 
                   border: '1px solid var(--border-primary)',
-                  color: '#006838', 
+                  color: 'var(--c-primary)', 
                   width: '26px', 
                   height: '26px', 
                   borderRadius: '6px', 

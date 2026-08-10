@@ -92,7 +92,11 @@ button {
 }
 
 /* Form Elements Reset Override */
-button, input, select, optgroup, textarea, ::file-selector-button {
+button,
+input,
+select,
+optgroup,
+textarea,
+::file-selector-button {
   border: 1px solid var(--border-primary);
-  border-radius: 4px;
 }
