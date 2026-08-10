@@ -1,10 +1,6 @@
 import React, { useState, useMemo, useEffect, Fragment } from 'react';
 import {
   Search,
-  Download,
-  ChevronDown,
-  FileSpreadsheet,
-  FileText,
   ChevronRight,
   ArrowUpDown,
   Users,
@@ -13,6 +9,7 @@ import {
   X
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
+import { ExportButton } from '@components/ui/ExportButton';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
@@ -158,7 +155,6 @@ function TeamLeaveSummary() {
   const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
   const [summaryLeaveType, setSummaryLeaveType] = useState('all');
   const [summarySearchQuery, setSummarySearchQuery] = useState('');
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
   const [expandedEmployees, setExpandedEmployees] = useState(new Set()); // New state for tracking expanded employee rows
   const [sortField, setSortField] = useState('name');
@@ -373,34 +369,12 @@ function TeamLeaveSummary() {
             </button>
           </div>
 
-          <div className="team-summary-export-wrapper">
-            <button
-              className="team-summary-export-btn"
-              onClick={() => setShowExportDropdown((v) => !v)}
-            >
-              <Download size={13} />
-              <span>Export</span>
-              <ChevronDown size={11} />
-            </button>
-            {showExportDropdown && (
-              <div className="team-summary-export-dropdown">
-                <button
-                  className="team-summary-export-option"
-                  onClick={() => setShowExportDropdown(false)}
-                >
-                  <FileSpreadsheet size={13} />
-                  <span>Export as Excel</span>
-                </button>
-                <button
-                  className="team-summary-export-option"
-                  onClick={() => setShowExportDropdown(false)}
-                >
-                  <FileText size={13} />
-                  <span>Export as PDF</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <ExportButton
+            excel
+            pdf
+            onExcelExport={() => {}}
+            onPdfExport={() => {}}
+          />
         </div>
       </div>
 
