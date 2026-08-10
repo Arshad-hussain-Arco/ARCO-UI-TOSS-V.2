@@ -227,7 +227,12 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--text-inverse);
+}
+
+.cp-export-btn.excel {
+  background-color: var(--c-primary);
+  color: #ffffff;
+  border-color: transparent;
 }
 
 .export-button:hover {
@@ -235,35 +240,10 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.export-button-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
-
-.export-button-label {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.export-button-chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-
-.export-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  background-color: var(--surface-elevated);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  z-index: 100;
-  min-width: 140px;
+.cp-export-btn.pdf {
+  background-color: var(--c-primary);
+  color: #ffffff;
+  border-color: transparent;
 }
 
 .export-dropdown-item {

@@ -335,6 +335,25 @@ export const leaveService = {
     const response = await httpClient.put(endpoints.hr.policyDetail(id), { is_active: true });
     return response.data;
   },
+  // Overlap Adjustment Policy CRUD — configures which leave type(s) get
+  // pushed/pulled/split/rejected when another leave type is applied for
+  // (e.g. AL -> WFH, Any -> OW). Source blank = "any leave type".
+  getOverlapPolicies: async (params) => {
+    const response = await httpClient.get(endpoints.hr.overlapPolicies, { params });
+    return response.data;
+  },
+  createOverlapPolicy: async (payload) => {
+    const response = await httpClient.post(endpoints.hr.overlapPolicies, payload);
+    return response.data;
+  },
+  updateOverlapPolicy: async (id, payload) => {
+    const response = await httpClient.put(endpoints.hr.overlapPolicyDetail(id), payload);
+    return response.data;
+  },
+  deleteOverlapPolicy: async (id) => {
+    const response = await httpClient.delete(endpoints.hr.overlapPolicyDetail(id));
+    return response.data;
+  },
   getWorkScheduleOptions: async () => {
     const response = await httpClient.get(endpoints.hr.workScheduleOptions);
     return response.data;

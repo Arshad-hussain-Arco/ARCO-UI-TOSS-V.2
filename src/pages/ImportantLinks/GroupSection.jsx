@@ -31,7 +31,7 @@ function LinkItem({ link, onEdit, onDelete }) {
       <div className="il-link-item-actions">
         <button
           type="button"
-          className="il-link-action-btn il-link-action-edit"
+          className="action-icon-btn edit"
           title="Edit link"
           aria-label={`Edit ${link.label}`}
           onClick={(e) => {
@@ -44,7 +44,7 @@ function LinkItem({ link, onEdit, onDelete }) {
 
         <button
           type="button"
-          className="il-link-action-btn il-link-action-delete"
+          className="action-icon-btn delete"
           title="Delete link"
           aria-label={`Delete ${link.label}`}
           onClick={(e) => {
@@ -57,7 +57,7 @@ function LinkItem({ link, onEdit, onDelete }) {
 
         <a
           href={link.url}
-          className="il-link-action-btn il-link-action-open"
+          className="action-icon-btn"
           target="_blank"
           rel="noopener noreferrer"
           title={`Open ${link.label}`}

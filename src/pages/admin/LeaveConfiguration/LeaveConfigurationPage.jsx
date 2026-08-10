@@ -440,7 +440,7 @@ export function LeaveConfigurationPage() {
   useDocumentTitle('Leave Configurations - Admin Panel');
   const toast = useToast();
 
-  // Navigation tab state: 'holidays' | 'leave-types-policies' | 'work-schedule'
+  // Navigation tab state: 'holidays' | 'leave-types-policies' | 'overlap-policies' | 'work-schedule'
   const [activeTab, setActiveTab] = useState('holidays');
 
   const [holidays, setHolidays] = useState([]);
@@ -449,6 +449,14 @@ export function LeaveConfigurationPage() {
   const [combinedLeaveTypes, setCombinedLeaveTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Overlap Adjustment Policy rules — { id, source_leave_types, source_leave_type_codes,
+  // target_leave_types, target_leave_type_codes, is_active, notes }
+  const [overlapPolicies, setOverlapPolicies] = useState([]);
+  const [isOverlapModalOpen, setIsOverlapModalOpen] = useState(false);
+  const [editingOverlapPolicy, setEditingOverlapPolicy] = useState(null);
+  const [overlapForm, setOverlapForm] = useState({ source_leave_types: [], target_leave_types: [], is_active: true, notes: '' });
+  const [overlapFieldErrors, setOverlapFieldErrors] = useState({});
 
   // Work locations, for the "Requires Work Location" leave-type setting's dropdown
   const [workLocations, setWorkLocations] = useState([]);
@@ -583,6 +591,124 @@ export function LeaveConfigurationPage() {
       active = false;
     };
   }, []);
+
+  // Fetch Overlap Adjustment Policies — runs once on mount alongside the other tabs' data.
+  const fetchOverlapPolicies = async () => {
+    setIsLoading(true);
+    try {
+      const res = await leaveService.getOverlapPolicies();
+      setOverlapPolicies(res || []);
+    } catch (err) {
+      console.error('Failed to load overlap adjustment policies', err);
+      toast.error('Error loading overlap adjustment policies');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOverlapPolicies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function openAddOverlapModal() {
+    setEditingOverlapPolicy(null);
+    setOverlapForm({ source_leave_types: [], target_leave_types: [], is_active: true, notes: '' });
+    setOverlapFieldErrors({});
+    setIsOverlapModalOpen(true);
+  }
+
+  function openEditOverlapModal(rule) {
+    setEditingOverlapPolicy(rule);
+    setOverlapForm({
+      source_leave_types: rule.source_leave_types || [],
+      target_leave_types: rule.target_leave_types || [],
+      is_active: rule.is_active ?? true,
+      notes: rule.notes || '',
+    });
+    setOverlapFieldErrors({});
+    setIsOverlapModalOpen(true);
+  }
+
+  function toggleOverlapFormType(field, id) {
+    setOverlapFieldErrors((prev) => ({ ...prev, [field]: undefined, non_field: undefined }));
+    setOverlapForm((prev) => {
+      const current = prev[field];
+      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
+      return { ...prev, [field]: next };
+    });
+  }
+
+  function validateOverlapForm(form) {
+    const errors = {};
+    if (!form.target_leave_types || form.target_leave_types.length === 0) {
+      errors.target_leave_types = 'At least one target leave type is required.';
+    }
+    const overlapping = (form.source_leave_types || []).filter((id) => (form.target_leave_types || []).includes(id));
+    if (overlapping.length > 0) {
+      const codes = combinedLeaveTypes
+        .filter((row) => overlapping.includes(row.leave_type?.id))
+        .map((row) => row.code)
+        .join(', ');
+      errors.non_field = `A leave type cannot be both source and target on the same rule: ${codes}.`;
+    }
+    return errors;
+  }
+
+  async function handleSaveOverlapPolicy() {
+    const errors = validateOverlapForm(overlapForm);
+    setOverlapFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        source_leave_types: overlapForm.source_leave_types,
+        target_leave_types: overlapForm.target_leave_types,
+        is_active: overlapForm.is_active,
+        notes: overlapForm.notes,
+      };
+      if (editingOverlapPolicy) {
+        await leaveService.updateOverlapPolicy(editingOverlapPolicy.id, payload);
+        toast.success('Overlap adjustment policy updated');
+      } else {
+        await leaveService.createOverlapPolicy(payload);
+        toast.success('Overlap adjustment policy created');
+      }
+      setIsOverlapModalOpen(false);
+      await fetchOverlapPolicies();
+    } catch (err) {
+      console.error('Failed to save overlap adjustment policy', err);
+      const detail = err?.response?.data;
+      toast.error(typeof detail === 'string' ? detail : (detail?.non_field_errors?.[0] || 'Error saving overlap adjustment policy'));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleToggleOverlapActive(rule, value) {
+    try {
+      await leaveService.updateOverlapPolicy(rule.id, { is_active: value });
+      setOverlapPolicies((prev) => prev.map((r) => (r.id === rule.id ? { ...r, is_active: value } : r)));
+    } catch (err) {
+      console.error('Failed to toggle overlap adjustment policy', err);
+      toast.error('Error updating overlap adjustment policy');
+    }
+  }
+
+  async function handleDeleteOverlapPolicy(rule) {
+    const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
+    const targetLabel = (rule.target_leave_type_codes || []).join(', ');
+    if (!window.confirm(`Deactivate the rule "${sourceLabel} -> ${targetLabel}"?`)) return;
+    try {
+      await leaveService.deleteOverlapPolicy(rule.id);
+      toast.success('Overlap adjustment policy deactivated');
+      await fetchOverlapPolicies();
+    } catch (err) {
+      console.error('Failed to deactivate overlap adjustment policy', err);
+      toast.error('Error deactivating overlap adjustment policy');
+    }
+  }
 
   // Delete Target state for Holidays confirmation popup
   const [deleteTargetHoliday, setDeleteTargetHoliday] = useState(null);
@@ -1020,6 +1146,21 @@ export function LeaveConfigurationPage() {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'overlap-policies'}
+          className={`lc-tab-btn ${activeTab === 'overlap-policies' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('overlap-policies');
+            setSearchQuery('');
+          }}
+        >
+          <ListChecks size={16} />
+          <span>Overlap Policies</span>
+          <span className="lc-tab-count">{overlapPolicies?.length || 0}</span>
+        </button>
+
+        <button
+          type="button"
           className={`lc-tab-btn ${activeTab === 'work-schedule' ? 'active' : ''}`}
           onClick={() => { setActiveTab('work-schedule'); setSearchQuery(''); }}
         >
@@ -1040,6 +1181,7 @@ export function LeaveConfigurationPage() {
         >
           <option value="holidays">Holidays ({holidays?.length || 0})</option>
           <option value="leave-types-policies">Leave Types &amp; Policies ({combinedLeaveTypes?.length || 0})</option>
+          <option value="overlap-policies">Overlap Policies ({overlapPolicies?.length || 0})</option>
           <option value="work-schedule">weekend configurations</option>
         </select>
       </div>
@@ -1368,6 +1510,114 @@ export function LeaveConfigurationPage() {
             </div>
           </div>
         )}
+        {/* ── TAB: OVERLAP ADJUSTMENT POLICIES ── */}
+        {activeTab === 'overlap-policies' && (
+          <div className="lc-card-panel">
+            <div className="lc-card-toolbar">
+              <div className="lc-search-box">
+                <Search className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search source or target leave type codes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button type="button" className="lc-btn-primary" onClick={openAddOverlapModal}>
+                <Plus size={16} />
+                Add Overlap Policy
+              </button>
+            </div>
+
+            <div className="lc-table-responsive">
+              <table className="lc-data-table">
+                <thead>
+                  <tr>
+                    <th>Source Leave Type</th>
+                    <th>Target Leave Type</th>
+                    <th>Notes</th>
+                    <th>Active Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5}>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+                          <Loader message="Loading overlap adjustment policies..." />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : overlapPolicies.filter((r) => {
+                      const q = searchQuery.trim().toLowerCase();
+                      if (!q) return true;
+                      const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
+                      const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
+                      return sourceText.includes(q) || targetText.includes(q);
+                    }).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="lc-empty-state">
+                        No overlap adjustment policies match your search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    overlapPolicies
+                      .filter((r) => {
+                        const q = searchQuery.trim().toLowerCase();
+                        if (!q) return true;
+                        const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
+                        const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
+                        return sourceText.includes(q) || targetText.includes(q);
+                      })
+                      .map((rule) => {
+                        const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
+                        const targetLabel = (rule.target_leave_type_codes || []).join(', ');
+                        return (
+                        <tr key={rule.id}>
+                          <td>
+                            <span className="lc-code-badge">{sourceLabel}</span>
+                          </td>
+                          <td>
+                            <span className="lc-code-badge">{targetLabel}</span>
+                          </td>
+                          <td style={{ color: '#64748b' }}>{rule.notes || '—'}</td>
+                          <td>
+                            <Toggle
+                              checked={rule.is_active}
+                              onChange={(val) => handleToggleOverlapActive(rule, val)}
+                              ariaLabel={`Toggle active status for ${sourceLabel} to ${targetLabel}`}
+                            />
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn"
+                                title="Edit Overlap Policy"
+                                onClick={() => openEditOverlapModal(rule)}
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="lc-ghost-btn danger"
+                                title="Deactivate Overlap Policy"
+                                onClick={() => handleDeleteOverlapPolicy(rule)}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {/* ── TAB 3: WORK SCHEDULE ── */}
         {activeTab === 'work-schedule' && (
           <div className="lc-card-panel" style={{ flex: 'none' }}>
@@ -1510,7 +1760,7 @@ export function LeaveConfigurationPage() {
         <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Holiday Name */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Holiday Name
             </label>
             <input
@@ -1533,7 +1783,7 @@ export function LeaveConfigurationPage() {
 
           {/* Start Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Start Date
             </label>
             <DatePicker
@@ -1561,7 +1811,7 @@ export function LeaveConfigurationPage() {
 
           {/* End Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               End Date
             </label>
             <DatePicker
@@ -1582,7 +1832,7 @@ export function LeaveConfigurationPage() {
 
           {/* Computed Day & Status Row */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Day of Week (Computed)
             </label>
             <div
@@ -1613,7 +1863,7 @@ export function LeaveConfigurationPage() {
           </div>
 
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Status (Computed)
             </label>
             <div
@@ -1643,7 +1893,7 @@ export function LeaveConfigurationPage() {
 
           {/* Holiday Type */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Holiday Type
             </label>
             <CreatableSelect
@@ -1658,7 +1908,7 @@ export function LeaveConfigurationPage() {
 
           {/* Description */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
+            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Description
             </label>
             <input
@@ -2364,6 +2614,125 @@ export function LeaveConfigurationPage() {
             </div>
           </div>
         </div>
+        </div>
+      </AdminModal>
+
+      {/* ── MODAL: Add / Edit Overlap Adjustment Policy ────────────────────── */}
+      <AdminModal
+        isOpen={isOverlapModalOpen}
+        onClose={() => setIsOverlapModalOpen(false)}
+        title={editingOverlapPolicy ? 'Edit Overlap Policy' : 'Add Overlap Policy'}
+        subtitle="Configure which leave type's overlapping records get pushed, pulled, split, or rejected when another leave type is applied for."
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{ padding: '0 16px', width: 'auto' }}
+              onClick={() => setIsOverlapModalOpen(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button type="button" className="lc-btn-primary" onClick={handleSaveOverlapPolicy} disabled={isSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save Overlap Policy'}
+            </button>
+          </>
+        }
+      >
+        <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+              Source Leave Type(s)
+            </label>
+            <div className="lc-checkbox-chip-list">
+              {combinedLeaveTypes
+                .filter((row) => (row.leave_type || {}).is_active)
+                .map((row) => {
+                  const id = row.leave_type?.id;
+                  const checked = overlapForm.source_leave_types.includes(id);
+                  const disabledByTarget = overlapForm.target_leave_types.includes(id);
+                  return (
+                    <label
+                      key={`source-${row.code}`}
+                      className={`lc-checkbox-chip ${checked ? 'checked' : ''} ${disabledByTarget ? 'disabled' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabledByTarget}
+                        onChange={() => toggleOverlapFormType('source_leave_types', id)}
+                      />
+                      <span>{row.code}</span>
+                    </label>
+                  );
+                })}
+            </div>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+              Leave all unchecked ("Any leave type") to trigger this rule no matter what leave type is applied for.
+            </p>
+          </div>
+
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label ss-modal-label-required" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+              Target Leave Type(s)
+            </label>
+            <div className="lc-checkbox-chip-list">
+              {combinedLeaveTypes
+                .filter((row) => (row.leave_type || {}).is_active)
+                .map((row) => {
+                  const id = row.leave_type?.id;
+                  const checked = overlapForm.target_leave_types.includes(id);
+                  const disabledBySource = overlapForm.source_leave_types.includes(id);
+                  return (
+                    <label
+                      key={`target-${row.code}`}
+                      className={`lc-checkbox-chip ${checked ? 'checked' : ''} ${disabledBySource ? 'disabled' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={disabledBySource}
+                        onChange={() => toggleOverlapFormType('target_leave_types', id)}
+                      />
+                      <span>{row.code}</span>
+                    </label>
+                  );
+                })}
+            </div>
+            {overlapFieldErrors.target_leave_types && (
+              <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{overlapFieldErrors.target_leave_types}</p>
+            )}
+            {overlapFieldErrors.non_field && (
+              <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{overlapFieldErrors.non_field}</p>
+            )}
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+              These leave types' overlapping PENDING/APPROVED records get adjusted. A leave type can't be selected as both source and target.
+            </p>
+          </div>
+
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+              Internal Notes
+            </label>
+            <textarea
+              className="ss-input"
+              style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', minHeight: '70px' }}
+              placeholder="Optional note for HR reference"
+              value={overlapForm.notes}
+              onChange={(e) => setOverlapForm((prev) => ({ ...prev, notes: e.target.value }))}
+            />
+          </div>
+
+          <div className="ss-modal-form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Toggle
+              checked={overlapForm.is_active}
+              onChange={(val) => setOverlapForm((prev) => ({ ...prev, is_active: val }))}
+              ariaLabel="Toggle overlap policy active status"
+            />
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>Active</span>
+          </div>
         </div>
       </AdminModal>
 

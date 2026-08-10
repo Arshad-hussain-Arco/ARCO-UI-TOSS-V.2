@@ -70,17 +70,41 @@ function isNonWorkingDay(d, dayMap) {
 // _is_claim_leave_type exclusion). Unlike a skipped non-working day, this
 // is a genuine conflict — it must be unselectable at any position in a
 // range, not just at the from/to boundary.
+//
+// WFH/Offshore records are the exception: the backend's overlap-adjustment
+// policy (LeaveApplyService._handle_overlap_adjustments) auto-pushes/pulls/
+// splits/rejects an employee's own overlapping WFH/OW records whenever a
+// different leave type is applied over them (e.g. Annual Leave over an
+// existing WFH request) — so those dates must stay selectable here. Only a
+// same-category conflict (WFH-over-WFH, Offshore-over-Offshore) or an
+// Actual "Leave" record (never policy-adjusted) still hard-blocks selection.
 function getOwnRequest(d, dayMap) {
   return dayMap?.[dateStr(d)]?.own_request || null;
 }
-function isOverlapBlocked(d, dayMap) {
-  return !!getOwnRequest(d, dayMap);
+const OWN_REQUEST_CATEGORY_CODES = { WFH: 'WFH', OFFSHORE: 'OW' };
+// Does this own_request actually block selection for the leave type
+// currently being applied? Leave-vs-Leave always blocks; a WFH/OW record
+// only blocks a same-type re-application — a different type is allowed to
+// override it (backend auto-adjusts). No target type known yet blocks
+// conservatively.
+function isOverlapBlockedForOwn(own, newLeaveTypeCode) {
+  if (!own) return false;
+  if (own.category === 'LEAVE') return true;
+  const ownCode = OWN_REQUEST_CATEGORY_CODES[own.category] || own.category;
+  if (!newLeaveTypeCode) return true;
+  return ownCode === newLeaveTypeCode;
+}
+function isOverlapBlocked(d, dayMap, newLeaveTypeCode = null) {
+  return isOverlapBlockedForOwn(getOwnRequest(d, dayMap), newLeaveTypeCode);
 }
 const OWN_REQUEST_LABELS = { LEAVE: 'Leave', WFH: 'WFH', OFFSHORE: 'Offshore Work' };
-function ownRequestTooltip(own) {
+function ownRequestTooltip(own, newLeaveTypeCode = null) {
   if (!own) return '';
   const label = OWN_REQUEST_LABELS[own.category] || own.category;
   const status = own.status === 'APPROVED' ? 'Approved' : 'Pending';
+  if (!isOverlapBlockedForOwn(own, newLeaveTypeCode)) {
+    return `${status} ${label} request (#${own.leave_id}) covers this date — it will be automatically adjusted if you apply here`;
+  }
   return `Blocked — ${status} ${label} request (#${own.leave_id}) already covers this date`;
 }
 function eachDay(s, e) {
@@ -154,6 +178,10 @@ function InlineCalendar({
   // boundary selections — not used for Claims, which target non-working
   // days by design.
   restrictToWorkingDays = false,
+  // The leave type code currently being applied for (e.g. 'AL', 'WFH', 'OW')
+  // — see isOverlapBlocked: a different type can be selected over an
+  // existing own WFH/OW date since the backend auto-adjusts those.
+  newLeaveTypeCode = null,
 }) {
   const MONTHS = [
     'January',
@@ -185,9 +213,10 @@ function InlineCalendar({
     if (dateMode === 'past' && dateStr(d) === dateStr(today)) return true;
     if (eligibleDateSet && !eligibleDateSet.has(dateStr(d))) return true;
     if (restrictToWorkingDays && isNonWorkingDay(d, calendarDayMap)) return true;
-    // Rule 3 — own pending/approved Leave/WFH/OW always blocks selection,
-    // regardless of restrictToWorkingDays (which only governs Rule 1).
-    if (isOverlapBlocked(d, calendarDayMap)) return true;
+    // Rule 3 — own pending/approved same-category request always blocks
+    // selection, regardless of restrictToWorkingDays (which only governs
+    // Rule 1). Cross-type WFH/OW overlaps are allowed — see isOverlapBlocked.
+    if (isOverlapBlocked(d, calendarDayMap, newLeaveTypeCode)) return true;
     return false;
   }
   function dayClass(d) {
@@ -283,7 +312,7 @@ function InlineCalendar({
             <div
               key={i}
               className={dayClass(d)}
-              data-tooltip={ownRequestTooltip(getOwnRequest(d, calendarDayMap)) || undefined}
+              data-tooltip={ownRequestTooltip(getOwnRequest(d, calendarDayMap), newLeaveTypeCode) || undefined}
               {...activatable(
                 () => {
                   const eligible = (dateMode === 'past' ? d < today : d >= today) && !isRuleIneligible(d);
@@ -324,7 +353,7 @@ function InlineCalendar({
     </div>
   );
 }
-function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = null) {
+function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = null, newLeaveTypeCode = null) {
   if (!startDate || !lt) return [];
   const e = end ?? startDate;
   const rows = [];
@@ -346,12 +375,13 @@ function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = n
     rows.push({ key: 'balance', label: 'Insufficient leave balance', status: 'error' });
   }
   // Rule 3 — full-range check against the employee's own pending/approved
-  // Leave/WFH/OW requests (calendarDayMap own_request). Boundary gating
+  // requests (calendarDayMap own_request). Boundary gating
   // (isDateDisabled/handleDayClick) can't catch a mid-range conflict since
   // clicks only ever set a from/to boundary in this UI, so this walks
-  // every day in the selected range. Backend _check_overlap is
-  // authoritative regardless.
-  const conflictDays = isClaim ? [] : eachDay(startDate, e).filter((d) => isOverlapBlocked(d, dayMap));
+  // every day in the selected range. A different-type WFH/OW overlap is not
+  // a conflict — the backend auto-adjusts it (see isOverlapBlocked). Backend
+  // _check_overlap remains authoritative regardless.
+  const conflictDays = isClaim ? [] : eachDay(startDate, e).filter((d) => isOverlapBlocked(d, dayMap, newLeaveTypeCode));
   rows.push({
     key: 'overlap',
     label: conflictDays.length
@@ -453,7 +483,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     compoff: 'Claim Submitted',
   };
   const showLeaveType = type === 'leave';
-  const showDuration = type === 'leave' || type === 'wfh';
+  const showDuration = type === 'leave' || type === 'wfh' || type === 'offshore';
   // Offshore has its own Reason field too — distinct from the excess-quota
   // justification (only shown when the request pushes OW over its quota).
   const showReason = true;
@@ -643,8 +673,8 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
         ? [{ key: 'balance', label: 'Claim — no balance deducted', status: 'info' }]
         : [];
     }
-    return getValidations(startDate, end ?? null, effectiveLeaveType, charged, isClaimType, calendarDayMap);
-  }, [isClaimType, selectedClaimDates, startDate, end, effectiveLeaveType, charged, calendarDayMap]);
+    return getValidations(startDate, end ?? null, effectiveLeaveType, charged, isClaimType, calendarDayMap, effectiveLeaveType?.code || fixedCode);
+  }, [isClaimType, selectedClaimDates, startDate, end, effectiveLeaveType, charged, calendarDayMap, fixedCode]);
   const hasError = validations.some((v) => v.status === 'error');
   const canSubmit =
     (isClaimType ? selectedClaimDates.length > 0 : !!startDate) &&
@@ -659,7 +689,10 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     if (applyFor === 'self') setBehalfEmp(null);
   }, [applyFor]);
   useEffect(() => {
-    if (isMultiDay) setDuration('full');
+    if (isMultiDay) {
+      setDuration('full');
+      setDailyConfigs({});
+    }
   }, [isMultiDay]);
   // Real weekend/holiday markers for the calendar grid + duration/holiday/
   // weekend counts — covers the union of the visible month and the
@@ -762,7 +795,8 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     // separate "mid-range click" in this UI), so gating the click itself
     // is sufficient. Doesn't apply to Claims, which target non-working
     // days by design.
-    if (!isClaimType && (isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap))) return;
+    const newLeaveTypeCode = effectiveLeaveType?.code || fixedCode;
+    if (!isClaimType && (isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, newLeaveTypeCode))) return;
     if (!startDate || endDate) {
       setStartDate(d);
       setEndDate(null);
@@ -1212,7 +1246,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         if (d && endDate && endDate < d) setEndDate(null);
                       }}
                       minDate={today}
-                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap)}
+                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select start date"
                       width="100%"
                     />
@@ -1226,7 +1260,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                       value={endDate}
                       onChange={(d) => setEndDate(d)}
                       minDate={startDate || today}
-                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap)}
+                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select end date"
                       width="100%"
                     />
@@ -1558,6 +1592,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     dateMode="future"
                     calendarDayMap={calendarDayMap}
                     restrictToWorkingDays
+                    newLeaveTypeCode={effectiveLeaveType?.code || fixedCode}
                   />
                 </div>
               )}
@@ -1790,6 +1825,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             <button
               type="button"
               className="al-btn al-btn-primary"
+              disabled={!canSubmit}
               onClick={() => setShowConfirm(true)}
             >
               <Check className="al-btn-icon" /> {SUBMIT_LABELS[type]}

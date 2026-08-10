@@ -191,7 +191,7 @@
 
 .my-leaves-action-btn {
   padding: 5px 12px;
-  background-color: var(--c-primary);
+  background-color: var(--btn-bg, var(--c-primary));
   color: var(--text-inverse);
   border: none;
   border-radius: 6px;
@@ -205,8 +205,9 @@
   gap: 6px;
 }
 
-.my-leaves-action-btn:hover   {
-  background: var(--bg-hover);
+.my-leaves-action-btn:hover {
+  filter: brightness(0.9);
+  transform: translateY(-1px);
 }
 
 .my-leaves-action-btn:active {
@@ -219,7 +220,7 @@
 }
 
 .my-leaves-action-btn:disabled:hover {
-  background-color: var(--c-primary);
+  filter: none;
   transform: none;
   box-shadow: none;
 }
@@ -375,12 +376,12 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border: 1px solid var(--border-primary);
-  background-color: var(--surface-primary);
+  border: none;
+  background-color: var(--c-primary);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: #ffffff;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -616,9 +617,9 @@
 }
 
 .leave-filter-chip[data-active='true'] {
-  background-color: var(--c-primary);
+  background: var(--c-primary);
   border-color: var(--c-primary);
-  color: var(--text-inverse);
+  color: #ffffff;
   box-shadow: 0 2px 6px rgba(0, 102, 51, 0.25);
 }
 
@@ -649,7 +650,7 @@
 
 .leave-filter-chip[data-active='true'] .leave-filter-badge {
   background-color: rgba(255, 255, 255, 0.25);
-  color: var(--text-inverse);
+  color: #ffffff;
 }
 
 /* Export Button */
@@ -668,7 +669,7 @@
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 
 .export-button:hover   {

@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X, Database } from 'lucide-react';
+import { Download, RotateCcw, CheckCircle2, XCircle, Minus, Copy, X, Database, FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -197,23 +199,33 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
   };
 
   const handleLeftScroll = (e) => {
-    if (rightScrollRef.current && rightScrollRef.current.scrollTop !== e.target.scrollTop) {
-      rightScrollRef.current.scrollTop = e.target.scrollTop;
+    if (rightScrollRef.current) {
+      if (rightScrollRef.current.scrollTop !== e.target.scrollTop) {
+        rightScrollRef.current.scrollTop = e.target.scrollTop;
+      }
+      if (rightScrollRef.current.scrollLeft !== e.target.scrollLeft) {
+        rightScrollRef.current.scrollLeft = e.target.scrollLeft;
+      }
     }
   };
 
   const handleRightScroll = (e) => {
-    if (leftScrollRef.current && leftScrollRef.current.scrollTop !== e.target.scrollTop) {
-      leftScrollRef.current.scrollTop = e.target.scrollTop;
+    if (leftScrollRef.current) {
+      if (leftScrollRef.current.scrollTop !== e.target.scrollTop) {
+        leftScrollRef.current.scrollTop = e.target.scrollTop;
+      }
+      if (leftScrollRef.current.scrollLeft !== e.target.scrollLeft) {
+        leftScrollRef.current.scrollLeft = e.target.scrollLeft;
+      }
     }
   };
 
   return (
-    <div className="rrs-mismatch-container">
+    <div className="rrs-mismatch-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0 }}>
       {/* Two Tables Side-by-Side */}
-      <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex' }}>
+      <div className="rrs-mismatch-tables-wrapper" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Left Table: Source */}
-        <div className="rrs-mismatch-table-pane">
+        <div className="rrs-mismatch-table-pane" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
           <div
             style={{
@@ -230,7 +242,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '13px',
+                fontSize: '12px',
                 borderRight: '1px solid var(--border-primary)',
                 color: 'var(--text-primary)',
               }}
@@ -261,7 +273,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             style={{
               border: 'none',
               borderRadius: 0,
-              maxHeight: '50vh',
+              flex: 1,
               minHeight: '150px',
               overflowX: 'auto',
               overflowY: 'auto',
@@ -299,20 +311,22 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                   >
                     <td className="rrs-td rrs-td-key rrs-td-key--green">{renderValue(row._key)}</td>
                     {cols.map((c) => (
-                      <td
-                        key={`src_${c}`}
-                        className="rrs-td"
-                        style={
-                          hasDiff(row, c)
-                            ? {
-                                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                                color: 'var(--c-danger)',
-                                fontWeight: 600,
-                              }
-                            : {}
-                        }
-                      >
-                        {renderValue(row[`_src_${c}`])}
+                      <td key={`src_${c}`} className="rrs-td">
+                        {hasDiff(row, c) ? (
+                          <span
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--c-danger)',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                            }}
+                          >
+                            {renderValue(row[`_src_${c}`])}
+                          </span>
+                        ) : (
+                          renderValue(row[`_src_${c}`])
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -323,7 +337,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
         </div>
 
         {/* Right Table: Destination */}
-        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right">
+        <div className="rrs-mismatch-table-pane rrs-mismatch-table-pane--right" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           {/* FIXED TOP HEADER (Immune to horizontal scroll) */}
           <div
             style={{
@@ -347,7 +361,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
               <Database size={12} style={{ color: 'var(--text-secondary)' }} />
               {file2Name || 'DESTINATION'}
             </div>
-            <div
+            {/* <div
               style={{
                 width: '300px',
                 minWidth: '300px',
@@ -361,7 +375,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
               }}
             >
               DIFFERENCES
-            </div>
+            </div> */}
           </div>
 
           <div
@@ -371,7 +385,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             style={{
               border: 'none',
               borderRadius: 0,
-              maxHeight: '50vh',
+              flex: 1,
               minHeight: '150px',
               overflowX: 'auto',
               overflowY: 'auto',
@@ -386,7 +400,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                       {c}
                     </th>
                   ))}
-                  <th
+                  {/* <th
                     className="rrs-th rrs-th-diff-sticky"
                     style={{
                       top: 0,
@@ -396,7 +410,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                       minWidth: '300px',
                       maxWidth: '300px',
                     }}
-                  ></th>
+                  ></th> */}
                 </tr>
               </thead>
               <tbody>
@@ -408,23 +422,25 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                     onMouseLeave={() => setHoveredRow(null)}
                   >
                     {cols.map((c) => (
-                      <td
-                        key={`dst_${c}`}
-                        className="rrs-td"
-                        style={
-                          hasDiff(row, c)
-                            ? {
-                                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                                color: 'var(--c-danger)',
-                                fontWeight: 600,
-                              }
-                            : {}
-                        }
-                      >
-                        {renderValue(row[`_dst_${c}`])}
+                      <td key={`dst_${c}`} className="rrs-td">
+                        {hasDiff(row, c) ? (
+                          <span
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                              color: 'var(--c-danger)',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                            }}
+                          >
+                            {renderValue(row[`_dst_${c}`])}
+                          </span>
+                        ) : (
+                          renderValue(row[`_dst_${c}`])
+                        )}
                       </td>
                     ))}
-                    <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
+                    {/* <td className="rrs-td rrs-td-diff rrs-td-diff-sticky">
                       {Array.isArray(row._differences)
                         ? row._differences.map((d) => (
                             <div key={d.column} style={{ marginBottom: '4px' }}>
@@ -433,7 +449,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                             </div>
                           ))
                         : renderValue(row._differences)}
-                    </td>
+                    </td> */}
                   </tr>
                 ))}
               </tbody>
@@ -497,8 +513,8 @@ function DuplicateTable({ rows, mappings, isSource }) {
   const extraCols = mappings
     ? mappings.map((m) => (isSource ? m.src : m.dst)).filter(Boolean)
     : Object.keys(dataObj).filter(
-        (k) => !k.startsWith('_') && k !== 'key' && k !== 'duplicateCount',
-      );
+      (k) => !k.startsWith('_') && k !== 'key' && k !== 'duplicateCount',
+    );
 
   return (
     <div className="rrs-table-scroll">
@@ -761,9 +777,9 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         const mismatchedSheet =
           mismatchedRows.length > 0
             ? XLSX.utils.json_to_sheet(mismatchedRows, {
-                header: mismatchedHeaders,
-                skipHeader: false,
-              })
+              header: mismatchedHeaders,
+              skipHeader: false,
+            })
             : XLSX.utils.aoa_to_sheet([mismatchedHeaders]);
 
         XLSX.utils.book_append_sheet(wb, mismatchedSheet, 'Mismatched_Records');
@@ -858,6 +874,11 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
           </p>
         </div>
         <div className="rwiz-step-header-actions">
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
           <button type="button" className="rwiz-btn rwiz-btn-primary" onClick={onReset}>
             <RotateCcw size={13} />
             Start New Reconciliation

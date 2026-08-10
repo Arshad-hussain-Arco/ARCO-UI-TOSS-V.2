@@ -736,14 +736,14 @@
 
 /* Rule 3 — employee's own pending/approved Actual/Nominal requests.
    Color = type (Leave orange, WFH blue, Offshore purple); pattern =
-   status (pending striped, approved solid). Blocked from selection via
-   isRuleIneligible, so these are always shown as not-allowed. */
+   status (pending striped, approved solid). Leave records always block
+   selection, so they're always shown as not-allowed. WFH/Offshore only
+   block a same-type re-application — the backend auto-adjusts a
+   different type applied over them — so their cursor follows the
+   .al-cal-day-past class (applied only when actually ineligible), not a
+   forced override here. */
 .al-cal-day-own-leave-approved,
-.al-cal-day-own-leave-pending,
-.al-cal-day-own-wfh-approved,
-.al-cal-day-own-wfh-pending,
-.al-cal-day-own-offshore-approved,
-.al-cal-day-own-offshore-pending {
+.al-cal-day-own-leave-pending {
   cursor: not-allowed !important;
 }
 .al-cal-day-own-leave-approved {
@@ -1183,7 +1183,7 @@
 .al-btn-primary {
   background: var(--c-primary);
   border: 1px solid var(--c-primary);
-  color: var(--text-inverse);
+  color: #ffffff;
 }
 .al-btn-primary:hover:not(:disabled)   {
   filter: brightness(0.92);

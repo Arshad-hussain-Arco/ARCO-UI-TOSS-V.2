@@ -25,9 +25,11 @@ import {
   Users,
   FileEdit,
   Ban,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { TimelineCalendar } from '@components/data-display/TimelineCalendar/TimelineCalendar';
+import { SortIcon } from './LeaveManagementPage';
 import { useToast } from '@hooks/useToast';
 import { useAuth } from '@hooks/useAuth';
 import { LEAVE_REQUESTS as INITIAL_REQUESTS } from '@mocks/data/leaveRequests';
@@ -160,14 +162,18 @@ export function getRelativePendingTime(isoString) {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffDays >= 3) {
-    return requestedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } else if (diffDays > 0) {
-    return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+  if (diffDays > 0) {
+    const remainingHours = diffHours % 24;
+    return remainingHours > 0 
+      ? `${diffDays} day${diffDays !== 1 ? 's' : ''} ${remainingHours} hr${remainingHours !== 1 ? 's' : ''}`
+      : `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
   } else if (diffHours > 0) {
-    return `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+    const remainingMins = diffMins % 60;
+    return remainingMins > 0
+      ? `${diffHours} hr${diffHours !== 1 ? 's' : ''} ${remainingMins} min${remainingMins !== 1 ? 's' : ''}`
+      : `${diffHours} hr${diffHours !== 1 ? 's' : ''}`;
   } else if (diffMins > 0) {
-    return `${diffMins} min${diffMins > 1 ? 's' : ''}`;
+    return `${diffMins} min${diffMins !== 1 ? 's' : ''}`;
   } else {
     return 'Just now';
   }
@@ -337,6 +343,8 @@ export function TeamRequestsTab() {
   const [typeF, setTypeF] = useState('all');
   const [leaveTypeF, setLeaveTypeF] = useState('all');
   const [sortBy, setSortBy] = useState('requestedOn');
+  const [tableSortField, setTableSortField] = useState(null);
+  const [tableSortOrder, setTableSortOrder] = useState('asc');
   const [viewMode, setViewMode] = useState('list');
   const [showExport, setShowExport] = useState(false);
   const exportRef = useRef(null);
@@ -447,12 +455,34 @@ export function TeamRequestsTab() {
           (r.type === 'offshore' && leaveTypeF === 'Offshore Work'),
       );
     return [...list].sort((a, b) => {
+      if (tableSortField) {
+        let aVal = a[tableSortField];
+        let bVal = b[tableSortField];
+        
+        if (aVal === bVal) return 0;
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+        
+        const result = aVal > bVal ? 1 : -1;
+        return tableSortOrder === 'asc' ? result : -result;
+      }
+
       if (sortBy === 'oldestFirst') return a.requestedOn.localeCompare(b.requestedOn);
       if (sortBy === 'startDate') return a.startDate.localeCompare(b.startDate);
       if (sortBy === 'endDate') return a.endDate.localeCompare(b.endDate);
       return b.requestedOn.localeCompare(a.requestedOn);
     });
-  }, [requests, search, statusF, typeF, leaveTypeF, sortBy]);
+  }, [requests, search, statusF, typeF, leaveTypeF, sortBy, tableSortField, tableSortOrder]);
+
+  const handleTableSort = (field) => {
+    if (tableSortField === field) {
+      setTableSortOrder(tableSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTableSortField(field);
+      setTableSortOrder('asc');
+    }
+  };
+
   function openDrawer(req, action) {
     setDrawerReq(req);
     setDrawerAction(action);
@@ -739,11 +769,6 @@ export function TeamRequestsTab() {
               />
             </div>
             <div className="tr-all-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              {statusF === 'pending' && pendingDateRangeText && (
-                <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                  Pending from: {pendingDateRangeText}
-                </span>
-              )}
               <div className="tr-view-toggle">
                 <button
                   className="tr-view-btn"
@@ -820,28 +845,30 @@ export function TeamRequestsTab() {
             <div className="tr-table-wrap">
               <table className="tr-table">
                 <thead className="tr-thead">
-                  <tr>
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '20%' : '24%' }}>
-                      Consultant
+                  <tr className="tr-tr">
+                    <th className="tr-th" onClick={() => handleTableSort('employeeName')} style={{ width: statusF === 'pending' ? '20%' : '24%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>CONSULTANT <SortIcon field="employeeName" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '14%' : '15%' }}>
-                      Leave Type
+                    <th className="tr-th" onClick={() => handleTableSort('leaveType')} style={{ width: statusF === 'pending' ? '14%' : '15%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leaveType" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '20%' : '23%' }}>
-                      Dates
+                    <th className="tr-th" onClick={() => handleTableSort('startDate')} style={{ width: statusF === 'pending' ? '20%' : '23%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="startDate" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '9%' }}>
-                      Work Days
+                    <th className="tr-th" onClick={() => handleTableSort('bizDays')} style={{ width: statusF === 'pending' ? '8%' : '9%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>WORK DAYS <SortIcon field="bizDays" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '10%' : '9%' }}>
-                      Applied On
-                    </th>
-                    <th className="tr-th" style={{ width: '10%' }}>
-                      Status
+                    <th className="tr-th" onClick={() => handleTableSort('requestedOn')} style={{ width: statusF === 'pending' ? '10%' : '9%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>APPLIED ON <SortIcon field="requestedOn" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
                     {statusF === 'pending' && (
-                      <th className="tr-th" style={{ width: '10%' }}>
-                        Pending Since
+                      <th className="tr-th" onClick={() => handleTableSort('requestedAt')} style={{ width: '10%', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requestedAt" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                      </th>
+                    )}
+                    {statusF !== 'pending' && (
+                      <th className="tr-th" onClick={() => handleTableSort('status')} style={{ width: '10%', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                       </th>
                     )}
                     <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>
@@ -934,7 +961,12 @@ export function TeamRequestsTab() {
                             className="tr-td"
                             style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}
                           >
-                            {fmtShort(req.requestedOn)}
+                            {req.requestedAt ? (
+                              <span title={req.requestedAt}>
+                                {new Date(req.requestedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                , {new Date(req.requestedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                              </span>
+                            ) : '-'}
                           </td>
                           <td className="tr-td">
                             <span className={`tr-status-badge tr-status-${req.status}`}>
