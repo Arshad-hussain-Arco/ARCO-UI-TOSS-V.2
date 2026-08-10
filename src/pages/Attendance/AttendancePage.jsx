@@ -53,21 +53,21 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
  * Used for cell badges AND legends section.
  */
 const ATTENDANCE_CODE_MAP = [
-  { code: 'P',   label: 'Present',           color: '#22c55e', bg: '#f0fdf4', darkBg: '#14532d' },
-  { code: 'A',   label: 'Absent',            color: '#ef4444', bg: '#fef2f2', darkBg: '#7f1d1d' },
-  { code: 'SL',  label: 'Sick Leave',        color: '#f97316', bg: '#fff7ed', darkBg: '#7c2d12' },
-  { code: 'AL',  label: 'Annual Leave',      color: '#3b82f6', bg: '#eff6ff', darkBg: '#1e3a8a' },
+  { code: 'P',   label: 'Present',           color: 'var(--c-success)', bg: 'var(--c-success-light)', darkBg: '#14532d' },
+  { code: 'A',   label: 'Absent',            color: 'var(--c-danger)', bg: 'var(--c-danger-light)', darkBg: '#7f1d1d' },
+  { code: 'SL',  label: 'Sick Leave',        color: 'var(--c-warning)', bg: '#fff7ed', darkBg: '#7c2d12' },
+  { code: 'AL',  label: 'Annual Leave',      color: 'var(--c-info)', bg: '#eff6ff', darkBg: '#1e3a8a' },
   { code: 'CL',  label: 'Casual Leave',      color: '#8b5cf6', bg: '#f5f3ff', darkBg: '#4c1d95' },
   { code: 'WFH', label: 'Work From Home',    color: '#06b6d4', bg: '#ecfeff', darkBg: '#164e63' },
   { code: 'WW',  label: 'Weekend Work',      color: '#d97706', bg: '#fffbeb', darkBg: '#78350f' },
   { code: 'CO',  label: 'Comp Off',          color: '#7c3aed', bg: '#ede9fe', darkBg: '#4c1d95' },
   { code: 'ML',  label: 'Maternity Leave',   color: '#ec4899', bg: '#fdf2f8', darkBg: '#831843' },
   { code: 'OW',  label: 'Offshore Work',     color: '#0ea5e9', bg: '#f0f9ff', darkBg: '#075985' },
-  { code: 'LWP', label: 'Leave Without Pay', color: '#dc2626', bg: '#fef2f2', darkBg: '#7f1d1d' },
-  { code: 'OD',  label: 'On Duty',           color: '#059669', bg: '#ecfdf5', darkBg: '#064e3b' },
+  { code: 'LWP', label: 'Leave Without Pay', color: 'var(--c-danger)', bg: 'var(--c-danger-light)', darkBg: '#7f1d1d' },
+  { code: 'OD',  label: 'On Duty',           color: 'var(--c-success)', bg: '#ecfdf5', darkBg: '#064e3b' },
   { code: 'HD',  label: 'Half Day',          color: '#ca8a04', bg: '#fefce8', darkBg: '#713f12' },
   { code: 'HO',  label: 'Holiday',           color: '#9333ea', bg: '#faf5ff', darkBg: '#581c87' },
-  { code: 'WE',  label: 'Weekend',           color: '#6b7280', bg: '#f9fafb', darkBg: '#1f2937' },
+  { code: 'WE',  label: 'Weekend',           color: 'var(--text-secondary)', bg: 'var(--bg-secondary)', darkBg: 'var(--bg-primary)' },
 ];
 
 const CODE_LOOKUP = Object.fromEntries(ATTENDANCE_CODE_MAP.map(c => [c.code, c]));
@@ -154,7 +154,7 @@ function exportToCSV(rows, dates, filename = 'attendance.csv') {
 const PLAIN_TEXT_CODES = new Set(['P', 'WFH', 'WE', 'A', 'OD']);
 
 function StatusBadge({ code }) {
-  const cfg = CODE_LOOKUP[code] || { code, label: code, color: '#6b7280', bg: '#f9fafb' };
+  const cfg = CODE_LOOKUP[code] || { code, label: code, color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' };
   const isPlain = PLAIN_TEXT_CODES.has(code);
   return (
     <span
@@ -171,10 +171,8 @@ function StatusBadge({ code }) {
   );
 }
 
-function InlineLegend({ codesUsed }) {
-  const items = codesUsed.length > 0
-    ? ATTENDANCE_CODE_MAP.filter(c => codesUsed.includes(c.code))
-    : ATTENDANCE_CODE_MAP;
+function InlineLegend() {
+  const items = ATTENDANCE_CODE_MAP;
   return (
     <div className="att-inline-legend">
       {items.map(({ code, label, color }) => (
@@ -215,6 +213,20 @@ export function AttendancePage() {
 
   const [dutyData, setDutyData] = useState(null);
   const [isDutyLoading, setIsDutyLoading] = useState(false);
+
+  // ── Dynamic Tab Indicator ──
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+  const tabsRef = useRef({});
+
+  useEffect(() => {
+    const activeTabEl = tabsRef.current[subTab];
+    if (activeTabEl) {
+      setIndicatorStyle({
+        left: activeTabEl.offsetLeft,
+        width: activeTabEl.offsetWidth,
+      });
+    }
+  }, [subTab]);
 
   useEffect(() => {
     const managerId = user?.emp_id || user?.id || 1;
@@ -474,7 +486,7 @@ export function AttendancePage() {
 
   const getLeaveTypeColor = useCallback(type => {
     const map = { 'Annual Leave': '#93c5fd', 'Sick Leave': '#fca5a5', 'Comp Off': '#c4b5fd' };
-    return map[type] || '#d1d5db';
+    return map[type] || 'var(--border-secondary)';
   }, []);
 
   const getStatusBadgeClass = useCallback(status => {
@@ -524,13 +536,14 @@ export function AttendancePage() {
         {['on-duty', 'on-wfh', 'on-leave', 'report'].map(id => (
           <button
             key={id}
+            ref={el => (tabsRef.current[id] = el)}
             className={`attendance-subtab${subTab === id ? ' attendance-subtab-active' : ''}`}
             onClick={() => setSubTab(id)}
           >
             {id === 'on-duty' ? 'On Duty Today' : id === 'on-wfh' ? 'On WFH Today' : id === 'on-leave' ? 'On Leave' : 'Attendance Report'}
           </button>
         ))}
-        <div className="attendance-subtab-indicator" data-tab={subTab} />
+        <div className="attendance-subtab-indicator" style={{ left: indicatorStyle.left, width: indicatorStyle.width }} />
       </div>
 
       {/* ── Filters — compact single row ── */}
@@ -930,8 +943,8 @@ export function AttendancePage() {
                 {/* Inline legend as tfoot — visually attached to table */}
                 <tfoot>
                   <tr>
-                    <td colSpan={reportDates.length + 2} className="att-legend-tfoot">
-                      <InlineLegend codesUsed={codesUsed} />
+                    <td colSpan={reportDates.length + 3} className="att-legend-tfoot">
+                      <InlineLegend />
                     </td>
                   </tr>
                 </tfoot>

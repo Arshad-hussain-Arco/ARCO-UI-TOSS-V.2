@@ -3,22 +3,22 @@
  */
 
 export const DEVELOPMENT_PHASES = [
-  { key: 'open', label: 'Open', description: 'Ticket created and queued for business analysis.', color: '#64748b' },
+  { key: 'open', label: 'Open', description: 'Ticket created and queued for business analysis.', color: 'var(--text-secondary)' },
   { key: 'brd_analysis', label: 'BRD Analysis', description: 'Business Requirement Document review and scoping.', color: '#8b5cf6' },
   { key: 'ssd_analysis', label: 'SSD Analysis', description: 'Software Specification Document technical assessment.', color: '#7c3aed' },
   { key: 'in_design', label: 'In Design', description: 'Technical architecture, API specification & UI mockups.', color: '#6366f1' },
-  { key: 'in_development', label: 'In Development', description: 'Active code implementation across frontend and backend services.', color: '#3b82f6' },
+  { key: 'in_development', label: 'In Development', description: 'Active code implementation across frontend and backend services.', color: 'var(--c-info)' },
   { key: 'dev_completed', label: 'Development Completed', description: 'Development work complete and unit test suite verified.', color: '#0284c7' },
   { key: 'fat_testing', label: 'FAT Testing', description: 'Factory Acceptance Testing by core engineering team.', color: '#06b6d4' },
   { key: 'sit_entry_checkpoint', label: 'SIT Entry Checkpoint', description: 'Gate review verifying environment & code baseline for SIT.', color: '#0d9488' },
   { key: 'smoke_testing', label: 'Smoke Testing', description: 'Initial sanity testing of deployed build prior to full SIT.', color: '#14b8a6' },
-  { key: 'sit_in_progress', label: 'SIT In Progress', description: 'System Integration Testing across interconnected systems.', color: '#f59e0b' },
+  { key: 'sit_in_progress', label: 'SIT In Progress', description: 'System Integration Testing across interconnected systems.', color: 'var(--c-warning)' },
   { key: 'uat_entry_checkpoint', label: 'UAT Entry Checkpoint', description: 'Quality gate review before user acceptance testing.', color: '#d97706' },
   { key: 'uat_in_progress', label: 'UAT In Progress', description: 'Business User Acceptance Testing & scenario execution.', color: '#ea580c' },
-  { key: 'uat_sign_off', label: 'UAT Sign Off', description: 'Formal business stakeholder UAT approval received.', color: '#f97316' },
+  { key: 'uat_sign_off', label: 'UAT Sign Off', description: 'Formal business stakeholder UAT approval received.', color: 'var(--c-warning)' },
   { key: 'release_approval', label: 'Release Approval', description: 'CAB and management change request release approval.', color: '#ec4899' },
-  { key: 'ready_for_production', label: 'Ready For Production', description: 'Build packaged, tagged, and staged for production release.', color: '#10b981' },
-  { key: 'deployed', label: 'Deployed', description: 'Successfully released to live production environment.', color: '#059669' },
+  { key: 'ready_for_production', label: 'Ready For Production', description: 'Build packaged, tagged, and staged for production release.', color: 'var(--c-success)' },
+  { key: 'deployed', label: 'Deployed', description: 'Successfully released to live production environment.', color: 'var(--c-success)' },
   { key: 'completed', label: 'Completed', description: 'Post-production monitoring complete and project closed.', color: '#047857' },
 ];
 

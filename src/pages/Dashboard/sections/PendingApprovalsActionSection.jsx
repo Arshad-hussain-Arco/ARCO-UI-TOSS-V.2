@@ -13,13 +13,13 @@ import '../../LeaveManagement/TeamRequests.css';
 export function PendingApprovalsActionSection({ pendingApprovals, onActionComplete }) {
   const { user } = useAuth();
   const [loadingId, setLoadingId] = useState(null);
-  
+
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerReq, setDrawerReq] = useState(null);
   const [drawerAction, setDrawerAction] = useState('view');
   const [teamLeaves, setTeamLeaves] = useState([]);
-  
+
   // Internal drawer state passed down
   const [managerNote, setManagerNote] = useState('');
   const [rejectErr, setRejectErr] = useState(false);
@@ -37,7 +37,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
 
   const openDrawer = (dashboardReq, actionType) => {
     const fullReq = teamLeaves.find(r => r.id === dashboardReq.id.toString());
-    
+
     const req = fullReq || {
       id: dashboardReq.id.toString(),
       empId: dashboardReq.emp_id,
@@ -58,7 +58,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
       balance: null,
       conflicts: [],
     };
-    
+
     req.approve_endpoint = dashboardReq.approve_endpoint;
     req.reject_endpoint = dashboardReq.reject_endpoint;
 
@@ -142,7 +142,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
   return (
     <div style={{ padding: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
-        <Clock size={13} style={{ color: '#006838' }} />
+        <Clock size={13} style={{ color: 'var(--c-primary)' }} />
         <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Action Required
         </h2>
@@ -151,10 +151,10 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {pendingApprovals.map((req) => {
           const isLoading = loadingId === req.id.toString();
-          
+
           return (
-            <div 
-              key={req.id} 
+            <div
+              key={req.id}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -172,38 +172,38 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
             >
               {/* Employee Info - Left Column */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '2px' }}>
-                <span 
-                  style={{ 
-                    fontSize: '12px', 
-                    fontWeight: 500, 
-                    color: 'var(--text-primary)', 
-                    whiteSpace: 'nowrap', 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis' 
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
                   title={req.emp_name}
                 >
                   {req.emp_name}
                 </span>
-                <span 
-                  style={{ 
-                    fontSize: '10px', 
-                    color: 'var(--text-tertiary)', 
-                    whiteSpace: 'nowrap', 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis' 
+                <span
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-tertiary)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
                 >
                   {req.designation || 'Team Member'} • {req.leave_type}
                   {req.sla_breached && (
-                    <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: '4px' }}>• Overdue</span>
+                    <span style={{ color: 'var(--c-danger)', fontWeight: 600, marginLeft: '4px' }}>• Overdue</span>
                   )}
                 </span>
               </div>
 
               {/* Action Buttons - Right Column */}
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
-                <button 
+                <button
                   onClick={() => openDrawer(req, 'approve')}
                   disabled={isLoading}
                   title="Approve"
@@ -211,7 +211,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
                     width: '24px',
                     height: '24px',
                     borderRadius: '4px',
-                    background: '#006838',
+                    background: 'var(--c-primary)',
                     color: '#ffffff',
                     border: 'none',
                     display: 'flex',
@@ -224,7 +224,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
                 >
                   <Check size={12} />
                 </button>
-                <button 
+                <button
                   onClick={() => openDrawer(req, 'reject')}
                   disabled={isLoading}
                   title="Reject"
@@ -232,7 +232,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
                     width: '24px',
                     height: '24px',
                     borderRadius: '4px',
-                    background: '#dc2626',
+                    background: 'var(--c-danger)',
                     color: '#ffffff',
                     border: 'none',
                     display: 'flex',

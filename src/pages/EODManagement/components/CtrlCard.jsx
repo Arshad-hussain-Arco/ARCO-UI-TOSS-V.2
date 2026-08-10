@@ -250,9 +250,9 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px' }}>
               {/* Current Job Name */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#94a3b8', fontWeight: 500 }}>Current Job:</span>
+                <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Current Job:</span>
                 <span style={{ 
-                  color: isCompleted ? '#10b981' : isFailed ? '#ef4444' : '#000000', 
+                  color: isCompleted ? 'var(--c-success)' : isFailed ? 'var(--c-danger)' : '#000000', 
                   fontWeight: 600,
                   backgroundColor: 'rgba(0, 0, 0, 0.05)',
                   padding: '2px 8px',
@@ -265,9 +265,9 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
 
               {/* Next Job Name in Queue */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b', fontWeight: 500 }}>Next Job:</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Next Job:</span>
                 <span style={{ 
-                  color: isCompleted ? '#64748b' : '#6366f1', 
+                  color: isCompleted ? 'var(--text-secondary)' : '#6366f1', 
                   fontWeight: 600,
                   fontFamily: 'monospace'
                 }}>
@@ -277,8 +277,8 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
 
               {/* Live Timer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '4px', borderTop: '1px dashed rgba(0,0,0,0.1)' }}>
-                <span style={{ color: '#64748b', fontSize: '11px' }}>Elapsed Time:</span>
-                <span className="eod-ctrl-exec-time" style={{ fontWeight: 600, fontFamily: 'monospace', color: '#475569' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Elapsed Time:</span>
+                <span className="eod-ctrl-exec-time" style={{ fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
                   <Clock size={11} style={{ verticalAlign: '-1px', marginRight: '4px', opacity: 0.7 }} />
                   {displayTime}
                 </span>

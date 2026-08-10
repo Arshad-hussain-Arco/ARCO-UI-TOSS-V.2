@@ -429,9 +429,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               type="text"
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.name ? 'var(--c-danger)' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
-            {formErrors.name && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
+            {formErrors.name && <p style={{ color: 'var(--c-danger)', fontSize: '12px', marginTop: '4px' }}>{formErrors.name}</p>}
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Primary Developer Contribution(%)</label>
@@ -440,9 +440,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               step="0.01"
               value={form.pri_dev_contr_per}
               onChange={(e) => { setForm({ ...form, pri_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, pri_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.pri_dev_contr_per ? 'var(--c-danger)' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
-            {formErrors.pri_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
+            {formErrors.pri_dev_contr_per && <p style={{ color: 'var(--c-danger)', fontSize: '12px', marginTop: '4px' }}>{formErrors.pri_dev_contr_per}</p>}
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Additional Developer Contribution(%)</label>
@@ -451,9 +451,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               step="0.01"
               value={form.add_dev_contr_per}
               onChange={(e) => { setForm({ ...form, add_dev_contr_per: e.target.value }); setFormErrors(prev => ({ ...prev, add_dev_contr_per: '' })); }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? '#ef4444' : '#cbd5e1'}`, outline: 'none' }}
+              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${formErrors.add_dev_contr_per ? 'var(--c-danger)' : 'var(--border-secondary)'}`, outline: 'none' }}
             />
-            {formErrors.add_dev_contr_per && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
+            {formErrors.add_dev_contr_per && <p style={{ color: 'var(--c-danger)', fontSize: '12px', marginTop: '4px' }}>{formErrors.add_dev_contr_per}</p>}
           </div>
         </div>
       </AdminModal>

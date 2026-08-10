@@ -69,7 +69,7 @@
 }
 
 .lms-tab-btn.active {
-  background: #1B4D3E; /* colors.brand */
+  background: var(--c-primary-dark); /* colors.brand */
   color: #FFFFFF; /* white text */
 }
 
@@ -100,7 +100,7 @@
 
 .lms-input:focus, .lms-select:focus {
   outline: none;
-  border-color: #1B4D3E; /* colors.brand */
+  border-color: var(--c-primary-dark); /* colors.brand */
 }
 
 .lms-table-responsive {
@@ -150,7 +150,7 @@
 }
 
 .lms-btn-primary {
-  background: #1B4D3E; /* colors.brand */
+  background: var(--c-primary-dark); /* colors.brand */
   color: #FFFFFF; /* white text */
 }
 

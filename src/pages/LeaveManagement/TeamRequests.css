@@ -122,7 +122,7 @@
 
 .tr-view-btn[data-active='true'] {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-view-btn:not([data-active='true']):hover {
@@ -150,8 +150,9 @@
   transition: background 0.1s;
 }
 
-.tr-export-btn:hover {
-  background: var(--bg-hover);
+.tr-export-btn:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tr-export-dropdown {
@@ -190,7 +191,7 @@
 
 .tr-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   padding: 10px 16px;
   background: var(--surface-primary);
@@ -311,7 +312,7 @@
 .tr-chip[data-active='true'] {
   background: var(--c-primary);
   border-color: var(--c-primary);
-  color: #fff;
+  color: #ffffff;
 }
 
 .tr-chip-count {
@@ -414,7 +415,7 @@
   font-family: var(--font-family);
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color:  #ffffff;
   flex-shrink: 0;
 }
 
@@ -492,17 +493,22 @@
 
 .tr-status-pending {
   background: var(--c-warning-light);
-  color: #92400e;
+  color:  var(--text-secondary);
 }
 
 .tr-status-approved {
-  background: var(--c-success-light);
-  color: #065f46;
+  background: var(--c-primary);
+  color:  #ffffff;
 }
 
 .tr-status-rejected {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
+}
+
+.tr-status-self_rejected {
+  background: var(--border-secondary);
+  color: var(--text-secondary);
 }
 
 /* ─── Priority Badge ──────────────────────────────────────────────── */
@@ -541,45 +547,42 @@
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   transition: all 0.1s;
   white-space: nowrap;
 }
 
+.tr-act-btn:hover   {
+  background: var(--bg-hover);
+}
+
 .tr-act-approve {
   background: var(--c-success-light);
-  color: #065f46;
+  color:  var(--c-primary);
   border-color: #a7f3d0;
 }
 
 .tr-act-approve:hover {
   background: var(--c-success);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-success);
 }
 
 .tr-act-reject {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
   border-color: #fca5a5;
 }
 
 .tr-act-reject:hover {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
   border-color: var(--c-danger);
 }
 
-.tr-act-view {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-color: var(--border-primary);
-}
-
-.tr-act-view:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+/* .tr-act-view styles removed as they are now the default for .tr-act-btn */
 
 /* ─── Date cell ───────────────────────────────────────────────────── */
 
@@ -708,7 +711,7 @@
   font-family: var(--font-family);
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--surface-primary);
   flex-shrink: 0;
 }
 
@@ -889,12 +892,12 @@
 
 .tr-tl-dot.done {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.active {
   background: var(--c-warning);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.waiting {
@@ -905,12 +908,12 @@
 
 .tr-tl-dot.rejected {
   background: var(--c-danger);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-dot.approved {
   background: var(--c-success);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-tl-line {
@@ -1008,30 +1011,29 @@
   border-color: var(--border-primary);
 }
 
-.tr-btn-ghost:hover {
+.tr-btn-ghost:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .tr-btn-danger {
   background: var(--c-danger-light);
-  color: #991b1b;
+  color: var(--c-danger);
   border-color: #fca5a5;
 }
 
-.tr-btn-danger:hover {
+.tr-btn-danger:hover   {
   background: var(--c-danger);
-  color: #fff;
-  border-color: var(--c-danger);
+  color: #ffffff;
 }
 
 .tr-btn-primary {
   background: var(--c-primary);
-  color: #fff;
+  color: var(--surface-primary);
 }
 
-.tr-btn-primary:hover {
-  background: var(--c-primary-hover);
+.tr-btn-primary:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tr-btn-primary:disabled {
@@ -1238,9 +1240,8 @@
     color 0.1s;
 }
 
-.tr-dtl-nav-btn:hover {
+.tr-dtl-nav-btn:hover   {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .tr-dtl-nav-title {
@@ -1323,7 +1324,7 @@
 
 .tr-dtl-cell[data-selected='true'] .tr-dtl-dow,
 .tr-dtl-cell[data-selected='true'] .tr-dtl-num {
-  color: #fff;
+  color: var(--surface-primary);
 }
 
 .tr-dtl-dow {

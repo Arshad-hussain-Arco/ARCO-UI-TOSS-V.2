@@ -108,7 +108,7 @@ export function ImportantLinksPage() {
   useDocumentTitle('Important Links');
 
   const toast = useToast();
-  const { pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
+  const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
   const fetchCategories = useCallback(() => linkService.getLinkCategories(), []);
@@ -179,6 +179,13 @@ export function ImportantLinksPage() {
   // ── Handle Add Link ────────────────────────────────────────────
   const handleAddLink = useCallback(
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
+      if (pinToHeader) {
+        const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
+          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+          return;
+        }
+      }
       setIsSaving(true);
       try {
         let groupId;
@@ -222,12 +229,19 @@ export function ImportantLinksPage() {
         setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, refetch, handleCloseModal, toast],
+    [serverCategories, pinLink, refetch, handleCloseModal, toast, pinnedLinks],
   );
 
   // ── Handle Update Link ─────────────────────────────────────────
   const handleUpdateLink = useCallback(
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
+      if (pinToHeader) {
+        const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
+          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+          return;
+        }
+      }
       setIsSaving(true);
       try {
         const existingGroup = serverCategories?.find((c) => c.title === group);
@@ -265,7 +279,7 @@ export function ImportantLinksPage() {
         setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, unpinLink, refetch, handleCloseModal, toast],
+    [serverCategories, pinLink, unpinLink, refetch, handleCloseModal, toast, pinnedLinks],
   );
 
   // ── Handle Delete Link ─────────────────────────────────────────

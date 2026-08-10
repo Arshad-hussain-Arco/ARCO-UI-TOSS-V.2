@@ -117,7 +117,7 @@ export function LeaveRequestDrawer({
               {liveReq.leaveType ?? TYPE_CONFIG[liveReq.type]?.label}
             </span>
           </div>
-          {liveReq.type === 'compoff' && (
+          {liveReq.type === 'compoff' && !liveReq.isModRequest && (
             <div className="tr-drow">
               <span className="tr-drow-label">Claim Type</span>
               <span className="tr-drow-value">
@@ -125,23 +125,46 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
+          {liveReq.isModRequest && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">Original Dates</span>
+              <span className="tr-drow-value" style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
+                {fmtDate(liveReq.origStartDate)} → {fmtDate(liveReq.origEndDate)}
+              </span>
+            </div>
+          )}
           <div className="tr-drow">
             <span className="tr-drow-label">
-              {liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
+              {liveReq.isModRequest ? 'New Start Date' : liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
             </span>
             <span className="tr-drow-value">{fmtDate(liveReq.startDate)}</span>
           </div>
           <div className="tr-drow">
             <span className="tr-drow-label">
-              {liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
+              {liveReq.isModRequest ? 'New End Date' : liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
             </span>
             <span className="tr-drow-value">{fmtDate(liveReq.endDate)}</span>
           </div>
+          {liveReq.isModRequest && liveReq.origReason && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">Original Reason</span>
+              <span className="tr-drow-value" style={{ color: 'var(--text-tertiary)' }}>{liveReq.origReason}</span>
+            </div>
+          )}
           {liveReq.type !== 'offshore' && (
             <div className="tr-drow">
               <span className="tr-drow-label">Duration</span>
               <span className="tr-drow-value">
-                {liveReq.duration === 'full' || liveReq.duration === 'Full Day' || !liveReq.duration
+                {liveReq.fromDateDuration || liveReq.toDateDuration ? (
+                  // Multi-day leave with a half-day boundary set on the
+                  // from and/or to date — dates strictly in between are
+                  // always full day, so only the two boundaries are shown.
+                  `${fmtDate(liveReq.startDate)} (${
+                    liveReq.fromDateDuration === 'SECOND_HALF' ? 'Second Half' : 'Full Day'
+                  }) → ${fmtDate(liveReq.endDate)} (${
+                    liveReq.toDateDuration === 'FIRST_HALF' ? 'First Half' : 'Full Day'
+                  })`
+                ) : liveReq.duration === 'full' || liveReq.duration === 'Full Day' || !liveReq.duration
                   ? 'Full Day'
                   : liveReq.duration === 'morning' || liveReq.duration === 'First Half'
                     ? 'First Half'
@@ -162,14 +185,35 @@ export function LeaveRequestDrawer({
           {liveReq.reason && liveReq.type !== 'offshore' && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">
-                {liveReq.type === 'compoff'
-                  ? 'Claim Reason'
-                  : liveReq.type === 'wfh'
-                    ? 'Reason for WFH'
-                    : 'Reason'}
+                {liveReq.isModRequest
+                  ? 'Modification Reason'
+                  : liveReq.type === 'compoff'
+                    ? 'Claim Reason'
+                    : liveReq.type === 'wfh'
+                      ? 'Reason for WFH'
+                      : 'Reason'}
               </span>
               <span className="tr-drow-value" style={{ maxWidth: 220 }}>
                 {liveReq.reason}
+              </span>
+            </div>
+          )}
+          {liveReq.justification && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">Justification</span>
+              <span
+                className="tr-drow-value"
+                style={{
+                  maxWidth: 220,
+                  color: 'var(--c-danger)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '6px',
+                }}
+                title="Exceeds available entitlement — employee-provided justification"
+              >
+                <AlertTriangle size={11} style={{ flexShrink: 0, marginTop: 2 }} />
+                {liveReq.justification}
               </span>
             </div>
           )}

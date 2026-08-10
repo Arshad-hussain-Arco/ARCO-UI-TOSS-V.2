@@ -1,6 +1,8 @@
 import * as RadixSelect from '@radix-ui/react-select';
 import { ChevronDown, Check } from 'lucide-react';
+import { useState } from 'react';
 import './Select.css';
+
 function Select({
   value,
   onChange,
@@ -10,6 +12,8 @@ function Select({
   disabled = false,
   width,
 }) {
+  const [open, setOpen] = useState(false);
+
   const PREDEFINED_WIDTHS = {
     department: '280px',
     leaveType: '240px',
@@ -30,14 +34,25 @@ function Select({
   const radixValue = value === '' ? void 0 : value;
 
   return (
-    <RadixSelect.Root value={radixValue} onValueChange={onChange} disabled={disabled}>
+    <RadixSelect.Root
+      value={radixValue}
+      onValueChange={onChange}
+      disabled={disabled}
+      open={open}
+      onOpenChange={setOpen}
+    >
       <RadixSelect.Trigger
         className={`cs-trigger${className ? ` ${className}` : ''}`}
         style={{ width: resolvedWidth, minWidth: resolvedWidth, maxWidth: resolvedWidth }}
         aria-label={placeholder}
+        onPointerDown={(e) => {
+          if (!disabled && !open) {
+            setOpen(true);
+          }
+        }}
       >
         <RadixSelect.Value placeholder={placeholder} />
-        <RadixSelect.Icon asChild>
+        <RadixSelect.Icon asChild style={{ pointerEvents: 'none' }}>
           <ChevronDown size={13} strokeWidth={2} className="cs-chevron" />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
@@ -70,5 +85,6 @@ function Select({
     </RadixSelect.Root>
   );
 }
+
 export { Select };
 export default Select;

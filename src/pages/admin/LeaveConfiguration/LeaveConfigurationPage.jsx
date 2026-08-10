@@ -165,17 +165,21 @@ function emptyCombinedForm() {
     description: '',
     category: 'ACTUAL',
     payment_type: 'PAID',
-    max_quota_days: '',
-    max_days_per_application: '',
     display_order: 0,
     notes: '',
     policy_notes: '',
 
     gender_restriction: '',
-    requires_approval: true,
+    requires_work_location: false,
+    required_location: '',
     is_active: true,
 
+    is_unlimited: false,
+    is_flexible: false,
     entitled_days: '',
+    credits_to_leave_type_code: '',
+    claim_date_rule: '',
+    custom_claim_dates: [],
     min_notice_days: 0,
     max_consecutive: '',
     accrual_type: 'NONE',
@@ -200,17 +204,21 @@ function combinedRowToForm(row) {
     description: lt.description || '',
     category: lt.category || 'ACTUAL',
     payment_type: lt.payment_type || 'PAID',
-    max_quota_days: lt.max_quota_days ?? '',
-    max_days_per_application: lt.max_days_per_application ?? '',
     display_order: lt.display_order ?? 0,
     notes: lt.notes || '',
     policy_notes: p.notes || '',
 
     gender_restriction: lt.gender_restriction || '',
-    requires_approval: lt.requires_approval ?? true,
+    requires_work_location: p.requires_work_location ?? false,
+    required_location: p.required_location ?? '',
     is_active: lt.is_active ?? true,
 
+    is_unlimited: p.is_unlimited ?? false,
+    is_flexible: p.is_flexible ?? false,
     entitled_days: p.entitled_days ?? '',
+    credits_to_leave_type_code: p.credits_to_leave_type_code || '',
+    claim_date_rule: p.claim_date_rule || '',
+    custom_claim_dates: Array.isArray(p.custom_claim_dates) ? p.custom_claim_dates : [],
     min_notice_days: p.min_notice_days ?? 0,
     max_consecutive: p.max_consecutive ?? '',
     accrual_type: p.accrual_type || 'NONE',
@@ -234,17 +242,34 @@ function combinedFormToPayload(form) {
     description: form.description,
     category: form.category,
     payment_type: form.payment_type,
-    max_quota_days: numOrNull(form.max_quota_days),
-    max_days_per_application: numOrNull(form.max_days_per_application),
     display_order: Number(form.display_order) || 0,
     notes: form.notes,
     policy_notes: form.policy_notes,
 
     gender_restriction: form.gender_restriction,
-    requires_approval: form.requires_approval,
+    requires_work_location: form.requires_work_location,
+    required_location: form.requires_work_location ? numOrNull(form.required_location) : null,
     is_active: form.is_active,
 
-    entitled_days: numOrNull(form.entitled_days),
+    // Claim leave types aren't entitlement-capped — force Limited/Unlimited/
+    // Flexible off and entitled_days to 0 regardless of stale form state,
+    // mirroring the backend's LeavePolicyCreateSerializer.validate().
+    is_unlimited: form.category === 'CLAIM' ? false : form.is_unlimited,
+    is_flexible: form.category === 'CLAIM' ? false : form.is_flexible,
+    entitled_days: form.category === 'CLAIM'
+      ? 0
+      : (form.is_unlimited ? null : numOrNull(form.entitled_days)),
+    // Claim leave types don't hold their own balance — approval credits a
+    // separate ACTUAL leave type instead (e.g. CWW -> WW). Meaningless
+    // outside Claim, so force-clear it there.
+    credits_to_leave_type_code: form.category === 'CLAIM' ? form.credits_to_leave_type_code : '',
+    // Which dates count as claimable — Weekend/Company Holiday/Custom
+    // Dates. Meaningless outside Claim; custom_claim_dates only matters
+    // when the rule is actually Custom Dates.
+    claim_date_rule: form.category === 'CLAIM' ? form.claim_date_rule : '',
+    custom_claim_dates: (form.category === 'CLAIM' && form.claim_date_rule === 'CUSTOM')
+      ? form.custom_claim_dates
+      : [],
     min_notice_days: Number(form.min_notice_days) || 0,
     max_consecutive: numOrNull(form.max_consecutive),
     accrual_type: form.accrual_type,
@@ -362,10 +387,14 @@ function CreatableSelect({ value, onChange, placeholder, options, id }) {
         <button
           type="button"
           className="lc-creatable-chevron"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsOpen((prev) => !prev);
+          }}
           tabIndex={-1}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={14} style={{ pointerEvents: 'none' }} />
         </button>
       </div>
 
@@ -421,6 +450,9 @@ export function LeaveConfigurationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Work locations, for the "Requires Work Location" leave-type setting's dropdown
+  const [workLocations, setWorkLocations] = useState([]);
+
   // Work Schedule State — static options, not fetched from backend
   const workScheduleOptions = WORK_SCHEDULE_OPTIONS;
   const [selectedCustomDays, setSelectedCustomDays] = useState([]);
@@ -462,6 +494,25 @@ export function LeaveConfigurationPage() {
       }
     };
     fetchHolidays();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch Work Locations — runs once on mount, used by the leave-type modal's
+  // "Requires Work Location" dropdown.
+  useEffect(() => {
+    let active = true;
+    const fetchWorkLocations = async () => {
+      try {
+        const data = await leaveService.getWorkLocations();
+        const list = Array.isArray(data) ? data : (data?.results || []);
+        if (active) setWorkLocations(list);
+      } catch (err) {
+        console.error('Failed to load work locations:', err);
+      }
+    };
+    fetchWorkLocations();
     return () => {
       active = false;
     };
@@ -567,6 +618,8 @@ export function LeaveConfigurationPage() {
   // Client-side required-field errors, keyed by field name (code, name, entitled_days).
   // Mirrors what the backend actually requires — see combinedFormToPayload/validateCombinedForm.
   const [combinedFieldErrors, setCombinedFieldErrors] = useState({});
+  // Pending date being picked in the Custom Dates chip-list editor, before "Add" commits it.
+  const [pendingCustomClaimDate, setPendingCustomClaimDate] = useState(null);
 
   // ── Section 1: Holiday Handlers ─────────────────────────────────────────────
   const openAddHolidayModal = () => {
@@ -761,6 +814,7 @@ export function LeaveConfigurationPage() {
     setCombinedCodeError('');
     setCombinedFieldErrors({});
     setCombinedForm(emptyCombinedForm());
+    setPendingCustomClaimDate(null);
     setIsCombinedModalOpen(true);
   };
 
@@ -769,19 +823,52 @@ export function LeaveConfigurationPage() {
     setCombinedCodeError('');
     setCombinedFieldErrors({});
     setCombinedForm(combinedRowToForm(row));
+    setPendingCustomClaimDate(null);
     setIsCombinedModalOpen(true);
   };
 
-  // Required on the backend: code, name, entitled_days (see hr_admin serializers/views).
-  // Everything else has a default or is genuinely optional.
+  // Required on the backend: code, name, entitled_days — unless is_unlimited
+  // is set, in which case entitled_days is ignored entirely (see hr_admin
+  // serializers/views). Everything else has a default or is genuinely optional.
+  // Claim leave types (CWW, CCompOff) skip entitled_days entirely — the
+  // backend rejects is_unlimited/is_flexible for CLAIM and forces
+  // entitled_days to 0, since claims are approval-gated by the manager,
+  // not entitlement-capped.
+  // Leave type codes credited by at least one active Claim's "Credits To"
+  // (LeavePolicy.credits_to_leave_type_code) — these earn their balance
+  // entirely through approved claims (accrued_days), so Entitled Days is
+  // just an optional base allocation on top of that, not a required quota
+  // (mirrors the backend's LeavePolicyCreateSerializer.validate()).
+  const claimTargetCodes = new Set(
+    combinedLeaveTypes.map((row) => row.policy?.credits_to_leave_type_code).filter(Boolean)
+  );
+
   const validateCombinedForm = (form) => {
     const errors = {};
     if (!form.code.trim()) errors.code = 'Code is required.';
     if (!form.name.trim()) errors.name = 'Name is required.';
-    if (form.entitled_days === '' || form.entitled_days === null) {
-      errors.entitled_days = 'Entitled Days is required.';
-    } else if (Number.isNaN(Number(form.entitled_days))) {
+    const isClaimTarget = claimTargetCodes.has(form.code);
+    if (!form.is_unlimited && form.category !== 'CLAIM' && !isClaimTarget) {
+      if (form.entitled_days === '' || form.entitled_days === null) {
+        errors.entitled_days = 'Entitled Days is required unless this leave type is unlimited.';
+      } else if (Number.isNaN(Number(form.entitled_days))) {
+        errors.entitled_days = 'Entitled Days must be a number.';
+      }
+    } else if (!form.is_unlimited && isClaimTarget && form.entitled_days !== '' && Number.isNaN(Number(form.entitled_days))) {
       errors.entitled_days = 'Entitled Days must be a number.';
+    }
+    if (form.requires_work_location && (form.required_location === '' || form.required_location === null)) {
+      errors.required_location = 'Select a Work Location Type, or turn off Requires Work Location.';
+    }
+    if (form.category === 'CLAIM' && !form.credits_to_leave_type_code) {
+      errors.credits_to_leave_type_code = 'Select which Actual leave type this claim credits on approval.';
+    }
+    if (form.category === 'CLAIM') {
+      if (!form.claim_date_rule) {
+        errors.claim_date_rule = 'Select which dates count as claimable — Weekend, Company Holiday, or Custom Dates.';
+      } else if (form.claim_date_rule === 'CUSTOM' && form.custom_claim_dates.length === 0) {
+        errors.custom_claim_dates = 'Add at least one date, or choose Weekend/Company Holiday instead.';
+      }
     }
     return errors;
   };
@@ -847,6 +934,17 @@ export function LeaveConfigurationPage() {
       toast.error('Failed to update status');
       console.error(err);
     }
+  };
+
+  // mode: 'LIMITED' | 'UNLIMITED' | 'FLEXIBLE'
+  const setEntitlementMode = (mode) => {
+    setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
+    setCombinedForm((prev) => ({
+      ...prev,
+      is_unlimited: mode === 'UNLIMITED',
+      is_flexible: mode === 'FLEXIBLE',
+      entitled_days: mode === 'UNLIMITED' ? '' : prev.entitled_days,
+    }));
   };
 
   const toggleCarryForward = (checked) => {
@@ -1036,7 +1134,7 @@ export function LeaveConfigurationPage() {
                               formatHolidayDates(h.dates && h.dates.length > 0 ? h.dates : h.date ? [h.date] : [])
                             )}
                           </td>
-                          <td style={{ color: '#64748b' }}>
+                          <td style={{ color: 'var(--text-secondary)' }}>
                             {isEditing ? computeDayOfWeek(holidayEditForm.date) : (h.dates && h.dates.length > 1 ? 'Multiple Days' : computeDayOfWeek(h.date || (h.dates && h.dates[0])))}
                           </td>
                           <td>
@@ -1110,7 +1208,7 @@ export function LeaveConfigurationPage() {
                                   type="button"
                                   className="lc-inline-btn cancel"
                                   title="Cancel"
-                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#ef4444' }}
+                                  style={{ width: '32px', height: '32px', borderRadius: '6px', backgroundColor: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', color: 'var(--c-danger)' }}
                                   onClick={cancelHolidayInlineEdit}
                                 >
                                   <X size={16} />
@@ -1208,8 +1306,17 @@ export function LeaveConfigurationPage() {
                           </td>
                           <td style={{ fontWeight: 600 }}>{row.name}</td>
                           <td style={{ fontWeight: 600 }}>
-                            {p ? (
-                              <span className="lc-num-cell">{Number(p.entitled_days).toFixed(1)} Days</span>
+                            {lt.category === 'CLAIM' ? (
+                              <span className="lc-num-cell" title="Claims are approval-gated by the manager, not entitlement-capped">
+                                Manager Approved
+                              </span>
+                            ) : p?.is_unlimited ? (
+                              <span className="lc-num-cell">Unlimited</span>
+                            ) : p ? (
+                              <span className="lc-num-cell">
+                                {Number(p.entitled_days).toFixed(1)} Days
+                                {p.is_flexible ? ' (Flexible)' : ''}
+                              </span>
                             ) : (
                               <span className="lc-num-cell empty">—</span>
                             )}
@@ -1265,7 +1372,7 @@ export function LeaveConfigurationPage() {
         {activeTab === 'work-schedule' && (
           <div className="lc-card-panel" style={{ flex: 'none' }}>
             <div style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#0f172a', marginBottom: '16px' }}>weekend configurations Settings</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>weekend configurations Settings</h3>
 
               {isSummaryLoading ? (
                 <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
@@ -1284,21 +1391,21 @@ export function LeaveConfigurationPage() {
                             key={`${group.work_schedule}-${idx}`}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              padding: '10px 16px', backgroundColor: '#f9fafb', border: '1px solid #e2e8f0',
+                              padding: '10px 16px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-secondary)',
                               borderRadius: '8px',
                             }}
                           >
                             <div>
-                              <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
                                 {getScheduleLabel(group.work_schedule)}
                               </span>
                               {group.work_schedule === 'CUSTOM' && group.custom_weekend_days && (
-                                <span style={{ fontSize: '13px', color: '#334155', marginLeft: '8px' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', marginLeft: '8px' }}>
                                   ({formatCustomWeekendDays(group.custom_weekend_days)})
                                 </span>
                               )}
                             </div>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                               {group.employee_count} employee{group.employee_count === 1 ? '' : 's'}
                             </span>
                           </div>
@@ -1311,7 +1418,7 @@ export function LeaveConfigurationPage() {
                     <div className="ss-modal-form-group">
                   <div style={{ marginBottom: '20px' }}>
                     <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                       {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
                     </div>
                   </div>
@@ -1359,7 +1466,7 @@ export function LeaveConfigurationPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-secondary)', paddingTop: '24px' }}>
                 <button
                   type="button"
                   className="lc-btn-primary"
@@ -1403,7 +1510,7 @@ export function LeaveConfigurationPage() {
         <div className="lc-modal-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           {/* Holiday Name */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-name" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Holiday Name
             </label>
             <input
@@ -1414,7 +1521,7 @@ export function LeaveConfigurationPage() {
                 width: '100%',
                 padding: '0 12px',
                 height: '38px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px'
               }}
@@ -1426,7 +1533,7 @@ export function LeaveConfigurationPage() {
 
           {/* Start Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-start-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Start Date
             </label>
             <DatePicker
@@ -1454,7 +1561,7 @@ export function LeaveConfigurationPage() {
 
           {/* End Date */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label ss-modal-label-required" htmlFor="holiday-end-date" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               End Date
             </label>
             <DatePicker
@@ -1475,7 +1582,7 @@ export function LeaveConfigurationPage() {
 
           {/* Computed Day & Status Row */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-day" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Day of Week (Computed)
             </label>
             <div
@@ -1485,11 +1592,11 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #cbd5e1',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px',
-                color: holidayForm.startDate ? '#475569' : '#94a3b8',
+                color: holidayForm.startDate ? 'var(--text-secondary)' : 'var(--text-tertiary)',
                 fontWeight: 500
               }}
             >
@@ -1506,7 +1613,7 @@ export function LeaveConfigurationPage() {
           </div>
 
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-computed-status" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Status (Computed)
             </label>
             <div
@@ -1516,8 +1623,8 @@ export function LeaveConfigurationPage() {
                 alignItems: 'center',
                 height: '38px',
                 padding: '0 12px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #cbd5e1',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px',
               }}
@@ -1529,14 +1636,14 @@ export function LeaveConfigurationPage() {
                   <span className="lc-tag-past" style={{ fontSize: '11px', padding: '2px 8px' }}>Past</span>
                 )
               ) : (
-                <span style={{ color: '#94a3b8' }}>Status will be computed</span>
+                <span style={{ color: 'var(--text-tertiary)' }}>Status will be computed</span>
               )}
             </div>
           </div>
 
           {/* Holiday Type */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-type" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Holiday Type
             </label>
             <CreatableSelect
@@ -1551,7 +1658,7 @@ export function LeaveConfigurationPage() {
 
           {/* Description */}
           <div className="ss-modal-form-group" style={{ gridColumn: 'span 2' }}>
-            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>
+            <label className="ss-modal-label" htmlFor="holiday-description" style={{ fontSize: '13px', fontWeight: '600', color: 'var(--bg-secondary)' }}>
               Description
             </label>
             <input
@@ -1562,7 +1669,7 @@ export function LeaveConfigurationPage() {
                 width: '100%',
                 padding: '0 12px',
                 height: '38px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--border-secondary)',
                 borderRadius: '6px',
                 fontSize: '13px'
               }}
@@ -1678,7 +1785,37 @@ export function LeaveConfigurationPage() {
                 id="lt-category"
                 className="ss-input"
                 value={combinedForm.category}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => {
+                  const category = e.target.value;
+                  setCombinedFieldErrors((prev) => ({
+                    ...prev,
+                    entitled_days: undefined,
+                    credits_to_leave_type_code: undefined,
+                    claim_date_rule: undefined,
+                    custom_claim_dates: undefined,
+                  }));
+                  setCombinedForm((prev) => ({
+                    ...prev,
+                    category,
+                    // Claim leave types aren't entitlement-capped — the manager's
+                    // approval is the only gate (see hr_admin serializers). Reset
+                    // Limited/Unlimited/Flexible so a stale selection doesn't get
+                    // silently rejected on save.
+                    ...(category === 'CLAIM'
+                      ? { is_unlimited: false, is_flexible: false, entitled_days: 0 }
+                      : { credits_to_leave_type_code: '', claim_date_rule: '', custom_claim_dates: [] }),
+                    // Carry-forward only applies to ACTUAL/CLAIM; reset when
+                    // switching to NOMINAL so a hidden, stale "on" doesn't ship.
+                    ...(category === 'NOMINAL'
+                      ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
+                      : {}),
+                    // Advance-leave borrowing only applies to ACTUAL; reset when
+                    // switching away so a hidden, stale "on" doesn't ship.
+                    ...(category !== 'ACTUAL'
+                      ? { allow_negative: false, max_negative_days: 0 }
+                      : {}),
+                  }));
+                }}
               >
                 <option value="ACTUAL">Actual — deducts balance</option>
                 <option value="CLAIM">Claim — earns balance</option>
@@ -1700,18 +1837,6 @@ export function LeaveConfigurationPage() {
             </div>
 
             <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-maxdays">Max Quota Days</label>
-              <input
-                id="lt-maxdays"
-                type="number"
-                className="ss-input"
-                placeholder="Blank = no cap"
-                value={combinedForm.max_quota_days}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_quota_days: e.target.value }))}
-              />
-            </div>
-
-            <div className="ss-modal-form-group">
               <label className="ss-modal-label" htmlFor="lt-order">Display Order</label>
               <input
                 id="lt-order"
@@ -1729,66 +1854,269 @@ export function LeaveConfigurationPage() {
           <div className="lc-form-section-title">
             Entitlement <span className="lc-form-section-hint">Creates the policy row</span>
           </div>
-          <div className="lc-modal-grid">
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-entitled">
-                Entitled Days
+
+          {combinedForm.category === 'CLAIM' ? (
+            <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
+              <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
+              <div className="lc-locked-field" title="Claims are approval-gated by the manager, not entitlement-capped">
+                Not applicable — Claim leave types aren&apos;t entitlement-capped. The
+                employee isn&apos;t drawing down a balance, they&apos;re asserting they
+                worked a day, and the manager&apos;s approval is the only gate.
+              </div>
+
+              <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
+                Credits To
               </label>
-              <input
-                id="lt-entitled"
-                type="number"
-                className={`ss-input ${combinedFieldErrors.entitled_days ? 'has-error' : ''}`}
-                placeholder="e.g. 10"
-                value={combinedForm.entitled_days}
-                aria-invalid={!!combinedFieldErrors.entitled_days}
-                onChange={(e) => {
-                  setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
-                  setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }));
+              <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
+                Which Actual leave type gains a day when this claim is approved (e.g. Claim
+                Weekend Work &rarr; Weekend Work).
+              </div>
+              <Select
+                value={combinedForm.credits_to_leave_type_code}
+                onChange={(v) => {
+                  setCombinedFieldErrors((prev) => ({ ...prev, credits_to_leave_type_code: undefined }));
+                  setCombinedForm((prev) => ({ ...prev, credits_to_leave_type_code: v }));
                 }}
+                options={combinedLeaveTypes
+                  .filter((row) => (row.leave_type || {}).category === 'ACTUAL' && (row.leave_type || {}).is_active)
+                  .filter((row) => row.code !== combinedForm.code)
+                  .map((row) => ({ value: row.code, label: `${row.name} (${row.code})` }))}
+                placeholder="Select an Actual leave type"
+                width="320px"
               />
-              {combinedFieldErrors.entitled_days && (
-                <div className="lc-field-error">{combinedFieldErrors.entitled_days}</div>
+              {combinedFieldErrors.credits_to_leave_type_code && (
+                <div className="lc-field-error">{combinedFieldErrors.credits_to_leave_type_code}</div>
+              )}
+
+              <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
+                Claim Dates
+              </label>
+              <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
+                Which calendar dates count as claimable for this leave type.
+              </div>
+              <div className="lc-gender-radio-row">
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'WEEKEND' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'WEEKEND'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'WEEKEND', custom_claim_dates: [] }));
+                    }}
+                  />
+                  <span className="rtitle">Weekend</span>
+                  <span className="rsub">Employee&apos;s weekend days</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'HOLIDAY' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'HOLIDAY'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'HOLIDAY', custom_claim_dates: [] }));
+                    }}
+                  />
+                  <span className="rtitle">Company Holiday</span>
+                  <span className="rsub">Registered holiday calendar</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'CUSTOM' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'CUSTOM'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'CUSTOM' }));
+                    }}
+                  />
+                  <span className="rtitle">Custom Dates</span>
+                  <span className="rsub">HR-picked specific dates</span>
+                </label>
+              </div>
+              {combinedFieldErrors.claim_date_rule && (
+                <div className="lc-field-error">{combinedFieldErrors.claim_date_rule}</div>
+              )}
+
+              {combinedForm.claim_date_rule === 'CUSTOM' && (
+                <div style={{ marginTop: '10px' }}>
+                  <div className="lc-inline-edit-wrap" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <DatePicker
+                      value={pendingCustomClaimDate}
+                      onChange={setPendingCustomClaimDate}
+                      placeholder="Select a date"
+                      width="220px"
+                      showClear={false}
+                    />
+                    <button
+                      type="button"
+                      className="lc-ghost-btn"
+                      style={{ width: 'auto', padding: '0 12px' }}
+                      onClick={() => {
+                        if (!pendingCustomClaimDate) return;
+                        const dateStr = toDateInputValue(pendingCustomClaimDate);
+                        setCombinedFieldErrors((prev) => ({ ...prev, custom_claim_dates: undefined }));
+                        setCombinedForm((prev) => ({
+                          ...prev,
+                          custom_claim_dates: Array.from(new Set([...prev.custom_claim_dates, dateStr])).sort(),
+                        }));
+                        setPendingCustomClaimDate(null);
+                      }}
+                    >
+                      <Plus size={14} />
+                      Add date
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                    {combinedForm.custom_claim_dates.length === 0 ? (
+                      <span className="lc-checkrow-sub">No dates added yet.</span>
+                    ) : (
+                      combinedForm.custom_claim_dates.map((d) => (
+                        <span key={d} className="lc-code-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          {formatDate(d)}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${d}`}
+                            onClick={() =>
+                              setCombinedForm((prev) => ({
+                                ...prev,
+                                custom_claim_dates: prev.custom_claim_dates.filter((x) => x !== d),
+                              }))
+                            }
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  {combinedFieldErrors.custom_claim_dates && (
+                    <div className="lc-field-error">{combinedFieldErrors.custom_claim_dates}</div>
+                  )}
+                </div>
               )}
             </div>
+          ) : (
+            <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
+              <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
+              <div className="lc-gender-radio-row">
+                <label className={`lc-gender-radio-card ${!combinedForm.is_unlimited && !combinedForm.is_flexible ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={!combinedForm.is_unlimited && !combinedForm.is_flexible}
+                    onChange={() => setEntitlementMode('LIMITED')}
+                  />
+                  <span className="rtitle">Limited</span>
+                  <span className="rsub">Fixed entitled days</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.is_unlimited ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={combinedForm.is_unlimited}
+                    onChange={() => setEntitlementMode('UNLIMITED')}
+                  />
+                  <span className="rtitle">Unlimited</span>
+                  <span className="rsub">No balance validation</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.is_flexible ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={combinedForm.is_flexible}
+                    onChange={() => setEntitlementMode('FLEXIBLE')}
+                  />
+                  <span className="rtitle">Flexible</span>
+                  <span className="rsub">Entitled days cap, overrideable with justification</span>
+                </label>
+              </div>
+            </div>
+          )}
 
+          <div className="lc-modal-grid">
             <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-maxperapp">Max Days / Application</label>
-              <input
-                id="lt-maxperapp"
-                type="number"
-                className="ss-input"
-                placeholder="Blank = no limit"
-                value={combinedForm.max_days_per_application}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_days_per_application: e.target.value }))}
-              />
+              {(() => {
+                const isClaimTarget = combinedForm.category !== 'CLAIM' && claimTargetCodes.has(combinedForm.code);
+                const isRequired = !combinedForm.is_unlimited && combinedForm.category !== 'CLAIM' && !isClaimTarget;
+                return (
+                  <>
+                    <label
+                      className={`ss-modal-label ${isRequired ? 'ss-modal-label-required' : ''}`}
+                      htmlFor="lt-entitled"
+                    >
+                      Entitled Days
+                    </label>
+                    {combinedForm.category === 'CLAIM' ? (
+                      <div className="lc-locked-field" title="Not applicable — Claim leave types have no entitlement cap">
+                        Not applicable
+                      </div>
+                    ) : combinedForm.is_unlimited ? (
+                      <div className="lc-locked-field" title="Not applicable — this leave type is unlimited">
+                        Unlimited
+                      </div>
+                    ) : (
+                      <>
+                        {isClaimTarget && (
+                          <div className="lc-checkrow-sub" style={{ marginBottom: '6px' }}>
+                            Credited by a Claim leave type — balance is earned via approved
+                            claims. Optional base allocation on top of that; defaults to 0.
+                          </div>
+                        )}
+                        <input
+                          id="lt-entitled"
+                          type="number"
+                          className={`ss-input ${combinedFieldErrors.entitled_days ? 'has-error' : ''}`}
+                          placeholder={isClaimTarget ? '0' : 'e.g. 10'}
+                          value={combinedForm.entitled_days}
+                          aria-invalid={!!combinedFieldErrors.entitled_days}
+                          onChange={(e) => {
+                            setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
+                            setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }));
+                          }}
+                        />
+                        {combinedFieldErrors.entitled_days && (
+                          <div className="lc-field-error">{combinedFieldErrors.entitled_days}</div>
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
-              <select
-                id="lt-accrual"
-                className="ss-input"
-                value={combinedForm.accrual_type}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
-              >
-                <option value="NONE">Grant all at start of year</option>
-                <option value="MONTHLY">Accrue monthly</option>
-              </select>
-            </div>
+            {combinedForm.category === 'ACTUAL' && (
+              <>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
+                  <select
+                    id="lt-accrual"
+                    className="ss-input"
+                    value={combinedForm.accrual_type}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
+                  >
+                    <option value="NONE">Grant all at start of year</option>
+                    <option value="MONTHLY">Accrue monthly</option>
+                  </select>
+                </div>
 
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-proration">Proration Type</label>
-              <select
-                id="lt-proration"
-                className="ss-input"
-                value={combinedForm.proration_type}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, proration_type: e.target.value }))}
-              >
-                <option value="NONE">No proration</option>
-                <option value="MONTHLY">By full months worked</option>
-                <option value="DAILY">By calendar days worked</option>
-              </select>
-            </div>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-proration">Proration Type</label>
+                  <select
+                    id="lt-proration"
+                    className="ss-input"
+                    value={combinedForm.proration_type}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, proration_type: e.target.value }))}
+                  >
+                    <option value="NONE">No proration</option>
+                    <option value="MONTHLY">By full months worked</option>
+                    <option value="DAILY">By calendar days worked</option>
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="ss-modal-form-group">
               <label className="ss-modal-label" htmlFor="lt-notice">Min Notice (days)</label>
@@ -1819,69 +2147,84 @@ export function LeaveConfigurationPage() {
         <div className="lc-form-section">
           <div className="lc-form-section-title">Carry-Forward &amp; Advance</div>
 
-          <label className="lc-checkrow">
-            <input
-              type="checkbox"
-              aria-label="Allow carry-forward"
-              checked={combinedForm.is_carry_forward_allowed}
-              onChange={(e) => toggleCarryForward(e.target.checked)}
-            />
-            <span>
-              <span className="lc-checkrow-title">Allow carry-forward</span>
-              <span className="lc-checkrow-sub">Unused days roll into the next year</span>
-            </span>
-          </label>
-          <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
-              <input
-                id="lt-carryforward"
-                type="number"
-                className="ss-input"
-                value={combinedForm.max_carry_forward}
-                disabled={!combinedForm.is_carry_forward_allowed}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
-              />
+          {combinedForm.category === 'NOMINAL' ? (
+            <div className="lc-locked-field" title="Not applicable — Nominal leave types have no balance to carry forward or borrow against">
+              Not applicable — Nominal leave types (e.g. WFH) have no balance impact,
+              so there&apos;s nothing to carry forward or borrow against.
             </div>
-            <div className="ss-modal-form-group">
-              <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
-              <input
-                id="lt-carryforward-expiry"
-                type="number"
-                className="ss-input"
-                placeholder="Blank = never"
-                value={combinedForm.carry_forward_expiry_months}
-                disabled={!combinedForm.is_carry_forward_allowed}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* Carry-forward: ACTUAL and CLAIM only */}
+              <label className="lc-checkrow">
+                <input
+                  type="checkbox"
+                  aria-label="Allow carry-forward"
+                  checked={combinedForm.is_carry_forward_allowed}
+                  onChange={(e) => toggleCarryForward(e.target.checked)}
+                />
+                <span>
+                  <span className="lc-checkrow-title">Allow carry-forward</span>
+                  <span className="lc-checkrow-sub">Unused days roll into the next year</span>
+                </span>
+              </label>
+              <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
+                  <input
+                    id="lt-carryforward"
+                    type="number"
+                    className="ss-input"
+                    value={combinedForm.max_carry_forward}
+                    disabled={!combinedForm.is_carry_forward_allowed}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
+                  />
+                </div>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
+                  <input
+                    id="lt-carryforward-expiry"
+                    type="number"
+                    className="ss-input"
+                    placeholder="Blank = never"
+                    value={combinedForm.carry_forward_expiry_months}
+                    disabled={!combinedForm.is_carry_forward_allowed}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
+                  />
+                </div>
+              </div>
 
-          <label className="lc-checkrow" style={{ marginTop: '14px' }}>
-            <input
-              type="checkbox"
-              aria-label="Allow advance leave"
-              checked={combinedForm.allow_negative}
-              onChange={(e) => toggleAllowNegative(e.target.checked)}
-            />
-            <span>
-              <span className="lc-checkrow-title">Allow advance leave</span>
-              <span className="lc-checkrow-sub">Employees can borrow from next year&apos;s balance</span>
-            </span>
-          </label>
-          <div className={`lc-conditional-grid ${combinedForm.allow_negative ? '' : 'disabled'}`}>
-            <div className="ss-modal-form-group lc-modal-grid-span-2">
-              <label className="ss-modal-label" htmlFor="lt-negative-days">Max Negative Days</label>
-              <input
-                id="lt-negative-days"
-                type="number"
-                className="ss-input"
-                value={combinedForm.max_negative_days}
-                disabled={!combinedForm.allow_negative}
-                onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_negative_days: e.target.value }))}
-              />
-            </div>
-          </div>
+              {/* Advance leave borrowing: ACTUAL only */}
+              {combinedForm.category === 'ACTUAL' && (
+                <>
+                  <label className="lc-checkrow" style={{ marginTop: '14px' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Allow advance leave"
+                      checked={combinedForm.allow_negative}
+                      onChange={(e) => toggleAllowNegative(e.target.checked)}
+                    />
+                    <span>
+                      <span className="lc-checkrow-title">Allow advance leave</span>
+                      <span className="lc-checkrow-sub">Employees can borrow from next year&apos;s balance</span>
+                    </span>
+                  </label>
+                  <div className={`lc-conditional-grid ${combinedForm.allow_negative ? '' : 'disabled'}`}>
+                    <div className="ss-modal-form-group lc-modal-grid-span-2">
+                      <label className="ss-modal-label" htmlFor="lt-negative-days">Max Negative Days</label>
+                      <input
+                        id="lt-negative-days"
+                        type="number"
+                        className="ss-input"
+                        value={combinedForm.max_negative_days}
+                        disabled={!combinedForm.allow_negative}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_negative_days: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* Section: Restrictions & Status */}
@@ -1951,15 +2294,39 @@ export function LeaveConfigurationPage() {
 
           <div className="lc-toggle-field">
             <div>
-              <div className="lc-toggle-field-label">Requires approval</div>
-              <div className="lc-toggle-field-hint">If off, leave is auto-approved on submission</div>
+              <div className="lc-toggle-field-label">Requires Work Location for Leave Type</div>
+              <div className="lc-toggle-field-hint">
+                Optional — only turn on for leave types tied to a specific work location.
+                Leave off for types anyone can apply for regardless of work location.
+              </div>
             </div>
             <Toggle
-              checked={combinedForm.requires_approval}
-              onChange={(v) => setCombinedForm((prev) => ({ ...prev, requires_approval: v }))}
-              ariaLabel="Requires approval"
+              checked={combinedForm.requires_work_location}
+              onChange={(v) =>
+                setCombinedForm((prev) => ({
+                  ...prev,
+                  requires_work_location: v,
+                  required_location: v ? prev.required_location : '',
+                }))
+              }
+              ariaLabel="Requires Work Location for Leave Type"
             />
           </div>
+          {combinedForm.requires_work_location && (
+            <div className="ss-modal-form-group" style={{ marginBottom: '14px' }}>
+              <label className="ss-modal-label">Work Location Type</label>
+              <Select
+                value={combinedForm.required_location === '' ? '' : String(combinedForm.required_location)}
+                onChange={(v) => setCombinedForm((prev) => ({ ...prev, required_location: v }))}
+                options={workLocations.map((loc) => ({ value: String(loc.id), label: loc.name }))}
+                placeholder="Select Work Location"
+                width="260px"
+              />
+              {combinedFieldErrors.required_location && (
+                <div className="lc-field-error">{combinedFieldErrors.required_location}</div>
+              )}
+            </div>
+          )}
           <div className="lc-toggle-field">
             <div>
               <div className="lc-toggle-field-label">Active</div>
@@ -2014,9 +2381,9 @@ export function LeaveConfigurationPage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: '6px',
-                border: '1px solid var(--border-primary, #e2e8f0)',
-                backgroundColor: '#ffffff',
-                color: 'var(--text-primary, #0f172a)',
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--surface-primary)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 fontWeight: '500',
                 height: '36px',
@@ -2035,8 +2402,8 @@ export function LeaveConfigurationPage() {
                 padding: '8px 16px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: '#ef4444',
-                color: '#ffffff',
+                backgroundColor: 'var(--c-danger)',
+                color: 'var(--surface-primary)',
                 cursor: 'pointer',
                 fontWeight: '500',
                 display: 'flex',

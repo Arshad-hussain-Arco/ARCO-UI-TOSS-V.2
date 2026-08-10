@@ -287,7 +287,7 @@
   bottom: 14px;
   right: 20px;
   font-size: 15px;
-  color: #fff;
+  color: var(--surface-primary);
   text-align: right;
   letter-spacing: 0.02em;
   margin: 0;

@@ -6,7 +6,11 @@ import {
   ChevronRight,
   X,
   Minimize2,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
@@ -173,7 +177,18 @@ export function DocumentsPage() {
   return (
     <div className={`doc-page ${isFullscreen ? 'doc-page-fullscreen' : ''}`}>
       {/* App-Wide Breadcrumb Header Bar */}
-      {!isFullscreen && <Breadcrumb items={getBreadcrumbs()} />}
+      {!isFullscreen && (
+        <Breadcrumb 
+          items={getBreadcrumbs()} 
+          rightElement={
+            <Link to={ROUTES.DOCUMENTS_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="doc-page-guide-btn">
+              <FileText size={14} />
+              <span>User Guide</span>
+              <ExternalLink size={14} />
+            </Link>
+          }
+        />
+      )}
 
       {/* Main split container */}
       <div className="doc-workspace-container">
@@ -199,14 +214,14 @@ export function DocumentsPage() {
             <div className="doc-empty-state-panel">
               <div className="doc-empty-state-graphic">
                 <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="25" y="20" width="70" height="80" rx="8" fill="#F3F4F6" stroke="#D1D5DB" strokeWidth="2"/>
-                  <rect x="35" y="35" width="50" height="6" rx="3" fill="#E5E7EB"/>
-                  <rect x="35" y="50" width="50" height="6" rx="3" fill="#E5E7EB"/>
-                  <rect x="35" y="65" width="35" height="6" rx="3" fill="#E5E7EB"/>
-                  <circle cx="85" cy="85" r="20" fill="#E6F4ED" stroke="#115E59" strokeWidth="2"/>
-                  <path d="M80 80L90 90" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M85 75V95" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M75 85H95" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round"/>
+                  <rect x="25" y="20" width="70" height="80" rx="8" fill="#F3F4F6" stroke="#D1D5DB" strokeWidth="2" />
+                  <rect x="35" y="35" width="50" height="6" rx="3" fill="#E5E7EB" />
+                  <rect x="35" y="50" width="50" height="6" rx="3" fill="#E5E7EB" />
+                  <rect x="35" y="65" width="35" height="6" rx="3" fill="#E5E7EB" />
+                  <circle cx="85" cy="85" r="20" fill="#E6F4ED" stroke="#115E59" strokeWidth="2" />
+                  <path d="M80 80L90 90" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d="M85 75V95" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d="M75 85H95" stroke="#115E59" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
               </div>
               <h2 className="doc-empty-state-title">Select a file from the sidebar to view details</h2>

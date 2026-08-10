@@ -1,5 +1,5 @@
-import React, { useState, useLayoutEffect, useRef } from 'react';
-import ReactDOM from 'react-dom';
+import React from 'react';
+import { createPortal } from 'react-dom';
 
 export function ProgressTooltip({
   title,
@@ -75,12 +75,12 @@ export function ProgressTooltip({
   if (!visible) return null;
 
   const stateColors = {
-    completed: '#10b981',
-    current: '#3b82f6',
-    future: '#94a3b8',
+    completed: 'var(--c-success)',
+    current: 'var(--c-info)',
+    future: 'var(--text-tertiary)',
   };
 
-  const tooltipContent = (
+  return createPortal(
     <div
       ref={tooltipRef}
       className="pm-progress-tooltip"
@@ -95,7 +95,7 @@ export function ProgressTooltip({
       <div className="pm-tooltip-header">
         <span
           className="pm-tooltip-state-dot"
-          style={{ background: stateColors[state] || '#3b82f6' }}
+          style={{ background: stateColors[state] || 'var(--c-info)' }}
         />
         <span className="pm-tooltip-title">{title}</span>
         {state && (
@@ -106,7 +106,8 @@ export function ProgressTooltip({
       </div>
       {subtitle && <div className="pm-tooltip-subtitle">{subtitle}</div>}
       {description && <div className="pm-tooltip-desc">{description}</div>}
-    </div>
+    </div>,
+    document.body
   );
 
   return ReactDOM.createPortal(tooltipContent, document.body);

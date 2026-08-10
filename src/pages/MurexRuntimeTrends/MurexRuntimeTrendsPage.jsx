@@ -176,7 +176,7 @@ function buildJobStackedBarSpec(script) {
         type: 'scatter',
         mode: 'markers',
         name: '⚠️ Outlier',
-        marker: { color: '#EF4444', size: 8, symbol: 'circle', line: { color: '#fff', width: 1.5 } },
+        marker: { color: '#EF4444', size: 8, symbol: 'circle', line: { color: 'var(--surface-primary)', width: 1.5 } },
         hovertemplate: '<b>%{x}</b><br>⚠️ Outlier: %{y:.0f}m<extra></extra>',
       }] : []),
     ],
@@ -188,7 +188,7 @@ function buildJobStackedBarSpec(script) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: '#64748b', size: 10, family: 'Inter, system-ui, sans-serif' },
+      font: { color: 'var(--text-secondary)', size: 10, family: 'Inter, system-ui, sans-serif' },
       xaxis: {
         tickfont: { size: 9 },
         showgrid: false,
@@ -196,7 +196,7 @@ function buildJobStackedBarSpec(script) {
         tickangle: -30,
       },
       yaxis: {
-        title: { text: 'Minutes', font: { size: 9, color: '#94a3b8' } },
+        title: { text: 'Minutes', font: { size: 9, color: 'var(--text-tertiary)' } },
         tickfont: { size: 9 },
         gridcolor: 'rgba(148,163,184,0.15)',
         zeroline: false,
@@ -254,8 +254,8 @@ function JobCard({ script, onOpenDetail, onTogglePin }) {
     script.maxRuntime > 0 ? Math.min((script.minRuntime / script.maxRuntime) * 100, 100) : 0;
 
   const healthColor =
-    script.health === 'Healthy' ? '#10b981' :
-      script.health === 'Warning' ? '#f59e0b' : '#ef4444';
+    script.health === 'Healthy' ? 'var(--c-success)' :
+      script.health === 'Warning' ? 'var(--c-warning)' : 'var(--c-danger)';
 
   return (
     <div className="murex-job-card">
@@ -472,7 +472,7 @@ function getScriptHeatmapSpec(script) {
             y: run.dayIndex - 0.47, // top edge (because y is reversed)
             text: dateString,
             showarrow: false,
-            font: { size: 10, color: '#334155' },
+            font: { size: 10, color: 'var(--text-primary)' },
             xanchor: 'right',
             yanchor: 'top',
           });
@@ -513,14 +513,14 @@ function getScriptHeatmapSpec(script) {
           [0.0, '#fef08a'],
           [0.3, '#fdba74'],
           [0.6, '#ea580c'],
-          [1.0, '#991b1b'],
+          [1.0, 'var(--c-danger)'],
         ],
         colorbar: {
           title: 'Avg Duration (s)',
           titleside: 'top',
           thickness: 14,
           len: 0.9,
-          tickfont: { size: 10, color: '#64748b' },
+          tickfont: { size: 10, color: 'var(--text-secondary)' },
         },
         hoverongaps: false,
         hovertemplate: '<b>%{x}</b><br>Day: %{y}<br>Avg Duration: %{z}m<extra></extra>',
@@ -532,9 +532,9 @@ function getScriptHeatmapSpec(script) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: '#334155', size: 11, family: 'Inter, system-ui, sans-serif' },
-      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: '#64748b' } }, type: 'category' },
-      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: '#64748b' } }, autorange: 'reversed' },
+      font: { color: 'var(--text-primary)', size: 11, family: 'Inter, system-ui, sans-serif' },
+      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: 'var(--text-secondary)' } }, type: 'category' },
+      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: 'var(--text-secondary)' } }, autorange: 'reversed' },
       annotations: annotations,
     },
   };
@@ -689,7 +689,7 @@ function getRunGanttSpec(run) {
       autosize: true,
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: '#334155', size: 10 },
+      font: { color: 'var(--text-primary)', size: 10 },
       yaxis: { title: { text: 'Time (s)', font: { size: 10 } }, tickformat: ',' },
       xaxis: { tickangle: -45 },
       showlegend: true,
@@ -1047,9 +1047,9 @@ export function MurexRuntimeTrendsPage() {
   };
   const getCategoryColor = (category) => {
     const colors = {
-      ETL: '#3b82f6',
-      Backup: '#10b981',
-      'Alert Check': '#f59e0b',
+      ETL: 'var(--c-info)',
+      Backup: 'var(--c-success)',
+      'Alert Check': 'var(--c-warning)',
       Cleanup: '#8b5cf6',
       'Data Sync': '#06b6d4',
     };
@@ -1057,24 +1057,24 @@ export function MurexRuntimeTrendsPage() {
   };
   const getHealthColor = (health) => {
     const colors = {
-      Healthy: '#10b981',
-      Warning: '#f59e0b',
-      Critical: '#ef4444',
+      Healthy: 'var(--c-success)',
+      Warning: 'var(--c-warning)',
+      Critical: 'var(--c-danger)',
     };
     return colors[health];
   };
   const getHeatmapColor = (runtime) => {
-    if (runtime === 0) return '#f3f4f6';
+    if (runtime === 0) return 'var(--bg-tertiary)';
     if (runtime < 50) return '#dbeafe';
     if (runtime < 80) return '#93c5fd';
-    if (runtime < 100) return '#3b82f6';
+    if (runtime < 100) return 'var(--c-info)';
     return '#1e40af';
   };
   const getMonthlyHeatmapColor = (executions) => {
-    if (executions === 0) return '#f3f4f6';
+    if (executions === 0) return 'var(--bg-tertiary)';
     if (executions < 5) return '#dbeafe';
     if (executions < 10) return '#93c5fd';
-    if (executions < 12) return '#3b82f6';
+    if (executions < 12) return 'var(--c-info)';
     return '#1e40af';
   };
   const formatMinutes = (minutes) => {
@@ -1391,7 +1391,7 @@ export function MurexRuntimeTrendsPage() {
               <button 
                 className="murex-add-category-btn" 
                 onClick={handleAddCategory}
-                style={{ backgroundColor: '#105e35', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+                style={{ backgroundColor: '#105e35', color: 'var(--surface-primary)', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
               >
                 <Plus size={14} />
                 <span>Add Category</span>
@@ -1670,7 +1670,7 @@ export function MurexRuntimeTrendsPage() {
               type="text"
               value={categoryFormName}
               onChange={e => setCategoryFormName(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary, #d1d5db)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
             />
           </div>
           <div className="murex-form-group">
@@ -1678,7 +1678,7 @@ export function MurexRuntimeTrendsPage() {
             <textarea
               value={categoryFormDescription}
               onChange={e => setCategoryFormDescription(e.target.value)}
-              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary, #d1d5db)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
+              style={{ width: '100%', padding: '10px', border: '1px solid var(--border-primary)', borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)', resize: 'vertical', minHeight: '80px' }}
             />
           </div>
         </div>
@@ -1726,7 +1726,7 @@ export function MurexRuntimeTrendsPage() {
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
                     >
                       <span>{script.script_name}</span>
-                      <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: '#10b981', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+                      <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: 'var(--c-success)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                     </div>
                   ))
                 )}
@@ -1776,7 +1776,7 @@ export function MurexRuntimeTrendsPage() {
                       <span>{script.script_name}</span>
                       <button
                         onClick={() => toggleScriptAssignment(script.script_name, false)}
-                        style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        style={{ background: 'var(--c-danger)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                       >−</button>
                     </div>
                   ))
@@ -1802,7 +1802,7 @@ export function MurexRuntimeTrendsPage() {
               className="con-drawer-btn con-drawer-btn-primary"
               onClick={confirmDeleteCategory}
               disabled={isDeletingCategory}
-              style={{ background: '#ef4444' }}
+              style={{ background: 'var(--c-danger)' }}
             >
               {isDeletingCategory ? (
                 <>
@@ -1815,7 +1815,7 @@ export function MurexRuntimeTrendsPage() {
         }
       >
         <div style={{ textAlign: 'center', padding: '10px' }}>
-          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: '#f59e0b' }}>
+          <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid var(--c-warning)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: 'var(--c-warning)' }}>
             <AlertTriangle size={24} />
           </div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>Confirm Deletion</h2>

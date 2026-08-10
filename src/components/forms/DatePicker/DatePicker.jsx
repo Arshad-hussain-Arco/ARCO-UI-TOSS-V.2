@@ -32,6 +32,13 @@ export function DatePicker({
   onChange,
   minDate,
   maxDate,
+  // Optional predicate — (date) => boolean — for disabling individual
+  // dates beyond the min/max range (e.g. non-working days for an
+  // Actual/Nominal leave boundary). Merged into the same disabled matcher
+  // array react-day-picker uses for minDate/maxDate; named differently
+  // from `disabled` below since that prop already means "disable the
+  // whole picker".
+  isDateDisabled,
   placeholder = 'Select date',
   disabled = false,
   className = '',
@@ -203,11 +210,12 @@ export function DatePicker({
               onMonthChange={setCurrentMonth}
               selected={value}
               onSelect={handleSelect}
-              disabled={
-                minDate || maxDate
-                  ? [{ before: minDate, after: maxDate }]
-                  : false
-              }
+              disabled={(() => {
+                const matchers = [];
+                if (minDate || maxDate) matchers.push({ before: minDate, after: maxDate });
+                if (isDateDisabled) matchers.push(isDateDisabled);
+                return matchers.length ? matchers : false;
+              })()}
               showOutsideDays
               className="dp-calendar"
               classNames={{

@@ -205,14 +205,23 @@
   gap: 6px;
 }
 
-.my-leaves-action-btn:hover {
-  background-color: var(--c-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 102, 51, 0.2);
+.my-leaves-action-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .my-leaves-action-btn:active {
   transform: translateY(0);
+}
+
+.my-leaves-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.my-leaves-action-btn:disabled:hover {
+  background-color: var(--c-primary);
+  transform: none;
+  box-shadow: none;
 }
 
 .leave-cards-grid {
@@ -346,8 +355,8 @@
   white-space: nowrap;
 }
 
-.view-mode-btn:hover {
-  color: var(--text-primary);
+.view-mode-btn:hover   {
+  background: var(--bg-hover);
 }
 
 .view-mode-btn.active {
@@ -377,9 +386,9 @@
   white-space: nowrap;
 }
 
-.team-export-btn:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--border-secondary);
+.team-export-btn:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .team-export-btn:active {
@@ -662,11 +671,9 @@
   color: var(--text-inverse);
 }
 
-.export-button:hover {
-  background-color: var(--c-primary-hover);
-  border-color: var(--c-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 102, 51, 0.25);
+.export-button:hover   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .export-button-icon {
@@ -687,8 +694,9 @@
   transition: transform 0.2s ease;
 }
 
-.export-button:hover .export-button-chevron {
-  transform: translateY(1px);
+.export-button:hover .export-button-chevron   {
+  filter: brightness(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .export-dropdown {
@@ -965,7 +973,7 @@
 
 /* Leave Balance Overview */
 .balance-overview-section {
-  background-color: var(--bg-primary, #ffffff);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-primary, #eaeaea);
   border-radius: 8px;
   padding: 16px;
@@ -1060,7 +1068,7 @@
 
 /* Upcoming Leaves */
 .upcoming-leaves-section {
-  background-color: var(--bg-primary, #ffffff);
+  background-color: var(--bg-primary);
   border: 1px solid var(--border-primary, #eaeaea);
   border-radius: 8px;
   padding: 16px;
@@ -1076,7 +1084,7 @@
 .upcoming-leaves-icon {
   width: 16px;
   height: 16px;
-  color: var(--c-primary, #006633);
+  color: var(--c-primary);
 }
 
 .upcoming-leaves-title {
@@ -1098,7 +1106,7 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background-color: var(--bg-secondary, #f3f4f6);
+  background-color: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;

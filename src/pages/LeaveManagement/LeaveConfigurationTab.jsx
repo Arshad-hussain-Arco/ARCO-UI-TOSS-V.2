@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Search, ArrowUpDown, Edit2, Check, X, Users } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, ArrowUpDown, Edit2, Check, X, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { activatable } from '@utils/interactive';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -7,8 +7,6 @@ import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
 import './LeaveConfiguration.css';
-
-
 
 function getInitials(name) {
   return name
@@ -23,6 +21,33 @@ const AVATAR_COLORS = ['#1d4ed8', '#065f46', '#5b21b6', '#92400e', '#0f766e', '#
 function getAvatarBg(id) {
   const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
   return AVATAR_COLORS[num % AVATAR_COLORS.length];
+}
+
+function parsePhotoUrl(photoUrl) {
+  if (!photoUrl) return null;
+  let url = photoUrl;
+
+  if (url.startsWith('data:image')) return url;
+  if (url.startsWith('http') || url.startsWith('/')) return url;
+
+  if (url.startsWith('ZGF0Y')) {
+    try {
+      url = atob(url);
+    } catch (e) {
+      console.warn('Failed to decode base64 avatar');
+    }
+  }
+
+  if (url && !url.startsWith('data:image')) {
+    let mime = 'image/jpeg';
+    if (url.startsWith('iVBORw')) mime = 'image/png';
+    else if (url.startsWith('R0lGOD')) mime = 'image/gif';
+    else if (url.startsWith('UklGR')) mime = 'image/webp';
+
+    return `data:${mime};base64,${url}`;
+  }
+
+  return url;
 }
 
 export function LeaveConfigurationTab() {
@@ -40,10 +65,10 @@ export function LeaveConfigurationTab() {
         const res = await api.get(endpoints.manager.teamEditQuotaFields(user.emp_id), { params: { year: new Date().getFullYear() } });
         const payload = res.data?.data || res.data;
         const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
-        
+
         const mappedEmployees = rawData.map(emp => {
           const efs = Array.isArray(emp.editable_fields) ? emp.editable_fields : [];
-          
+
           const al = efs.find(f => f.leave_type_code === 'AL') || {};
           const sl = efs.find(f => f.leave_type_code === 'SL') || {};
           const compOff = efs.find(f => f.leave_type_code === 'CompOff' || f.leave_type_code === 'CCompOff') || {};
@@ -64,12 +89,13 @@ export function LeaveConfigurationTab() {
             sickLeave: { balance: sl.current_value || 0, maxQuota: 0 },
             compOff: { balance: compOff.current_value || 0 },
             weekendWork: { balance: ww.current_value || 0 },
-            _raw: emp 
+            photo: parsePhotoUrl(emp.photo),
+            _raw: emp
           };
         });
 
         setEmployees(mappedEmployees);
-        
+
         const uniqueTeams = Array.from(new Set(mappedEmployees.map(e => e.team))).filter(Boolean);
         setTeams(['All Teams', ...uniqueTeams]);
       } catch (err) {
@@ -140,6 +166,32 @@ export function LeaveConfigurationTab() {
     });
   }, [filteredEmployees, sortField, sortOrder]);
 
+  const treeData = useMemo(() => {
+    if (sortedEmployees.length === 0) return [];
+
+    const nodes = sortedEmployees.map(emp => ({ ...emp, children: [] }));
+    const rootNodes = [];
+    const nodeMap = {};
+    nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    const orphans = [];
+
+    nodes.forEach(n => {
+      const parentId = n._raw?.manager_id || n._raw?.reporting_to || n._raw?.reporting_manager_id;
+      // Prevent circular references where an employee is their own manager
+      if (parentId && parentId !== n.id && nodeMap[parentId]) {
+        nodeMap[parentId].children.push(n);
+      } else {
+        orphans.push(n);
+      }
+    });
+
+    // Direct display without dummy team groupings
+    rootNodes.push(...orphans);
+
+    return rootNodes;
+  }, [sortedEmployees]);
+
   const handleSort = (field) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -170,7 +222,7 @@ export function LeaveConfigurationTab() {
   const handleSaveEdit = async (empId) => {
     if (!editForm || !user?.emp_id) return;
     setIsSaving(true);
-    
+
     const emp = employees.find(e => e.id === empId);
     if (!emp) {
       setIsSaving(false);
@@ -257,6 +309,122 @@ export function LeaveConfigurationTab() {
     setIsSaving(false);
   };
 
+  const [expandedRows, setExpandedRows] = useState({});
+
+  const toggleRow = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const renderTreeRow = (emp, depth = 0) => {
+    const isEditing = editingRowId === emp.id;
+    const hasChildren = emp.children && emp.children.length > 0;
+    const isExpanded = expandedRows[emp.id] !== false; // Default expanded to see tree initially
+    const isManager = emp.role?.toLowerCase().includes('manager') || hasChildren;
+
+    return (
+      <React.Fragment key={emp.id}>
+        <tr className={`lc-tree-row ${isEditing ? 'lc-row-editing' : ''} depth-${depth} ${hasChildren ? 'is-parent' : ''}`}>
+          <td className="lc-td-name">
+            <div className="lc-tree-indent" style={{ paddingLeft: `${depth * 42}px` }}>
+              {hasChildren ? (
+                <button className="lc-expand-btn" onClick={() => toggleRow(emp.id)}>
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+              ) : (
+                <span className="lc-expand-placeholder"></span>
+              )}
+              <div className="lc-emp-cell">
+                <div className="lc-avatar" style={{ backgroundColor: getAvatarBg(emp.id) }}>
+                  {emp.photo ? (
+                    <img src={emp.photo} alt={emp.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    getInitials(emp.name)
+                  )}
+                </div>
+                <div className="lc-emp-info">
+                  <div className="lc-emp-name-wrap">
+                    <span className="lc-emp-name">{emp.name}</span>
+                    {isManager && <span className="lc-manager-pill">Manager</span>}
+                  </div>
+                  <span className="lc-emp-role">{emp.role || 'Employee'}</span>
+                </div>
+              </div>
+            </div>
+          </td>
+
+          <td className="lc-td-team">{emp.team}</td>
+
+          <td className="text-center">
+            {isEditing ? (
+              <div className="lc-inline-inputs">
+                <input type="number" className="lc-inline-num-input" value={editForm.carryOverBalance} onChange={(e) => setEditForm({ ...editForm, carryOverBalance: e.target.value })} />
+                <span className="lc-inline-slash">/</span>
+                <input type="number" className="lc-inline-num-input" value={editForm.carryOverLimit} onChange={(e) => setEditForm({ ...editForm, carryOverLimit: e.target.value })} />
+                <span className="lc-inline-unit">d</span>
+              </div>
+            ) : (
+              <span className="lc-plain-val">{emp.carryOver.balance}d / {emp.carryOver.limit}d</span>
+            )}
+          </td>
+
+          <td className="text-center">
+            {isEditing ? (
+              <div className="lc-inline-inputs">
+                <input type="number" className="lc-inline-num-input" value={editForm.sickLeaveBalance} onChange={(e) => setEditForm({ ...editForm, sickLeaveBalance: e.target.value })} />
+                <span className="lc-inline-slash">/</span>
+                <input type="number" className="lc-inline-num-input" value={editForm.sickLeaveMaxQuota} onChange={(e) => setEditForm({ ...editForm, sickLeaveMaxQuota: e.target.value })} />
+                <span className="lc-inline-unit">d</span>
+              </div>
+            ) : (
+              <span className="lc-plain-val">{emp.sickLeave.balance}d / {emp.sickLeave.maxQuota}d</span>
+            )}
+          </td>
+
+          <td className="text-center">
+            {isEditing ? (
+              <div className="lc-inline-inputs">
+                <input type="number" className="lc-inline-num-input single" value={editForm.compOffBalance} onChange={(e) => setEditForm({ ...editForm, compOffBalance: e.target.value })} />
+                <span className="lc-inline-unit">d</span>
+              </div>
+            ) : (
+              <span className="lc-plain-val">{emp.compOff.balance}d</span>
+            )}
+          </td>
+
+          <td className="text-center">
+            {isEditing ? (
+              <div className="lc-inline-inputs">
+                <input type="number" className="lc-inline-num-input single" value={editForm.weekendWorkBalance} onChange={(e) => setEditForm({ ...editForm, weekendWorkBalance: e.target.value })} />
+                <span className="lc-inline-unit">cr</span>
+              </div>
+            ) : (
+              <span className="lc-plain-val">{emp.weekendWork.balance} cr</span>
+            )}
+          </td>
+
+          <td className="text-right">
+            {!emp._isDummy && (
+              isEditing ? (
+                <div className="lc-action-btns">
+                  <button className="lc-save-btn" onClick={() => handleSaveEdit(emp.id)} disabled={isSaving}>
+                    {isSaving ? <Loader size="sm" /> : <Check size={14} />}
+                  </button>
+                  <button className="lc-cancel-btn" onClick={handleCancelEdit} disabled={isSaving}><X size={14} /></button>
+                </div>
+              ) : (
+                <button className="lc-edit-btn" onClick={() => handleStartEdit(emp)}><Edit2 size={14} /></button>
+              )
+            )}
+          </td>
+        </tr>
+
+        {hasChildren && isExpanded && (
+          emp.children.map(child => renderTreeRow(child, depth + 1))
+        )}
+      </React.Fragment>
+    );
+  };
+
   return (
     <div className="lc-container">
       {loading ? (
@@ -265,267 +433,94 @@ export function LeaveConfigurationTab() {
         </div>
       ) : (
         <>
-      {/* ── Top Filter Bar (Search + Team) ─────────────────────────────────── */}
-      <div className="lc-filter-panel">
-        <div className="lc-filter-row">
-          <div className="lc-search-wrap">
-            <Search className="lc-search-icon" />
-            <input
-              type="text"
-              className="lc-search-input"
-              placeholder="Search employee name, role or team…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-             style={{ paddingRight: '32px' }} />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+          {/* ── Top Filter Bar (Search + Team) ─────────────────────────────────── */}
+          <div className="lc-filter-panel">
+            <div className="lc-filter-row">
+              <div className="lc-search-wrap">
+                <Search className="lc-search-icon" />
+                <input
+                  type="text"
+                  className="lc-search-input"
+                  placeholder="Search employee name, role or team…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ paddingRight: '32px' }}
+                />
+                {searchQuery && (
+                  <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <Select
+                value={teamFilter}
+                onChange={setTeamFilter}
+                options={teams.map((t) => ({ value: t, label: t }))}
+                width="team"
+              />
+            </div>
           </div>
 
-          <Select
-            value={teamFilter}
-            onChange={setTeamFilter}
-            options={teams.map((t) => ({ value: t, label: t }))}
-            width="team"
-          />
-        </div>
-      </div>
-
-      {/* ── Inline Editable Data Table ────────────────────────────────────────── */}
-      <div className="lc-table-container">
-        <table className="lc-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSort('name')} className="sortable">
-                <div className="th-content">
-                  <span>Employee</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th onClick={() => handleSort('team')} className="sortable">
-                <div className="th-content">
-                  <span>Team / Manager</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th onClick={() => handleSort('carryOver')} className="sortable text-center">
-                <div className="th-content center">
-                  <span>Carry Over</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th onClick={() => handleSort('sickLeave')} className="sortable text-center">
-                <div className="th-content center">
-                  <span>Sick Leave</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th onClick={() => handleSort('compOff')} className="sortable text-center">
-                <div className="th-content center">
-                  <span>Comp-Off</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th onClick={() => handleSort('weekendWork')} className="sortable text-center">
-                <div className="th-content center">
-                  <span>Weekend Work</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
-              <th className="text-right">Edit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedEmployees.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="lc-empty-td">
-                  <div className="lc-empty-state">
-                    <Users size={32} />
-                    <p>No employee leave configurations found.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              sortedEmployees.map((emp) => {
-                const isEditing = editingRowId === emp.id;
-
-                return (
-                  <tr key={emp.id} className={isEditing ? 'lc-row-editing' : ''}>
-                    {/* Employee Name & Role */}
-                    <td>
-                      <div className="lc-emp-cell">
-                        <div
-                          className="lc-avatar"
-                          style={{ backgroundColor: getAvatarBg(emp.id) }}
-                        >
-                          {getInitials(emp.name)}
-                        </div>
-                        <div className="lc-emp-info">
-                          <span className="lc-emp-name">{emp.name}</span>
-                          <span className="lc-emp-role">{emp.role}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Team / Manager */}
-                    <td>
-                      <div className="lc-team-cell">
-                        <span className="lc-team-name">{emp.team}</span>
-                        <span className="lc-manager-sub">{emp.reportingManager}</span>
-                      </div>
-                    </td>
-
-                    {/* Carry Over Column */}
-                    <td className="text-center">
-                      {isEditing ? (
-                        <div className="lc-inline-inputs">
-                          <input
-                            type="number"
-                            aria-label={`Carry over balance for ${emp.name}`}
-                            className="lc-inline-num-input"
-                            value={editForm.carryOverBalance}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, carryOverBalance: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-slash">/</span>
-                          <input
-                            type="number"
-                            aria-label={`Carry over limit for ${emp.name}`}
-                            className="lc-inline-num-input"
-                            value={editForm.carryOverLimit}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, carryOverLimit: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-unit">d</span>
-                        </div>
-                      ) : (
-                        <span className="lc-plain-val">
-                          {emp.carryOver.balance}d / {emp.carryOver.limit}d
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Sick Leave Column */}
-                    <td className="text-center">
-                      {isEditing ? (
-                        <div className="lc-inline-inputs">
-                          <input
-                            type="number"
-                            aria-label={`Sick leave balance for ${emp.name}`}
-                            className="lc-inline-num-input"
-                            value={editForm.sickLeaveBalance}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, sickLeaveBalance: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-slash">/</span>
-                          <input
-                            type="number"
-                            aria-label={`Sick leave quota for ${emp.name}`}
-                            className="lc-inline-num-input"
-                            value={editForm.sickLeaveMaxQuota}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, sickLeaveMaxQuota: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-unit">d</span>
-                        </div>
-                      ) : (
-                        <span className="lc-plain-val">
-                          {emp.sickLeave.balance}d / {emp.sickLeave.maxQuota}d
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Comp-Off Column */}
-                    <td className="text-center">
-                      {isEditing ? (
-                        <div className="lc-inline-inputs">
-                          <input
-                            type="number"
-                            aria-label={`Comp off balance for ${emp.name}`}
-                            className="lc-inline-num-input single"
-                            value={editForm.compOffBalance}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, compOffBalance: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-unit">d</span>
-                        </div>
-                      ) : (
-                        <span className="lc-plain-val">{emp.compOff.balance}d</span>
-                      )}
-                    </td>
-
-                    {/* Weekend Work Column */}
-                    <td className="text-center">
-                      {isEditing ? (
-                        <div className="lc-inline-inputs">
-                          <input
-                            type="number"
-                            aria-label={`Weekend work credits for ${emp.name}`}
-                            className="lc-inline-num-input single"
-                            value={editForm.weekendWorkBalance}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, weekendWorkBalance: e.target.value })
-                            }
-                          />
-                          <span className="lc-inline-unit">cr</span>
-                        </div>
-                      ) : (
-                        <span className="lc-plain-val">{emp.weekendWork.balance} cr</span>
-                      )}
-                    </td>
-
-                    {/* Inline Edit Actions */}
-                    <td className="text-right">
-                      <div className="lc-action-btns">
-                        {isEditing ? (
-                          <>
-                            <button
-                              className="lc-act-btn save"
-                              title="Save Changes"
-                              disabled={isSaving}
-                              {...activatable(() => handleSaveEdit(emp.id), {
-                                disabled: isSaving,
-                              })}
-                            >
-                              <Check size={16} />
-                            </button>
-                            <button
-                              className="lc-act-btn cancel"
-                              title="Cancel Edit"
-                              {...activatable(handleCancelEdit, {
-                                label: `Cancel edit for ${emp.name}`,
-                              })}
-                            >
-                              <X size={14} />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            className="lc-act-btn edit"
-                            title="Edit Row Inline"
-                            {...activatable(() => handleStartEdit(emp), {
-                              label: `Edit configuration for ${emp.name}`,
-                            })}
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                        )}
+          {/* ── Inline Editable Data Table ────────────────────────────────────────── */}
+          <div className="lc-table-container">
+            <table className="lc-table">
+              <thead>
+                <tr>
+                  <th onClick={() => handleSort('name')} className="sortable">
+                    <div className="th-content">
+                      <span>Employee</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('team')} className="sortable">
+                    <div className="th-content">
+                      <span>Team / Manager</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('carryOver')} className="sortable text-center">
+                    <div className="th-content center">
+                      <span>Carry Over</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('sickLeave')} className="sortable text-center">
+                    <div className="th-content center">
+                      <span>Sick Leave</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('compOff')} className="sortable text-center">
+                    <div className="th-content center">
+                      <span>Comp-Off</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th onClick={() => handleSort('weekendWork')} className="sortable text-center">
+                    <div className="th-content center">
+                      <span>Weekend Work</span>
+                      <ArrowUpDown size={12} />
+                    </div>
+                  </th>
+                  <th className="text-right">Edit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {treeData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="lc-empty-td">
+                      <div className="lc-empty-state">
+                        <Users size={32} />
+                        <p>No employee leave configurations found.</p>
                       </div>
                     </td>
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ) : (
+                  treeData.map((emp) => renderTreeRow(emp, 0))
+                )}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>

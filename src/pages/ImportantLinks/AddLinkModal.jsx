@@ -45,7 +45,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
         >
           {value ? selectedLabel : 'Select group (Optional)'}
         </span>
-        <ChevronDown size={13} strokeWidth={2} className="il-modal-group-trigger-chevron" />
+        <ChevronDown size={13} strokeWidth={2} className="il-modal-group-trigger-chevron" style={{ pointerEvents: 'none' }} />
       </button>
 
       {open && (
@@ -70,9 +70,11 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
                 )}
               </button>
             ))}
+          </div>
 
-            <div className="il-modal-group-divider" />
-
+          <div className="il-modal-group-divider" style={{ margin: '0' }} />
+          
+          <div style={{ padding: '4px' }}>
             <button
               type="button"
               className="il-modal-group-action"

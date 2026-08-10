@@ -1,17 +1,17 @@
 export const colors = {
-  brand: '#1B4D3E',
-  page: '#F6F7F5',
-  surface: '#FFFFFF',
-  border: '#E3E7E4',
-  textPrimary: '#16211D',
-  textSecondary: '#5B6B65',
+  brand: 'var(--c-primary)',
+  page: 'var(--bg-secondary)',
+  surface: 'var(--surface-primary)',
+  border: 'var(--border-secondary)',
+  textPrimary: 'var(--text-primary)',
+  textSecondary: 'var(--text-secondary)',
 
-  blue:   { bg: '#E3EFFF', icon: '#2F6FE0', pillBg: '#EAF1FF', pillText: '#042C53' },
-  green:  { bg: '#E3F7EA', icon: '#22935F', pillBg: '#E3F7EA', pillText: '#173404' },
-  amber:  { bg: '#FFF3DD', icon: '#B37514', pillBg: '#FFF4E0', pillText: '#412402' },
-  red:    { bg: '#FDEDED', icon: '#A32D2D', border: '#F0BABA', pillBg: '#FDEDED', pillText: '#501313' },
-  purple: { bg: '#EEEDFE', icon: '#7F77DD', pillBg: '#EEEDFE', pillText: '#26215C' },
-  neutral:{ bg: '#F1EFE8', icon: '#888780', pillBg: '#F1EFE8', pillText: '#444441' },
+  blue:   { bg: 'var(--c-info-light)', icon: 'var(--c-info)', pillBg: 'var(--c-info-light)', pillText: 'var(--c-info)' },
+  green:  { bg: 'var(--c-success-light)', icon: 'var(--c-success)', pillBg: 'var(--c-success-light)', pillText: 'var(--c-success)' },
+  amber:  { bg: 'var(--c-warning-light)', icon: 'var(--c-warning)', pillBg: 'var(--c-warning-light)', pillText: 'var(--c-warning)' },
+  red:    { bg: 'var(--c-danger-light)', icon: 'var(--c-danger)', border: 'var(--c-danger-light)', pillBg: 'var(--c-danger-light)', pillText: 'var(--c-danger)' },
+  purple: { bg: 'var(--surface-tertiary)', icon: 'var(--text-primary)', pillBg: 'var(--surface-tertiary)', pillText: 'var(--text-primary)' },
+  neutral:{ bg: 'var(--bg-tertiary)', icon: 'var(--text-secondary)', pillBg: 'var(--bg-tertiary)', pillText: 'var(--text-primary)' },
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 };

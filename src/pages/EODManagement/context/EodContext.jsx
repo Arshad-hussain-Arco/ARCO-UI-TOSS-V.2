@@ -196,7 +196,7 @@ export function EodProvider({ children }) {
     const patch = {
       status: nextStatus,
       lastRunScript: jobType,
-      color: nextStatus === 'running' ? '#6366f1' : '#f59e0b',
+      color: nextStatus === 'running' ? '#6366f1' : 'var(--c-warning)',
       startedAtMs: newStartedAt,
       elapsedSeconds: currentSecs,
       duration: frozenDuration,
@@ -219,7 +219,7 @@ export function EodProvider({ children }) {
       progress: 0,
       stepsDone: 0,
       currentStep: 'Stopped',
-      color: '#64748b',
+      color: 'var(--text-secondary)',
       elapsedSeconds: 0,
       duration: '—',
     };

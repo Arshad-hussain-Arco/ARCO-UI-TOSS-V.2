@@ -35,9 +35,18 @@ export const leaveService = {
       throw error;
     }
   },
-  getMyLeaves: async (empId) => {
+  getEligibleLeaveTypes: async (empId) => {
     try {
-      const response = await httpClient.get(endpoints.me.leaves(empId));
+      const response = await httpClient.get(endpoints.me.eligibleLeaveTypes(empId));
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching eligible leave types:', error);
+      throw error;
+    }
+  },
+  getMyLeaves: async (empId, params = {}) => {
+    try {
+      const response = await httpClient.get(endpoints.me.leaves(empId), { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -82,12 +91,29 @@ export const leaveService = {
     const response = await httpClient.get(endpoints.me.leaveHistory(leaveId));
     return response.data;
   },
+  // Deprecated — kept for backward compatibility only. Use claimSubmit
+  // instead, which works for any Claim-category leave type.
   claimWeekend: async (payload) => {
     const response = await httpClient.post(endpoints.me.claimWeekend, payload);
     return response.data;
   },
   claimCompOff: async (payload) => {
     const response = await httpClient.post(endpoints.me.claimCompOff, payload);
+    return response.data;
+  },
+  // Generic claim submission — payload: { emp_id, leave_type_code, dates: [...], reason }.
+  // `dates` is an explicit list of individual dates (not a range) — see
+  // ClaimSubmitSerializer on the backend for why.
+  claimSubmit: async (payload) => {
+    const response = await httpClient.post(endpoints.me.claimSubmit, payload);
+    return response.data;
+  },
+  // Which dates in [start, end] qualify as claimable for a given Claim leave
+  // type, per its configured claim_date_rule. Returns { eligible_dates: [...] }.
+  getClaimEligibleDates: async ({ emp_id, leave_type_code, start, end }) => {
+    const response = await httpClient.get(endpoints.me.claimEligibleDates, {
+      params: { emp_id, leave_type_code, start, end },
+    });
     return response.data;
   },
   requestWfh: async (payload) => {
@@ -274,6 +300,12 @@ export const leaveService = {
   },
   deleteLeaveTypeWithPolicy: async (code) => {
     const response = await httpClient.delete(endpoints.hr.leaveTypeWithPolicyDetail(code));
+    return response.data;
+  },
+
+  // Work locations, for the "Requires Work Location" leave-type setting
+  getWorkLocations: async () => {
+    const response = await httpClient.get(endpoints.consultants.locations);
     return response.data;
   },
 

@@ -1,21 +1,21 @@
 .ru-guide-page {
   padding: 40px;
-  background-color: #f1f5f9;
+  background-color: var(--bg-secondary);
   min-height: 100vh;
   display: flex;
   justify-content: center;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #334155;
+  color: var(--text-primary);
   line-height: 1.6;
 }
 
 .ru-guide-document {
-  background: #fff;
+  background: var(--surface-primary);
   width: 100%;
   max-width: 900px;
   padding: 60px 80px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-secondary);
 }
 
 .ru-doc-title {
@@ -62,7 +62,7 @@
   font-weight: 700;
   margin-top: 20px;
   margin-bottom: 8px;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .ru-doc-section p {
@@ -110,18 +110,18 @@
   height: auto;
   display: block;
   margin: 24px auto;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-secondary);
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 code {
-  background-color: #f1f5f9;
+  background-color: var(--bg-secondary);
   padding: 2px 4px;
   border-radius: 4px;
   font-family: monospace;
   font-size: 0.9em;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Math Equation Styles */
@@ -132,7 +132,7 @@ code {
   margin: 24px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--bg-secondary);
 }
 
 .ru-math-label {
@@ -148,7 +148,7 @@ code {
 
 .ru-math-numerator {
   padding: 4px 8px;
-  border-bottom: 2px solid #1e293b;
+  border-bottom: 2px solid var(--bg-secondary);
   width: 100%;
 }
 
