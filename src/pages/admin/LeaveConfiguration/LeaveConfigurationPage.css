@@ -251,6 +251,53 @@
   border: 1px solid var(--border-secondary);
 }
 
+/* Overlap Policy — multi-select checkbox chip list */
+.lc-checkbox-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.lc-checkbox-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lc-checkbox-chip input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.lc-checkbox-chip.checked {
+  background-color: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.lc-checkbox-chip.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lc-checkbox-chip.disabled input {
+  cursor: not-allowed;
+}
+
 /* Tag Status Badges */
 .lc-tag-upcoming {
   display: inline-flex;
