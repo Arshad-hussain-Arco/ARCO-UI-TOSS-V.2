@@ -65,6 +65,13 @@ export const leaveService = {
       throw error;
     }
   },
+  // Employee withdraws their own pending request to modify an already-
+  // approved leave, before the manager reviews it. The original leave is
+  // untouched by this — only the pending request itself is cancelled.
+  cancelModRequest: async (modId, payload) => {
+    const response = await httpClient.post(endpoints.me.cancelModRequest(modId), payload);
+    return response.data;
+  },
   getTeamLeaves: async (managerId) => {
     try {
       const response = await httpClient.get(endpoints.me.teamLeaves(managerId));

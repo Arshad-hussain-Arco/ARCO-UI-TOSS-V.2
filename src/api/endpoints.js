@@ -65,6 +65,7 @@ const endpoints = {
     calendar: (id) => `/leaves/me/${id}/calendar/`,
     applyLeave: `/leaves/me/leaves/apply/`,
     modifyLeave: (id) => `/leaves/me/leaves/${id}/modify/`,
+    cancelModRequest: (modId) => `/leaves/me/leaves/mod-requests/${modId}/cancel/`,
     cancelLeave: (id) => `/leaves/me/leaves/${id}/cancel/`,
     leaveHistory: (id) => `/leaves/me/leaves/${id}/history/`,
     // Deprecated aliases — kept working server-side, but the UI should use

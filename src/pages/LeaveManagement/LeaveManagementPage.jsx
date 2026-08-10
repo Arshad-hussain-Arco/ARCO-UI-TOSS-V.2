@@ -178,6 +178,7 @@ export function LeaveManagementPage() {
   const [eligibleLeaveTypes, setEligibleLeaveTypes] = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [modRequests, setModRequests] = useState([]);
+  const [cancellingModId, setCancellingModId] = useState(null);
   const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -316,6 +317,7 @@ export function LeaveManagementPage() {
         business_days: m.new_business_days,
         leave_reason: m.new_leave_reason || m.modification_reason,
         status_code: 'MOD_PENDING',
+        comments: m.modification_reason || 'Awaiting manager re-approval',
         requested_date: m.created_at,
         is_mod_request: true,
         mod_request_id: m.id,
@@ -325,6 +327,18 @@ export function LeaveManagementPage() {
       }));
     return [...leaves, ...pendingMods];
   }, [leaves, modRequests]);
+
+  const handleCancelModRequest = async (modRequestId) => {
+    try {
+      setCancellingModId(modRequestId);
+      await leaveService.cancelModRequest(modRequestId, { emp_id: user?.emp_id });
+      setRefreshKey((k) => k + 1);
+    } catch (e) {
+      console.error('Failed to cancel modification request', e);
+    } finally {
+      setCancellingModId(null);
+    }
+  };
 
   // "Apply for: Myself | On Behalf" should only show for users who can
   // actually apply on behalf of someone — a manager with direct/indirect
@@ -605,7 +619,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('all')}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -613,7 +627,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -621,7 +635,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -629,7 +643,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -637,7 +651,15 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('self-rejected')}
                       >
                         <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
+                      </button>
+                      <button
+                        className="leave-filter-chip"
+                        data-active={filterStatus === 'mod-pending'}
+                        onClick={() => setFilterStatus('mod-pending')}
+                      >
+                        <span className="leave-filter-label">Modification Requests</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.is_mod_request).length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -645,7 +667,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('offshore')}
                       >
                         <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leaves.filter(l => l.leave_type === 'OW').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                     </div>
 
@@ -750,7 +772,7 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        {leaves.filter(leave => {
+                        {leavesWithModRequests.filter(leave => {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).sort((a, b) => {
@@ -819,30 +841,41 @@ export function LeaveManagementPage() {
 
                               <td className="leave-table-cell" data-label="Action">
                                 <div className="leave-table-actions">
-                                  {statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
-                                    <>
-                                      <button
-                                        className="leave-table-action-button action-cancel"
-                                        title="Cancel Request"
-                                        onClick={() => setCancelModalLeave(leave)}
-                                      >
-                                        <X className="leave-table-action-icon" />
-                                      </button>
-                                      <button
-                                        className="leave-table-action-button action-edit"
-                                        title="Edit Request"
-                                        onClick={() => setEditModalLeave(leave)}
-                                      >
-                                        <Edit className="leave-table-action-icon" />
-                                      </button>
-                                    </>
+                                  {leave.is_mod_request ? (
+                                    <button
+                                      className="leave-table-action-button action-cancel"
+                                      title="Withdraw Modification Request"
+                                      disabled={cancellingModId === leave.mod_request_id}
+                                      onClick={() => handleCancelModRequest(leave.mod_request_id)}
+                                    >
+                                      <X className="leave-table-action-icon" />
+                                    </button>
+                                  ) : (
+                                    statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
+                                      <>
+                                        <button
+                                          className="leave-table-action-button action-cancel"
+                                          title="Cancel Request"
+                                          onClick={() => setCancelModalLeave(leave)}
+                                        >
+                                          <X className="leave-table-action-icon" />
+                                        </button>
+                                        <button
+                                          className="leave-table-action-button action-edit"
+                                          title="Edit Request"
+                                          onClick={() => setEditModalLeave(leave)}
+                                        >
+                                          <Edit className="leave-table-action-icon" />
+                                        </button>
+                                      </>
+                                    )
                                   )}
                                 </div>
                               </td>
                             </tr>
                           );
                         })}
-                        {leaves.filter(leave => {
+                        {leavesWithModRequests.filter(leave => {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
                         }).length === 0 && (
@@ -885,6 +918,8 @@ export function LeaveManagementPage() {
             onFromDateChange={setSummaryFrom}
             toDate={summaryTo}
             onToDateChange={setSummaryTo}
+            onCancelModRequest={handleCancelModRequest}
+            cancellingModId={cancellingModId}
           />
         )}
       </div>
