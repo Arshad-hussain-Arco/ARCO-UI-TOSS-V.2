@@ -140,6 +140,11 @@
   color: var(--text-inverse);
 }
 
+.leave-table-status[data-status='mod-pending'] {
+  background: var(--c-info, #3b82f6);
+  color: var(--text-inverse);
+}
+
 /* Icon Button */
 .leave-table-icon-button {
   background: transparent;

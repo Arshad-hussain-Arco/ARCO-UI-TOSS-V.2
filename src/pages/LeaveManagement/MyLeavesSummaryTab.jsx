@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, ArrowUpDown } from 'lucide-react';
+import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
@@ -39,6 +39,8 @@ export function MyLeavesSummaryTab({
   onFromDateChange,
   toDate,
   onToDateChange,
+  onCancelModRequest,
+  cancellingModId,
 }) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
@@ -293,6 +295,16 @@ export function MyLeavesSummaryTab({
                         <button className="leave-table-action-button action-view" title="View Details" onClick={() => setViewModalLeave(leave)}>
                           <Eye className="leave-table-action-icon" />
                         </button>
+                        {leave.is_mod_request && onCancelModRequest && (
+                          <button
+                            className="leave-table-action-button action-cancel"
+                            title="Withdraw Modification Request"
+                            disabled={cancellingModId === leave.mod_request_id}
+                            onClick={() => onCancelModRequest(leave.mod_request_id)}
+                          >
+                            <X className="leave-table-action-icon" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
