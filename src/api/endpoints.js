@@ -147,6 +147,8 @@ const endpoints = {
     gradePolicyDetail: (pk) => `/leaves/hr/grade-policies/${pk}/`,
     policies: `/hr/policies/`,
     policyDetail: (id) => `/hr/policies/${id}/`,
+    overlapPolicies: `/hr/overlap-policies/`,
+    overlapPolicyDetail: (id) => `/hr/overlap-policies/${id}/`,
     employeeProfile: (empId) => `/leaves/hr/employees/${empId}/profile/`,
     bulkUpdateProfile: `/leaves/hr/employees/profiles/bulk-update/`,
     balanceAdjust: `/leaves/hr/balance/adjust/`,

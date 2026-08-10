@@ -68,14 +68,27 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const isMultiDay = !!(newStart && newEnd && newStart !== newEnd);
 
   // Every date (as 'YYYY-MM-DD') from newStart to newEnd, inclusive.
+  //
+  // Built entirely with UTC-based Date methods (Date.UTC / getUTCDate /
+  // setUTCDate / toISOString) — never local-time ones. Constructing a Date
+  // from a bare 'YYYY-MM-DDT00:00:00' string parses it as LOCAL midnight;
+  // toISOString() then converts to UTC, which in any timezone AHEAD of UTC
+  // (e.g. IST, Gulf) rolls it back to the PREVIOUS calendar date. That
+  // shifted string was used both to key dailyConfigs and to render each
+  // row's label, while newStart/newEnd (read straight from the date
+  // <input>, never round-tripped through Date) stayed unshifted — so
+  // dailyConfigs[newStart]/[newEnd] never matched what the user actually
+  // clicked, silently discarding their half-day pick as 'full' on submit.
   const rangeDays = (() => {
     if (!newStart || !newEnd) return [];
+    const [sy, sm, sd] = newStart.split('-').map(Number);
+    const [ey, em, ed] = newEnd.split('-').map(Number);
     const out = [];
-    const cur = new Date(`${newStart}T00:00:00`);
-    const fin = new Date(`${newEnd}T00:00:00`);
+    const cur = new Date(Date.UTC(sy, sm - 1, sd));
+    const fin = new Date(Date.UTC(ey, em - 1, ed));
     while (cur <= fin) {
       out.push(cur.toISOString().slice(0, 10));
-      cur.setDate(cur.getDate() + 1);
+      cur.setUTCDate(cur.getUTCDate() + 1);
     }
     return out;
   })();
@@ -154,11 +167,16 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
       // Single-day: unchanged legacy `new_duration` field. Multi-day: the
       // two new boundary fields instead, read off the per-day list's first
       // and last row — intermediate dates are always full day and need no
-      // field.
+      // field. Every edit/modify endpoint (on-behalf, OW modify, generic
+      // modify) expects these prefixed as `new_from_date_duration`/
+      // `new_to_date_duration` — NOT the unprefixed `from_date_duration`/
+      // `to_date_duration` used by the apply endpoints. DRF silently drops
+      // unrecognized fields, so sending the apply-style names here was
+      // always discarded, silently defaulting to FULL_DAY on submit.
       const durationFields = isMultiDay
         ? {
-            from_date_duration: (dailyConfigs[newStart] || 'full') === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
-            to_date_duration: (dailyConfigs[newEnd] || 'full') === 'morning' ? 'FIRST_HALF' : 'FULL_DAY',
+            new_from_date_duration: (dailyConfigs[newStart] || 'full') === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
+            new_to_date_duration: (dailyConfigs[newEnd] || 'full') === 'morning' ? 'FIRST_HALF' : 'FULL_DAY',
           }
         : { new_duration: newDuration };
 
