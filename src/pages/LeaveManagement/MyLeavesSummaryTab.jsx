@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Download, Eye, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
+import { Download, Eye, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { TruncatedText, SortIcon } from './LeaveManagementPage';
+import { getRelativePendingTime } from './TeamRequestsTab';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -40,19 +42,14 @@ export function MyLeavesSummaryTab({
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [sortField, setSortField] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
 
   // Normalize leave status for filtering
   const normalizedLeaves = useMemo(() => {
-    const mapped = leaves.map(leave => {
+    return leaves.map(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
       return { ...leave, statusStr };
-    });
-    
-    // Sort by start_date descending so the most future leaves are at the top
-    return mapped.sort((a, b) => {
-      const dateA = new Date(a.start_date || a.date || 0);
-      const dateB = new Date(b.start_date || b.date || 0);
-      return dateB - dateA;
     });
   }, [leaves]);
 
@@ -76,10 +73,33 @@ export function MyLeavesSummaryTab({
     return dateFilteredLeaves.filter(leave => {
       if (filterStatus === 'all') return true;
       return leave.statusStr === filterStatus;
+    }).sort((a, b) => {
+      if (!sortField) return 0;
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      if (sortField === 'comments') {
+        aVal = a.comments || a.approval_reason || a.rejected_reason || '';
+        bVal = b.comments || b.approval_reason || b.rejected_reason || '';
+      }
+      
+      if (aVal === bVal) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      const result = aVal > bVal ? 1 : -1;
+      return sortOrder === 'asc' ? result : -result;
     });
-  }, [dateFilteredLeaves, filterStatus]);
+  }, [dateFilteredLeaves, filterStatus, sortField, sortOrder]);
 
-
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = normalizedLeaves.filter(l => l.statusStr === 'pending');
@@ -150,11 +170,6 @@ export function MyLeavesSummaryTab({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {filterStatus === 'pending' && pendingDateRangeText && (
-              <span style={{ fontSize: '13px', color: '#b45309', fontWeight: 500, backgroundColor: '#fef3c7', padding: '4px 12px', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                Pending from: {pendingDateRangeText}
-              </span>
-            )}
             <div className="export-button-wrapper">
               <button className="export-button font-[Helvetica]" onClick={() => setShowExportDropdown(!showExportDropdown)}>
               <Download className="export-button-icon" />
@@ -226,17 +241,33 @@ export function MyLeavesSummaryTab({
               <col style={{ width: '15%' }} />
               <col style={{ width: '25%' }} />
               <col style={{ width: '10%' }} />
-              <col style={{ width: '25%' }} />
+              <col style={{ width: filterStatus === 'pending' ? '15%' : '25%' }} />
+              {filterStatus === 'pending' && <col style={{ width: '10%' }} />}
               <col style={{ width: '15%' }} />
               <col style={{ width: '10%' }} />
             </colgroup>
             <thead className="leave-table-thead">
               <tr className="leave-table-header-row">
-                <th className="leave-table-header">LEAVE TYPE</th>
-                <th className="leave-table-header">DATES</th>
-                <th className="leave-table-header">WORK DAYS</th>
-                <th className="leave-table-header">LEAVE REASON</th>
-                <th className="leave-table-header">STATUS</th>
+                <th className="leave-table-header" onClick={() => handleSort('leave_type')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leave_type" sortField={sortField} sortOrder={sortOrder} /></div>
+                </th>
+                <th className="leave-table-header" onClick={() => handleSort('start_date')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="start_date" sortField={sortField} sortOrder={sortOrder} /></div>
+                </th>
+                <th className="leave-table-header" onClick={() => handleSort('business_days')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>WORK DAYS <SortIcon field="business_days" sortField={sortField} sortOrder={sortOrder} /></div>
+                </th>
+                <th className="leave-table-header" onClick={() => handleSort('leave_reason')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE REASON <SortIcon field="leave_reason" sortField={sortField} sortOrder={sortOrder} /></div>
+                </th>
+                {filterStatus === 'pending' && (
+                  <th className="leave-table-header" onClick={() => handleSort('requested_date')} style={{ cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requested_date" sortField={sortField} sortOrder={sortOrder} /></div>
+                  </th>
+                )}
+                <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
+                </th>
                 <th className="leave-table-header">ACTION</th>
               </tr>
             </thead>
@@ -259,7 +290,14 @@ export function MyLeavesSummaryTab({
                       </div>
                     </td>
                     <td className="leave-table-cell">{leave.business_days || days}</td>
-                    <td className="leave-table-cell">{leave.leave_reason || leave.reason || '-'}</td>
+                    <td className="leave-table-cell">
+                      <TruncatedText text={leave.leave_reason || leave.reason} maxLength={25} title="Leave Reason" />
+                    </td>
+                    {filterStatus === 'pending' && (
+                      <td className="leave-table-cell" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                        {getRelativePendingTime(leave.requested_date || leave.created_at)}
+                      </td>
+                    )}
                     <td className="leave-table-cell">
                       <span className="leave-table-status" data-status={leave.statusStr}>{leave.statusStr}</span>
                     </td>

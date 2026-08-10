@@ -53,7 +53,6 @@
   padding: 0 10px 0 32px;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
-  background: var(--bg-secondary);
   font-family: var(--font-family);
   font-size: 12px;
   color: var(--text-primary);
@@ -146,7 +145,7 @@
 .lc-table th:first-child {
   z-index: 2;
   /* Needs to be above the sticky column when scrolling vertically */
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--border-secondary) 100%);
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
 }
 
 .lc-table tr:hover td:first-child {

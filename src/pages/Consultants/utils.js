@@ -31,6 +31,13 @@ export const normalizeConsultant = (c, isActive = true) => {
     }
   }
 
+  // Map single-character gender to full string for the UI
+  let mappedGender = c.gender || '';
+  if (mappedGender === 'M') mappedGender = 'Male';
+  else if (mappedGender === 'F') mappedGender = 'Female';
+  else if (mappedGender === 'O') mappedGender = 'Other';
+  else if (!mappedGender) mappedGender = '';
+
   return {
     id: c.emp_id || c.id || Math.random().toString(),
     name: c.name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
@@ -39,7 +46,11 @@ export const normalizeConsultant = (c, isActive = true) => {
     designationId: c.designation_id || (c.designation && !isNaN(Number(c.designation)) ? Number(c.designation) : '') || '',
     email: c.email || '',
     phone: c.mobile || c.phone || '',
-    gender: c.gender || 'Not Specified',
+    mobile: c.mobile || c.phone || '',
+    landline: c.landline || '',
+    extension: c.extension || '',
+    address: c.address || '',
+    gender: mappedGender,
     manager: c.manager_name || c.manager?.name || c.manager || 'No Manager',
     joiningDate: c.joining_date || c.joiningDate || c.date_joined || '',
     role: c.role_name || c.role?.name || c.role || 'Consultant',
