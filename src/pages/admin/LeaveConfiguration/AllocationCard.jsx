@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Briefcase, Calendar, Check, Clock, Edit2, X } from 'lucide-react';
+import { Briefcase, Calendar, Check, Clock, Edit, X } from 'lucide-react';
 
 import { LEAVE_ALLOCATION_MAX_DAYS } from '@mocks/data/leaveConfiguration';
 import { getInitials } from '@utils/format';
@@ -80,11 +80,11 @@ function AllocationCardComponent({
           ) : (
             <button
               type="button"
-              className="lc-edit-trigger"
+              className="action-icon-btn edit"
               onClick={onStartEditing}
               aria-label={`Edit allocation for ${consultant.name}`}
             >
-              <Edit2 size={14} aria-hidden="true" />
+              <Edit size={14} aria-hidden="true" />
             </button>
           )}
         </div>

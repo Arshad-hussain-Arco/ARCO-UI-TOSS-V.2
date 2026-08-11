@@ -87,7 +87,7 @@ export function DocumentsUserGuidePage() {
           <img src="/docs/images/doc_guide_6.png" className="du-doc-image" alt="Update Folder/File Dialog" />
           <p className="du-doc-highlight" style={{ display: 'block', width: 'fit-content' }}>You can update a document's details or replace the file entirely:</p>
           <ol>
-            <li>Hover over a file or folder in the Workspace Navigation and click the Edit (pencil) icon
+            <li>Hover over a file or folder in the Workspace Navigation and click the Edit (Edit) icon
             next to it.</li>
             <li>An <strong>Update File</strong> (or <strong>Update Folder</strong>) dialog will appear.</li>
             <li>You can modify the Title / Name and Description.</li>

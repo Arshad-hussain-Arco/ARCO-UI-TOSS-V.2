@@ -489,27 +489,4 @@
   }
 }
 
-.tv-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid var(--border-primary);
-  background-color: var(--surface-primary);
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: all 0.2s ease;
-}
-.tv-icon-btn:hover {
-  background-color: var(--bg-secondary);
-}
-.tv-icon-btn.edit:hover {
-  color: var(--c-info);
-  border-color: var(--c-info);
-}
-.tv-icon-btn.delete:hover {
-  color: var(--c-danger);
-  border-color: var(--c-danger);
-}
+

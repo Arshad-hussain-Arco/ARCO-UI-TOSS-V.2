@@ -943,3 +943,16 @@
 .doc-modal-btn.ghost:hover {
   background-color: var(--bg-secondary);
 }
+
+/* Override action buttons in Document Folder Tree to be borderless */
+.doc-file-actions-group .action-icon-btn,
+.doc-folder-actions .action-icon-btn {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.doc-file-actions-group .action-icon-btn:hover,
+.doc-folder-actions .action-icon-btn:hover {
+  background-color: var(--bg-secondary) !important;
+}

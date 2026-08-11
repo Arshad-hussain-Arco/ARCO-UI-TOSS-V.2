@@ -5,8 +5,8 @@ import {
   LayoutGrid,
   List,
   Plus,
-  Edit2,
-  Trash2,
+  Edit,
+  Trash,
   AlertCircle,
   RefreshCw,
   FolderOpen,
@@ -261,14 +261,14 @@ export function ConfigSection() {
                         </span>
                       </label>
                       <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
-                        <Edit2 size={11} />
+                        <Edit size={11} />
                       </button>
                       <button
                         className="eod-icon-btn danger"
                         title="Delete"
                         onClick={() => setDeleteTarget(env)}
                       >
-                        <Trash2 size={11} />
+                        <Trash size={11} />
                       </button>
                     </div>
                   </div>
@@ -366,14 +366,14 @@ export function ConfigSection() {
                       <td className="eod-env-td" style={{ textAlign: 'right' }}>
                         <div className="eod-tl-actions">
                           <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
-                            <Edit2 size={11} />
+                            <Edit size={11} />
                           </button>
                           <button
                             className="eod-icon-btn danger"
                             title="Delete"
                             onClick={() => setDeleteTarget(env)}
                           >
-                            <Trash2 size={11} />
+                            <Trash size={11} />
                           </button>
                         </div>
                       </td>
@@ -419,7 +419,7 @@ export function ConfigSection() {
                 Cancel
               </button>
               <button className="eod-modal-btn danger" onClick={confirmDelete}>
-                <Trash2 size={12} /> Delete
+                <Trash size={12} /> Delete
               </button>
             </div>
           </div>

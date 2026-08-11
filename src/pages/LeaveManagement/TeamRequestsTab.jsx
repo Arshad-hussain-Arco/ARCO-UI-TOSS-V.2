@@ -22,6 +22,9 @@ import {
   FileEdit,
   Ban,
   ArrowUpDown,
+  CalendarPlus,
+  Globe2,
+  CalendarClock,
 } from 'lucide-react';
 import { useDebounce } from '@hooks/useDebounce';
 import { Select } from '@components/forms/Select/Select';
@@ -157,7 +160,7 @@ export function getRelativePendingTime(isoString) {
 
   const now = new Date();
   const diffMs = now - requestedDate;
-  if (diffMs < 0) return 'Just now'; 
+  if (diffMs < 0) return 'Just now';
 
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
@@ -165,7 +168,7 @@ export function getRelativePendingTime(isoString) {
 
   if (diffDays > 0) {
     const remainingHours = diffHours % 24;
-    return remainingHours > 0 
+    return remainingHours > 0
       ? `${diffDays} day${diffDays !== 1 ? 's' : ''} ${remainingHours} hr${remainingHours !== 1 ? 's' : ''}`
       : `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
   } else if (diffHours > 0) {
@@ -220,16 +223,16 @@ import { leaveService } from '@services/leaveService';
 import { Loader } from '@components/feedback/Loader/Loader';
 
 
-  
+
 export async function fetchAndMapTeamLeaves(managerId) {
   const response = await leaveService.getTeamLeaves(managerId);
   const results = Array.isArray(response) ? response : (response?.results || []);
-  
+
   return results.map(req => {
     let type = 'leave';
     const reasonLower = (req.leave_reason || '').toLowerCase();
     const typeLower = (req.leave_type || '').toLowerCase();
-    
+
     if (typeLower.includes('wfh') || reasonLower.includes('wfh')) type = 'wfh';
     else if (typeLower.includes('offshore') || reasonLower.includes('offshore')) type = 'offshore';
     else if (typeLower.includes('comp') || reasonLower.includes('comp')) type = 'compoff';
@@ -482,11 +485,11 @@ export function TeamRequestsTab() {
       if (tableSortField) {
         let aVal = a[tableSortField];
         let bVal = b[tableSortField];
-        
+
         if (aVal === bVal) return 0;
         if (aVal == null) return 1;
         if (bVal == null) return -1;
-        
+
         const result = aVal > bVal ? 1 : -1;
         return tableSortOrder === 'asc' ? result : -result;
       }
@@ -637,15 +640,15 @@ export function TeamRequestsTab() {
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = requests.filter(l => l.status === 'pending');
     if (pendingLeaves.length === 0) return null;
-    
+
     let minDate = new Date(8640000000000000);
     let maxDate = new Date(-8640000000000000);
     let hasValidDates = false;
-    
+
     pendingLeaves.forEach(leave => {
       const start = new Date(leave.startDate);
       const end = new Date(leave.endDate || leave.startDate);
-      
+
       if (!isNaN(start.getTime())) {
         if (start < minDate) minDate = start;
         hasValidDates = true;
@@ -655,16 +658,16 @@ export function TeamRequestsTab() {
         hasValidDates = true;
       }
     });
-    
+
     if (!hasValidDates) return null;
-    
+
     const formatDate = (date) => {
       return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     };
-    
+
     const minStr = formatDate(minDate);
     const maxStr = formatDate(maxDate);
-    
+
     return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
   }, [requests]);
 
@@ -734,68 +737,66 @@ export function TeamRequestsTab() {
       {/* ── KPI Strip ────────────────────────────────────────────────────────── */}
       {innerTab === 'all' && (
         <div className="tr-kpi-strip">
-        {[
-          {
-            type: 'leave',
-            label: 'Pending Leave',
-            count: counts.pendLeave,
-            color: '#1d4ed8',
-            bg: '#dbeafe',
-            Icon: Briefcase,
-          },
-          {
-            type: 'wfh',
-            label: 'Pending WFH',
-            count: counts.pendWfh,
-            color: '#065f46',
-            bg: '#d1fae5',
-            Icon: Home,
-          },
-          {
-            type: 'offshore',
-            label: 'Pending Offshore Work',
-            count: counts.pendOffshore,
-            color: '#5b21b6',
-            bg: '#ede9fe',
-            Icon: Anchor,
-          },
-          {
-            type: 'compoff',
-            label: 'Pending Comp-off / WW',
-            count: counts.pendCompoff,
-            color: '#92400e',
-            bg: '#fef3c7',
-            Icon: Gift,
-          },
-          {
-            type: 'modification',
-            label: 'Pending Modifications',
-            count: counts.pendModifications,
-            color: '#be123c',
-            bg: '#ffe4e6',
-            Icon: FileEdit,
-          },
-        ].map(({ type, label, count, color, bg, Icon }) => (
-          <div
-            key={type}
-            className="tr-kpi-card"
-            data-active={typeF === type && statusF === 'pending'}
-            {...activatable(() => handleKpiClick(type), {
-              isPressed: typeF === type && statusF === 'pending',
-            })}
-          >
-            <div className="tr-kpi-icon-wrap" style={{ background: bg }}>
-              <Icon size={16} color={color} />
+          {[
+            {
+              type: 'leave',
+              label: 'Pending Leave',
+              count: counts.pendLeave,
+              color: '#1d4ed8',
+              bg: '#dbeafe',
+              Icon: CalendarClock,
+            },
+            {
+              type: 'wfh',
+              label: 'Pending WFH',
+              count: counts.pendWfh,
+              color: '#065f46',
+              bg: '#d1fae5',
+              Icon: Home,
+            },
+            {
+              type: 'offshore',
+              label: 'Pending Offshore Work',
+              count: counts.pendOffshore,
+              color: '#5b21b6',
+              bg: '#ede9fe',
+              Icon: Globe2,
+            },
+            {
+              type: 'compoff',
+              label: 'Pending Comp-off / WW',
+              count: counts.pendCompoff,
+              color: '#92400e',
+              bg: '#fef3c7',
+              Icon: CalendarPlus,
+            },
+            {
+              type: 'modification',
+              label: 'Pending Modifications',
+              count: counts.pendModifications,
+              color: '#be123c',
+              bg: '#ffe4e6',
+              Icon: FileEdit,
+            },
+          ].map(({ type, label, count, color, bg, Icon }) => (
+            <div
+              key={type}
+              className="tr-kpi-card"
+              data-active={typeF === type && statusF === 'pending'}
+              {...activatable(() => handleKpiClick(type), {
+                isPressed: typeF === type && statusF === 'pending',
+              })}
+            >
+              <div className="tr-kpi-icon-wrap" style={{ background: bg }}>
+                <Icon size={16} color={color} />
+              </div>
+              <div className="tr-kpi-body">
+                <div className="tr-kpi-count">{isLoading ? 0 : count}</div>
+                <div className="tr-kpi-label">{label}</div>
+              </div>
+
             </div>
-            <div className="tr-kpi-body">
-              <div className="tr-kpi-count">{isLoading ? 0 : count}</div>
-              <div className="tr-kpi-label">{label}</div>
-            </div>
-            <div className="tr-kpi-trend" style={{ color: count > 0 ? '#92400e' : '#065f46' }}>
-              {count > 0 ? <TrendingUp size={12} /> : <CheckCircle2 size={12} />}
-            </div>
-          </div>
-        ))}
+          ))}
         </div>
       )}
 
@@ -895,484 +896,484 @@ export function TeamRequestsTab() {
           <>
             {/* ── All Requests ─────────────────────────────────────────────────── */}
             {innerTab === 'all' &&
-          (viewMode === 'list' ? (
-            <div className="tr-table-wrap">
-              <table className="tr-table">
-                <thead className="tr-thead">
-                  <tr className="tr-tr">
-                    <th className="tr-th" onClick={() => handleTableSort('employeeName')} style={{ width: statusF === 'pending' ? '20%' : '24%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>CONSULTANT <SortIcon field="employeeName" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    <th className="tr-th" onClick={() => handleTableSort('leaveType')} style={{ width: statusF === 'pending' ? '14%' : '15%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leaveType" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    <th className="tr-th" onClick={() => handleTableSort('startDate')} style={{ width: statusF === 'pending' ? '20%' : '23%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="startDate" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    <th className="tr-th" onClick={() => handleTableSort('bizDays')} style={{ width: statusF === 'pending' ? '8%' : '9%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>WORK DAYS <SortIcon field="bizDays" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    <th className="tr-th" onClick={() => handleTableSort('requestedOn')} style={{ width: statusF === 'pending' ? '10%' : '9%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>APPLIED ON <SortIcon field="requestedOn" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    <th className="tr-th" onClick={() => handleTableSort('status')} style={{ width: '10%', cursor: 'pointer' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                    </th>
-                    {statusF === 'pending' && (
-                      <th className="tr-th" onClick={() => handleTableSort('requestedAt')} style={{ width: '10%', cursor: 'pointer' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requestedAt" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                      </th>
-                    )}
-                    <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={statusF === 'pending' ? 8 : 7}>
-                        <div className="tr-empty">
-                          <CheckCircle2 size={32} className="tr-empty-icon" />
-                          <p className="tr-empty-text">No requests match the current filters.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((req) => {
-                      const TC = TYPE_CONFIG[req.type];
-                      return (
-                        <tr key={req.id} className="tr-row" data-selected={liveReq?.id === req.id}>
-                          <td className="tr-td">
-                            <div className="tr-consultant-cell">
-                              <div
-                                className="tr-avatar"
-                                style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
-                              >
-                                {req.photo ? (
-                                  <img 
-                                    src={getPhotoUrl(req.photo)} 
-                                    alt={req.employeeName} 
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'block';
-                                      e.target.parentElement.style.background = avatarColor(req.employeeName);
-                                    }}
-                                  />
-                                ) : null}
-                                <div style={{ display: req.photo ? 'none' : 'block' }}>
-                                  {initials(req.employeeName)}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="tr-con-name">{req.employeeName}</div>
-                                <div className="tr-con-sub">
-                                  {req.team}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="tr-td">
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                                {req.leaveType ?? TC.label}
-                              </span>
-                              {req.priority === 'high' && (
-                                <span className="tr-priority-high">
-                                  <AlertTriangle size={8} />
-                                  High
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="tr-td">
-                            <div className="tr-dates-cell">
-                              <span className="tr-date-range">
-                                {req.startDate === req.endDate
-                                  ? fmtFullDate(req.startDate)
-                                  : `${fmtFullDate(req.startDate)} - ${fmtFullDate(req.endDate)}`}
-                              </span>
-                              <span className="tr-date-subtext">
-                                ({req.inDays} {req.inDays === 1 ? 'day' : 'days'})
-                                {getDurationDisplay(req) ? ` • ${getDurationDisplay(req)}` : ''}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="tr-td" style={{ fontWeight: 600 }}>
-                            {req.bizDays}d
-                          </td>
-                          <td
-                            className="tr-td"
-                            style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}
-                          >
-                            {req.requestedAt ? (
-                              <span title={req.requestedAt}>
-                                {new Date(req.requestedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                , {new Date(req.requestedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                              </span>
-                            ) : '-'}
-                          </td>
-                          <td className="tr-td">
-                            <span className={`tr-status-badge tr-status-${req.status}`}>
-                              {req.status === 'pending' && <Clock size={9} />}
-                              {req.status === 'approved' && <CheckCircle2 size={9} />}
-                              {req.status === 'rejected' && <XCircle size={9} />}
-                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                            </span>
-                          </td>
-                          {statusF === 'pending' && (
-                            <td className="tr-td" style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}>
-                              {req.status === 'pending' ? getRelativePendingTime(req.requestedAt) : '-'}
-                            </td>
-                          )}
-                          <td className="tr-td">
-                            <div className="tr-actions">
-                              {req.status === 'pending' && (
-                                <>
-                                  <button
-                                    className="tr-act-btn tr-act-approve"
-                                    title="Approve"
-                                    onClick={() => openDrawer(req, 'approve')}
-                                  >
-                                    <Check size={10} />
-                                  </button>
-                                  <button
-                                    className="tr-act-btn tr-act-reject"
-                                    title="Reject"
-                                    onClick={() => openDrawer(req, 'reject')}
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </>
-                              )}
-                              {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
-                                <>
-                                  <button
-                                    className="tr-act-btn"
-                                    title="Edit on behalf"
-                                    onClick={() => setEditModalLeave(req.raw)}
-                                  >
-                                    <FileEdit size={10} />
-                                  </button>
-                                  <button
-                                    className="tr-act-btn"
-                                    title="Cancel on behalf"
-                                    onClick={() => setCancelModalLeave(req.raw)}
-                                  >
-                                    <Ban size={10} />
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                className="tr-act-btn"
-                                title="View"
-                                onClick={() => openDrawer(req, 'view')}
-                              >
-                                <Eye size={10} />
-                              </button>
+              (viewMode === 'list' ? (
+                <div className="tr-table-wrap">
+                  <table className="tr-table">
+                    <thead className="tr-thead">
+                      <tr className="tr-tr">
+                        <th className="tr-th" onClick={() => handleTableSort('employeeName')} style={{ width: statusF === 'pending' ? '20%' : '24%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>CONSULTANT <SortIcon field="employeeName" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        <th className="tr-th" onClick={() => handleTableSort('leaveType')} style={{ width: statusF === 'pending' ? '14%' : '15%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leaveType" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        <th className="tr-th" onClick={() => handleTableSort('startDate')} style={{ width: statusF === 'pending' ? '20%' : '23%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="startDate" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        <th className="tr-th" onClick={() => handleTableSort('bizDays')} style={{ width: statusF === 'pending' ? '8%' : '9%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>WORK DAYS <SortIcon field="bizDays" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        <th className="tr-th" onClick={() => handleTableSort('requestedOn')} style={{ width: statusF === 'pending' ? '10%' : '9%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>APPLIED ON <SortIcon field="requestedOn" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        <th className="tr-th" onClick={() => handleTableSort('status')} style={{ width: '10%', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                        </th>
+                        {statusF === 'pending' && (
+                          <th className="tr-th" onClick={() => handleTableSort('requestedAt')} style={{ width: '10%', cursor: 'pointer' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requestedAt" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                          </th>
+                        )}
+                        <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.length === 0 ? (
+                        <tr>
+                          <td colSpan={statusF === 'pending' ? 8 : 7}>
+                            <div className="tr-empty">
+                              <CheckCircle2 size={32} className="tr-empty-icon" />
+                              <p className="tr-empty-text">No requests match the current filters.</p>
                             </div>
                           </td>
                         </tr>
+                      ) : (
+                        filtered.map((req) => {
+                          const TC = TYPE_CONFIG[req.type];
+                          return (
+                            <tr key={req.id} className="tr-row" data-selected={liveReq?.id === req.id}>
+                              <td className="tr-td">
+                                <div className="tr-consultant-cell">
+                                  <div
+                                    className="tr-avatar"
+                                    style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
+                                  >
+                                    {req.photo ? (
+                                      <img
+                                        src={getPhotoUrl(req.photo)}
+                                        alt={req.employeeName}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'block';
+                                          e.target.parentElement.style.background = avatarColor(req.employeeName);
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div style={{ display: req.photo ? 'none' : 'block' }}>
+                                      {initials(req.employeeName)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="tr-con-name">{req.employeeName}</div>
+                                    <div className="tr-con-sub">
+                                      {req.team}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="tr-td">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                                    {req.leaveType ?? TC.label}
+                                  </span>
+                                  {req.priority === 'high' && (
+                                    <span className="tr-priority-high">
+                                      <AlertTriangle size={8} />
+                                      High
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="tr-td">
+                                <div className="tr-dates-cell">
+                                  <span className="tr-date-range">
+                                    {req.startDate === req.endDate
+                                      ? fmtFullDate(req.startDate)
+                                      : `${fmtFullDate(req.startDate)} - ${fmtFullDate(req.endDate)}`}
+                                  </span>
+                                  <span className="tr-date-subtext">
+                                    ({req.inDays} {req.inDays === 1 ? 'day' : 'days'})
+                                    {getDurationDisplay(req) ? ` • ${getDurationDisplay(req)}` : ''}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="tr-td" style={{ fontWeight: 600 }}>
+                                {req.bizDays}d
+                              </td>
+                              <td
+                                className="tr-td"
+                                style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}
+                              >
+                                {req.requestedAt ? (
+                                  <span title={req.requestedAt}>
+                                    {new Date(req.requestedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                    , {new Date(req.requestedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                  </span>
+                                ) : '-'}
+                              </td>
+                              <td className="tr-td">
+                                <span className={`tr-status-badge tr-status-${req.status}`}>
+                                  {req.status === 'pending' && <Clock size={9} />}
+                                  {req.status === 'approved' && <CheckCircle2 size={9} />}
+                                  {req.status === 'rejected' && <XCircle size={9} />}
+                                  {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                </span>
+                              </td>
+                              {statusF === 'pending' && (
+                                <td className="tr-td" style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}>
+                                  {req.status === 'pending' ? getRelativePendingTime(req.requestedAt) : '-'}
+                                </td>
+                              )}
+                              <td className="tr-td">
+                                <div className="tr-actions">
+                                  {req.status === 'pending' && (
+                                    <>
+                                      <button
+                                        className="tr-act-btn tr-act-approve"
+                                        title="Approve"
+                                        onClick={() => openDrawer(req, 'approve')}
+                                      >
+                                        <Check size={10} />
+                                      </button>
+                                      <button
+                                        className="tr-act-btn tr-act-reject"
+                                        title="Reject"
+                                        onClick={() => openDrawer(req, 'reject')}
+                                      >
+                                        <X size={10} />
+                                      </button>
+                                    </>
+                                  )}
+                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                                    <>
+                                      <button
+                                        className="tr-act-btn"
+                                        title="Edit on behalf"
+                                        onClick={() => setEditModalLeave(req.raw)}
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
+                                      </button>
+                                      <button
+                                        className="tr-act-btn"
+                                        title="Cancel on behalf"
+                                        onClick={() => setCancelModalLeave(req.raw)}
+                                      >
+                                        <Ban size={10} />
+                                      </button>
+                                    </>
+                                  )}
+                                  <button
+                                    className="tr-act-btn"
+                                    title="View"
+                                    onClick={() => openDrawer(req, 'view')}
+                                  >
+                                    <Eye size={10} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="tr-calendar-wrap">
+                  <LeaveCalendar
+                    year={calYear}
+                    month={calMonth}
+                    events={calEvents}
+                    onPrevMonth={() => {
+                      if (calMonth === 0) {
+                        setCalMonth(11);
+                        setCalYear((y) => y - 1);
+                      } else setCalMonth((m) => m - 1);
+                    }}
+                    onNextMonth={() => {
+                      if (calMonth === 11) {
+                        setCalMonth(0);
+                        setCalYear((y) => y + 1);
+                      } else setCalMonth((m) => m + 1);
+                    }}
+                  />
+                </div>
+              ))}
+
+            {/* ── Same Day Leave ───────────────────────────────────────────────── */}
+            {innerTab === 'sameday' && (
+              <div className="tr-sdl-page">
+                {/* Enterprise Timeline Calendar */}
+                <TimelineCalendar
+                  year={sdlYear}
+                  month={sdlMonth}
+                  selectedDate={sdlSelected}
+                  onSelectDate={setSdlSelected}
+                  onPrevMonth={sdlPrevMonth}
+                  onNextMonth={sdlNextMonth}
+                  leaveDates={leaveDates}
+                  holidays={PUBLIC_HOLIDAYS}
+                />
+
+                {/* SDL Filters */}
+                <div className="tr-sdl-filters">
+                  <div className="tr-search-wrap" style={{ maxWidth: 220 }}>
+                    <Search className="tr-search-icon" />
+                    <input
+                      className="tr-search"
+                      placeholder="Search employee…"
+                      value={sdlSearch}
+                      onChange={(e) => setSdlSearch(e.target.value)}
+                    />
+                  </div>
+                  <Select
+                    value={sdlLeaveTF}
+                    onChange={setSdlLeaveTF}
+                    options={[
+                      { value: 'all', label: 'All Leave Types' },
+                      ...LEAVE_TYPE_OPTIONS.map((lt) => ({ value: lt, label: lt })),
+                    ]}
+                    width="leaveType"
+                  />
+                  <Select
+                    value={sdlTeam}
+                    onChange={setSdlTeam}
+                    options={[
+                      { value: 'all', label: 'All Teams' },
+                      ...sdlTeams.map((t) => ({ value: t, label: t })),
+                    ]}
+                    width="team"
+                  />
+                  <Select
+                    value={sdlStatus}
+                    onChange={(v) => setSdlStatus(v)}
+                    options={[
+                      { value: 'all', label: 'All Status' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'approved', label: 'Approved' },
+                      { value: 'rejected', label: 'Rejected' },
+                    ]}
+                    width="status"
+                  />
+                  <Select
+                    value={sdlSortBy}
+                    onChange={setSdlSortBy}
+                    options={[
+                      { value: 'name', label: 'Sort: Name' },
+                      { value: 'team', label: 'Sort: Team' },
+                      { value: 'type', label: 'Sort: Type' },
+                      { value: 'status', label: 'Sort: Status' },
+                    ]}
+                    width="sort"
+                  />
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Users size={13} style={{ color: 'var(--text-secondary)' }} />
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 12,
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <strong style={{ color: 'var(--text-primary)' }}>{sdlEmployees.length}</strong> on
+                      leave · {fmtDate(sdlSelected)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Employee list */}
+                <div className="tr-sdl-list">
+                  {sdlEmployees.length === 0 ? (
+                    <div className="tr-sdl-empty">
+                      <CheckCircle2
+                        size={36}
+                        style={{ color: 'var(--text-tertiary)', marginBottom: 10 }}
+                      />
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: 'var(--text-secondary)',
+                          margin: 0,
+                        }}
+                      >
+                        No team members are on leave for this date.
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 11.5,
+                          color: 'var(--text-tertiary)',
+                          margin: '4px 0 0',
+                        }}
+                      >
+                        Full team is available on {fmtDate(sdlSelected)}.
+                      </p>
+                    </div>
+                  ) : (
+                    sdlEmployees.map((req) => {
+                      const TC = TYPE_CONFIG[req.type];
+                      return (
+                        <div
+                          key={req.id}
+                          className="tr-sdl-emp-row"
+                          data-selected={liveReq?.id === req.id}
+                        >
+                          {/* Avatar */}
+                          <div
+                            className="tr-avatar tr-sdl-emp-avatar"
+                            style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
+                          >
+                            {req.photo ? (
+                              <img
+                                src={getPhotoUrl(req.photo)}
+                                alt={req.employeeName}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'block';
+                                  e.target.parentElement.style.background = avatarColor(req.employeeName);
+                                }}
+                              />
+                            ) : null}
+                            <div style={{ display: req.photo ? 'none' : 'block' }}>
+                              {initials(req.employeeName)}
+                            </div>
+                          </div>
+
+                          {/* Identity */}
+                          <div className="tr-sdl-emp-identity">
+                            <div className="tr-con-name">{req.employeeName}</div>
+                            <div className="tr-con-sub">
+                              {req.team} · {req.designation}
+                            </div>
+                          </div>
+
+                          {/* Leave type */}
+                          <div className="tr-sdl-emp-type">
+                            <span className={`tr-type-badge ${TC.css}`}>
+                              <TC.Icon size={10} />
+                              {req.leaveType ?? TC.label}
+                            </span>
+                          </div>
+
+                          {/* Duration */}
+                          <div className="tr-sdl-emp-dur">
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-family)',
+                                fontSize: 11.5,
+                                color: 'var(--text-primary)',
+                                fontWeight: 500,
+                              }}
+                            >
+                              {req.duration === 'full'
+                                ? 'Full Day'
+                                : req.duration === 'morning'
+                                  ? 'First Half'
+                                  : 'Second Half'}
+                            </span>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-family)',
+                                fontSize: 10.5,
+                                color: 'var(--text-tertiary)',
+                              }}
+                            >
+                              {req.bizDays}d
+                            </span>
+                          </div>
+
+                          {/* Dates */}
+                          <div className="tr-sdl-emp-dates">
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-family)',
+                                fontSize: 11.5,
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              {fmtShort(req.startDate)}
+                            </span>
+                            {req.startDate !== req.endDate && (
+                              <span
+                                style={{
+                                  fontFamily: 'var(--font-family)',
+                                  fontSize: 10.5,
+                                  color: 'var(--text-tertiary)',
+                                }}
+                              >
+                                → {fmtShort(req.endDate)}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Status */}
+                          <span className={`tr-status-badge tr-status-${req.status}`}>
+                            {req.status === 'pending' && <Clock size={9} />}
+                            {req.status === 'approved' && <CheckCircle2 size={9} />}
+                            {req.status === 'rejected' && <XCircle size={9} />}
+                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                          </span>
+
+                          {/* Actions */}
+                          <div className="tr-actions">
+                            {req.status === 'pending' && (
+                              <>
+                                <button
+                                  className="tr-act-btn tr-act-approve"
+                                  title="Approve"
+                                  onClick={() => openDrawer(req, 'approve')}
+                                >
+                                  <Check size={10} />
+                                </button>
+                                <button
+                                  className="tr-act-btn tr-act-reject"
+                                  title="Reject"
+                                  onClick={() => openDrawer(req, 'reject')}
+                                >
+                                  <X size={10} />
+                                </button>
+                              </>
+                            )}
+                            {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                              <>
+                                <button
+                                  className="tr-act-btn"
+                                  title="Edit on behalf"
+                                  onClick={() => setEditModalLeave(req.raw)}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
+                                </button>
+                                <button
+                                  className="tr-act-btn"
+                                  title="Cancel on behalf"
+                                  onClick={() => setCancelModalLeave(req.raw)}
+                                >
+                                  <Ban size={10} />
+                                </button>
+                              </>
+                            )}
+                            <button
+                              className="tr-act-btn tr-act-view"
+                              title="View"
+                              onClick={() => openDrawer(req, 'view')}
+                            >
+                              <Eye size={10} />
+                            </button>
+                          </div>
+                        </div>
                       );
                     })
                   )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="tr-calendar-wrap">
-              <LeaveCalendar
-                year={calYear}
-                month={calMonth}
-                events={calEvents}
-                onPrevMonth={() => {
-                  if (calMonth === 0) {
-                    setCalMonth(11);
-                    setCalYear((y) => y - 1);
-                  } else setCalMonth((m) => m - 1);
-                }}
-                onNextMonth={() => {
-                  if (calMonth === 11) {
-                    setCalMonth(0);
-                    setCalYear((y) => y + 1);
-                  } else setCalMonth((m) => m + 1);
-                }}
-              />
-            </div>
-          ))}
-
-        {/* ── Same Day Leave ───────────────────────────────────────────────── */}
-        {innerTab === 'sameday' && (
-          <div className="tr-sdl-page">
-            {/* Enterprise Timeline Calendar */}
-            <TimelineCalendar
-              year={sdlYear}
-              month={sdlMonth}
-              selectedDate={sdlSelected}
-              onSelectDate={setSdlSelected}
-              onPrevMonth={sdlPrevMonth}
-              onNextMonth={sdlNextMonth}
-              leaveDates={leaveDates}
-              holidays={PUBLIC_HOLIDAYS}
-            />
-
-            {/* SDL Filters */}
-            <div className="tr-sdl-filters">
-              <div className="tr-search-wrap" style={{ maxWidth: 220 }}>
-                <Search className="tr-search-icon" />
-                <input
-                  className="tr-search"
-                  placeholder="Search employee…"
-                  value={sdlSearch}
-                  onChange={(e) => setSdlSearch(e.target.value)}
-                />
-              </div>
-              <Select
-                value={sdlLeaveTF}
-                onChange={setSdlLeaveTF}
-                options={[
-                  { value: 'all', label: 'All Leave Types' },
-                  ...LEAVE_TYPE_OPTIONS.map((lt) => ({ value: lt, label: lt })),
-                ]}
-                width="leaveType"
-              />
-              <Select
-                value={sdlTeam}
-                onChange={setSdlTeam}
-                options={[
-                  { value: 'all', label: 'All Teams' },
-                  ...sdlTeams.map((t) => ({ value: t, label: t })),
-                ]}
-                width="team"
-              />
-              <Select
-                value={sdlStatus}
-                onChange={(v) => setSdlStatus(v)}
-                options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'approved', label: 'Approved' },
-                  { value: 'rejected', label: 'Rejected' },
-                ]}
-                width="status"
-              />
-              <Select
-                value={sdlSortBy}
-                onChange={setSdlSortBy}
-                options={[
-                  { value: 'name', label: 'Sort: Name' },
-                  { value: 'team', label: 'Sort: Team' },
-                  { value: 'type', label: 'Sort: Type' },
-                  { value: 'status', label: 'Sort: Status' },
-                ]}
-                width="sort"
-              />
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Users size={13} style={{ color: 'var(--text-secondary)' }} />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  <strong style={{ color: 'var(--text-primary)' }}>{sdlEmployees.length}</strong> on
-                  leave · {fmtDate(sdlSelected)}
-                </span>
-              </div>
-            </div>
-
-            {/* Employee list */}
-            <div className="tr-sdl-list">
-              {sdlEmployees.length === 0 ? (
-                <div className="tr-sdl-empty">
-                  <CheckCircle2
-                    size={36}
-                    style={{ color: 'var(--text-tertiary)', marginBottom: 10 }}
-                  />
-                  <p
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      margin: 0,
-                    }}
-                  >
-                    No team members are on leave for this date.
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 11.5,
-                      color: 'var(--text-tertiary)',
-                      margin: '4px 0 0',
-                    }}
-                  >
-                    Full team is available on {fmtDate(sdlSelected)}.
-                  </p>
                 </div>
-              ) : (
-                sdlEmployees.map((req) => {
-                  const TC = TYPE_CONFIG[req.type];
-                  return (
-                    <div
-                      key={req.id}
-                      className="tr-sdl-emp-row"
-                      data-selected={liveReq?.id === req.id}
-                    >
-                      {/* Avatar */}
-                      <div
-                        className="tr-avatar tr-sdl-emp-avatar"
-                        style={req.photo ? {} : { background: avatarColor(req.employeeName) }}
-                      >
-                        {req.photo ? (
-                          <img 
-                            src={getPhotoUrl(req.photo)} 
-                            alt={req.employeeName} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} 
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'block';
-                              e.target.parentElement.style.background = avatarColor(req.employeeName);
-                            }}
-                          />
-                        ) : null}
-                        <div style={{ display: req.photo ? 'none' : 'block' }}>
-                          {initials(req.employeeName)}
-                        </div>
-                      </div>
-
-                      {/* Identity */}
-                      <div className="tr-sdl-emp-identity">
-                        <div className="tr-con-name">{req.employeeName}</div>
-                        <div className="tr-con-sub">
-                          {req.team} · {req.designation}
-                        </div>
-                      </div>
-
-                      {/* Leave type */}
-                      <div className="tr-sdl-emp-type">
-                        <span className={`tr-type-badge ${TC.css}`}>
-                          <TC.Icon size={10} />
-                          {req.leaveType ?? TC.label}
-                        </span>
-                      </div>
-
-                      {/* Duration */}
-                      <div className="tr-sdl-emp-dur">
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 11.5,
-                            color: 'var(--text-primary)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {req.duration === 'full'
-                            ? 'Full Day'
-                            : req.duration === 'morning'
-                              ? 'First Half'
-                              : 'Second Half'}
-                        </span>
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 10.5,
-                            color: 'var(--text-tertiary)',
-                          }}
-                        >
-                          {req.bizDays}d
-                        </span>
-                      </div>
-
-                      {/* Dates */}
-                      <div className="tr-sdl-emp-dates">
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 11.5,
-                            color: 'var(--text-primary)',
-                          }}
-                        >
-                          {fmtShort(req.startDate)}
-                        </span>
-                        {req.startDate !== req.endDate && (
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-family)',
-                              fontSize: 10.5,
-                              color: 'var(--text-tertiary)',
-                            }}
-                          >
-                            → {fmtShort(req.endDate)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Status */}
-                      <span className={`tr-status-badge tr-status-${req.status}`}>
-                        {req.status === 'pending' && <Clock size={9} />}
-                        {req.status === 'approved' && <CheckCircle2 size={9} />}
-                        {req.status === 'rejected' && <XCircle size={9} />}
-                        {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                      </span>
-
-                      {/* Actions */}
-                      <div className="tr-actions">
-                        {req.status === 'pending' && (
-                          <>
-                            <button
-                              className="tr-act-btn tr-act-approve"
-                              title="Approve"
-                              onClick={() => openDrawer(req, 'approve')}
-                            >
-                              <Check size={10} />
-                            </button>
-                            <button
-                              className="tr-act-btn tr-act-reject"
-                              title="Reject"
-                              onClick={() => openDrawer(req, 'reject')}
-                            >
-                              <X size={10} />
-                            </button>
-                          </>
-                        )}
-                        {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
-                          <>
-                            <button
-                              className="tr-act-btn"
-                              title="Edit on behalf"
-                              onClick={() => setEditModalLeave(req.raw)}
-                            >
-                              <FileEdit size={10} />
-                            </button>
-                            <button
-                              className="tr-act-btn"
-                              title="Cancel on behalf"
-                              onClick={() => setCancelModalLeave(req.raw)}
-                            >
-                              <Ban size={10} />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          className="tr-act-btn tr-act-view"
-                          title="View"
-                          onClick={() => openDrawer(req, 'view')}
-                        >
-                          <Eye size={10} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-        </>
+              </div>
+            )}
+          </>
         )}
       </div>
 
