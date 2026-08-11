@@ -22,7 +22,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -297,7 +297,7 @@ export function EnvironmentDashboardPage() {
       const data = filteredConfigs.map(c => [
         c.featureType, c.version, c.fileName, c.size, c.uploadedBy, c.createdDate, c.storageLocation
       ]);
-      doc.autoTable({ head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
+      autoTable(doc, { head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
       doc.save('environment_configurations.pdf');
       toast.success('Configurations exported to PDF.');
     } else {
@@ -617,7 +617,7 @@ export function EnvironmentDashboardPage() {
                                 doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
                                 const headers = dynamicCols.map(c => c.label);
                                 const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
-                                doc.autoTable({ head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
+                                autoTable(doc, { head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
                                 doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
                                 toast.success(`Exported ${filteredRecords.length} records to PDF.`);
                               } else {

@@ -5,6 +5,9 @@ import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
 import { getRelativePendingTime } from './TeamRequestsTab';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -164,6 +167,47 @@ export function MyLeavesSummaryTab({
 
   const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
 
+  const handleExportCSV = () => {
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
+    const rows = filteredLeaves.map(leave => [
+      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.start_date || leave.date || '',
+      leave.end_date || leave.date || leave.start_date || '',
+      leave.business_days || leave.in_days || 0,
+      leave.leave_reason || '',
+      leave.statusStr || ''
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'My Leaves');
+    XLSX.writeFile(workbook, 'my_leaves_summary.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
+    const body = filteredLeaves.map(leave => [
+      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.start_date || leave.date || '',
+      leave.end_date || leave.date || leave.start_date || '',
+      leave.business_days || leave.in_days || 0,
+      leave.leave_reason || '',
+      leave.statusStr || ''
+    ]);
+
+    autoTable(doc, {
+      head: [headers],
+      body: body,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+
+    doc.save('my_leaves_summary.pdf');
+  };
+
+
   return (
     <div className="my-leaves-summary-tab" style={{ marginTop: '20px' }}>
       
@@ -193,8 +237,8 @@ export function MyLeavesSummaryTab({
             <ExportButton
               excel
               pdf
-              onExcelExport={() => {}}
-              onPdfExport={() => {}}
+              onExcelExport={handleExportCSV}
+              onPdfExport={handleExportPDF}
             />
           </div>
         </div>

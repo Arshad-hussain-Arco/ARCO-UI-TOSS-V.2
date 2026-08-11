@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export function exportToExcel(groupedTeams, filename = 'Capacity_Planning_Report.xlsx') {
   const data = [];
@@ -73,7 +73,7 @@ export function exportToPDF(groupedTeams, filename = 'Capacity_Planning_Report.p
     });
   });
   
-  doc.autoTable({
+  autoTable(doc, {
     head: headers,
     body: body,
     startY: 25,
