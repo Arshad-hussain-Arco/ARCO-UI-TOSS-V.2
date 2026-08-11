@@ -205,7 +205,11 @@ function TeamLeaveSummary() {
       depts = depts
         .map((d) => ({
           ...d,
-          consultants: d.consultants.filter((c) => c.name.toLowerCase().includes(q)),
+          consultants: d.consultants.filter(
+            (c) =>
+              c.name.toLowerCase().includes(q) ||
+              (c.designation && c.designation.toLowerCase().includes(q))
+          ),
         }))
         .filter((d) => d.consultants.length > 0);
     }
@@ -698,108 +702,126 @@ function TeamLeaveSummary() {
                     </div>
                   </div>
 
-                  {/* Expanded: dept summary + employee bars */}
+                  {/* Expanded: employee table */}
                   {isExpanded && (
-                    <div className="tsa-dept-body">
-                      {/* Department Summary Strip */}
-                      <div className="tsa-dept-summary">
-                        <div className="tsa-summary-stat">
-                          <span className="tsa-summary-stat-val">{stats.count}</span>
-                          <span className="tsa-summary-stat-label">Total Employees</span>
-                        </div>
-                        <div className="tsa-summary-sep" />
-                        <div className="tsa-summary-stat">
-                          <span
-                            className="tsa-summary-stat-val"
-                            data-high={stats.utilizationPct >= 80 ? 'true' : 'false'}
-                          >
-                            {stats.utilizationPct}%
-                          </span>
-                          <span className="tsa-summary-stat-label">Team leave Utilization</span>
-                        </div>
-                      </div>
-
-                      {/* Employee Bar Rows */}
-                      <div className="tsa-emp-list">
-                        {employees.length === 0 ? (
-                          <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', margin: '10px 0' }}>
-                            {summaryLeaveType !== 'all' 
-                              ? "No employees have utilized this specific leave type."
-                              : "No employees found in this department."}
-                          </div>
-                        ) : (
-                          employees.map((emp) => {
-                          const total = calcTotal(emp);
-                          const utilPct = calcUtilization(emp);
-                          const barWidthPct = (total / globalMaxDays) * 100;
-                          const avatarColor = getAvatarColor(emp.name);
-                          const initials = getInitials(emp.name);
-                          return (
-                            <div key={emp.id} className="tsa-emp-row">
-                              {/* Employee info */}
-                              <div className="tsa-emp-info">
-                                <div
-                                  className="tsa-avatar"
-                                  style={{ backgroundColor: avatarColor }}
-                                >
-                                  {initials}
-                                </div>
-                                <div className="tsa-emp-text">
-                                  <span className="tsa-emp-name">{emp.name}</span>
-                                  <span className="tsa-emp-meta">
-                                    {emp.employeeId}
-                                    <span className="tsa-emp-meta-dot">·</span>
-                                    {emp.designation}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Stacked bar */}
-                              <div className="tsa-bar-wrap">
-                                <div className="tsa-bar-track">
-                                  <div className="tsa-bar" style={{ width: `${barWidthPct}%` }}>
-                                    {visibleCategories.map((cat) => {
-                                      const val = emp[cat.key];
-                                      const segPct = total > 0 ? (val / total) * 100 : 0;
-                                      if (segPct === 0) return null;
-                                      return (
-                                        <div
-                                          key={cat.key}
-                                          className="tsa-segment"
-                                          style={{
-                                            width: `${segPct}%`,
-                                            backgroundColor: cat.color,
-                                          }}
-                                          title={`${cat.label}: ${val} days`}
-                                        />
-                                      );
-                                    })}
-                                  </div>
-                                  {/* Quota marker */}
-                                  {emp.leaveQuota > 0 && (
-                                    <div
-                                      className="tsa-quota-marker"
-                                      style={{ left: `${(emp.leaveQuota / globalMaxDays) * 100}%` }}
-                                      title={`Quota: ${emp.leaveQuota} days`}
-                                    />
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Stats */}
-                              <div className="tsa-emp-stats">
-                                <span className="tsa-emp-total">{total} days</span>
-                                <span
-                                  className="tsa-emp-util"
-                                  data-high={utilPct >= 80 ? 'true' : 'false'}
-                                  data-low={utilPct < 40 ? 'true' : 'false'}
-                                >
-                                  {utilPct}%
+                    <div className="team-summary-table-wrapper" style={{ padding: '12px 14px' }}>
+                      <div className="team-summary-table-container">
+                        <table className="team-summary-table">
+                          <thead className="team-summary-table-thead">
+                            <tr>
+                              <th className="team-summary-table-header">Employee</th>
+                              <th className="team-summary-table-header team-summary-table-header-numeric">Leave Taken</th>
+                              <th className="team-summary-table-header team-summary-table-header-numeric">Leave Balance</th>
+                              <th
+                                className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable"
+                                onClick={() => {
+                                  if (analyticsSort === 'utilization-high') {
+                                    setAnalyticsSort('utilization-low');
+                                  } else {
+                                    setAnalyticsSort('utilization-high');
+                                  }
+                                }}
+                              >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  Utilization
+                                  <ArrowUpDown
+                                    size={10}
+                                    className="team-summary-sort-icon"
+                                    style={{
+                                      opacity: (analyticsSort === 'utilization-high' || analyticsSort === 'utilization-low') ? 1 : 0.35,
+                                      color: (analyticsSort === 'utilization-high' || analyticsSort === 'utilization-low') ? 'var(--c-primary)' : 'inherit',
+                                      transform: analyticsSort === 'utilization-low' ? 'rotate(180deg)' : 'none',
+                                      transition: 'transform 0.2s ease, opacity 0.2s ease'
+                                    }}
+                                  />
                                 </span>
-                              </div>
-                            </div>
-                          );
-                        }) )}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="team-summary-table-tbody">
+                            {employees.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '14px' }}>
+                                  {summarySearchQuery.trim()
+                                    ? "No employees match your search."
+                                    : (summaryLeaveType !== 'all'
+                                        ? "No employees have utilized this specific leave type."
+                                        : "No employees found in this department.")}
+                                </td>
+                              </tr>
+                            ) : (
+                              employees.map((emp) => {
+                                const total = calcTotal(emp);
+                                const utilPct = calcUtilization(emp);
+                                const avatarColor = getAvatarColor(emp.name);
+                                const initials = getInitials(emp.name);
+
+                                // Status: Low (0%-44%) -> low, Moderate (45%-70%) -> moderate, High (71%+) -> high
+                                let statusClass = 'low';
+                                if (utilPct >= 71) statusClass = 'high';
+                                else if (utilPct >= 45) statusClass = 'moderate';
+
+                                // Find leave type booked and remaining days
+                                let leaveTaken = total;
+                                let leaveBalance = calcRemaining(emp);
+
+                                if (summaryLeaveType !== 'all') {
+                                  let targetTypes = [];
+                                  if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+                                  else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+                                  else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+                                  else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+                                  else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+                                  else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+                                  else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
+
+                                  if (emp.leaveTypes && emp.leaveTypes.length > 0) {
+                                    const lts = emp.leaveTypes.filter(lt => targetTypes.includes(lt.leave_type_code));
+                                    leaveTaken = lts.reduce((sum, lt) => sum + (lt.booked || 0), 0);
+                                    leaveBalance = lts.reduce((sum, lt) => sum + (lt.remaining || 0), 0);
+                                  } else {
+                                    leaveTaken = 0;
+                                    leaveBalance = 0;
+                                    targetTypes.forEach(tt => {
+                                      leaveTaken += emp.balances?.[tt]?.used || 0;
+                                      leaveBalance += emp.balances?.[tt]?.available || 0;
+                                    });
+                                  }
+                                }
+
+                                return (
+                                  <tr key={emp.id} className="team-summary-table-row">
+                                    <td className="team-summary-table-cell team-summary-table-cell-name">
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div
+                                          className="tsa-avatar"
+                                          style={{ backgroundColor: avatarColor }}
+                                        >
+                                          {initials}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <span style={{ fontWeight: 500, fontSize: '13px', color: 'var(--text-primary)' }}>{emp.name}</span>
+                                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{emp.designation}</span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="team-summary-table-cell team-summary-table-cell-numeric">
+                                      {leaveTaken !== null && leaveTaken !== undefined ? `${leaveTaken} day${leaveTaken !== 1 ? 's' : ''}` : '—'}
+                                    </td>
+                                    <td className="team-summary-table-cell team-summary-table-cell-numeric">
+                                      {leaveBalance !== null && leaveBalance !== undefined ? `${leaveBalance} day${leaveBalance !== 1 ? 's' : ''}` : '—'}
+                                    </td>
+                                    <td className="team-summary-table-cell team-summary-table-cell-numeric">
+                                      <span className="tsa-util-badge" data-status={statusClass}>
+                                        {utilPct}%
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   )}
