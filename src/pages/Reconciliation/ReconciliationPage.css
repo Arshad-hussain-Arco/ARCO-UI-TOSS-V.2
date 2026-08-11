@@ -535,6 +535,7 @@
 
 .rsk-column-badge {
   display: inline-flex;
+  align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;

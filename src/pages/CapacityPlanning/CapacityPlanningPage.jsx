@@ -23,6 +23,7 @@ import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
 import { settingsService } from '@services/settingsService';
@@ -60,6 +61,7 @@ export function CapacityPlanningPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [activeTeamTab, setActiveTeamTab] = useState('');
   const [collapsedTeams, setCollapsedTeams] = useState(new Set());
@@ -147,12 +149,12 @@ export function CapacityPlanningPage() {
   // Filters application
   const filteredConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.teamName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        c.teamName.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       const matchesTeam = selectedTeamFilter === 'all' || c.teamName === selectedTeamFilter;
       return matchesSearch && matchesTeam;
     });
-  }, [processedConsultants, searchQuery, selectedTeamFilter]);
+  }, [processedConsultants, debouncedSearchQuery, selectedTeamFilter]);
 
   // Group consultants by team for Summary View
   const groupedTeams = useMemo(() => {
@@ -173,11 +175,11 @@ export function CapacityPlanningPage() {
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       const matchesActiveTab = c.teamName === activeTeamTab;
       return matchesSearch && matchesActiveTab;
     });
-  }, [processedConsultants, searchQuery, activeTeamTab]);
+  }, [processedConsultants, debouncedSearchQuery, activeTeamTab]);
 
   // Collapsing handlers
   const toggleTeamCollapse = (teamName) => {

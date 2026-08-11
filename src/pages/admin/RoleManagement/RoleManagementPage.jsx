@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
+import { useDebounce } from '@hooks/useDebounce';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
@@ -107,6 +108,7 @@ export function RoleManagementPage() {
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [expandedRoleId, setExpandedRoleId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [stats, setStats] = useState({
@@ -154,12 +156,12 @@ export function RoleManagementPage() {
 
   // Filtered Roles
   const filteredRoles = useMemo(() => {
-    if (!searchQuery.trim()) return roles;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearchQuery.trim()) return roles;
+    const q = debouncedSearchQuery.toLowerCase();
     return roles.filter(
       (r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     );
-  }, [roles, searchQuery]);
+  }, [roles, debouncedSearchQuery]);
 
   // Toggle Modal Open/Close
   const handleOpenAddModal = () => {

@@ -119,7 +119,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
                 onClick={() => handleSort('code_col')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Code Column</span>
                   <ArrowUpDown size={14} style={{ opacity: sortField === 'code_col' ? 1 : 0.4 }} />
                 </div>
@@ -128,7 +128,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
                 onClick={() => handleSort('excel_col')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Excel Column</span>
                   <ArrowUpDown size={14} style={{ opacity: sortField === 'excel_col' ? 1 : 0.4 }} />
                 </div>

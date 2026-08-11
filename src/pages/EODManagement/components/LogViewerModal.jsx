@@ -4,6 +4,7 @@ import {
   ChevronUp, ChevronDown, Download, WrapText,
   Maximize2, Minimize2, ExternalLink, FileText,
 } from 'lucide-react';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { eodService } from '../../../services/eodService';
 
 // Splits a line into text segments — normal and matched — for inline highlighting
@@ -35,6 +36,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('latest');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [logContent, setLogContent] = useState('');
   const [answerContent, setAnswerContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -95,20 +97,20 @@ export function LogViewerModal({ isOpen, onClose, env }) {
 
   // Recompute match indices on query/content/view change
   useEffect(() => {
-    if (!searchQuery) {
+    if (!debouncedSearchQuery) {
       setMatchIndices([]);
       setCurrentMatchIdx(0);
       return;
     }
     const content = activeView === 'logs' ? logContent : answerContent;
     const lines = content ? content.split('\n') : [];
-    const lowerQ = searchQuery.toLowerCase();
+    const lowerQ = debouncedSearchQuery.toLowerCase();
     const hits = lines
       .map((line, i) => (line.toLowerCase().includes(lowerQ) ? i : -1))
       .filter(i => i !== -1);
     setMatchIndices(hits);
     setCurrentMatchIdx(0);
-  }, [searchQuery, logContent, answerContent, activeView]);
+  }, [debouncedSearchQuery, logContent, answerContent, activeView]);
 
   // Scroll to active match
   useEffect(() => {
@@ -438,7 +440,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               {lines.map((line, idx) => {
                 const isActiveLine = idx === activeMatchLine;
                 const isMatchLine  = matchIndices.includes(idx);
-                const segments     = splitLineByMatch(line, searchQuery);
+                const segments     = splitLineByMatch(line, debouncedSearchQuery);
 
               return (
                 <div

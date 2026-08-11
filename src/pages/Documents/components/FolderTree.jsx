@@ -12,6 +12,35 @@ import {
   Trash2,
 } from 'lucide-react';
 
+const HighlightText = ({ text, highlight }) => {
+  if (!highlight) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <span key={i} style={{ backgroundColor: '#fef08a', color: '#1f2937', borderRadius: '3px', padding: '1px 2px', fontWeight: 500 }}>
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+};
+
+const doesFolderContainMatch = (folder, filesState, query) => {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  if (folder.name.toLowerCase().includes(q)) return true;
+  if (filesState.some(f => f.folderId === folder.id && f.name.toLowerCase().includes(q))) return true;
+  if (folder.children) {
+    return folder.children.some(child => doesFolderContainMatch(child, filesState, query));
+  }
+  return false;
+};
+
 export function getFileIcon(type) {
   switch (type?.toLowerCase()) {
     case 'pdf':
@@ -67,7 +96,7 @@ export function FolderTree({
         >
           <FileIconCard size={14} className={`doc-file-row-icon ${file.type}`} />
           <span className="doc-file-row-name" title={file.name}>
-            {file.name}
+            <HighlightText text={file.name} highlight={searchQuery} />
           </span>
           <div className="doc-file-actions-group">
             <button
@@ -98,8 +127,8 @@ export function FolderTree({
 
   return (
     <>
-      {folders.map((folder) => {
-        const isExpanded = expandedFolders.has(folder.id);
+      {folders.filter(f => doesFolderContainMatch(f, filesState, searchQuery)).map((folder) => {
+        const isExpanded = !!searchQuery || expandedFolders.has(folder.id);
         const isSelected = selectedFolder === folder.id;
         const hasChildren = folder.children && folder.children.length > 0;
 
@@ -134,7 +163,9 @@ export function FolderTree({
                 <span className="doc-folder-toggle-spacer" />
               )}
               {isExpanded ? <FolderOpen size={16} /> : <Folder size={16} />}
-              <span className="doc-folder-name">{folder.name}</span>
+              <span className="doc-folder-name">
+                <HighlightText text={folder.name} highlight={searchQuery} />
+              </span>
               <span className="doc-folder-count">
                 {folderFiles.length +
                   (folder.children

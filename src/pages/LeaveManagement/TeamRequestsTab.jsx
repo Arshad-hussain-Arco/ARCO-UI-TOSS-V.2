@@ -23,6 +23,7 @@ import {
   Ban,
   ArrowUpDown,
 } from 'lucide-react';
+import { useDebounce } from '@hooks/useDebounce';
 import { Select } from '@components/forms/Select/Select';
 import { ExportButton } from '@components/ui/ExportButton';
 import jsPDF from 'jspdf';
@@ -369,6 +370,7 @@ export function TeamRequestsTab() {
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500);
   const [statusF, setStatusF] = useState('all');
   const [typeF, setTypeF] = useState('all');
   const [leaveTypeF, setLeaveTypeF] = useState('all');
@@ -381,6 +383,7 @@ export function TeamRequestsTab() {
   const [sdlMonth, setSdlMonth] = useState(today.getMonth());
   const [sdlSelected, setSdlSelected] = useState(todayStr());
   const [sdlSearch, setSdlSearch] = useState('');
+  const debouncedSdlSearch = useDebounce(sdlSearch, 500);
   const [sdlLeaveTF, setSdlLeaveTF] = useState('all');
   const [sdlTeam, setSdlTeam] = useState('all');
   const [sdlStatus, setSdlStatus] = useState('all');
@@ -429,7 +432,7 @@ export function TeamRequestsTab() {
       );
     if (sdlTeam !== 'all') list = list.filter((r) => r.team === sdlTeam);
     if (sdlStatus !== 'all') list = list.filter((r) => r.status === sdlStatus);
-    const q = sdlSearch.toLowerCase().trim();
+    const q = debouncedSdlSearch.toLowerCase().trim();
     if (q)
       list = list.filter(
         (r) => r.employeeName.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q),
@@ -440,7 +443,7 @@ export function TeamRequestsTab() {
       if (sdlSortBy === 'team') return a.team.localeCompare(b.team);
       return a.employeeName.localeCompare(b.employeeName);
     });
-  }, [requests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, sdlSearch, sdlSortBy]);
+  }, [requests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, debouncedSdlSearch, sdlSortBy]);
   function sdlPrevMonth() {
     if (sdlMonth === 0) {
       setSdlMonth(11);
@@ -455,7 +458,7 @@ export function TeamRequestsTab() {
   }
   const filtered = useMemo(() => {
     let list = requests;
-    const q = search.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
     if (q)
       list = list.filter(
         (r) =>
@@ -493,7 +496,7 @@ export function TeamRequestsTab() {
       if (sortBy === 'endDate') return a.endDate.localeCompare(b.endDate);
       return b.requestedOn.localeCompare(a.requestedOn);
     });
-  }, [requests, search, statusF, typeF, leaveTypeF, sortBy, tableSortField, tableSortOrder]);
+  }, [requests, debouncedSearch, statusF, typeF, leaveTypeF, sortBy, tableSortField, tableSortOrder]);
 
   const handleTableSort = (field) => {
     if (tableSortField === field) {
