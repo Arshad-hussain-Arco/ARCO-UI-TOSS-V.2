@@ -582,13 +582,13 @@ export function ProjectMonitoringPage() {
   // 2. Dynamic Team Role Breakdown Cards (Matches Image 1 & Legacy Spec)
   const teamRoles = useMemo(() => {
     return [
-      { id: 'itdl', title: 'Count By IT Delivery Lead', field: 'itdl' },
-      { id: 'po', title: 'Count BY Product Owner', field: 'po' },
-      { id: 'backupItdl', title: 'Count By Backup ITDL', field: 'backupItdl' },
-      { id: 'sitLead', title: 'Count By SIT Lead', field: 'sitLead' },
-      { id: 'uatLead', title: 'Count By UAT Lead', field: 'uatLead' },
-      { id: 'developer', title: 'Count By Developer', field: 'developer' },
-      { id: 'additionalDev', title: 'Count By Additional Developer', field: 'additionalDev' },
+      { id: 'itdl', title: 'Projects By IT Delivery Lead', field: 'itdl' },
+      { id: 'po', title: 'Projects BY Product Owner', field: 'po' },
+      { id: 'backupItdl', title: 'Projects By Backup ITDL', field: 'backupItdl' },
+      { id: 'sitLead', title: 'Projects By SIT Lead', field: 'sitLead' },
+      { id: 'uatLead', title: 'Projects By UAT Lead', field: 'uatLead' },
+      { id: 'developer', title: 'Projects By Developer', field: 'developer' },
+      { id: 'additionalDev', title: 'Projects By Additional Developer', field: 'additionalDev' },
     ].map((r) => ({
       ...r,
       members: calculateTeamRoleCounts(categoryProjects, categoryCRs, r.field),
@@ -773,7 +773,7 @@ export function ProjectMonitoringPage() {
                 style={{ cursor: 'pointer' }}
                 onClick={() => setDrilldownStage({ key: 'testing-blocked', label: 'Testing Blocked', count: testingBlockedCount })}
               >
-                🚨 Testing Blocked — {testingBlockedCount}
+                Testing Blocked — {testingBlockedCount}
               </span>
               <span
                 className="pm-special-badge pm-badge-deferred"
@@ -782,7 +782,7 @@ export function ProjectMonitoringPage() {
                 style={{ cursor: 'pointer' }}
                 onClick={() => setDrilldownStage({ key: 'deferred', label: 'Deferred', count: deferredCount })}
               >
-                ⏸️ Deferred — {deferredCount}
+                Deferred — {deferredCount}
               </span>
             </div>
           </div>
@@ -834,7 +834,7 @@ export function ProjectMonitoringPage() {
             </div>
 
             {/* Dynamic Team Overview Cards (Matches Image 1) */}
-            <div className="pm-chart-card pm-chart-card--compact-org">
+            {/* <div className="pm-chart-card pm-chart-card--compact-org">
               <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
                 <Users size={14} color="var(--c-primary)" /> Team Overview Role Counts
               </h3>
@@ -851,12 +851,12 @@ export function ProjectMonitoringPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Dynamic 7-Role Team Overview Section (Matches Image 1) */}
           <div className="pm-itdl-overview-section">
-            <h3 className="pm-section-subtitle">Team Breakdown Cards</h3>
+            <h3 className="pm-section-subtitle">Projects Overview by Team</h3>
             <div className="pm-itdl-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {teamRoles.map((roleCard) => (
                 <div key={roleCard.id} className="pm-itdl-card">
@@ -1040,15 +1040,7 @@ export function ProjectMonitoringPage() {
         <div className="pm-tab-content pm-tab-content--breaches">
           {/* Governance Summary Banner */}
           <div className="pm-breaches-banner">
-            <div className="pm-breaches-banner-info">
-              <div className="pm-breaches-banner-title">
-                <ShieldAlert size={18} style={{ color: '#ef4444' }} />
-                <span>Governance &amp; SLA Breach Dashboard</span>
-              </div>
-              <p className="pm-breaches-banner-sub">
-                Real-time tracking of SLA delays, missing dev timelines, and Change Request governance exceptions across all work orders.
-              </p>
-            </div>
+
             <div className="pm-breaches-banner-pills">
               <div className="pm-banner-pill pill-red">
                 <span className="pill-dot" />

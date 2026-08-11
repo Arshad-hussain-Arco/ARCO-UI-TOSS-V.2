@@ -264,7 +264,7 @@
 }
 
 .text-right {
-  text-align: right;
+  display: flex;
 }
 
 .lc-action-btns {
@@ -288,7 +288,7 @@
   color: var(--text-secondary);
 }
 
-.lc-act-btn.edit:hover   {
+.lc-act-btn.edit:hover {
   background: var(--bg-hover);
 }
 
@@ -298,7 +298,7 @@
   border-color: var(--c-primary);
 }
 
-.lc-act-btn.save:hover   {
+.lc-act-btn.save:hover {
   background: var(--bg-hover);
 }
 
@@ -308,7 +308,7 @@
   border-color: var(--border-primary);
 }
 
-.lc-act-btn.cancel:hover   {
+.lc-act-btn.cancel:hover {
   background: var(--bg-hover);
 }
 
@@ -372,7 +372,7 @@
   flex-shrink: 0;
 }
 
-.lc-expand-btn:hover   {
+.lc-expand-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -419,7 +419,7 @@
   justify-content: center;
 }
 
-.lc-edit-btn:hover   {
+.lc-edit-btn:hover {
   background: var(--bg-hover);
 }
 
