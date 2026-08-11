@@ -427,77 +427,97 @@ export function CapacityPlanningPage() {
   }
 
   return (
-    <div className="leave-management">
-      <div className="leave-management-tabs">
+    <div className="capacity-planning">
+      <div className="capacity-planning-tabs">
         <button
           onClick={() => setViewMode('summary')}
-          className="leave-management-tab"
+          className="capacity-planning-tab"
           data-active={viewMode === 'summary'}
         >
-          <FileText className="leave-management-tab-icon" />
-          <span className="leave-management-tab-label">Summary View</span>
+          <FileText className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Summary View</span>
         </button>
         <button
           onClick={() => setViewMode('team')}
-          className="leave-management-tab"
+          className="capacity-planning-tab"
           data-active={viewMode === 'team'}
         >
-          <Users className="leave-management-tab-icon" />
-          <span className="leave-management-tab-label">Team View</span>
+          <Users className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Team View</span>
         </button>
       </div>
 
-      <div className="leave-management-content">
+      <div className="capacity-planning-content">
 
 
         {/* Filter Options */}
         <div className="cp-filter-panel">
           <div className="filter-row">
-            <SearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search consultants..."
-              classNames={{
-                wrapper: 'cp-search-wrapper',
-                icon: 'cp-search-icon',
-                input: 'cp-search-input'
-              }}
-            />
-
-            {viewMode === 'summary' && (
-              <Select
-                value={selectedTeamFilter}
-                onChange={setSelectedTeamFilter}
-                options={teamOptions}
-                width="team"
-              />
+            {viewMode === 'summary' ? (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search consultants..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <Select
+                  value={selectedTeamFilter}
+                  onChange={setSelectedTeamFilter}
+                  options={teamOptions}
+                  width="team"
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  <ExportButton
+                    excel
+                    pdf
+                    onExcelExport={handleExportExcel}
+                    onPdfExport={handleExportPDF}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search consultants..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div className="team-view-switcher">
+                    <button
+                      type="button"
+                      className={`switcher-btn ${teamViewSubMode === 'utilization' ? 'active' : ''}`}
+                      onClick={() => setTeamViewSubMode('utilization')}
+                    >
+                      Utilization View
+                    </button>
+                    <button
+                      type="button"
+                      className={`switcher-btn ${teamViewSubMode === 'compact' ? 'active' : ''}`}
+                      onClick={() => setTeamViewSubMode('compact')}
+                    >
+                      Compact View
+                    </button>
+                  </div>
+                  <ExportButton
+                    excel
+                    pdf
+                    onExcelExport={handleExportExcel}
+                    onPdfExport={handleExportPDF}
+                  />
+                </div>
+              </>
             )}
-
-            {viewMode === 'team' && (
-              <div className="team-view-switcher">
-                <button
-                  type="button"
-                  className={`switcher-btn ${teamViewSubMode === 'utilization' ? 'active' : ''}`}
-                  onClick={() => setTeamViewSubMode('utilization')}
-                >
-                  Utilization View
-                </button>
-                <button
-                  type="button"
-                  className={`switcher-btn ${teamViewSubMode === 'compact' ? 'active' : ''}`}
-                  onClick={() => setTeamViewSubMode('compact')}
-                >
-                  Compact View
-                </button>
-              </div>
-            )}
-
-            <ExportButton
-              excel
-              pdf
-              onExcelExport={handleExportExcel}
-              onPdfExport={handleExportPDF}
-            />
           </div>
         </div>
 
