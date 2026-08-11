@@ -65,6 +65,16 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
     });
   }, [activeConsultants, searchQuery, selectedTeam, selectedDesignation]);
 
+
+
+  const filteredTeamsCount = useMemo(() => {
+    return new Set(filtered.map(c => c.team).filter(Boolean)).size;
+  }, [filtered]);
+
+  const filteredDesignationsCount = useMemo(() => {
+    return new Set(filtered.map(c => c.designation).filter(Boolean)).size;
+  }, [filtered]);
+
   if (error) {
     return (
       <ErrorState
@@ -86,14 +96,6 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
       </div>
     );
   }
-
-  const filteredTeamsCount = useMemo(() => {
-    return new Set(filtered.map(c => c.team).filter(Boolean)).size;
-  }, [filtered]);
-
-  const filteredDesignationsCount = useMemo(() => {
-    return new Set(filtered.map(c => c.designation).filter(Boolean)).size;
-  }, [filtered]);
 
   return (
     <>
