@@ -2485,17 +2485,14 @@
 .pm-tab-content--breaches {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .pm-breaches-banner {
-  background: var(--surface-primary);
-  border: 1px solid var(--border-secondary);
   border-radius: 10px;
-  padding: 14px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: end;
   gap: 16px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
@@ -2795,19 +2792,16 @@
 .pm-breach-val.nonzero-red {
   background: #ef4444;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25);
 }
 
 .pm-breach-val.nonzero-amber {
   background: #f59e0b;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.25);
 }
 
 .pm-breach-val.nonzero-emerald {
   background: #10b981;
   color: #ffffff;
-  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
 }
 
 .pm-breach-chevron {
