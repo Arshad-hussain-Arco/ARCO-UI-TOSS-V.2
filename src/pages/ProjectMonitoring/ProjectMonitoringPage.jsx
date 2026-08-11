@@ -1153,7 +1153,7 @@ export function ProjectMonitoringPage() {
                   </div>
                   <div className="pm-gov-title-block">
                     <h3 className="pm-card-title">CR Governance Exceptions</h3>
-                    <span className="pm-card-subtitle">3 Rule Categories</span>
+                    <span className="pm-card-subtitle">{breachMetrics.cr.length} Rule Categories</span>
                   </div>
                 </div>
                 <span className="pm-gov-total-badge badge-emerald">{totalCrBreaches}</span>
