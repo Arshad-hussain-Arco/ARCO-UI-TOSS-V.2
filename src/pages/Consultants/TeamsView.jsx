@@ -109,14 +109,14 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 
           <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
             <button
-              className="tv-icon-btn edit"
+              className="action-icon-btn edit"
               title="Edit Team"
               onClick={(e) => { e.stopPropagation(); onEdit(team); }}
             >
               <Edit size={16} />
             </button>
             <button
-              className="tv-icon-btn delete"
+              className="action-icon-btn delete"
               title="Delete Team"
               onClick={(e) => { e.stopPropagation(); onDelete(team); }}
             >
@@ -404,7 +404,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setIsModalOpen(false)}
               disabled={isSaving}
             >
@@ -413,7 +413,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary)', color: '#ffffff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={handleSaveTeam}
               disabled={isSaving}
             >

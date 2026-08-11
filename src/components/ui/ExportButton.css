@@ -16,7 +16,7 @@
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--text-inverse);
+  color:  #ffffff;
   box-sizing: border-box;
 }
 

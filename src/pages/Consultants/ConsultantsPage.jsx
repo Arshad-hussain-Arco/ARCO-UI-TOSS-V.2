@@ -7,7 +7,7 @@ import {
   Key,
   User,
   Info,
-  Trash2,
+  Trash,
   Camera,
   Mail,
   Phone,
@@ -693,7 +693,7 @@ export function ConsultantsPage() {
                                 className="ef-avatar-btn-sm ef-avatar-btn-danger"
                                 onClick={handlePhotoRemove}
                               >
-                                <Trash2 size={10} /> Remove
+                                <Trash size={10} /> Remove
                               </button>
                             )}
                           </div>

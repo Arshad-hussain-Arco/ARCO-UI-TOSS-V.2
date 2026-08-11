@@ -691,7 +691,7 @@
   display: flex;
   position: sticky;
   top: 0;
-  background-color: #f8fafc;
+  background-color: var(--surface-primary);
   border-bottom: 1px solid var(--border-secondary);
   z-index: 10;
   min-width: max-content;
@@ -709,7 +709,7 @@
   flex-shrink: 0;
   position: sticky;
   left: 0;
-  background-color: #f8fafc;
+  background-color:  var(--surface-primary);
   z-index: 11;
   display: flex;
   align-items: center;

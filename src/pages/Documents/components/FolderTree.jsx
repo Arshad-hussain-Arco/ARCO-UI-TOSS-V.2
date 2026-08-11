@@ -8,8 +8,8 @@ import {
   FileSpreadsheet,
   ChevronRight,
   ChevronDown,
-  Edit2,
-  Trash2,
+  Edit,
+  Trash,
 } from 'lucide-react';
 
 const HighlightText = ({ text, highlight }) => {
@@ -107,7 +107,7 @@ export function FolderTree({
               }}
               title="Edit / Update File"
             >
-              <Edit2 size={13} />
+              <Edit size={13} />
             </button>
             <button
               className="action-icon-btn delete"
@@ -117,7 +117,7 @@ export function FolderTree({
               }}
               title="Delete File"
             >
-              <Trash2 size={13} />
+              <Trash size={13} />
             </button>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function FolderTree({
                     }}
                     title="Edit / Update Folder"
                   >
-                    <Edit2 size={12} />
+                    <Edit size={12} />
                   </button>
                   <button
                     className="action-icon-btn delete"
@@ -192,7 +192,7 @@ export function FolderTree({
                     }}
                     title="Delete Folder"
                   >
-                    <Trash2 size={12} />
+                    <Trash size={12} />
                   </button>
                 </div>
               )}

@@ -10,7 +10,7 @@ import {
   Monitor,
   MapPin,
   Camera,
-  Edit2,
+  Edit,
   Check,
   RotateCcw,
   Laptop,
@@ -560,7 +560,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
                 className="eps-btn eps-btn-primary"
                 onClick={() => setIsEditing(true)}
               >
-                <Edit2 size={12} />
+                <Edit size={12} />
                 <span>Edit Profile</span>
               </button>
             </>

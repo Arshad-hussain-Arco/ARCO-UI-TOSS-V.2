@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Mail, Users, Lock, Trash2, Edit, Power, Copy } from 'lucide-react';
+import { Phone, Mail, Users, Lock, Trash, Edit, Power, Copy } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import './ConsultantCard.css';
@@ -137,7 +137,7 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
               className="consultant-footer-btn consultant-footer-btn-delete"
               title="Delete Consultant"
             >
-              <Trash2 className="consultant-footer-btn-icon" />
+              <Trash className="consultant-footer-btn-icon" />
             </button>
           </>
         )}

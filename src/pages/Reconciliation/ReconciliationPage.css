@@ -1043,9 +1043,7 @@
   background: var(--bg-hover);
 }
 
-.rrs-tr--mismatch {
-  background: rgba(220, 38, 38, 0.025);
-}
+
 
 .rrs-tr--missing {
   background: rgba(249, 115, 22, 0.025);

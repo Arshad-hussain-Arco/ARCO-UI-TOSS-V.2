@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Image as ImageIcon, RefreshCw, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, RefreshCw, Trash } from 'lucide-react';
 
 import './ImageUpload.css';
 
@@ -102,7 +102,7 @@ export function ImageUpload({
                   onChange(null);
                 }}
               >
-                <Trash2 size={12} /> Remove
+                <Trash size={12} /> Remove
               </button>
             </div>
           </>

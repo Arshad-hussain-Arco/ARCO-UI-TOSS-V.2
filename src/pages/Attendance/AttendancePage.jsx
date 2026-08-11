@@ -58,8 +58,8 @@ const TeamIcon = ({ size = 14, color = "#3b82f6", className = "" }) => (
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 const MONTH_OPTIONS = MONTH_NAMES.map((label, value) => ({ label, value: String(value) }));
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
@@ -72,21 +72,21 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => {
  * Used for cell badges AND legends section.
  */
 const ATTENDANCE_CODE_MAP = [
-  { code: 'P',   label: 'Present',           color: 'var(--c-success)', bg: 'var(--c-success-light)', darkBg: '#14532d' },
-  { code: 'A',   label: 'Absent',            color: 'var(--c-danger)', bg: 'var(--c-danger-light)', darkBg: '#7f1d1d' },
-  { code: 'SL',  label: 'Sick Leave',        color: 'var(--c-warning)', bg: '#fff7ed', darkBg: '#7c2d12' },
-  { code: 'AL',  label: 'Annual Leave',      color: 'var(--c-info)', bg: '#eff6ff', darkBg: '#1e3a8a' },
-  { code: 'CL',  label: 'Casual Leave',      color: '#8b5cf6', bg: '#f5f3ff', darkBg: '#4c1d95' },
-  { code: 'WFH', label: 'Work From Home',    color: '#06b6d4', bg: '#ecfeff', darkBg: '#164e63' },
-  { code: 'WW',  label: 'Weekend Work',      color: '#d97706', bg: '#fffbeb', darkBg: '#78350f' },
-  { code: 'CO',  label: 'Comp Off',          color: '#7c3aed', bg: '#ede9fe', darkBg: '#4c1d95' },
-  { code: 'ML',  label: 'Maternity Leave',   color: '#ec4899', bg: '#fdf2f8', darkBg: '#831843' },
-  { code: 'OW',  label: 'Offshore Work',     color: '#0ea5e9', bg: '#f0f9ff', darkBg: '#075985' },
+  { code: 'P', label: 'Present', color: 'var(--c-success)', bg: 'var(--c-success-light)', darkBg: '#14532d' },
+  { code: 'A', label: 'Absent', color: 'var(--c-danger)', bg: 'var(--c-danger-light)', darkBg: '#7f1d1d' },
+  { code: 'SL', label: 'Sick Leave', color: 'var(--c-warning)', bg: '#fff7ed', darkBg: '#7c2d12' },
+  { code: 'AL', label: 'Annual Leave', color: 'var(--c-info)', bg: '#eff6ff', darkBg: '#1e3a8a' },
+  { code: 'CL', label: 'Casual Leave', color: '#8b5cf6', bg: '#f5f3ff', darkBg: '#4c1d95' },
+  { code: 'WFH', label: 'Work From Home', color: '#06b6d4', bg: '#ecfeff', darkBg: '#164e63' },
+  { code: 'WW', label: 'Weekend Work', color: '#d97706', bg: '#fffbeb', darkBg: '#78350f' },
+  { code: 'CO', label: 'Comp Off', color: '#7c3aed', bg: '#ede9fe', darkBg: '#4c1d95' },
+  { code: 'ML', label: 'Maternity Leave', color: '#ec4899', bg: '#fdf2f8', darkBg: '#831843' },
+  { code: 'OW', label: 'Offshore Work', color: '#0ea5e9', bg: '#f0f9ff', darkBg: '#075985' },
   { code: 'LWP', label: 'Leave Without Pay', color: 'var(--c-danger)', bg: 'var(--c-danger-light)', darkBg: '#7f1d1d' },
-  { code: 'OD',  label: 'On Duty',           color: 'var(--c-success)', bg: '#ecfdf5', darkBg: '#064e3b' },
-  { code: 'HD',  label: 'Half Day',          color: '#ca8a04', bg: '#fefce8', darkBg: '#713f12' },
-  { code: 'HO',  label: 'Holiday',           color: '#9333ea', bg: '#faf5ff', darkBg: '#581c87' },
-  { code: 'WE',  label: 'Weekend',           color: 'var(--text-secondary)', bg: 'var(--bg-secondary)', darkBg: 'var(--bg-primary)' },
+  { code: 'OD', label: 'On Duty', color: 'var(--c-success)', bg: '#ecfdf5', darkBg: '#064e3b' },
+  { code: 'HD', label: 'Half Day', color: '#ca8a04', bg: '#fefce8', darkBg: '#713f12' },
+  { code: 'HO', label: 'Holiday', color: '#9333ea', bg: '#faf5ff', darkBg: '#581c87' },
+  { code: 'WE', label: 'Weekend', color: 'var(--text-secondary)', bg: 'var(--bg-secondary)', darkBg: 'var(--bg-primary)' },
 ];
 
 const CODE_LOOKUP = Object.fromEntries(ATTENDANCE_CODE_MAP.map(c => [c.code, c]));
@@ -163,7 +163,7 @@ function exportToCSV(rows, dates, filename = 'attendance.csv') {
 function exportToPDF(rows, dates, filename = 'attendance.pdf') {
   const doc = new jsPDF('landscape');
   const headers = ['Consultant', 'Team', ...dates.map(d => formatDateKey(d)), 'P', 'A', 'T'];
-  
+
   const body = rows.map(({ consultant, record, stats }) => [
     consultant.name,
     consultant.team,
@@ -198,11 +198,11 @@ function StatusBadge({ code, variant = 'solid' }) {
       style={
         isPlain
           ? { color: cfg.color }
-          : { 
-              color: cfg.color, 
-              backgroundColor: variant === 'outline' ? 'transparent' : cfg.bg, 
-              borderColor: variant === 'outline' ? cfg.color : `${cfg.color}30` 
-            }
+          : {
+            color: cfg.color,
+            backgroundColor: variant === 'outline' ? 'transparent' : cfg.bg,
+            borderColor: variant === 'outline' ? cfg.color : `${cfg.color}30`
+          }
       }
       title={cfg.label}
     >
@@ -232,7 +232,7 @@ export function AttendancePage() {
   useDocumentTitle('Attendance');
 
   const { user } = useAuth();
-  
+
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
   const subTab = searchParams.get('tab') || 'on-duty';
@@ -339,7 +339,7 @@ export function AttendancePage() {
   // ── Data Fetching ──
   // Always fetch 30 days for timeline so filters are instant
   const fetchTimelineDates = useMemo(() => generateDates(today, 30), [today]);
-  
+
   const fetchAttendance = useCallback(() => {
     if (!reportDates.length || !fetchTimelineDates.length) return Promise.resolve(null);
     const dates = [...reportDates, ...fetchTimelineDates];
@@ -357,17 +357,17 @@ export function AttendancePage() {
     return data.teamMembers
       .filter(m => m.is_active !== false && m.status !== 'inactive' && m.accountStatus !== 'inactive')
       .map(m => ({
-      id: m.emp_id,
-      name: m.emp_name,
-      team: m.team_name || 'Other',
-      manager: '', 
-      location: '', 
-      phone: '', 
-      email: '',
-      status: 'present', 
-      avatar: m.photo || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() : '?'),
-      designation: m.designation,
-    }));
+        id: m.emp_id,
+        name: m.emp_name,
+        team: m.team_name || 'Other',
+        manager: '',
+        location: '',
+        phone: '',
+        email: '',
+        status: 'present',
+        avatar: m.photo || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'),
+        designation: m.designation,
+      }));
   }, [data?.teamMembers]);
 
   const attendanceRecords = useMemo(() => {
@@ -388,7 +388,7 @@ export function AttendancePage() {
           datesObj[dateStr] = 'P'; // fallback
           continue;
         }
-        
+
         if (dayData.is_holiday) {
           datesObj[dateStr] = 'HO';
         } else if (dayData.is_weekend) {
@@ -413,7 +413,7 @@ export function AttendancePage() {
 
   const { onDutyConsultants, onLeaveConsultants, onWfhConsultants } = useMemo(() => {
     if (!allConsultants.length) return { onDutyConsultants: [], onLeaveConsultants: [], onWfhConsultants: [] };
-    
+
     const todayStr = formatDateKey(today);
     const todayData = (data?.calendar || []).find(d => d.date === todayStr);
 
@@ -423,7 +423,7 @@ export function AttendancePage() {
 
     // For Leaves (which should show any leave in the current calendar month)
     const allLeaveEmpIds = new Set();
-    const leaveStatsForEmp = {}; 
+    const leaveStatsForEmp = {};
     const allWfhEmpIds = new Set();
     const wfhStatsForEmp = {};
 
@@ -431,19 +431,19 @@ export function AttendancePage() {
       day.on_leave_details?.forEach(l => {
         allLeaveEmpIds.add(l.emp_id);
         if (!leaveStatsForEmp[l.emp_id]) {
-           leaveStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
+          leaveStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
         } else {
-           leaveStatsForEmp[l.emp_id].days += 1;
-           leaveStatsForEmp[l.emp_id].endDate = day.date; // Track latest date
+          leaveStatsForEmp[l.emp_id].days += 1;
+          leaveStatsForEmp[l.emp_id].endDate = day.date; // Track latest date
         }
       });
       day.on_wfh_details?.forEach(l => {
         allWfhEmpIds.add(l.emp_id);
         if (!wfhStatsForEmp[l.emp_id]) {
-           wfhStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
+          wfhStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
         } else {
-           wfhStatsForEmp[l.emp_id].days += 1;
-           wfhStatsForEmp[l.emp_id].endDate = day.date;
+          wfhStatsForEmp[l.emp_id].days += 1;
+          wfhStatsForEmp[l.emp_id].endDate = day.date;
         }
       });
     });
@@ -479,7 +479,7 @@ export function AttendancePage() {
           avatar: c.avatar
         });
       }
-      
+
       // On Duty Today excludes those on leave Today
       if (!todayLeaveIds.has(c.id)) {
         onDuty.push({
@@ -505,7 +505,7 @@ export function AttendancePage() {
         location: d.working_mode === 'WFH' ? 'Remote' : 'Office',
         phone: 'N/A',
         email: 'N/A',
-        avatar: d.photo || allConsultants.find(c=>c.id===d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() : '?')
+        avatar: d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
       }));
     }
 
@@ -518,7 +518,7 @@ export function AttendancePage() {
     return onLeaveConsultants.filter(l => {
       if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
       if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
-      
+
       return timelineDates.some(date => {
         const dateStr = formatDateKey(date);
         const dayData = data?.calendar?.find(d => d.date === dateStr);
@@ -531,7 +531,7 @@ export function AttendancePage() {
     return onWfhConsultants.filter(l => {
       if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
       if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
-      
+
       return timelineDates.some(date => {
         const dateStr = formatDateKey(date);
         const dayData = data?.calendar?.find(d => d.date === dateStr);
@@ -551,7 +551,7 @@ export function AttendancePage() {
         startDate: leaveData.date,
         endDate: leaveData.date,
         days: 1,
-        avatar: d.photo || allConsultants.find(c=>c.id===d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() : '?')
+        avatar: d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
       }));
     } else {
       const todayStr = formatDateKey(today);
@@ -631,7 +631,7 @@ export function AttendancePage() {
   }, []);
 
   const getLeaveTypeColor = useCallback(type => {
-    const map = { 
+    const map = {
       'Annual Leave': '#93c5fd', 'AL': '#93c5fd',
       'Sick Leave': '#fca5a5', 'SL': '#fca5a5',
       'Comp Off': '#c4b5fd', 'CompOff': '#c4b5fd',
@@ -687,7 +687,7 @@ export function AttendancePage() {
   // ── Render Avatar Helper ──
   const renderAvatar = (avatarData, name) => {
     if (!avatarData || avatarData === '?') {
-      return name ? name.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() : '?';
+      return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
     }
     const imgStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', backgroundColor: '#ffffff' };
     if (avatarData.length > 100) {
@@ -819,12 +819,12 @@ export function AttendancePage() {
       {subTab === 'on-duty' && (
         <div className="attendance-kpi-section">
           {[
-            { key: 'total',      icon: <Users size={20} />,        color: 'blue',  count: filteredOnDuty.length + filteredOnLeaveList.length, label: 'Total Consultants' },
-            { key: 'present',    icon: <Building2 size={20} />,    color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
-            { key: 'wfh',        icon: <Home size={20} />,         color: 'blue',  count: filteredOnDuty.filter(c => c.status === 'remote').length, label: 'Work From Home' },
-            { key: 'leave',      icon: <Clock size={20} />,        color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
-            { key: 'absent',     icon: <AlertCircle size={20} />,  color: 'red',   count: 0, label: 'Absent / Not Marked' },
-            { key: 'attendance', icon: <Percent size={20} />,      color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(filteredOnDuty.length + filteredOnLeaveList.length, 1) * 100)}%`, label: 'Attendance %' },
+            { key: 'total', icon: <Users size={20} />, color: 'blue', count: filteredOnDuty.length + filteredOnLeaveList.length, label: 'Total Consultants' },
+            { key: 'present', icon: <Building2 size={20} />, color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
+            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'remote').length, label: 'Work From Home' },
+            { key: 'leave', icon: <Clock size={20} />, color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
+            { key: 'absent', icon: <AlertCircle size={20} />, color: 'red', count: 0, label: 'Absent / Not Marked' },
+            { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(filteredOnDuty.length + filteredOnLeaveList.length, 1) * 100)}%`, label: 'Attendance %' },
           ].map(({ key, icon, color, count, label }) => (
             <div
               key={key}
@@ -892,7 +892,7 @@ export function AttendancePage() {
         {subTab === 'on-wfh' && viewMode === 'timeline' && (
           <div className="attendance-timeline-wrapper">
             <div className="att-timeline-folder-tabs">
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onWfhTimelineFilter === 'next30'}
                 onClick={() => setOnWfhTimelineFilter('next30')}
@@ -900,14 +900,14 @@ export function AttendancePage() {
                 <span className="att-folder-tab-label">Next 30 Days</span>
                 <span className="att-folder-tab-badge">{filteredOnWfhTimeline.length}</span>
               </button>
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onWfhTimelineFilter === 'today'}
                 onClick={() => setOnWfhTimelineFilter('today')}
               >
                 <span className="att-folder-tab-label">Today</span>
               </button>
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onWfhTimelineFilter === 'tomorrow'}
                 onClick={() => setOnWfhTimelineFilter('tomorrow')}
@@ -939,7 +939,7 @@ export function AttendancePage() {
                     }, {})
                   ).map(([teamName, members]) => (
                     <div key={teamName} className="attendance-timeline-team-group">
-                      <div 
+                      <div
                         className="attendance-timeline-team-header"
                         style={{ backgroundColor: '#ecfeff', border: '1px solid #cffafe', color: '#164e63', padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}
                       >
@@ -1006,7 +1006,7 @@ export function AttendancePage() {
                     <div key={c.emp_id} className="attendance-consultant-row">
                       <div className="attendance-consultant-main">
                         <div className="attendance-consultant-avatar">
-                          {renderAvatar(c.photo || allConsultants.find(x=>x.id===c.emp_id)?.avatar, c.emp_name)}
+                          {renderAvatar(c.photo || allConsultants.find(x => x.id === c.emp_id)?.avatar, c.emp_name)}
                         </div>
                         <div className="attendance-consultant-info">
                           <div className="attendance-consultant-name">{c.emp_name}</div>
@@ -1038,7 +1038,7 @@ export function AttendancePage() {
           <div className="attendance-timeline-wrapper">
             {/* Timeline Filters - Folder Tabs */}
             <div className="att-timeline-folder-tabs">
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onLeaveTimelineFilter === 'next30'}
                 onClick={() => setOnLeaveTimelineFilter('next30')}
@@ -1046,14 +1046,14 @@ export function AttendancePage() {
                 <span className="att-folder-tab-label">Next 30 Days</span>
                 <span className="att-folder-tab-badge">{filteredOnLeaveTimeline.length}</span>
               </button>
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onLeaveTimelineFilter === 'today'}
                 onClick={() => setOnLeaveTimelineFilter('today')}
               >
                 <span className="att-folder-tab-label">Today</span>
               </button>
-              <button 
+              <button
                 className="att-folder-tab"
                 data-active={onLeaveTimelineFilter === 'tomorrow'}
                 onClick={() => setOnLeaveTimelineFilter('tomorrow')}
@@ -1085,7 +1085,7 @@ export function AttendancePage() {
                     }, {})
                   ).map(([teamName, members]) => (
                     <div key={teamName} className="attendance-timeline-team-group">
-                      <div 
+                      <div
                         className="attendance-timeline-team-header"
                         style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1', padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}
                       >
@@ -1181,7 +1181,7 @@ export function AttendancePage() {
             <div className="att-report-meta">
               <span className="att-report-range-label">
                 {filterDateRange.from && filterDateRange.to
-                  ? `${filterDateRange.from.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })} – ${filterDateRange.to.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}`
+                  ? `${filterDateRange.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} – ${filterDateRange.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
                   : `${MONTH_NAMES[Number(filterMonth)]} ${filterYear}`}
               </span>
               {filterDateRange.from && (
@@ -1203,7 +1203,7 @@ export function AttendancePage() {
                         <th key={idx} className={`att-th att-th-date${we ? ' att-th-weekend' : ''}`}>
                           <div className="att-date-header">
                             <span className="att-date-num">{date.getDate()}</span>
-                            <span className="att-date-dow">{date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0,2)}</span>
+                            <span className="att-date-dow">{date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}</span>
                           </div>
                         </th>
                       );
