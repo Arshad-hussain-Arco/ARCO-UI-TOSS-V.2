@@ -6,6 +6,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
+import { useDebounce } from '@hooks/useDebounce';
 import './LeaveConfiguration.css';
 
 function getInitials(name) {
@@ -110,6 +111,7 @@ export function LeaveConfigurationTab() {
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [teamFilter, setTeamFilter] = useState('All Teams');
 
   // Table Sorting State
@@ -125,8 +127,8 @@ export function LeaveConfigurationTab() {
     return employees.filter((emp) => {
       if (teamFilter !== 'All Teams' && emp.team !== teamFilter) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (debouncedSearchQuery.trim()) {
+        const q = debouncedSearchQuery.toLowerCase();
         const matchName = emp.name.toLowerCase().includes(q);
         const matchEmail = emp.email.toLowerCase().includes(q);
         const matchId = emp.employeeId.toLowerCase().includes(q);

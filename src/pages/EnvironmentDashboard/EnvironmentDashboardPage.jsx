@@ -32,6 +32,7 @@ import { AdminTable } from '@components/ui/AdminTable/AdminTable';
 import { Button } from '@components/ui/Button/Button';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
 import { environmentService } from '@services/environmentService';
@@ -74,6 +75,7 @@ export function EnvironmentDashboardPage() {
 
   // Global Config Search State
   const [configSearchQuery, setConfigSearchQuery] = useState('');
+  const debouncedConfigSearchQuery = useDebounce(configSearchQuery, 500);
 
   // Environment Sub-Accordion Expand State (Only one environment expanded at a time)
   const [expandedEnvironment, setExpandedEnvironment] = useState(null);
@@ -83,6 +85,7 @@ export function EnvironmentDashboardPage() {
   const [envSearchQueries, setEnvSearchQueries] = useState({});
   // Search input queries for each Config row (keyed by config.id)
   const [configRowSearchQueries, setConfigRowSearchQueries] = useState({});
+  const debouncedConfigRowSearchQueries = useDebounce(configRowSearchQueries, 500);
 
   // Add Configuration Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -267,7 +270,7 @@ export function EnvironmentDashboardPage() {
 
   // Search Filter Handler for Config Cards
   const filteredConfigs = configList.filter((config) => {
-    const term = configSearchQuery.toLowerCase().trim();
+    const term = debouncedConfigSearchQuery.toLowerCase().trim();
     if (!term) return true;
     return (
       config.fileName.toLowerCase().includes(term) ||
@@ -541,7 +544,7 @@ export function EnvironmentDashboardPage() {
                   ),
                 }));
 
-                const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
+                const searchQuery = (debouncedConfigRowSearchQueries[config.id] || '').toLowerCase();
                 const filteredRecords = searchQuery
                   ? fileData.records.filter(r =>
                     Object.values(r).some(val =>

@@ -34,6 +34,7 @@ import { parseISO, getISOWeek, getDay } from 'date-fns';
 
 import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
+import { useDebounce } from '@hooks/useDebounce';
 
 function useChartThemeColor() {
   const [themeColor, setThemeColor] = useState('#000000');
@@ -741,7 +742,9 @@ export function MurexRuntimeTrendsPage() {
   const [categoryFormDescription, setCategoryFormDescription] = useState('');
   const [categoryFormScripts, setCategoryFormScripts] = useState([]); // Array of script names
   const [availableSearch, setAvailableSearch] = useState('');
+  const debouncedAvailableSearch = useDebounce(availableSearch, 500);
   const [categorySearch, setCategorySearch] = useState('');
+  const debouncedCategorySearch = useDebounce(categorySearch, 500);
 
   const [remoteCategoriesData, setRemoteCategoriesData] = useState([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -960,11 +963,11 @@ export function MurexRuntimeTrendsPage() {
 
   const renderedAvailableScripts = allKnownScripts
     .filter(s => !categoryFormScripts.includes(s.script_name))
-    .filter(s => s.script_name.toLowerCase().includes(availableSearch.toLowerCase()));
+    .filter(s => s.script_name.toLowerCase().includes(debouncedAvailableSearch.toLowerCase()));
 
   const renderedAssignedScripts = allKnownScripts
     .filter(s => categoryFormScripts.includes(s.script_name))
-    .filter(s => s.script_name.toLowerCase().includes(categorySearch.toLowerCase()));
+    .filter(s => s.script_name.toLowerCase().includes(debouncedCategorySearch.toLowerCase()));
 
   const toggleScriptAssignment = (scriptName, assign) => {
     if (assign) {

@@ -14,6 +14,7 @@ import {
 import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
+import { useDebounce } from '@hooks/useDebounce';
 import { eodService } from '@services/eodService';
 import { StatusBadge } from './StatusBadge';
 import { EnvModal } from './EnvModal';
@@ -45,6 +46,7 @@ export function ConfigSection() {
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   /** Fetch environment records directly when user visits Configuration page */
   const fetchEnvironments = useCallback(async () => {
@@ -129,8 +131,8 @@ export function ConfigSection() {
   };
 
   const filteredEnvironments = environments.filter((env) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearchQuery.trim()) return true;
+    const q = debouncedSearchQuery.toLowerCase();
     return (
       (env.name && env.name.toLowerCase().includes(q)) ||
       (env.serverIp && env.serverIp.toLowerCase().includes(q)) ||

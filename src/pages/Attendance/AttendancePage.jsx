@@ -28,6 +28,7 @@ import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { ExportButton } from '@components/ui/ExportButton';
 import { format } from 'date-fns';
@@ -225,7 +226,7 @@ export function AttendancePage() {
   const [onWfhTimelineFilter, setOnWfhTimelineFilter] = useState('next30');
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 500);
   const [expandedTeams, setExpandedTeams] = useState(
     new Set(['management', 'frontend', 'backend', 'uiux', 'data']),
   );
@@ -286,12 +287,7 @@ export function AttendancePage() {
   const [filterDateRange, setFilterDateRange] = useState({ from: undefined, to: undefined });
 
   // ── Debounce search ──
-  const debounceTimer = useRef(null);
-  useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(debounceTimer.current);
-  }, [searchQuery]);
+  // Replaced with useDebounce hook
 
   // ── Derived dates for Report tab ──
   const reportDates = useMemo(() => {

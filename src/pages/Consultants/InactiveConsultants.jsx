@@ -8,6 +8,7 @@ import {
   X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
@@ -27,6 +28,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
   const [selectedDesignation, setSelectedDesignation] = useState('All Designations');
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
@@ -59,7 +61,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   }, [inactiveConsultants, designationsData]);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.toLowerCase();
+    const q = debouncedSearchQuery.toLowerCase();
     return inactiveConsultants.filter((c) => {
       return (
         (c.name.toLowerCase().includes(q) ||
@@ -69,7 +71,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
         (selectedDesignation === 'All Designations' || c.designation === selectedDesignation)
       );
     });
-  }, [inactiveConsultants, searchQuery, selectedTeam, selectedDesignation]);
+  }, [inactiveConsultants, debouncedSearchQuery, selectedTeam, selectedDesignation]);
 
   const handleActivate = async (consultant) => {
     setActivatingId(consultant.id);
