@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
@@ -281,6 +283,56 @@ function TeamLeaveSummary() {
       return a.stats.utilizationPct - b.stats.utilizationPct;
     });
   }, [filteredDepartments, analyticsSort, summaryLeaveType, visibleCategories]);
+
+  const handleExportCSV = () => {
+    const headers = ['"Department"', '"Employee Name"', ...visibleCategories.map(c => `"${c.label}"`)];
+    const rows = [];
+    sortedAnalyticsDepts.forEach(({ dept }) => {
+      const sortedEmployees = getSortedEmployees(dept.consultants || []);
+      sortedEmployees.forEach(emp => {
+        rows.push([
+          `"${(dept.name || '').replace(/"/g, '""')}"`,
+          `"${(emp.name || '').replace(/"/g, '""')}"`,
+          ...visibleCategories.map(c => emp[c.key] || 0)
+        ]);
+      });
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'team_leave_summary.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    const headers = ['Department', 'Employee Name', ...visibleCategories.map(c => c.label)];
+    const rows = [];
+    sortedAnalyticsDepts.forEach(({ dept }) => {
+      const sortedEmployees = getSortedEmployees(dept.consultants || []);
+      sortedEmployees.forEach(emp => {
+        rows.push([
+          dept.name || '',
+          emp.name || '',
+          ...visibleCategories.map(c => emp[c.key] || 0)
+        ]);
+      });
+    });
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+    doc.save('team_leave_summary.pdf');
+  };
+
   return (
     <div className="team-summary-container">
       {loading && (
@@ -377,8 +429,8 @@ function TeamLeaveSummary() {
           <ExportButton
             excel
             pdf
-            onExcelExport={() => {}}
-            onPdfExport={() => {}}
+            onExcelExport={handleExportCSV}
+            onPdfExport={handleExportPDF}
           />
         </div>
       </div>

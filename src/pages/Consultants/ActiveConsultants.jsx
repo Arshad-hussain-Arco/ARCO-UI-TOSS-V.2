@@ -9,6 +9,7 @@ import {
   X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { consultantService } from '@services/consultantService';
 import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
 import { ConsultantsStats } from '@components/data-display/ConsultantsStats/ConsultantsStats';
@@ -24,6 +25,7 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   }, [employeesData]);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
   const [selectedDesignation, setSelectedDesignation] = useState('All Designations');
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
@@ -53,7 +55,7 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   }, [activeConsultants, designationsData]);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.toLowerCase();
+    const q = debouncedSearchQuery.toLowerCase();
     return activeConsultants.filter((c) => {
       return (
         (c.name.toLowerCase().includes(q) ||
@@ -63,7 +65,7 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
         (selectedDesignation === 'All Designations' || c.designation === selectedDesignation)
       );
     });
-  }, [activeConsultants, searchQuery, selectedTeam, selectedDesignation]);
+  }, [activeConsultants, debouncedSearchQuery, selectedTeam, selectedDesignation]);
 
 
 
@@ -119,12 +121,12 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
               name="search_consultants_filter"
               id="consultants-search-field"
               data-form-type="other"
-             style={{ paddingRight: '32px' }} />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+              style={{ paddingRight: '32px' }} />
+            {searchQuery && (
+              <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="consultants-filter-group">
             <div className="consultants-dropdown-wrapper" ref={teamRef}>

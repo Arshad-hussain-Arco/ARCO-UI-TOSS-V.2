@@ -75,6 +75,23 @@
   color: var(--text-tertiary);
 }
 
+.il-search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  margin-left: 4px;
+}
+.il-search-clear-btn:hover {
+  background: var(--bg-tertiary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+}
+
 /* ── Custom Group Filter Trigger (matching app Select component) ─ */
 .il-group-trigger {
   display: inline-flex;

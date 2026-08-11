@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   Upload,
   FolderPlus,
@@ -16,6 +16,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import toast from 'react-hot-toast';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { documentService } from '@services/documentService';
 
@@ -50,6 +51,7 @@ export function DocumentsPage() {
   const [selectedFolder, setSelectedFolder] = useState('root');
   const [selectedFile, setSelectedFile] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [pdfZoom, setPdfZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -159,6 +161,29 @@ export function DocumentsPage() {
 
     return crumbs;
   };
+
+  const memoizedFolderTree = useMemo(() => (
+    <FolderTree
+      folders={folderTreeState}
+      filesState={filesState}
+      expandedFolders={expandedFolders}
+      toggleFolder={toggleFolder}
+      selectedFolder={selectedFolder}
+      setSelectedFolder={setSelectedFolder}
+      selectedFile={selectedFile}
+      onSelectFile={handleSelectFile}
+      searchQuery={debouncedSearchQuery}
+      onEditDocument={handleEditDocument}
+      onDeleteDocument={handleDeleteDocument}
+    />
+  ), [
+    folderTreeState,
+    filesState,
+    expandedFolders,
+    selectedFolder,
+    selectedFile,
+    debouncedSearchQuery
+  ]);
 
   if (error) {
     return (
@@ -277,19 +302,7 @@ export function DocumentsPage() {
               <span>Workspace Navigation</span>
             </div>
             <div className="doc-folder-tree-wrapper">
-              <FolderTree
-                folders={folderTreeState}
-                filesState={filesState}
-                expandedFolders={expandedFolders}
-                toggleFolder={toggleFolder}
-                selectedFolder={selectedFolder}
-                setSelectedFolder={setSelectedFolder}
-                selectedFile={selectedFile}
-                onSelectFile={handleSelectFile}
-                searchQuery={searchQuery}
-                onEditDocument={handleEditDocument}
-                onDeleteDocument={handleDeleteDocument}
-              />
+              {memoizedFolderTree}
             </div>
           </div>
         </div>

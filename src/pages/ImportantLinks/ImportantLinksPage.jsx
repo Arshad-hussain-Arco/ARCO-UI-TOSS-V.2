@@ -8,6 +8,7 @@ import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
@@ -117,6 +118,7 @@ export function ImportantLinksPage() {
   // ── Filter state ───────────────────────────────────────────────
   const [selectedGroup, setSelectedGroup] = useState('__all__');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const [showModal, setShowModal] = useState(false);
   const [editLink, setEditLink] = useState(null); // { ...link, group: 'Group Title' }
@@ -130,7 +132,7 @@ export function ImportantLinksPage() {
 
   // ── Filtered display ───────────────────────────────────────────
   const filteredCategories = useMemo(() => {
-    const q = norm(searchQuery.trim());
+    const q = norm(debouncedSearchQuery.trim());
 
     return mergedCategories
       .filter((cat) => {
@@ -157,7 +159,7 @@ export function ImportantLinksPage() {
         return { ...cat, links: matchingLinks };
       })
       .filter((cat) => cat.links.length > 0);
-  }, [mergedCategories, selectedGroup, searchQuery]);
+  }, [mergedCategories, selectedGroup, debouncedSearchQuery]);
 
   // Dropdown group options
   const dropdownGroups = useMemo(
@@ -385,7 +387,7 @@ export function ImportantLinksPage() {
             aria-label="Search links"
            style={{ paddingRight: '32px' }} />
       {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+        <button type="button" className="il-search-clear-btn" onClick={() => setSearchQuery('')}>
           <X size={14} />
         </button>
       )}

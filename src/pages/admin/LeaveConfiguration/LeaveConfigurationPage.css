@@ -160,6 +160,28 @@
   box-shadow: 0 0 0 2px rgba(0, 104, 56, 0.15);
 }
 
+.lc-search-box .search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.lc-search-box .search-clear-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
 /* Primary Action Button */
 .lc-btn-primary {
   display: inline-flex;

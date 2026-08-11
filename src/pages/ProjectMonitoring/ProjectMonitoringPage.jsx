@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { useDebounce } from '@hooks/useDebounce';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import projectService from '@services/projectService';
@@ -222,6 +223,7 @@ function exportToCSV(rows, filename, isCR = false) {
 /* ── Dynamic Drilldown Modal (Matches Image 2 & Image 5) ────────────────── */
 function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData = [] }) {
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 500);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -431,6 +433,7 @@ export function ProjectMonitoringPage() {
 
   // Tab 2 — directory filters & expansion
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -620,7 +623,7 @@ export function ProjectMonitoringPage() {
   const filteredProjects = useMemo(() => {
     return categoryProjects.filter((p) => {
       // 1. Search query filter
-      const q = searchQuery.toLowerCase().trim();
+      const q = debouncedSearchQuery.toLowerCase().trim();
       if (
         q &&
         !p.code.toLowerCase().includes(q) &&

@@ -22,7 +22,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -32,6 +32,7 @@ import { AdminTable } from '@components/ui/AdminTable/AdminTable';
 import { Button } from '@components/ui/Button/Button';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
 import { environmentService } from '@services/environmentService';
@@ -74,6 +75,7 @@ export function EnvironmentDashboardPage() {
 
   // Global Config Search State
   const [configSearchQuery, setConfigSearchQuery] = useState('');
+  const debouncedConfigSearchQuery = useDebounce(configSearchQuery, 500);
 
   // Environment Sub-Accordion Expand State (Only one environment expanded at a time)
   const [expandedEnvironment, setExpandedEnvironment] = useState(null);
@@ -83,6 +85,7 @@ export function EnvironmentDashboardPage() {
   const [envSearchQueries, setEnvSearchQueries] = useState({});
   // Search input queries for each Config row (keyed by config.id)
   const [configRowSearchQueries, setConfigRowSearchQueries] = useState({});
+  const debouncedConfigRowSearchQueries = useDebounce(configRowSearchQueries, 500);
 
   // Add Configuration Modal States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -267,7 +270,7 @@ export function EnvironmentDashboardPage() {
 
   // Search Filter Handler for Config Cards
   const filteredConfigs = configList.filter((config) => {
-    const term = configSearchQuery.toLowerCase().trim();
+    const term = debouncedConfigSearchQuery.toLowerCase().trim();
     if (!term) return true;
     return (
       config.fileName.toLowerCase().includes(term) ||
@@ -297,7 +300,7 @@ export function EnvironmentDashboardPage() {
       const data = filteredConfigs.map(c => [
         c.featureType, c.version, c.fileName, c.size, c.uploadedBy, c.createdDate, c.storageLocation
       ]);
-      doc.autoTable({ head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
+      autoTable(doc, { head: [cols], body: data, startY: 20, styles: { fontSize: 8 } });
       doc.save('environment_configurations.pdf');
       toast.success('Configurations exported to PDF.');
     } else {
@@ -541,7 +544,7 @@ export function EnvironmentDashboardPage() {
                   ),
                 }));
 
-                const searchQuery = (configRowSearchQueries[config.id] || '').toLowerCase();
+                const searchQuery = (debouncedConfigRowSearchQueries[config.id] || '').toLowerCase();
                 const filteredRecords = searchQuery
                   ? fileData.records.filter(r =>
                     Object.values(r).some(val =>
@@ -617,7 +620,7 @@ export function EnvironmentDashboardPage() {
                                 doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
                                 const headers = dynamicCols.map(c => c.label);
                                 const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
-                                doc.autoTable({ head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
+                                autoTable(doc, { head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
                                 doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
                                 toast.success(`Exported ${filteredRecords.length} records to PDF.`);
                               } else {
