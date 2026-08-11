@@ -177,10 +177,7 @@ export function MyLeavesSummaryTab({
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
             </button>
-            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
-              <span className="leave-filter-label">Pending</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
-            </button>
+
             <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
@@ -189,10 +186,6 @@ export function MyLeavesSummaryTab({
             <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
               <span className="leave-filter-label">Rejected</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
-            </button>
-            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')}>
-              <span className="leave-filter-label">Self Rejected</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
             </button>
           </div>
 

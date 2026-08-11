@@ -59,9 +59,9 @@ const ALL_TABS = [
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
   { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: 'var(--c-primary)' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: 'var(--c-primary)' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: 'var(--c-primary)' },
   { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
-  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: 'CLAIM', icon: CalendarPlus, color: '#f59e0b' },
+  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
 
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
@@ -398,32 +398,7 @@ export function LeaveManagementPage() {
     }
   };
 
-  const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = leaves.filter(l => l.status_code?.toLowerCase() === 'pending');
-    if (pendingLeaves.length === 0) return null;
 
-    let minDate = new Date(8640000000000000);
-    let maxDate = new Date(-8640000000000000);
-    let hasValidDates = false;
-
-    pendingLeaves.forEach(leave => {
-      const start = new Date(leave.start_date || leave.date);
-      const end = new Date(leave.end_date || leave.date || leave.start_date);
-
-      if (!isNaN(start.getTime())) {
-        if (start < minDate) minDate = start;
-        hasValidDates = true;
-      }
-      if (!isNaN(end.getTime())) {
-        if (end > maxDate) maxDate = end;
-        hasValidDates = true;
-      }
-    });
-
-    if (!hasValidDates) return null;
-    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
-  }, [leaves]);
   return (
     <div className="leave-management">
       {modalType && (
@@ -646,14 +621,7 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-label">All</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
                       </button>
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterStatus === 'pending'}
-                        onClick={() => setFilterStatus('pending')}
-                      >
-                        <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
-                      </button>
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterStatus === 'approved'}
@@ -670,14 +638,7 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-label">Rejected</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterStatus === 'self-rejected'}
-                        onClick={() => setFilterStatus('self-rejected')}
-                      >
-                        <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
-                      </button>
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterStatus === 'mod-pending'}
@@ -735,8 +696,7 @@ export function LeaveManagementPage() {
                         <col style={{ width: '15%' }} />
                         <col style={{ width: '20%' }} />
                         <col style={{ width: '10%' }} />
-                        <col style={{ width: filterStatus === 'pending' ? '15%' : '25%' }} />
-                        {filterStatus === 'pending' && <col style={{ width: '10%' }} />}
+                        <col style={{ width: '25%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
@@ -755,11 +715,7 @@ export function LeaveManagementPage() {
                           <th className="leave-table-header" onClick={() => handleSort('leave_reason')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE REASON <SortIcon field="leave_reason" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
-                          {filterStatus === 'pending' && (
-                            <th className="leave-table-header" onClick={() => handleSort('requested_date')} style={{ cursor: 'pointer' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requested_date" sortField={sortField} sortOrder={sortOrder} /></div>
-                            </th>
-                          )}
+
                           <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
@@ -821,11 +777,7 @@ export function LeaveManagementPage() {
                               <td className="leave-table-cell" data-label="Leave Reason">
                                 <TruncatedText text={leave.leave_reason} maxLength={30} title="Leave Reason" />
                               </td>
-                              {filterStatus === 'pending' && (
-                                <td className="leave-table-cell" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-                                  {getRelativePendingTime(leave.requested_date || leave.created_at)}
-                                </td>
-                              )}
+
                               <td className="leave-table-cell" data-label="Status">
                                 <span className="leave-table-status" data-status={statusStr}>
                                   {statusStr}

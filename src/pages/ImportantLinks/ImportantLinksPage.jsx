@@ -305,6 +305,47 @@ export function ImportantLinksPage() {
     }
   };
 
+  // ── Toggle Pin Group ───────────────────────────────────────────
+  const handleTogglePinGroup = useCallback(async (groupId, currentPinnedStatus) => {
+    const category = mergedCategories.find(c => c.id === groupId);
+    if (!category) return;
+
+    if (!currentPinnedStatus && pinnedLinks.length >= 5 && !pinnedLinks.some(p => p.groupId === groupId)) {
+       toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+       return;
+    }
+
+    const newPinStatus = !currentPinnedStatus;
+    setIsSaving(true);
+    try {
+      await Promise.all(category.links.map(link => {
+        if (link.pinToHeader !== newPinStatus) {
+           const formData = new FormData();
+           formData.append('link', link.label || '');
+           formData.append('url', link.url || '');
+           if (link.description) {
+             formData.append('content', link.description);
+           }
+           if (category.title) {
+             formData.append('group', category.title);
+           }
+           formData.append('is_header', newPinStatus ? 1 : 0);
+           formData.append('isHeader', newPinStatus ? 1 : 0);
+           return linkService.updateLink(link.id, formData);
+        }
+        return Promise.resolve();
+      }));
+      await refetch();
+      window.dispatchEvent(new Event('pinned-links:refresh'));
+      toast.success(newPinStatus ? 'Group pinned to header' : 'Group unpinned from header');
+    } catch(err) {
+      console.error('Failed to update group pin status:', err);
+      toast.error('Failed to update group pin status');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [mergedCategories, pinnedLinks, refetch, toast]);
+
   // ── Open edit modal ────────────────────────────────────────────
   const handleEditLink = useCallback(
     (link) => {
@@ -383,17 +424,22 @@ export function ImportantLinksPage() {
         />
       ) : (
         <div className="il-groups-grid">
-          {filteredCategories.map((category) => (
-            <GroupCard
-              key={category.id}
-              id={category.id}
-              title={category.title}
-              icon={CATEGORY_ICONS[category.iconKey] ?? null}
-              links={category.links}
-              onEditLink={handleEditLink}
-              onDeleteLink={handleDeleteLink}
-            />
-          ))}
+          {filteredCategories.map((category) => {
+            const isPinned = category.links.some(l => l.pinToHeader);
+            return (
+              <GroupCard
+                key={category.id}
+                id={category.id}
+                title={category.title}
+                icon={CATEGORY_ICONS[category.iconKey] ?? null}
+                links={category.links}
+                isPinned={isPinned}
+                onTogglePinGroup={(status) => handleTogglePinGroup(category.id, status)}
+                onEditLink={handleEditLink}
+                onDeleteLink={handleDeleteLink}
+              />
+            );
+          })}
         </div>
       )}
 
