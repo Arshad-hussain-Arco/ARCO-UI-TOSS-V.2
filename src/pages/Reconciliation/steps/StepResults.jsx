@@ -123,7 +123,7 @@ function ExportModal({ onClose, onDownload }) {
             className="rwiz-btn rwiz-btn-primary"
             onClick={() => onDownload({ srcPrefix, dstPrefix })}
           >
-            <Download size={14} />
+            <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg>
             Download Report
           </button>
         </div>
@@ -867,11 +867,18 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
   return (
     <>
       <div className="rwiz-step-header">
-        <div className="rwiz-step-header-left">
-          <h2 className="rwiz-step-title">Step 4: View Results & Export</h2>
-          <p className="rwiz-step-subtitle">
-            Analyze matched, mismatched, missing, and duplicate records.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="rwiz-step-header-left">
+            <h2 className="rwiz-step-title">Step 4: View Results & Export</h2>
+            <p className="rwiz-step-subtitle">
+              Analyze matched, mismatched, missing, and duplicate records.
+            </p>
+          </div>
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
         </div>
         <div className="rwiz-step-header-actions">
 
@@ -958,7 +965,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
             className="rwiz-btn rwiz-btn-outline rrs-export-btn"
             onClick={() => setShowExportModal(true)}
           >
-            <Download size={13} />
+            <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg>
             Export Report
           </button>
         </div>

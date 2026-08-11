@@ -1,10 +1,10 @@
 /* Override standard PageContent scrollbar when capacity planning dashboard is active */
-.page-content:has(.leave-management) {
+.page-content:has(.capacity-planning) {
   overflow-y: hidden !important;
 }
 
 /* Page container styling overrides */
-.leave-management {
+.capacity-planning {
   background-color: var(--surface-primary);
   border-radius: 8px;
   overflow: hidden;
@@ -19,7 +19,7 @@
   min-height: 0;
 }
 
-.leave-management-tabs {
+.capacity-planning-tabs {
   display: flex;
   align-items: flex-end;
   width: 100%;
@@ -33,7 +33,7 @@
   z-index: 1;
 }
 
-.leave-management-tab {
+.capacity-planning-tab {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -57,13 +57,13 @@
   color: var(--text-secondary);
 }
 
-.leave-management-tab:hover:not([data-active='true']) {
+.capacity-planning-tab:hover:not([data-active='true']) {
   background-color: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border-secondary);
 }
 
-.leave-management-tab[data-active='true'] {
+.capacity-planning-tab[data-active='true'] {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-bottom: 1px solid var(--surface-primary);
@@ -75,7 +75,7 @@
   box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
 }
 
-.leave-management-tab-icon {
+.capacity-planning-tab-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -83,17 +83,17 @@
   transition: color 0.2s ease;
 }
 
-.leave-management-tab[data-active='true'] .leave-management-tab-icon {
+.capacity-planning-tab[data-active='true'] .capacity-planning-tab-icon {
   color: var(--c-primary);
 }
 
-.leave-management-tab-label {
+.capacity-planning-tab-label {
   font-size: 13px;
   line-height: 1;
   white-space: nowrap;
 }
 
-.leave-management-content {
+.capacity-planning-content {
   padding: 16px;
   width: 100%;
   box-sizing: border-box;

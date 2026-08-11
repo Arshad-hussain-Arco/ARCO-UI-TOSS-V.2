@@ -436,8 +436,8 @@
 }
 
 .tr-status-pending {
-  background: var(--c-warning-light);
-  color:  var(--text-secondary);
+  background: var(--c-warning);
+  color:  #fff;
 }
 
 .tr-status-approved {

@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 
 /**
  * Flyout shown when hovering an item in the collapsed sidebar: a plain label for
@@ -14,7 +15,7 @@ import { NavLink } from 'react-router-dom';
 export function SidebarTooltip({ item, top, onMouseEnter, onMouseLeave, onNavigate }) {
   const hasSubmenu = Boolean(item.children);
 
-  return (
+  const tooltipElement = (
     <div
       className="sidebar-tooltip"
       data-has-submenu={hasSubmenu}
@@ -43,6 +44,8 @@ export function SidebarTooltip({ item, top, onMouseEnter, onMouseLeave, onNaviga
       )}
     </div>
   );
+
+  return createPortal(tooltipElement, document.body);
 }
 
 export default SidebarTooltip;

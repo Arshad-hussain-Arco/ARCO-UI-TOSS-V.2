@@ -2,6 +2,9 @@ import { useCallback, useMemo } from 'react';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { generatePreviewRows } from '@mocks/data/reconciliation';
+import { FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 
 function ColumnList({ title, columns, selected, onToggle }) {
   return (
@@ -105,9 +108,16 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
   return (
     <>
       <div className="rwiz-step-header">
-        <div className="rwiz-step-header-left">
-          <h2 className="rwiz-step-title">Step 2: Select Keys</h2>
-          <p className="rwiz-step-subtitle">Select unique identifier key columns from both files to match records.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="rwiz-step-header-left">
+            <h2 className="rwiz-step-title">Step 2: Select Keys</h2>
+            <p className="rwiz-step-subtitle">Select unique identifier key columns from both files to match records.</p>
+          </div>
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
         </div>
       </div>
 
