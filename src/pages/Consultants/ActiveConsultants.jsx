@@ -87,13 +87,21 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
     );
   }
 
+  const filteredTeamsCount = useMemo(() => {
+    return new Set(filtered.map(c => c.team).filter(Boolean)).size;
+  }, [filtered]);
+
+  const filteredDesignationsCount = useMemo(() => {
+    return new Set(filtered.map(c => c.designation).filter(Boolean)).size;
+  }, [filtered]);
+
   return (
     <>
       <ConsultantsStats
-        total={employeesData?.total_consultants ?? activeConsultants.length}
-        active={employeesData?.active_consultants ?? activeConsultants.length}
-        teams={employeesData?.teams ?? teams.length}
-        designations={employeesData?.designations ?? designations.length}
+        total={filtered.length}
+        active={filtered.length}
+        teams={filteredTeamsCount}
+        designations={filteredDesignationsCount}
       />
       <div className="consultants-filter-panel-sticky">
         <div className="consultants-filter-row">

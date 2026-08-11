@@ -237,7 +237,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
       photo: req.photo,
       team: req.team_name,
       type: type,
-      leaveType: req.leave_type,
+      leaveType: req.leave_name || req.leave_type,
       startDate: req.start_date,
       endDate: req.end_date,
       duration: req.leave_duration === 'FULL_DAY' ? 'full' : req.leave_duration === 'FIRST_HALF' ? 'morning' : req.leave_duration === 'SECOND_HALF' ? 'afternoon' : req.leave_duration === 'full_day' ? 'full' : req.leave_duration,
