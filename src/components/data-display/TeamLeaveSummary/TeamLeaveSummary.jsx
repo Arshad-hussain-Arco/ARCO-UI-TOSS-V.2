@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, Fragment } from 'react';
 import {
   Search,
   ChevronRight,
+  ChevronDown,
   ArrowUpDown,
   Users,
   LayoutList,
