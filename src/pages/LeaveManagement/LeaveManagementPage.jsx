@@ -19,12 +19,16 @@ import {
   CalendarPlus,
   Home,
   Ship,
-  ArrowUpDown
+  ArrowUpDown,
+  MessageCircle
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import { TeamLeaveSummary } from '@components/data-display/TeamLeaveSummary/TeamLeaveSummary';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
@@ -193,7 +197,8 @@ export function LeaveManagementPage() {
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortField, setSortField] = useState(null);
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [commentsModalText, setCommentsModalText] = useState(null);
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(currentDate.getMonth());
@@ -399,6 +404,56 @@ export function LeaveManagementPage() {
   };
 
 
+  const filteredSortedLeaves = useMemo(() => {
+    return leavesWithModRequests.filter(leave => {
+      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
+      return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+    }).sort((a, b) => {
+      if (!sortField) return 0;
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      if (sortField === 'comments') {
+        aVal = a.comments || a.approval_reason || a.rejected_reason || '';
+        bVal = b.comments || b.approval_reason || b.rejected_reason || '';
+      }
+      
+      if (aVal === bVal) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      const result = aVal > bVal ? 1 : -1;
+      return sortOrder === 'asc' ? result : -result;
+    });
+  }, [leavesWithModRequests, filterStatus, sortField, sortOrder]);
+
+  const handleExportCSV = () => {
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Status'];
+    const rows = filteredSortedLeaves.map(l => [
+      l.leave_type || '',
+      l.start_date || '',
+      l.end_date || '',
+      l.business_days || 0,
+      l.status_code || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leaves');
+    XLSX.writeFile(workbook, 'leaves.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    autoTable(doc, {
+      head: [['Leave Type', 'Dates', 'Work Days', 'Status']],
+      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.status_code || '']),
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+    doc.save('leaves.pdf');
+  };
+
   return (
     <div className="leave-management">
       {modalType && (
@@ -434,6 +489,34 @@ export function LeaveManagementPage() {
             setRefreshKey(k => k + 1);
           }}
         />
+      )}
+
+      {commentsModalText && (
+        <div className="al-overlay" onClick={() => setCommentsModalText(null)} style={{ zIndex: 100 }}>
+          <div className="al-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', minHeight: 'auto' }}>
+            <div className="al-header">
+              <div className="al-header-left">
+                <h2 className="al-title">Comments</h2>
+              </div>
+              <button type="button" className="al-close-btn" onClick={() => setCommentsModalText(null)}>
+                <X size={15} />
+              </button>
+            </div>
+            <div style={{ 
+              padding: '24px', 
+              fontSize: '14px', 
+              color: '#334155', 
+              whiteSpace: 'pre-wrap', 
+              lineHeight: '1.6',
+              background: '#f8fafc',
+              borderBottomLeftRadius: '8px',
+              borderBottomRightRadius: '8px',
+              borderTop: '1px solid #e2e8f0'
+            }}>
+              {commentsModalText}
+            </div>
+          </div>
+        </div>
       )}
 
       {viewModalLeave && (
@@ -587,7 +670,7 @@ export function LeaveManagementPage() {
               />
               <LeaveCard
                 title="Offshore Work"
-                subtitle="Inside KSA"
+                subtitle="Outside KSA"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.OW?.entitled ?? 0}
                 left={leaveBalances?.OW?.available ?? 0}
@@ -598,7 +681,7 @@ export function LeaveManagementPage() {
               />
               <LeaveCard
                 title="WFH"
-                subtitle="Outside KSA"
+                subtitle="Inside KSA"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.WFH?.entitled ?? 0}
                 left={leaveBalances?.WFH?.available ?? 0}
@@ -620,6 +703,15 @@ export function LeaveManagementPage() {
                       >
                         <span className="leave-filter-label">All</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
+                      </button>
+
+                      <button
+                        className="leave-filter-chip"
+                        data-active={filterStatus === 'pending'}
+                        onClick={() => setFilterStatus('pending')}
+                      >
+                        <span className="leave-filter-label">Pending</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
 
                       <button
@@ -679,8 +771,8 @@ export function LeaveManagementPage() {
                     <ExportButton
                       excel
                       pdf
-                      onExcelExport={() => {}}
-                      onPdfExport={() => {}}
+                      onExcelExport={handleExportCSV}
+                      onPdfExport={handleExportPDF}
                     />
                   </div>
                 </div>
@@ -726,26 +818,7 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        {leavesWithModRequests.filter(leave => {
-                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
-                        }).sort((a, b) => {
-                          if (!sortField) return 0;
-                          let aVal = a[sortField];
-                          let bVal = b[sortField];
-                          
-                          if (sortField === 'comments') {
-                            aVal = a.comments || a.approval_reason || a.rejected_reason || '';
-                            bVal = b.comments || b.approval_reason || b.rejected_reason || '';
-                          }
-                          
-                          if (aVal === bVal) return 0;
-                          if (aVal == null) return 1;
-                          if (bVal == null) return -1;
-                          
-                          const result = aVal > bVal ? 1 : -1;
-                          return sortOrder === 'asc' ? result : -result;
-                        }).map((leave) => {
+                        {filteredSortedLeaves.map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const dateDisplay = leave.start_date === leave.end_date ? startDate : `${startDate} - ${endDate}`;
@@ -785,11 +858,18 @@ export function LeaveManagementPage() {
                               </td>
 
                               <td className="leave-table-cell" data-label="Comments">
-                                {(leave.comments || leave.approval_reason || leave.rejected_reason) ? (
-                                  <span style={{ fontSize: '13px', color: '#666' }}>
-                                    <TruncatedText text={leave.comments || leave.approval_reason || leave.rejected_reason} maxLength={30} title="Comments" />
-                                  </span>
-                                ) : '-'}
+                                <button 
+                                  className="leave-table-action-button" 
+                                  style={{ color: '#64748b' }} 
+                                  title="View Comments"
+                                  onClick={() => setCommentsModalText(leave.comments || leave.approval_reason || leave.rejected_reason || 'No comments available')}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
+                                    <path d="M0 0h24v24H0z" fill="none" />
+                                    <path fill="currentColor" d="M20 17.17V4H4v12h14.83zM18 14H6v-2h12zm0-3H6V9h12zm0-3H6V6h12z" opacity=".3" />
+                                    <path fill="currentColor" d="M4 18h14l4 4l-.01-18c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2M4 4h16v13.17L18.83 16H4zm2 8h12v2H6zm0-3h12v2H6zm0-3h12v2H6z" />
+                                  </svg>
+                                </button>
                               </td>
 
                               <td className="leave-table-cell" data-label="Action">
@@ -828,10 +908,7 @@ export function LeaveManagementPage() {
                             </tr>
                           );
                         })}
-                        {leavesWithModRequests.filter(leave => {
-                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
-                        }).length === 0 && (
+                        {filteredSortedLeaves.length === 0 && (
                             <tr className="leave-table-row">
                               <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
                             </tr>

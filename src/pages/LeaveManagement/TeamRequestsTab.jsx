@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { TimelineCalendar } from '@components/data-display/TimelineCalendar/TimelineCalendar';
 import { SortIcon } from './LeaveManagementPage';
 import { useToast } from '@hooks/useToast';
@@ -305,6 +308,7 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
       inDays: req.new_in_days,
       bizDays: req.new_business_days,
       requestedOn: req.created_at ? req.created_at.split('T')[0] : '',
+      requestedAt: req.created_at || '',
       status: (req.status || 'pending').toLowerCase(),
       priority: 'normal',
       reason: req.modification_reason || req.new_leave_reason,
@@ -660,6 +664,49 @@ export function TeamRequestsTab() {
     
     return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
   }, [requests]);
+
+  const handleExportCSV = () => {
+    const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
+    const rows = filtered.map(req => [
+      req.emp_name || '',
+      req.leave_name || req.leave_type || '',
+      req.start_date || '',
+      req.end_date || '',
+      req.business_days || 0,
+      req.status || '',
+      req.leave_reason || ''
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Requests');
+    XLSX.writeFile(workbook, 'team_requests.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
+    const body = filtered.map(req => [
+      req.emp_name || '',
+      req.leave_name || req.leave_type || '',
+      req.start_date || '',
+      req.end_date || '',
+      req.business_days || 0,
+      req.status || '',
+      req.leave_reason || ''
+    ]);
+
+    autoTable(doc, {
+      head: [headers],
+      body: body,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+
+    doc.save('team_requests.pdf');
+  };
+
   return (
     <div className="tr-workspace">
       {/* ── Inner Sub-tabs ────────────────────────────────────────────────────── */}
@@ -807,8 +854,8 @@ export function TeamRequestsTab() {
               <ExportButton
                 excel
                 pdf
-                onExcelExport={() => {}}
-                onPdfExport={() => {}}
+                onExcelExport={handleExportCSV}
+                onPdfExport={handleExportPDF}
               />
             </div>
           </div>
@@ -865,14 +912,12 @@ export function TeamRequestsTab() {
                     <th className="tr-th" onClick={() => handleTableSort('requestedOn')} style={{ width: statusF === 'pending' ? '10%' : '9%', cursor: 'pointer' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>APPLIED ON <SortIcon field="requestedOn" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                     </th>
+                    <th className="tr-th" onClick={() => handleTableSort('status')} style={{ width: '10%', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
+                    </th>
                     {statusF === 'pending' && (
                       <th className="tr-th" onClick={() => handleTableSort('requestedAt')} style={{ width: '10%', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requestedAt" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
-                      </th>
-                    )}
-                    {statusF !== 'pending' && (
-                      <th className="tr-th" onClick={() => handleTableSort('status')} style={{ width: '10%', cursor: 'pointer' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status" sortField={tableSortField} sortOrder={tableSortOrder} /></div>
                       </th>
                     )}
                     <th className="tr-th" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>

@@ -20,7 +20,8 @@ import {
   Percent,
   FileSpreadsheet,
   FileText,
-  X
+  X,
+  Briefcase
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -31,6 +32,9 @@ import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { ExportButton } from '@components/ui/ExportButton';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
 import { leaveService } from '@services/leaveService';
@@ -137,29 +141,46 @@ function generateAttendanceForDates(dates) {
   return result;
 }
 
-/** Export filtered data to CSV. */
+/** Export filtered data to Excel. */
 function exportToCSV(rows, dates, filename = 'attendance.csv') {
   const headers = ['Consultant', 'Team', ...dates.map(d => formatDateKey(d)), 'Present', 'Absent', 'Total'];
-  const lines = [
-    headers.join(','),
-    ...rows.map(({ consultant, record, stats }) =>
-      [
-        `"${consultant.name}"`,
-        `"${consultant.team}"`,
-        ...dates.map(d => record.dates[formatDateKey(d)] || ''),
-        stats.presentDays,
-        stats.absentDays,
-        stats.totalWorkingDays,
-      ].join(',')
-    ),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  const dataRows = rows.map(({ consultant, record, stats }) => [
+    consultant.name || '',
+    consultant.team || '',
+    ...dates.map(d => record.dates[formatDateKey(d)] || ''),
+    stats.presentDays,
+    stats.absentDays,
+    stats.totalWorkingDays,
+  ]);
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance');
+  XLSX.writeFile(workbook, filename.replace('.csv', '.xlsx'));
+}
+
+/** Export filtered data to PDF. */
+function exportToPDF(rows, dates, filename = 'attendance.pdf') {
+  const doc = new jsPDF('landscape');
+  const headers = ['Consultant', 'Team', ...dates.map(d => formatDateKey(d)), 'P', 'A', 'T'];
+  
+  const body = rows.map(({ consultant, record, stats }) => [
+    consultant.name,
+    consultant.team,
+    ...dates.map(d => record.dates[formatDateKey(d)] || ''),
+    stats.presentDays,
+    stats.absentDays,
+    stats.totalWorkingDays,
+  ]);
+
+  autoTable(doc, {
+    head: [headers],
+    body: body,
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 1 },
+    headStyles: { fillColor: [0, 102, 51] }
+  });
+
+  doc.save(filename);
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -219,6 +240,7 @@ export function AttendancePage() {
       prev.set('tab', tab);
       return prev;
     });
+    setViewMode('list');
   };
   const [viewMode, setViewMode] = useState('list');
   const [onLeaveTimelineFilter, setOnLeaveTimelineFilter] = useState('next30');
@@ -496,17 +518,31 @@ export function AttendancePage() {
       .filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
   }, [onDutyConsultants, dutyData, selectedTeam, debouncedSearch, allConsultants]);
 
-  const filteredOnLeaveTimeline = useMemo(() =>
-    onLeaveConsultants.filter(l =>
-      (selectedTeam === 'all' || l.team === selectedTeam) &&
-      l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase()),
-    ), [onLeaveConsultants, selectedTeam, debouncedSearch]);
+  const filteredOnLeaveTimeline = useMemo(() => {
+    return onLeaveConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      
+      return timelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const dayData = data?.calendar?.find(d => d.date === dateStr);
+        return dayData?.on_leave_details?.some(leave => leave.emp_id === l.consultantId);
+      });
+    });
+  }, [onLeaveConsultants, selectedTeam, debouncedSearch, timelineDates, data?.calendar]);
 
-  const filteredOnWfhTimeline = useMemo(() =>
-    onWfhConsultants.filter(l =>
-      (selectedTeam === 'all' || l.team === selectedTeam) &&
-      l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase()),
-    ), [onWfhConsultants, selectedTeam, debouncedSearch]);
+  const filteredOnWfhTimeline = useMemo(() => {
+    return onWfhConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      
+      return timelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const dayData = data?.calendar?.find(d => d.date === dateStr);
+        return dayData?.on_wfh_details?.some(wfh => wfh.emp_id === l.consultantId);
+      });
+    });
+  }, [onWfhConsultants, selectedTeam, debouncedSearch, timelineDates, data?.calendar]);
 
   const filteredOnLeaveList = useMemo(() => {
     let source = [];
@@ -622,6 +658,10 @@ export function AttendancePage() {
 
   const handleExportCSV = useCallback(() => {
     exportToCSV(filteredReportRows, reportDates, `attendance_${filterYear}_${MONTH_NAMES[Number(filterMonth)]}.csv`);
+  }, [filteredReportRows, reportDates, filterYear, filterMonth]);
+
+  const handleExportPDF = useCallback(() => {
+    exportToPDF(filteredReportRows, reportDates, `attendance_${filterYear}_${MONTH_NAMES[Number(filterMonth)]}.pdf`);
   }, [filteredReportRows, reportDates, filterYear, filterMonth]);
 
   const handleClearDateRange = useCallback(() => {
@@ -775,7 +815,7 @@ export function AttendancePage() {
           excel
           pdf
           onExcelExport={handleExportCSV}
-          onPdfExport={() => {}}
+          onPdfExport={handleExportPDF}
         />
       </div>
 
@@ -881,66 +921,71 @@ export function AttendancePage() {
             </div>
 
             <div className="attendance-timeline">
-              <div className="attendance-timeline-header">
-                <div className="attendance-timeline-consultant-col">CONSULTANT</div>
-                <div className="attendance-timeline-dates">
-                  {timelineDates.map((date, idx) => (
-                    <div key={idx} className="attendance-timeline-date">
-                      <div className="attendance-timeline-date-day">{date.getDate()}</div>
-                      <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="attendance-timeline-body">
-                {Object.entries(
-                  filteredOnWfhTimeline.reduce((acc, curr) => {
-                    const t = curr.team || 'Other';
-                    if (!acc[t]) acc[t] = [];
-                    acc[t].push(curr);
-                    return acc;
-                  }, {})
-                ).map(([teamName, members]) => (
-                  <div key={teamName} className="attendance-timeline-team-group">
-                    <div className="attendance-timeline-team-header">
-                      <div className="att-team-header-icon"><TeamIcon size={14} /></div>
-                      <span>{teamName}</span>
-                    </div>
-                    {members.map(leave => (
-                      <div key={leave.consultantId} className="attendance-timeline-row">
-                        <div className="attendance-timeline-consultant">
-                          <div className="attendance-timeline-consultant-avatar">
-                            {renderAvatar(leave.avatar, leave.consultantName)}
-                          </div>
-                          <div className="attendance-timeline-consultant-info">
-                            <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
-                            <div className="attendance-timeline-consultant-team">{leave.team}</div>
-                          </div>
-                        </div>
-                        <div className="attendance-timeline-bars">
-                          {timelineDates.map((date, idx) => {
-                            const dateStr = formatDateKey(date);
-                            const dayData = data?.calendar?.find(d => d.date === dateStr);
-                            const wfhDetail = dayData?.on_wfh_details?.find(l => l.emp_id === leave.consultantId);
-                            const inLeave = !!wfhDetail;
-                            return (
-                              <div
-                                key={idx}
-                                className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
-                              >
-                                {inLeave && (
-                                  <div title={`WFH – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                    <StatusBadge code="remote" variant="outline" />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div className="attendance-timeline-header">
+                  <div className="attendance-timeline-consultant-col">CONSULTANT</div>
+                  <div className="attendance-timeline-dates">
+                    {timelineDates.map((date, idx) => (
+                      <div key={idx} className="attendance-timeline-date">
+                        <div className="attendance-timeline-date-day">{date.getDate()}</div>
+                        <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
                       </div>
                     ))}
                   </div>
-                ))}
+                </div>
+                <div className="attendance-timeline-body">
+                  {Object.entries(
+                    filteredOnWfhTimeline.reduce((acc, curr) => {
+                      const t = curr.team || 'Other';
+                      if (!acc[t]) acc[t] = [];
+                      acc[t].push(curr);
+                      return acc;
+                    }, {})
+                  ).map(([teamName, members]) => (
+                    <div key={teamName} className="attendance-timeline-team-group">
+                      <div 
+                        className="attendance-timeline-team-header"
+                        style={{ backgroundColor: '#ecfeff', border: '1px solid #cffafe', color: '#164e63', padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}
+                      >
+                        <div className="att-team-header-icon" style={{ color: '#06b6d4', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
+                        <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
+                      </div>
+                      {members.map(leave => (
+                        <div key={leave.consultantId} className="attendance-timeline-row">
+                          <div className="attendance-timeline-consultant">
+                            <div className="attendance-timeline-consultant-avatar">
+                              {renderAvatar(leave.avatar, leave.consultantName)}
+                            </div>
+                            <div className="attendance-timeline-consultant-info">
+                              <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
+                              <div className="attendance-timeline-consultant-team">{leave.team}</div>
+                            </div>
+                          </div>
+                          <div className="attendance-timeline-bars">
+                            {timelineDates.map((date, idx) => {
+                              const dateStr = formatDateKey(date);
+                              const dayData = data?.calendar?.find(d => d.date === dateStr);
+                              const wfhDetail = dayData?.on_wfh_details?.find(l => l.emp_id === leave.consultantId);
+                              const inLeave = !!wfhDetail;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
+                                >
+                                  {inLeave && (
+                                    <div title={`WFH – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                      <span className="attendance-timeline-leave-pill" style={{ color: '#06b6d4', border: '1px solid #06b6d4', backgroundColor: 'transparent', width: 'auto', padding: '2px 8px', height: 'auto', minHeight: '22px' }}>WFH</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
             {filteredOnWfhTimeline.length === 0 && (
@@ -1022,67 +1067,72 @@ export function AttendancePage() {
             </div>
 
             <div className="attendance-timeline">
-              <div className="attendance-timeline-header">
-                <div className="attendance-timeline-consultant-col">CONSULTANT</div>
-                <div className="attendance-timeline-dates">
-                  {timelineDates.map((date, idx) => (
-                    <div key={idx} className="attendance-timeline-date">
-                      <div className="attendance-timeline-date-day">{date.getDate()}</div>
-                      <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="attendance-timeline-body">
-                {Object.entries(
-                  filteredOnLeaveTimeline.reduce((acc, curr) => {
-                    const t = curr.team || 'Other';
-                    if (!acc[t]) acc[t] = [];
-                    acc[t].push(curr);
-                    return acc;
-                  }, {})
-                ).map(([teamName, members]) => (
-                  <div key={teamName} className="attendance-timeline-team-group">
-                    <div className="attendance-timeline-team-header">
-                      <div className="att-team-header-icon"><TeamIcon size={14} /></div>
-                      <span>{teamName}</span>
-                    </div>
-                    {members.map(leave => (
-                      <div key={leave.consultantId} className="attendance-timeline-row">
-                        <div className="attendance-timeline-consultant">
-                          <div className="attendance-timeline-consultant-avatar">
-                            {renderAvatar(leave.avatar, leave.consultantName)}
-                          </div>
-                          <div className="attendance-timeline-consultant-info">
-                            <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
-                            <div className="attendance-timeline-consultant-team">{leave.team}</div>
-                          </div>
-                        </div>
-                        <div className="attendance-timeline-bars">
-                          {timelineDates.map((date, idx) => {
-                            const dateStr = formatDateKey(date);
-                            const dayData = data?.calendar?.find(d => d.date === dateStr);
-                            const leaveDetail = dayData?.on_leave_details?.find(l => l.emp_id === leave.consultantId);
-                            const inLeave = !!leaveDetail;
-                            const lType = leaveDetail?.leave_type || leave.leaveType;
-                            return (
-                              <div
-                                key={idx}
-                                className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
-                              >
-                                {inLeave && (
-                                  <div title={`${lType} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                    <StatusBadge code={lType} variant="outline" />
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div className="attendance-timeline-header">
+                  <div className="attendance-timeline-consultant-col">CONSULTANT</div>
+                  <div className="attendance-timeline-dates">
+                    {timelineDates.map((date, idx) => (
+                      <div key={idx} className="attendance-timeline-date">
+                        <div className="attendance-timeline-date-day">{date.getDate()}</div>
+                        <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
                       </div>
                     ))}
                   </div>
-                ))}
+                </div>
+                <div className="attendance-timeline-body">
+                  {Object.entries(
+                    filteredOnLeaveTimeline.reduce((acc, curr) => {
+                      const t = curr.team || 'Other';
+                      if (!acc[t]) acc[t] = [];
+                      acc[t].push(curr);
+                      return acc;
+                    }, {})
+                  ).map(([teamName, members]) => (
+                    <div key={teamName} className="attendance-timeline-team-group">
+                      <div 
+                        className="attendance-timeline-team-header"
+                        style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1', padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}
+                      >
+                        <div className="att-team-header-icon" style={{ color: '#0ea5e9', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
+                        <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
+                      </div>
+                      {members.map(leave => (
+                        <div key={leave.consultantId} className="attendance-timeline-row">
+                          <div className="attendance-timeline-consultant">
+                            <div className="attendance-timeline-consultant-avatar">
+                              {renderAvatar(leave.avatar, leave.consultantName)}
+                            </div>
+                            <div className="attendance-timeline-consultant-info">
+                              <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
+                              <div className="attendance-timeline-consultant-team">{leave.team}</div>
+                            </div>
+                          </div>
+                          <div className="attendance-timeline-bars">
+                            {timelineDates.map((date, idx) => {
+                              const dateStr = formatDateKey(date);
+                              const dayData = data?.calendar?.find(d => d.date === dateStr);
+                              const leaveDetail = dayData?.on_leave_details?.find(l => l.emp_id === leave.consultantId);
+                              const inLeave = !!leaveDetail;
+                              const lType = leaveDetail?.leave_type || leave.leaveType;
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
+                                >
+                                  {inLeave && (
+                                    <div title={`${lType} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                      <StatusBadge code={lType} variant="outline" />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
             {filteredOnLeaveList.length === 0 && (
