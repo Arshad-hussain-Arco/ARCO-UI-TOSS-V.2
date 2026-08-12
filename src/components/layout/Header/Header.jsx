@@ -173,7 +173,7 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
           <Bell className="header-icon" aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="header-notification-badge" aria-hidden="true">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>

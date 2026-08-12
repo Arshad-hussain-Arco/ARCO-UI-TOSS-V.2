@@ -1194,16 +1194,18 @@ export function MurexRuntimeTrendsPage() {
       {/* Tabs */}
       <div className="murex-tabs">
         <button
-          className={`murex-tab ${activeTab === 'runtime' ? 'active' : ''}`}
+          className="murex-tab"
+          data-active={activeTab === 'runtime'}
           onClick={() => setActiveTab('runtime')}
         >
-          Runtime Trends
+          <span className="murex-tab-label">Runtime Trends</span>
         </button>
         <button
-          className={`murex-tab ${activeTab === 'management' ? 'active' : ''}`}
+          className="murex-tab"
+          data-active={activeTab === 'management'}
           onClick={() => setActiveTab('management')}
         >
-          Script Management
+          <span className="murex-tab-label">Script Management</span>
         </button>
       </div>
 
