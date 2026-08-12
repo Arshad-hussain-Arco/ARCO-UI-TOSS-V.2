@@ -749,7 +749,7 @@ export function CapacityPlanningPage() {
                   );
                 } else {
                   return (
-                    <div key={c.id} className="consultant-card utilization">
+                    <div key={c.id} className="consultant-card list-card">
                       <div className="consultant-info-left">
                         <div className="consultant-avatar" style={{ overflow: 'hidden', flexShrink: 0 }}>
                           {c.photo ? (
