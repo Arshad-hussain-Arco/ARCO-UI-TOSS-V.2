@@ -559,18 +559,18 @@
 }
 
 .con-drawer-btn-primary {
-  background: var(--c-primary);
+  background:  #006633;
   color: #ffffff;
-  border-color: var(--c-primary);
+  border-color:  #006633;
 }
 
 .con-drawer-btn-primary:hover {
-  background: var(--c-primary-hover);
+  background:  #006633;
 }
 
 .con-drawer-btn-danger {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color:  #ffffff;
   border-color: var(--c-danger);
 }
 

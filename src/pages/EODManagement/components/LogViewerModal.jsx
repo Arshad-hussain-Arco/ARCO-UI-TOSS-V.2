@@ -231,7 +231,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
         >
           {/* Left: title + view dropdown + job dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: 'var(--surface-primary)', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <span style={{ color: ' #ffffff', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
               {env.name} Logs
             </span>
 
@@ -362,18 +362,19 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={onSearchKeyDown}
-              style={{ paddingRight: '32px', 
+              style={{
+                paddingRight: '32px',
                 width: '100%', backgroundColor: '#0d0d0d',
                 border: `1px solid ${searchQuery && totalMatches === 0 ? '#f87171' : searchQuery ? '#6366f1' : '#333'}`,
                 borderRadius: '6px', padding: '5px 28px 5px 30px',
-                color: 'var(--surface-primary)', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
+                color: ' #fff', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
               }}
             />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+            {searchQuery && (
+              <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={14} />
+              </button>
+            )}
             {searchQuery && (
               <X
                 size={11}
@@ -439,72 +440,72 @@ export function LogViewerModal({ isOpen, onClose, env }) {
             <>
               {lines.map((line, idx) => {
                 const isActiveLine = idx === activeMatchLine;
-                const isMatchLine  = matchIndices.includes(idx);
-                const segments     = splitLineByMatch(line, debouncedSearchQuery);
+                const isMatchLine = matchIndices.includes(idx);
+                const segments = splitLineByMatch(line, debouncedSearchQuery);
 
-              return (
-                <div
-                  key={idx}
-                  ref={(el) => { lineRefs.current[idx] = el; }}
-                  style={{
-                    display: 'flex',
-                    backgroundColor: isActiveLine
-                      ? 'rgba(99,102,241,0.18)'
-                      : isMatchLine
-                        ? 'rgba(99,102,241,0.07)'
-                        : 'transparent',
-                  }}
-                >
-                  {/* Gutter — line number */}
-                  <span
+                return (
+                  <div
+                    key={idx}
+                    ref={(el) => { lineRefs.current[idx] = el; }}
                     style={{
-                      flexShrink: 0,
-                      width: gutterWidth,
-                      textAlign: 'right',
-                      paddingLeft: '12px',
-                      paddingRight: '10px',
-                      color: isActiveLine ? '#6366f1' : '#444',
-                      fontSize: '11px',
-                      userSelect: 'none',
-                      borderRight: isActiveLine ? '2px solid #6366f1' : '2px solid transparent',
+                      display: 'flex',
+                      backgroundColor: isActiveLine
+                        ? 'rgba(99,102,241,0.18)'
+                        : isMatchLine
+                          ? 'rgba(99,102,241,0.07)'
+                          : 'transparent',
                     }}
                   >
-                    {idx + 1}
-                  </span>
+                    {/* Gutter — line number */}
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: gutterWidth,
+                        textAlign: 'right',
+                        paddingLeft: '12px',
+                        paddingRight: '10px',
+                        color: isActiveLine ? '#6366f1' : '#444',
+                        fontSize: '11px',
+                        userSelect: 'none',
+                        borderRight: isActiveLine ? '2px solid #6366f1' : '2px solid transparent',
+                      }}
+                    >
+                      {idx + 1}
+                    </span>
 
-                  {/* Content */}
-                  <span
-                    style={{
-                      flex: 1,
-                      paddingLeft: '12px',
-                      paddingRight: '16px',
-                      color: getLineColor(line),
-                      wordBreak: wrapLines ? 'break-all' : 'normal',
-                      whiteSpace: wrapLines ? 'pre-wrap' : 'pre',
-                    }}
-                  >
-                    {segments.map((seg, si) =>
-                      seg.match ? (
-                        <mark
-                          key={si}
-                          style={{
-                            backgroundColor: isActiveLine ? 'var(--c-warning)' : '#6366f1',
-                            color: 'var(--surface-primary)',
-                            borderRadius: '2px',
-                            padding: '0 1px',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {seg.text}
-                        </mark>
-                      ) : (
-                        <span key={si}>{seg.text}</span>
-                      )
-                    )}
-                  </span>
-                </div>
-              );
-            })}
+                    {/* Content */}
+                    <span
+                      style={{
+                        flex: 1,
+                        paddingLeft: '12px',
+                        paddingRight: '16px',
+                        color: getLineColor(line),
+                        wordBreak: wrapLines ? 'break-all' : 'normal',
+                        whiteSpace: wrapLines ? 'pre-wrap' : 'pre',
+                      }}
+                    >
+                      {segments.map((seg, si) =>
+                        seg.match ? (
+                          <mark
+                            key={si}
+                            style={{
+                              backgroundColor: isActiveLine ? 'var(--c-warning)' : '#6366f1',
+                              color: 'var(--surface-primary)',
+                              borderRadius: '2px',
+                              padding: '0 1px',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {seg.text}
+                          </mark>
+                        ) : (
+                          <span key={si}>{seg.text}</span>
+                        )
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
