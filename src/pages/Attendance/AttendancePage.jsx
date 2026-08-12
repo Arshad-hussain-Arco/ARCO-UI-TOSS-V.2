@@ -592,7 +592,44 @@ export function AttendancePage() {
     }, {});
   }, []);
 
-  const groupedOnDuty = useMemo(() => groupByTeam(filteredOnDuty), [filteredOnDuty, groupByTeam]);
+  const displayOnDuty = useMemo(() => {
+    let source = filteredOnDuty;
+    if (activeKPI === 'present') {
+      source = filteredOnDuty.filter(c => c.status === 'present');
+    } else if (activeKPI === 'wfh') {
+      source = filteredOnDuty.filter(c => c.status === 'remote');
+    } else if (activeKPI === 'leave') {
+      source = filteredOnLeaveList.map(l => ({
+        id: l.consultantId,
+        name: l.consultantName,
+        team: l.team,
+        status: 'leave',
+        manager: 'Manager',
+        location: l.leaveType,
+        phone: 'N/A',
+        email: 'N/A',
+        avatar: l.avatar
+      }));
+    } else if (activeKPI === 'total' || activeKPI === 'attendance') {
+      const leaveSource = filteredOnLeaveList.map(l => ({
+        id: l.consultantId,
+        name: l.consultantName,
+        team: l.team,
+        status: 'leave',
+        manager: 'Manager',
+        location: l.leaveType,
+        phone: 'N/A',
+        email: 'N/A',
+        avatar: l.avatar
+      }));
+      source = [...filteredOnDuty, ...leaveSource];
+    } else if (activeKPI === 'absent') {
+      source = [];
+    }
+    return source;
+  }, [filteredOnDuty, filteredOnLeaveList, activeKPI]);
+
+  const groupedOnDuty = useMemo(() => groupByTeam(displayOnDuty), [displayOnDuty, groupByTeam]);
 
   const dynamicTeamOptions = useMemo(() => {
     const teams = new Set();
@@ -879,10 +916,10 @@ export function AttendancePage() {
                 )}
               </div>
             ))}
-            {filteredOnDuty.length === 0 && (
+            {displayOnDuty.length === 0 && (
               <div className="attendance-empty">
                 <User size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on duty</p>
+                <p className="attendance-empty-text">No consultants found for this filter</p>
               </div>
             )}
           </div>

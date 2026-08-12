@@ -281,6 +281,7 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
 
   const handleToggle = async () => {
     if (!isOpen) {
+      setIsOpen(true);
       if (!scriptDetails) {
         setIsLoading(true);
         try {
@@ -292,7 +293,6 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
           setIsLoading(false);
         }
       }
-      setIsOpen(true);
     } else {
       setIsOpen(false);
     }
@@ -306,9 +306,12 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
   const trendSlopeFmt = script.trendSlope != null ? String(script.trendSlope) : '—';
   const lastRunFmt = script.lastRun || '—';
   const outlierCount = scriptDetails ? (scriptDetails.history || []).filter(h => h.status === 'error').length : 0;
-  const freqFmt = script.frequency != null ? `${script.frequency}/day` : '—';
-  const trendPct = script.successRate != null ? `${script.successRate}%` : '—';
-  const trendPositive = (script.successRate || 0) >= 80;
+  const freqFmt = scriptDetails?.calculatedFrequency || (script.frequency != null ? `${script.frequency}/day` : '—');
+  
+  const trendObj = scriptDetails?.calculatedTrend;
+  const trendPct = trendObj ? `${trendObj.percentage.toFixed(1)}%` : '—';
+  const trendDirection = trendObj?.direction || 'stable';
+  const trendIsBetter = trendDirection === 'down' || trendDirection === 'stable';
   const minMaxRatio =
     script.maxRuntime > 0 ? Math.min((script.minRuntime / script.maxRuntime) * 100, 100) : 0;
 
@@ -427,14 +430,16 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
                     </div>
                   </div>
 
-                  {/* Success Rate / Trend */}
+                  {/* Performance Trend */}
                   <div className="murex-job-metric-card">
-                    <div className={`murex-job-metric-icon ${trendPositive ? 'green' : 'red'}`}>
-                      {trendPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                    <div className={`murex-job-metric-icon ${trendIsBetter ? 'green' : 'red'}`}>
+                      {trendDirection === 'up' ? <TrendingUp size={13} /> : (trendDirection === 'down' ? <TrendingDown size={13} /> : <Activity size={13} />)}
                     </div>
                     <div className="murex-job-metric-info">
-                      <span className="murex-job-metric-label">Success Rate</span>
-                      <span className={`murex-job-metric-value ${trendPositive ? 'green' : 'red'}`}>{trendPct}</span>
+                      <span className="murex-job-metric-label">Recent Shift</span>
+                      <span className={`murex-job-metric-value ${trendIsBetter ? 'green' : 'red'}`}>
+                         {trendDirection === 'stable' ? 'Stable' : trendPct}
+                      </span>
                     </div>
                   </div>
 
@@ -840,6 +845,10 @@ export function MurexRuntimeTrendsPage() {
   );
 
   const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    setTimeRange('7d');
+  }, [activeTab]);
   const [filterScriptName, setFilterScriptName] = useState('All');
   const [filterRuntimeChecked, setFilterRuntimeChecked] = useState(true);
   const [filterRuntimeType, setFilterRuntimeType] = useState('Min vs Max');
@@ -1205,33 +1214,30 @@ export function MurexRuntimeTrendsPage() {
 
       {/* Tabs */}
       <div className="murex-tabs">
-        <button
-          type="button"
+        <div
           className={`murex-tab ${activeTab === 'overview' ? 'active' : ''}`}
           data-active={activeTab === 'overview'}
           onClick={() => setActiveTab('overview')}
         >
           <BarChart3 className="murex-tab-icon" />
           <span className="murex-tab-label">Overview</span>
-        </button>
-        <button
-          type="button"
+        </div>
+        <div
           className={`murex-tab ${activeTab === 'runtime' ? 'active' : ''}`}
           data-active={activeTab === 'runtime'}
           onClick={() => setActiveTab('runtime')}
         >
           <Clock className="murex-tab-icon" />
           <span className="murex-tab-label">Runtime Trends</span>
-        </button>
-        <button
-          type="button"
+        </div>
+        <div
           className={`murex-tab ${activeTab === 'management' ? 'active' : ''}`}
           data-active={activeTab === 'management'}
           onClick={() => setActiveTab('management')}
         >
           <SlidersHorizontal className="murex-tab-icon" />
           <span className="murex-tab-label">Script Management</span>
-        </button>
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -1559,43 +1565,53 @@ export function MurexRuntimeTrendsPage() {
                     </tr>
                   </thead>
                   <tbody className="murex-script-tbody">
-                    {filteredScripts.map((script) => {
-                      const isExpanded = expandedScriptIds.has(script.id);
-                      const isLoading = loadingScriptIds.has(script.id);
-                      const scriptWithDetails = { ...script, ...(scriptDetailsMap[script.id] || {}) };
-                      const spec = getScriptHeatmapSpec(scriptWithDetails, themeColor);
-                      return (
-                        <Fragment key={script.id}>
-                          <tr
-                            className={`murex-script-row ${isExpanded ? 'expanded' : ''}`}
-                            onClick={(e) => toggleExpandScript(script.id, e)}
-                            draggable
-                            onDragStart={(e) => e.dataTransfer.setData('text/plain', script.name)}
-                          >
-                            <td className="murex-script-td">
-                              <div className="murex-script-name-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CiPlay1
-                                  size={16}
-                                  style={{
-                                    color: 'var(--primary-color)',
-                                    cursor: 'pointer',
-                                    transition: 'transform 0.3s ease',
-                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                                  }}
-                                  onClick={(e) => { e.stopPropagation(); toggleExpandScript(script.id, e); }}
-                                />
-                                {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
-                                <span>{script.name}</span>
-                              </div>
-                            </td>
-                            <td className="murex-script-td">
-                              <span
-                                className="murex-category-tag"
-                                style={{ background: getCategoryColor(script.category) }}
-                              >
-                                {script.category}
-                              </span>
-                            </td>
+                    {filteredScripts.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-tertiary)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <Activity size={32} style={{ opacity: 0.3 }} />
+                            <p style={{ fontSize: '14px', margin: 0 }}>No scripts found for the selected time range or category.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredScripts.map((script) => {
+                        const isExpanded = expandedScriptIds.has(script.id);
+                        const isLoading = loadingScriptIds.has(script.id);
+                        const scriptWithDetails = { ...script, ...(scriptDetailsMap[script.id] || {}) };
+                        const spec = getScriptHeatmapSpec(scriptWithDetails, themeColor);
+                        return (
+                          <Fragment key={script.id}>
+                            <tr
+                              className={`murex-script-row ${isExpanded ? 'expanded' : ''}`}
+                              onClick={(e) => toggleExpandScript(script.id, e)}
+                              draggable
+                              onDragStart={(e) => e.dataTransfer.setData('text/plain', script.name)}
+                            >
+                              <td className="murex-script-td">
+                                <div className="murex-script-name-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <CiPlay1
+                                    size={16}
+                                    style={{
+                                      color: 'var(--primary-color)',
+                                      cursor: 'pointer',
+                                      transition: 'transform 0.3s ease',
+                                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                    }}
+                                    onClick={(e) => { e.stopPropagation(); toggleExpandScript(script.id, e); }}
+                                  />
+                                  {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
+                                  <span>{script.name}</span>
+                                </div>
+                              </td>
+                              <td className="murex-script-td">
+                                <span
+                                  className="murex-category-tag"
+                                  style={{ background: getCategoryColor(script.category) }}
+                                >
+                                  {script.category}
+                                </span>
+                              </td>
                             <td className="murex-script-td">{script.lastRun}</td>
                             <td className="murex-script-td">{script.avgRuntime}</td>
                             <td className="murex-script-td">
@@ -1653,16 +1669,9 @@ export function MurexRuntimeTrendsPage() {
                           )}
                         </Fragment>
                       );
-                    })}
+                    }))}
                   </tbody>
                 </table>
-
-                {filteredScripts.length === 0 && (
-                  <div className="murex-empty-state">
-                    <Search size={24} />
-                    <p>No scripts found</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>

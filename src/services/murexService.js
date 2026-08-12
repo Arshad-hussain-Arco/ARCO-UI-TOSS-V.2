@@ -23,7 +23,8 @@ export const murexService = {
   ...murexMocks,
   getRuntimeTrends: async (timeRange = '7d') => {
     try {
-      const paramStr = timeRange ? timeRange.replace('d', 'days') : '7days';
+      const days = timeRange ? timeRange.replace(/[^0-9]/g, '') : '7';
+      const paramStr = `days=${days}`;
       const kpiRes = await api.get(`${endpoints.scriptManager.runtimeFileKpis}?${paramStr}`);
       const kpiData = kpiRes.data?.data || kpiRes.data || {};
       
@@ -104,14 +105,28 @@ export const murexService = {
       };
     } catch (err) {
       console.error('Failed to fetch runtime trends:', err);
-      // Fallback to mock data if API is not fully up or errors out
+      
+      // If the backend explicitly returned a 'No runs found' message (or any 404), do not fall back to mocks
+      const errorMessage = err.response?.data?.detail || '';
+      if (errorMessage.toLowerCase().includes('no runs found') || err.response?.status === 404) {
+        return {
+          summary: { min: '0s', max: '0s', avg: '0s', latest: 'N/A', trend: 0, outliers: 0 },
+          trend: [],
+          scripts: [],
+          hourlyHeatmap: [],
+          monthlyHeatmap: [],
+        };
+      }
+
+      // Fallback to mock data if API is not fully up or it's a completely different error
       const mock = await murexMocks.getRuntimeTrends();
       return mock;
     }
   },
   fetchScriptTimeseries: async (scriptName, timeRange = '7d') => {
     try {
-      const paramStr = timeRange ? timeRange.replace('d', 'days') : '7days';
+      const days = timeRange ? timeRange.replace(/[^0-9]/g, '') : '7';
+      const paramStr = `days=${days}`;
       const res = await api.get(`${endpoints.scriptManager.runtimeFile}?${paramStr}&script_name=${scriptName}`);
       const rawData = res.data?.data || res.data || {};
       const scriptData = rawData[scriptName] || {};
@@ -140,9 +155,62 @@ export const murexService = {
         };
       }).reverse();
       
+      // Calculate Trend according to provided logic
+      let calculatedTrend = { direction: 'stable', percentage: 0 };
+      if (durationsInMinutes.length >= 2) {
+        const recent = durationsInMinutes.slice(-5);
+        const older = durationsInMinutes.slice(-10, -5);
+        if (recent.length > 0 && older.length > 0) {
+          const recentAvg = recent.reduce((sum, val) => sum + val, 0) / recent.length;
+          const olderAvg = older.reduce((sum, val) => sum + val, 0) / older.length;
+          const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+          if (Math.abs(change) >= 5) {
+            calculatedTrend = {
+              direction: change > 0 ? 'up' : 'down',
+              percentage: Math.abs(change)
+            };
+          } else {
+             calculatedTrend.percentage = Math.abs(change);
+          }
+        }
+      }
+
+      // Calculate Frequency according to provided logic
+      let calculatedFrequency = 'N/A';
+      if (labels.length >= 2) {
+        const dates = labels.map(cat => new Date(cat)).sort((a, b) => a - b);
+        const daysDiff = (dates[dates.length - 1] - dates[0]) / (1000 * 60 * 60 * 24);
+        const frequency = labels.length / Math.max(daysDiff, 1);
+        if (frequency >= 1) calculatedFrequency = `${frequency.toFixed(1)}/day`;
+        else if (frequency >= 0.14) calculatedFrequency = `${(frequency * 7).toFixed(1)}/week`;
+        else calculatedFrequency = `${(frequency * 30).toFixed(1)}/month`;
+      }
+
+      // Calculate Status Info according to provided logic
+      let calculatedStatus = { status: 'normal', color: 'primary' };
+      if (durationsInMinutes.length > 0) {
+        const hasRecentOutliers = history.some(run => {
+          if (run.status !== 'error') return false;
+          const outlierTime = new Date(run.date).getTime();
+          const recentTime = Date.now() - (24 * 60 * 60 * 1000);
+          return outlierTime > recentTime;
+        });
+        const latestValue = durationsInMinutes[durationsInMinutes.length - 1];
+        if (hasRecentOutliers) {
+          calculatedStatus = { status: 'warning', color: 'warning' };
+        } else if (latestValue > avgRuntimeMin * 1.5) {
+          calculatedStatus = { status: 'error', color: 'danger' };
+        } else if (latestValue < avgRuntimeMin * 0.8) {
+          calculatedStatus = { status: 'success', color: 'success' };
+        }
+      }
+
       return {
         history,
-        trendData: durationsInMinutes.map(Math.round)
+        trendData: durationsInMinutes.map(Math.round),
+        calculatedTrend,
+        calculatedFrequency,
+        calculatedStatus
       };
     } catch (err) {
       console.error('Failed to fetch script timeseries:', err);
