@@ -366,7 +366,7 @@ export function DeleteConfirmationModal({ isOpen, onClose, targetName, onConfirm
           <button
             type="button"
             className="doc-modal-btn primary"
-            style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: 'var(--surface-primary)' }}
+            style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: ' #ffffff' }}
             onClick={onConfirm}
             disabled={isDeleting}
           >

@@ -70,7 +70,7 @@
 
 /* ── Variants ──────────────────────────────────────────────────────────────── */
 .primary {
-  background: var(--c-primary);
+  background: #006633;
   color: #ffffff;
 }
 

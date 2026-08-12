@@ -192,7 +192,7 @@
   font-size: 13px;
   font-weight: 600;
   color: #ffffff;
-  background-color: var(--c-primary);
+  background-color: #006633;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -201,7 +201,7 @@
 }
 
 .lc-btn-primary:hover {
-  background-color: var(--c-primary-hover);
+  background-color: #006633;
   transform: translateY(-1px);
 }
 
@@ -359,23 +359,19 @@
 
 /* Action Ghost Icon Buttons */
 .lc-ghost-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid var(--c-primary);
-  background: transparent;
-  color: var(--c-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
+      height: 36px;
+    padding: 0px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.15s;
 }
 
-.lc-ghost-btn:hover {
-  background-color:var(--c-primary);
-  color:  #ffffff;
-}
+ 
 
 .lc-ghost-btn.danger {
   border-color: var(--c-danger);

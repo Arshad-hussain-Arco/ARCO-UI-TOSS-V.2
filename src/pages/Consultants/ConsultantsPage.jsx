@@ -495,8 +495,14 @@ export function ConsultantsPage() {
                     <span
                       style={{
                         marginLeft: '8px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-secondary)',
+                        background:
+                          activeTab === t.id
+                            ? '#9999993d'
+                            : 'rgba(0, 0, 0, 0.08)',
+                        color:
+                          activeTab === t.id
+                            ? 'var(--c-primary)'
+                            : 'inherit',
                         padding: '2px 8px',
                         borderRadius: '12px',
                         fontSize: '12px',

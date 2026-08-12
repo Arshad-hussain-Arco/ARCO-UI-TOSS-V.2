@@ -489,4 +489,35 @@
   }
 }
 
+/* Teams Tab Search Bar */
+.tv-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
 
+.tv-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.tv-search-input {
+  padding: 5px 8px 5px 26px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 11px;
+  width: 220px;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+
+.tv-search-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  width: 240px;
+}

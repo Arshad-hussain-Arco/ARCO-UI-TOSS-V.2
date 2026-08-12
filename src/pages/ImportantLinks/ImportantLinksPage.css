@@ -870,7 +870,7 @@
 }
 
 .il-toggle input:checked + .il-toggle-track {
-  background: var(--c-primary);
+  background:  #006633 ;
 }
 
 .il-toggle-thumb {
@@ -1043,4 +1043,9 @@
   .il-toolbar-spacer {
     display: none;
   }
+}
+.tv-btn.cancel{
+    background-color: var(--surface-primary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
 }

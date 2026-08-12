@@ -254,8 +254,8 @@
 }
 
 .tr-chip[data-active='true'] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  border-color:  #006633;
   color: #ffffff;
 }
 

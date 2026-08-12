@@ -118,17 +118,17 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   }, [colMappings, dstCols, onColMappingsChange]);
 
   const resetAll = useCallback(() => {
-  const reset = colMappings.map((m) => ({
-    ...m,
-    dst: '__skip__',
-    dataType: files[0]?.columnMeta?.[m.src]?.dataType || 'Categorical',
-    tolerance: '0.00',
-    roundOff: 'None',
-    exclude: false,
-  }));
-  onColMappingsChange(reset);
-   setShowResetConfirm(false);
-}, [colMappings, files, onColMappingsChange]);
+    const reset = colMappings.map((m) => ({
+      ...m,
+      dst: '__skip__',
+      dataType: files[0]?.columnMeta?.[m.src]?.dataType || 'Categorical',
+      tolerance: '0.00',
+      roundOff: 'None',
+      exclude: false,
+    }));
+    onColMappingsChange(reset);
+    setShowResetConfirm(false);
+  }, [colMappings, files, onColMappingsChange]);
 
 
 
@@ -313,10 +313,10 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
           >
             <div className="rrs-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
               <div className="rrs-modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                <h3 className="rrs-modal-title" style={{ fontSize: '18px', color: 'var(--bg-secondary)' }}>Reset All Settings?</h3>
+                <h3 className="rrs-modal-title" style={{ fontSize: '18px', color: 'var(--text-primary)' }}>Reset All Settings?</h3>
               </div>
               <div className="rrs-modal-body" style={{ padding: '16px 20px' }}>
-                <p className="rrs-modal-desc" style={{ fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>
+                <p className="rrs-modal-desc" style={{ fontSize: '13px', lineHeight: '1.5' }}>
                   This will reset all column mappings, data types, tolerance values, rounding settings, and exclusions to their default values. This action cannot be undone.
                 </p>
               </div>
@@ -333,7 +333,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
                   type="button"
                   className="rwiz-btn rwiz-btn-primary"
                   onClick={resetAll}
-                  style={{ width: '140px', justifyContent: 'center', backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: 'var(--surface-primary)' }}
+                  style={{ width: '140px', justifyContent: 'center', backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', color: ' #ffffff' }}
                 >
                   Reset Everything
                 </button>
@@ -341,7 +341,7 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
             </div>
           </div>
         )}
-      </div>
+      </div >
     </>
   );
 }

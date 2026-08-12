@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Users, Briefcase, ChevronDown, Copy, Plus, Edit, Trash, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Users, Briefcase, ChevronDown, Copy, Plus, Edit, Trash, ChevronLeft, ChevronRight, Loader2, Search, X } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -11,6 +11,8 @@ import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { useDebounce } from '@hooks/useDebounce';
+import { Select } from '@components/forms/Select/Select';
 import './TeamsView.css';
 
 const MOCK_AVATAR = (name) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
@@ -285,6 +287,35 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
     }
   };
 
+  const teamsData = teams || [];
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [selectedTeam, setSelectedTeam] = useState('all');
+
+  const dynamicTeamOptions = useMemo(() => {
+    const options = teamsData.map(t => ({
+      value: t.id,
+      label: t.name || t.team_name || 'Unnamed Team'
+    }));
+    return [{ value: 'all', label: 'All Teams' }, ...options];
+  }, [teamsData]);
+
+  const filteredTeams = useMemo(() => {
+    let result = teamsData;
+    if (selectedTeam !== 'all') {
+      result = result.filter(t => t.id === selectedTeam);
+    }
+    if (debouncedSearch) {
+      const lowerSearch = debouncedSearch.toLowerCase();
+      result = result.filter(t => {
+        const teamName = (t.name || t.team_name || '').toLowerCase();
+        return teamName.includes(lowerSearch);
+      });
+    }
+    return result;
+  }, [teamsData, selectedTeam, debouncedSearch]);
+
   if (error) {
     return <ErrorState title="Teams could not be loaded" description={error.message} onRetry={refetch} />;
   }
@@ -292,8 +323,6 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
   if (isLoading && !teams) {
     return <Loader message="Loading teams..." />;
   }
-
-  const teamsData = teams || [];
 
   const handleCardClick = (teamId) => {
     setExpandedTeamId(teamId === expandedTeamId ? null : teamId);
@@ -307,6 +336,41 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
 
   return (
     <div className="teams-tab-container">
+      {/* Top Actions: Search, Filter, Add */}
+      <div className="teams-tab-actions-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Dropdown */}
+          <Select
+            value={selectedTeam}
+            onChange={setSelectedTeam}
+            options={dynamicTeamOptions}
+            width="190px"
+          />
+          {/* Search */}
+          <div className="tv-search-wrap" style={{ margin: 0, position: 'relative' }}>
+            <Search size={13} className="tv-search-icon" />
+            <input
+              type="text"
+              placeholder="Search team…"
+              className="tv-search-input"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ paddingRight: '32px' }}
+            />
+            {searchQuery && (
+              <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <button className="consultants-add-button" onClick={openAddModal}>
+          <Plus size={16} />
+          <span>Add Team</span>
+        </button>
+      </div>
+
       {/* Top Summary Cards */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
         {showSlider && (
@@ -320,7 +384,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
         )}
 
         <div className="tv-summary-strip" ref={stripRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {teamsData.map((team) => {
+          {filteredTeams.map((team) => {
             const isActive = expandedTeamId === team.id;
             const hc = headcountMap[team.id];
             return (
@@ -367,16 +431,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
         )}
       </div>
 
-      <div className="teams-tab-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px', marginBottom: '0px' }}>
-        <button className="consultants-add-button" onClick={openAddModal}>
-          <Plus size={16} />
-          <span>Add Team</span>
-        </button>
-      </div>
-
       {/* Accordions */}
       <div className="tv-accordions-list">
-        {teamsData.map((team) => (
+        {filteredTeams.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
             <TeamAccordion
               team={team}
