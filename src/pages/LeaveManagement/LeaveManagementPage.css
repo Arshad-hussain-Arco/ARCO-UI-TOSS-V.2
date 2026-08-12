@@ -638,19 +638,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  background-color: rgba(0, 0, 0, 0.08);
-  border-radius: 9px;
-  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: inherit;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .leave-filter-chip[data-active='true'] .leave-filter-badge {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background-color: #e6f4ed;
+  color: var(--c-primary);
 }
 
 
