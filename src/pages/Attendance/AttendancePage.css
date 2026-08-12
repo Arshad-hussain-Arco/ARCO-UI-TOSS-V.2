@@ -756,7 +756,7 @@
 }
 
 .attendance-timeline-row:hover {
-  background-color: #f8fafc;
+  transition: background-color 0.15s ease;
 }
 
 .attendance-timeline-consultant {
@@ -796,7 +796,7 @@
 }
 
 .attendance-timeline-row:hover .attendance-timeline-consultant {
-  background-color: #f8fafc;
+     transition: background-color 0.15s ease;
 }
 
 .attendance-timeline-consultant-name {

@@ -404,7 +404,7 @@ export function LeaveConfigurationTab() {
             )}
           </td>
 
-          <td className="text-right">
+          <td className="text-center">
             {!emp._isDummy && (
               isEditing ? (
                 <div className="lc-action-btns">
@@ -479,7 +479,7 @@ export function LeaveConfigurationTab() {
                   <th className="text-center">Sick Leave</th>
                   <th className="text-center">Comp-Off</th>
                   <th className="text-center">Weekend Work</th>
-                  <th className="text-right">Edit</th>
+                  <th className="text-center">Edit</th>
                 </tr>
               </thead>
               <tbody>

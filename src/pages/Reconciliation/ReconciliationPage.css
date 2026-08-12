@@ -238,24 +238,22 @@
 }
 
 .rwiz-btn-primary {
-  background: var(--c-primary);
+  background:  #006633;
   color: white;
-  border-color: var(--c-primary);
+  border-color:  #006633;
 }
 
 .rwiz-btn-primary:hover {
-  background: var(--c-primary-hover);
+  background:  #006633;
 }
 
 .rwiz-btn-outline {
-  background: transparent;
-  color: var(--c-primary);
-  border-color: var(--c-primary);
+      background-color: var(--surface-primary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
 }
 
-.rwiz-btn-outline:hover {
-  background: var(--c-primary-light);
-}
+ 
 
 .rwiz-btn-ghost {
   background: transparent;
@@ -1117,7 +1115,7 @@
   margin-bottom: 2px;
   flex-shrink: 0;
   align-self: center;
-  background: var(--c-primary) !important;
+  background: #006633 !important;
   color: #ffffff !important;
   border: none !important;
 }

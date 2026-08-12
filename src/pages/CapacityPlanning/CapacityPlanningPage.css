@@ -417,9 +417,9 @@
 }
 
 .team-tab-btn.active {
-  background-color: var(--c-primary);
+  background-color: #006633;
   color: #ffffff;
-  border-color: var(--c-primary);
+  border-color: #006633;
 }
 
 .team-tab-btn .tab-icon {
@@ -461,7 +461,7 @@
 }
 
 .switcher-btn.active {
-  background-color: var(--c-primary);
+  background-color:  #006633;
   color: #ffffff;
   box-shadow: var(--shadow-sm);
 }
