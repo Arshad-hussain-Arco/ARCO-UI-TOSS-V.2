@@ -5,6 +5,7 @@ import { addDays, format } from 'date-fns';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Select } from '@components/forms/Select/Select';
+import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useAuth } from '@hooks/useAuth';
 import httpClient from '@api/httpClient';
@@ -228,22 +229,22 @@ export function DashboardPage() {
       ];
     }
     const allScripts = murexData?.scripts || [];
-    
+
     let longestScript = { script: 'N/A', duration: '0m' };
     if (allScripts.length > 0) {
       const sortedByRuntime = [...allScripts].sort((a, b) => b.maxRuntime - a.maxRuntime);
-      longestScript = { 
-        script: sortedByRuntime[0].name, 
-        duration: `${sortedByRuntime[0].maxRuntime}m` 
+      longestScript = {
+        script: sortedByRuntime[0].name,
+        duration: `${sortedByRuntime[0].maxRuntime}m`
       };
     }
 
     let mostFailedScript = 'N/A';
     if (allScripts.length > 0) {
       const sortedByFailures = [...allScripts].sort((a, b) => {
-         const aFails = a.history ? a.history.filter(h => h.status === 'error').length : 0;
-         const bFails = b.history ? b.history.filter(h => h.status === 'error').length : 0;
-         return bFails - aFails;
+        const aFails = a.history ? a.history.filter(h => h.status === 'error').length : 0;
+        const bFails = b.history ? b.history.filter(h => h.status === 'error').length : 0;
+        return bFails - aFails;
       });
       const topFails = sortedByFailures[0].history ? sortedByFailures[0].history.filter(h => h.status === 'error').length : 0;
       if (topFails > 0) {
@@ -253,10 +254,10 @@ export function DashboardPage() {
 
     // Default SLA threshold if we don't have a specific one per script
     const slaThreshold = 100;
-    const runtimeInsights = { 
-      longest: longestScript, 
-      mostFailed: mostFailedScript, 
-      slaThreshold 
+    const runtimeInsights = {
+      longest: longestScript,
+      mostFailed: mostFailedScript,
+      slaThreshold
     };
 
     // 4. Leave Snapshot
@@ -357,13 +358,17 @@ export function DashboardPage() {
   }, [teams, employees]);
 
 
-  const userName = user?.name || user?.username || 'User';
+  const userName = user?.name || user?.username || user?.full_name || user?.first_name || 'User';
 
   return (
     <div className="dc-root">
+      <Breadcrumb items={[{ label: 'Dashboard' }]} />
+
       <div className="dc-page-header">
-        <div>
-          <h1 className="dc-page-title">Dashboard</h1>
+        <div className="dc-welcome-group">
+          <h1 className="dc-page-title">
+            Welcome back, <span className="dc-welcome-username">{userName}</span>
+          </h1>
         </div>
       </div>
 
