@@ -3,7 +3,7 @@ import {
   Server,
   Database,
   RefreshCw,
-  Trash2,
+  Trash,
   Edit,
   Copy,
   ChevronDown,
@@ -466,7 +466,7 @@ export function EnvironmentDashboardPage() {
                         onClick={() => handleOpenDelete(config)}
                         title="Delete Configuration"
                       >
-                        <Trash2 size={14} />
+                        <Trash size={14} />
                       </button>
                     </div>
                   </div>
@@ -805,7 +805,7 @@ export function EnvironmentDashboardPage() {
             <Button variant="ghost" size="sm" onClick={() => setDeletingConfig(null)}>
               Cancel
             </Button>
-            <Button variant="danger" size="sm" leadingIcon={Trash2} onClick={handleDeleteConfig}>
+            <Button variant="danger" size="sm" leadingIcon={Trash} onClick={handleDeleteConfig}>
               Delete
             </Button>
           </>

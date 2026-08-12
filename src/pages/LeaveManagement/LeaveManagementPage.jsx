@@ -76,10 +76,10 @@ import { getRelativePendingTime } from './TeamRequestsTab';
 
 export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
   const [showFull, setShowFull] = useState(false);
-  
+
   if (!text) return '-';
   if (text.length <= maxLength) return <span>{text}</span>;
-  
+
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <span>{text.substring(0, maxLength)}...</span>
@@ -101,7 +101,7 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
       </span>
       {showFull && (
         <>
-          <div 
+          <div
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}
             onClick={(e) => { e.stopPropagation(); setShowFull(false); }}
           />
@@ -131,10 +131,10 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
               borderTopRightRadius: '8px',
             }}>
               <span style={{ fontWeight: '600', color: '#334155', fontSize: '13px' }}>{title}</span>
-              <X 
-                size={16} 
-                style={{ cursor: 'pointer', color: '#64748b' }} 
-                onClick={(e) => { e.stopPropagation(); setShowFull(false); }} 
+              <X
+                size={16}
+                style={{ cursor: 'pointer', color: '#64748b' }}
+                onClick={(e) => { e.stopPropagation(); setShowFull(false); }}
               />
             </div>
             <div style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
@@ -149,14 +149,14 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
 
 export const SortIcon = ({ field, sortField, sortOrder }) => {
   const isActive = field === sortField;
-  
+
   return (
-    <ArrowUpDown 
-      size={12} 
-      style={{ 
-        opacity: isActive ? 1 : 0.4, 
+    <ArrowUpDown
+      size={12}
+      style={{
+        opacity: isActive ? 1 : 0.4,
         transition: 'all 0.2s ease'
-      }} 
+      }}
     />
   );
 };
@@ -414,16 +414,16 @@ export function LeaveManagementPage() {
       if (!sortField) return 0;
       let aVal = a[sortField];
       let bVal = b[sortField];
-      
+
       if (sortField === 'comments') {
         aVal = a.comments || a.approval_reason || a.rejected_reason || '';
         bVal = b.comments || b.approval_reason || b.rejected_reason || '';
       }
-      
+
       if (aVal === bVal) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;
-      
+
       const result = aVal > bVal ? 1 : -1;
       return sortOrder === 'asc' ? result : -result;
     });
@@ -504,11 +504,11 @@ export function LeaveManagementPage() {
                 <X size={15} />
               </button>
             </div>
-            <div style={{ 
-              padding: '24px', 
-              fontSize: '14px', 
-              color: '#334155', 
-              whiteSpace: 'pre-wrap', 
+            <div style={{
+              padding: '24px',
+              fontSize: '14px',
+              color: '#334155',
+              whiteSpace: 'pre-wrap',
               lineHeight: '1.6',
               background: '#f8fafc',
               borderBottomLeftRadius: '8px',
@@ -863,17 +863,13 @@ export function LeaveManagementPage() {
                               </td>
 
                               <td className="leave-table-cell" data-label="Comments">
-                                <button 
-                                  className="leave-table-action-button" 
-                                  style={{ color: '#64748b' }} 
+                                <button
+                                  className="leave-table-action-button"
+                                  style={{ color: '#64748b' }}
                                   title="View Comments"
                                   onClick={() => setCommentsModalText(leave.comments || leave.approval_reason || leave.rejected_reason || 'No comments available')}
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
-                                    <path d="M0 0h24v24H0z" fill="none" />
-                                    <path fill="currentColor" d="M20 17.17V4H4v12h14.83zM18 14H6v-2h12zm0-3H6V9h12zm0-3H6V6h12z" opacity=".3" />
-                                    <path fill="currentColor" d="M4 18h14l4 4l-.01-18c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2M4 4h16v13.17L18.83 16H4zm2 8h12v2H6zm0-3h12v2H6zm0-3h12v2H6z" />
-                                  </svg>
+                                  <FileCheck />
                                 </button>
                               </td>
 
@@ -891,19 +887,20 @@ export function LeaveManagementPage() {
                                   ) : (
                                     statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                       <>
+
                                         <button
-                                          className="leave-table-action-button action-cancel"
-                                          title="Cancel Request"
-                                          onClick={() => setCancelModalLeave(leave)}
-                                        >
-                                          <X className="leave-table-action-icon" />
-                                        </button>
-                                        <button
-                                          className="leave-table-action-button action-edit"
+                                          className="tr-act-btn tr-act-edit"
                                           title="Edit Request"
                                           onClick={() => setEditModalLeave(leave)}
                                         >
                                           <Edit className="leave-table-action-icon" />
+                                        </button>
+                                        <button
+                                          className="tr-act-btn tr-act-reject"
+                                          title="Cancel Request"
+                                          onClick={() => setCancelModalLeave(leave)}
+                                        >
+                                          <X className="leave-table-action-icon" />
                                         </button>
                                       </>
                                     )
@@ -914,10 +911,10 @@ export function LeaveManagementPage() {
                           );
                         })}
                         {filteredSortedLeaves.length === 0 && (
-                            <tr className="leave-table-row">
-                              <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
-                            </tr>
-                          )}
+                          <tr className="leave-table-row">
+                            <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

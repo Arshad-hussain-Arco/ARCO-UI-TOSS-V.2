@@ -24,11 +24,7 @@ function KpiStripComponent({ kpis }) {
             <div className="dc-kpi-body">
               <div className="dc-kpi-value-row">
                 <span className="dc-kpi-num">{kpi.count}</span>
-                {kpi.trend ? (
-                  <span className={`dc-kpi-trend dc-trend-${kpi.trend}`}>
-                    <TrendIcon size={13} />
-                  </span>
-                ) : null}
+
               </div>
               <div className="dc-kpi-label">{kpi.label}</div>
               <div className="dc-kpi-sub">{kpi.subtext}</div>

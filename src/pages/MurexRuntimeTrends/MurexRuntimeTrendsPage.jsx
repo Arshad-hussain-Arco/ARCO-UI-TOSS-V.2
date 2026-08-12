@@ -16,7 +16,7 @@ import {
   Calendar,
   BarChart3,
   Edit,
-  Trash2,
+  Trash,
   Loader2,
   X,
   RotateCcw
@@ -1479,7 +1479,7 @@ export function MurexRuntimeTrendsPage() {
                           onClick={(e) => handleDeleteCategory(category, e)}
                           style={{ color: 'var(--error-color)' }}
                         >
-                          <Trash2 size={12} />
+                          <Trash size={12} />
                         </button>
                       </div>
                     )}

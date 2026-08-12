@@ -5,6 +5,7 @@ import {
   Building2,
   Calendar,
   CheckCircle,
+  ChevronRight,
   Clock,
   Download,
   FileSearch,
@@ -14,6 +15,7 @@ import {
   RotateCcw,
   Search,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   Users,
   X,
@@ -39,6 +41,7 @@ import {
   calculateTeamRoleCounts,
   calculateBreachMetrics,
   getDrilldownProjects,
+  calculateCompletedProjectsTrends,
 } from './utils/dataMapper';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -194,13 +197,18 @@ const STAGE_LABELS = {
   completed: 'Completed',
 };
 
-function exportToCSV(rows, filename) {
-  if (!rows.length) return;
-  const headers = ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+function exportToCSV(rows, filename, isCR = false) {
+  if (!rows || !rows.length) return;
+  const headers = isCR
+    ? ['CR IPM Number', 'Work Order ID', 'Summary', 'Status', 'Effort (MDs)', 'Assigned Developer', 'Additional Developers', 'Start Date', 'End Date']
+    : ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+
   const lines = [
     headers.join(','),
     ...rows.map((p) =>
-      [p.code, p.id, `"${p.summary}"`, STAGE_LABELS[p.stage.toLowerCase()] || p.stage, p.itdl, p.backupItdl, p.po, p.pmo, `"${p.lastComment}"`].join(',')
+      isCR
+        ? [p.code || p.ipmNumber || '', p.woId || p.id || '', `"${p.summary || ''}"`, p.status || p.stage || '', p.effortInMDs || '0', p.assignedDeveloper || '', p.additionalDevelopers || '', p.startDate || '', p.endDate || ''].join(',')
+        : [p.code || '', p.id || '', `"${p.summary || ''}"`, STAGE_LABELS[(p.stage || '').toLowerCase()] || p.stage || '', p.itdl || '', p.backupItdl || '', p.po || '', p.pmo || '', `"${p.lastComment || ''}"`].join(',')
     ),
   ];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
@@ -213,7 +221,7 @@ function exportToCSV(rows, filename) {
 }
 
 /* ── Dynamic Drilldown Modal (Matches Image 2 & Image 5) ────────────────── */
-function DrilldownModal({ stage, onClose, projectsData = [] }) {
+function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData = [] }) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
   const inputRef = useRef(null);
@@ -229,30 +237,56 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
 
   if (!stage) return null;
 
-  const matchedProjects = getDrilldownProjects(projectsData, stage).filter((p) => {
-    const q = debouncedSearch.toLowerCase().trim();
+  const drilldownResult = getDrilldownProjects(projectsData, changeRequestsData, stage);
+  const isCR = Boolean(drilldownResult.isCR);
+
+  const matchedProjects = (drilldownResult.records || []).filter((p) => {
+    const q = search.toLowerCase().trim();
     if (!q) return true;
+    if (isCR) {
+      return (
+        (p.code || '').toLowerCase().includes(q) ||
+        (p.woId || '').toLowerCase().includes(q) ||
+        (p.summary || '').toLowerCase().includes(q) ||
+        (p.assignedDeveloper || '').toLowerCase().includes(q) ||
+        (p.additionalDevelopers || '').toLowerCase().includes(q)
+      );
+    }
     return (
-      p.code.toLowerCase().includes(q) ||
-      p.id.toLowerCase().includes(q) ||
-      p.summary.toLowerCase().includes(q) ||
-      p.itdl.toLowerCase().includes(q) ||
-      p.po.toLowerCase().includes(q)
+      (p.code || '').toLowerCase().includes(q) ||
+      (p.id || '').toLowerCase().includes(q) ||
+      (p.summary || '').toLowerCase().includes(q) ||
+      (p.itdl || '').toLowerCase().includes(q) ||
+      (p.po || '').toLowerCase().includes(q)
     );
   });
 
   const totalCount = stage.count || matchedProjects.length;
+  const isMemberDrilldown = stage.type === 'member' && stage.roleLabel;
+  const recordWord = isCR ? 'CRs' : 'Projects';
 
   return (
-    <div className="pm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Projects - ${stage.label}`}>
+    <div className="pm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={`${stage.label} - ${stage.roleLabel || ''}`}>
       <div className="pm-modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="pm-modal-header">
-          <div className="pm-modal-title-row">
-            <h2 className="pm-modal-title">Projects — {stage.label}</h2>
-            <span className="pm-stage-pill" style={{ background: 'var(--c-primary)' }}>
-              {totalCount} Projects
-            </span>
-          </div>
+        <div className="pm-modal-header pm-modal-header--member">
+          {isMemberDrilldown ? (
+            <div className="pm-modal-member-header">
+              <div className="pm-modal-member-identity">
+                <h2 className="pm-modal-member-name">{stage.label}</h2>
+                <span className="pm-modal-member-role">{stage.roleLabel}</span>
+              </div>
+              <div className="pm-modal-member-meta">
+                <span className="pm-modal-count-badge">{totalCount} {recordWord}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="pm-modal-title-row">
+              <h2 className="pm-modal-title">{recordWord} — {stage.label}</h2>
+              <span className="pm-stage-pill" style={{ background: 'var(--c-primary)' }}>
+                {totalCount} {recordWord}
+              </span>
+            </div>
+          )}
           <button type="button" className="pm-modal-close-btn" onClick={onClose} aria-label="Close modal">
             <X size={16} />
           </button>
@@ -265,7 +299,7 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
               ref={inputRef}
               type="text"
               className="pm-search-input"
-              placeholder="Search by code, ID, summary, ITDL, Product Owner…"
+              placeholder={isCR ? "Search by CR IPM, WO ID, summary, developer…" : "Search by code, ID, summary, ITDL, Product Owner…"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -275,8 +309,8 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
             <span className="pm-modal-result-count">
               Showing <strong>{matchedProjects.length}</strong> of {totalCount}
             </span>
-            <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `Projects_${stage.label.replace(/\s+/g, '_')}.csv`)}>
-              <Download size={14} /> Export
+            <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.csv`, isCR)}>
+              <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
             </button>
           </div>
         </div>
@@ -284,17 +318,31 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
         <div className="pm-modal-table-container">
           <table className="pm-master-table">
             <thead>
-              <tr>
-                <th>Project Code</th>
-                <th>Project ID</th>
-                <th>Summary</th>
-                <th>Status</th>
-                <th>IT Delivery Lead</th>
-                <th>Backup ITDL</th>
-                <th>Product Owner</th>
-                <th>PMO Project Manager</th>
-                <th>Last Comment</th>
-              </tr>
+              {isCR ? (
+                <tr>
+                  <th>CR IPM Number</th>
+                  <th>Work Order ID</th>
+                  <th>Summary</th>
+                  <th>Status</th>
+                  <th>Effort (MDs)</th>
+                  <th>Assigned Developer</th>
+                  <th>Additional Developers</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th>Project Code</th>
+                  <th>Project ID</th>
+                  <th>Summary</th>
+                  <th>Status</th>
+                  <th>IT Delivery Lead</th>
+                  <th>Backup ITDL</th>
+                  <th>Product Owner</th>
+                  <th>PMO Project Manager</th>
+                  <th>Last Comment</th>
+                </tr>
+              )}
             </thead>
             <tbody>
               {matchedProjects.length === 0 ? (
@@ -302,36 +350,60 @@ function DrilldownModal({ stage, onClose, projectsData = [] }) {
                   <td colSpan={9}>
                     <div className="pm-empty-state">
                       <Search size={32} color="var(--border-secondary)" />
-                      <p>No projects found matching your search criteria.</p>
+                      <p>No records found matching your search criteria.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                matchedProjects.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <span className="pm-project-code">{p.code}</span>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
-                    </td>
-                    <td style={{ maxWidth: 220 }}>
-                      <ProjectSummary summary={p.summary} />
-                    </td>
-                    <td>
-                      <span className="pm-stage-pill" style={{ background: STAGE_COLORS[p.stage.toLowerCase()] || 'var(--c-primary)' }}>
-                        {p.stage}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.itdl}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.backupItdl}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.po}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.pmo}</td>
-                    <td>
-                      <span className="pm-comment-text" title={p.lastComment}>{p.lastComment || 'No comments'}</span>
-                    </td>
-                  </tr>
-                ))
+                matchedProjects.map((p, idx) =>
+                  isCR ? (
+                    <tr key={p.code || p.id || idx}>
+                      <td>
+                        <span className="pm-project-code">{p.code || p.ipmNumber}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.woId || p.id}</span>
+                      </td>
+                      <td style={{ maxWidth: 220 }}>
+                        <ProjectSummary summary={p.summary} />
+                      </td>
+                      <td>
+                        <span className="pm-stage-pill" style={{ background: STAGE_COLORS[(p.status || p.stage || '').toLowerCase()] || 'var(--c-primary)' }}>
+                          {p.status || p.stage || 'Open'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.effortInMDs || '0'}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.assignedDeveloper || 'unassigned'}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.additionalDevelopers || 'unassigned'}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.startDate || '-'}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.endDate || '-'}</td>
+                    </tr>
+                  ) : (
+                    <tr key={p.id || idx}>
+                      <td>
+                        <span className="pm-project-code">{p.code}</span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
+                      </td>
+                      <td style={{ maxWidth: 220 }}>
+                        <ProjectSummary summary={p.summary} />
+                      </td>
+                      <td>
+                        <span className="pm-stage-pill" style={{ background: STAGE_COLORS[(p.stage || '').toLowerCase()] || 'var(--c-primary)' }}>
+                          {p.stage}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.itdl}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.backupItdl}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-primary)' }}>{p.po}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.pmo}</td>
+                      <td>
+                        <span className="pm-comment-text" title={p.lastComment}>{p.lastComment || 'No comments'}</span>
+                      </td>
+                    </tr>
+                  )
+                )
               )}
             </tbody>
           </table>
@@ -371,6 +443,7 @@ export function ProjectMonitoringPage() {
   const [activeBreachMetric, setActiveBreachMetric] = useState(null);
 
   const [projectsList, setProjectsList] = useState([]);
+  const [changeRequestsList, setChangeRequestsList] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const [tableWidth, setTableWidth] = useState(0);
@@ -402,7 +475,20 @@ export function ProjectMonitoringPage() {
       setLoadingData(true);
       const workOrderRes = await projectService.getWorkOrderStatus();
 
-      let allProjects = [];
+      let rawWO = [];
+      let rawCR = [];
+
+      if (workOrderRes?.result1) {
+        rawWO = workOrderRes.result1;
+      } else if (workOrderRes?.workOrders) {
+        rawWO = workOrderRes.workOrders;
+      }
+
+      if (workOrderRes?.result2) {
+        rawCR = workOrderRes.result2;
+      } else if (workOrderRes?.changeRequests) {
+        rawCR = workOrderRes.changeRequests;
+      }
 
       const mapWorkOrder = (wo) => ({
         id: wo.Wo_Id ? wo.Wo_Id.toString() : wo.Ipm_Number || '',
@@ -416,9 +502,15 @@ export function ProjectMonitoringPage() {
         clarityFinishDate: wo.Clarity_Planned_Finish_Date || '',
         plannedDevDate: wo.Planned_DEV_completion_Date || '',
         endDate: wo.Due_Date || wo.Handover_Planned_End_Date || '',
+        dueDate: wo.Due_Date || wo.Handover_Planned_End_Date || '',
+        sitReceivedDate: wo.SIT_Received_date || '',
+        sitDate: wo.SIT_Received_date || '',
+        uatEndDate: wo.UAT_Actual_End_Date || '',
         itdl: wo.IT_Delivery_Lead || 'unassigned',
         backupItdl: wo.Backup_IT_Delivery_Lead || 'unassigned',
         po: wo.Product_Owner || 'unassigned',
+        sitLead: wo.SIT_Lead || wo.PMO_Project_Manager || 'unassigned',
+        uatLead: wo.UAT_Lead || 'unassigned',
         pmo: wo.PMO_Project_Manager || 'unassigned',
         ownedBy: wo.Owned_By || 'unassigned',
         requestorName: wo.Requestor_Name || 'unassigned',
@@ -429,17 +521,32 @@ export function ProjectMonitoringPage() {
         overdueDays: 0,
       });
 
-      // Only workOrders are shown in Project Monitoring.
-      // changeRequests (CRs) are excluded — they have no Depends_On field
-      // and do not belong in the Project Monitoring directory.
-      if (workOrderRes?.workOrders) {
-        allProjects = [...allProjects, ...workOrderRes.workOrders.map(mapWorkOrder)];
-      }
+      const mapChangeRequest = (cr) => ({
+        id: cr.Wo_Id ? cr.Wo_Id.toString() : cr.Ipm_Number || '',
+        woId: cr.Wo_Id ? cr.Wo_Id.toString() : '',
+        code: cr.Ipm_Number || '',
+        ipmNumber: cr.Ipm_Number || '',
+        summary: cr.Summary || '',
+        status: cr.Status || 'Open',
+        stage: cr.Status || 'Open',
+        startDate: cr.Start_Date || '',
+        endDate: cr.End_Date || cr.Due_Date || '',
+        dueDate: cr.End_Date || cr.Due_Date || '',
+        effortInMDs: cr.Effort_in_MDs || cr.Effort || '0',
+        assignedDeveloper: cr.Assigned_Developer || cr.Assigned_Dev || cr.Developer || cr.developer || 'unassigned',
+        additionalDevelopers: cr.Additional_Developers || cr.Additional_Developer || cr.Additional_Dev || cr.Additional_Devs || cr.AdditionalDevelopers || cr.additional_developers || cr.additional_developer || cr.additionalDevelopers || cr.additionalDev || '',
+        workOrderType: 'CR',
+      });
 
-      setProjectsList(allProjects.length > 0 ? allProjects : SAMPLE_PROJECTS);
+      const mappedWO = rawWO.map(mapWorkOrder);
+      const mappedCR = rawCR.map(mapChangeRequest);
+
+      setProjectsList(mappedWO.length > 0 ? mappedWO : SAMPLE_PROJECTS);
+      setChangeRequestsList(mappedCR);
     } catch (err) {
       console.error('Failed to fetch project data:', err);
       setProjectsList(SAMPLE_PROJECTS);
+      setChangeRequestsList([]);
     } finally {
       setLoadingData(false);
       setSyncing(false);
@@ -465,26 +572,52 @@ export function ProjectMonitoringPage() {
     return projectsList.filter((p) => filterByCategory(p, selectedCategory));
   }, [projectsList, selectedCategory]);
 
-  // 2. Dynamic Team Role Breakdown Cards (Matches Image 1)
+  // Filter Change Requests by projects in the active category tab
+  const categoryCRs = useMemo(() => {
+    if (!selectedCategory || selectedCategory === 'all') return changeRequestsList;
+    const projectIds = new Set(categoryProjects.map((p) => p.id));
+    return changeRequestsList.filter((cr) => projectIds.has(cr.woId) || projectIds.has(cr.id));
+  }, [changeRequestsList, categoryProjects, selectedCategory]);
+
+  // 2. Dynamic Team Role Breakdown Cards (Matches Image 1 & Legacy Spec)
   const teamRoles = useMemo(() => {
     return [
-      { id: 'itdl', title: 'Count By IT Delivery Lead', field: 'itdl' },
-      { id: 'po', title: 'Count BY Product Owner', field: 'po' },
-      { id: 'backupItdl', title: 'Count By Backup ITDL', field: 'backupItdl' },
-      { id: 'sitLead', title: 'Count By SIT Lead', field: 'sitLead' },
-      { id: 'uatLead', title: 'Count By UAT Lead', field: 'uatLead' },
-      { id: 'developer', title: 'Count By Developer', field: 'developer' },
-      { id: 'additionalDev', title: 'Count By Additional Developer', field: 'additionalDev' },
+      { id: 'itdl', title: 'Projects By IT Delivery Lead', field: 'itdl' },
+      { id: 'po', title: 'Projects BY Product Owner', field: 'po' },
+      { id: 'backupItdl', title: 'Projects By Backup ITDL', field: 'backupItdl' },
+      { id: 'sitLead', title: 'Projects By SIT Lead', field: 'sitLead' },
+      { id: 'uatLead', title: 'Projects By UAT Lead', field: 'uatLead' },
+      { id: 'developer', title: 'Projects By Developer', field: 'developer' },
+      { id: 'additionalDev', title: 'Projects By Additional Developer', field: 'additionalDev' },
     ].map((r) => ({
       ...r,
-      members: calculateTeamRoleCounts(categoryProjects, r.field),
+      members: calculateTeamRoleCounts(categoryProjects, categoryCRs, r.field),
     }));
-  }, [categoryProjects]);
+  }, [categoryProjects, categoryCRs]);
 
-  // 3. Dynamic Breach Metrics (Matches Image 4)
+  // 3. Dynamic Breach Metrics (Matches Image 4 & Legacy Spec)
   const breachMetrics = useMemo(() => {
-    return calculateBreachMetrics(categoryProjects);
-  }, [categoryProjects]);
+    return calculateBreachMetrics(categoryProjects, changeRequestsList);
+  }, [categoryProjects, changeRequestsList]);
+
+  const totalSlaBreaches = useMemo(() => {
+    return breachMetrics.sla.reduce((sum, m) => sum + m.count, 0);
+  }, [breachMetrics.sla]);
+
+  const totalDueDateBreaches = useMemo(() => {
+    return breachMetrics.dueDate.reduce((sum, m) => sum + m.count, 0);
+  }, [breachMetrics.dueDate]);
+
+  const totalCrBreaches = useMemo(() => {
+    return breachMetrics.cr.reduce((sum, m) => sum + m.count, 0);
+  }, [breachMetrics.cr]);
+
+  // 4. Completed Projects Trends (Matches completed_projects_trends_engineering.md)
+  const completedTrends = useMemo(() => {
+    return calculateCompletedProjectsTrends(categoryProjects, timeframe);
+  }, [categoryProjects, timeframe]);
+
+  const maxTrendValue = Math.max(...completedTrends.data, 1);
 
   // Filtered projects list based on search, category chip, and dynamic status filter
   const filteredProjects = useMemo(() => {
@@ -511,9 +644,7 @@ export function ProjectMonitoringPage() {
       }
       return true;
     });
-  }, [categoryProjects, debouncedSearchQuery, statusFilter, lifecycleMode]);
-
-  const maxVelocity = Math.max(...COMPLETED_DATA, ...TARGET_DATA);
+  }, [categoryProjects, searchQuery, statusFilter, lifecycleMode]);
 
   // Dynamic Lifecycle Pipeline Overview stages (reflects active category pill tab selection)
   const dynamicPipelineStages = useMemo(() => {
@@ -642,7 +773,7 @@ export function ProjectMonitoringPage() {
                 style={{ cursor: 'pointer' }}
                 onClick={() => setDrilldownStage({ key: 'testing-blocked', label: 'Testing Blocked', count: testingBlockedCount })}
               >
-                🚨 Testing Blocked — {testingBlockedCount}
+                Testing Blocked — {testingBlockedCount}
               </span>
               <span
                 className="pm-special-badge pm-badge-deferred"
@@ -651,7 +782,7 @@ export function ProjectMonitoringPage() {
                 style={{ cursor: 'pointer' }}
                 onClick={() => setDrilldownStage({ key: 'deferred', label: 'Deferred', count: deferredCount })}
               >
-                ⏸️ Deferred — {deferredCount}
+                Deferred — {deferredCount}
               </span>
             </div>
           </div>
@@ -660,7 +791,7 @@ export function ProjectMonitoringPage() {
             <div className="pm-chart-card pm-chart-card--velocity">
               <div className="pm-velocity-header">
                 <h3 className="pm-card-title" style={{ margin: 0 }}>
-                  <CheckCircle size={14} color="var(--c-success)" /> Delivery Velocity &amp; Completion Trends
+                  <CheckCircle size={14} color="var(--c-success)" /> Completed Projects Trends
                 </h3>
                 <div className="pm-timeframe-controls">
                   {['Monthly', 'Quarterly', 'HalfYearly', 'Annually'].map((tf) => (
@@ -670,7 +801,7 @@ export function ProjectMonitoringPage() {
                       className={`pm-tf-btn ${timeframe === tf ? 'active' : ''}`}
                       onClick={() => setTimeframe(tf)}
                     >
-                      {tf}
+                      {tf === 'HalfYearly' ? 'Half Yearly' : tf}
                     </button>
                   ))}
                 </div>
@@ -678,22 +809,17 @@ export function ProjectMonitoringPage() {
 
               <div className="pm-velocity-chart-wrap">
                 <div className="pm-bar-chart">
-                  {VELOCITY_MONTHS.map((m, i) => (
-                    <div key={m} className="pm-bar-col">
-                      <span className="pm-bar-value">{COMPLETED_DATA[i]}</span>
+                  {completedTrends.labels.map((label, i) => (
+                    <div key={label} className="pm-bar-col">
+                      <span className="pm-bar-value">{completedTrends.data[i]}</span>
                       <div className="pm-bar-inner">
                         <div
-                          className="pm-bar target-bar"
-                          title={`Target: ${TARGET_DATA[i]}`}
-                          style={{ height: `${(TARGET_DATA[i] / maxVelocity) * 100}%` }}
-                        />
-                        <div
                           className="pm-bar completed-bar"
-                          title={`Completed: ${COMPLETED_DATA[i]}`}
-                          style={{ height: `${(COMPLETED_DATA[i] / maxVelocity) * 100}%` }}
+                          title={`${label}: ${completedTrends.data[i]} Completed Projects`}
+                          style={{ height: `${(completedTrends.data[i] / maxTrendValue) * 100}%`, background: 'var(--c-success)' }}
                         />
                       </div>
-                      <span className="pm-bar-label">{m}</span>
+                      <span className="pm-bar-label">{label}</span>
                     </div>
                   ))}
                 </div>
@@ -702,22 +828,18 @@ export function ProjectMonitoringPage() {
               <div className="pm-velocity-legend">
                 <span className="pm-velocity-legend-item">
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--c-success)', display: 'inline-block' }} />
-                  Completed
-                </span>
-                <span className="pm-velocity-legend-item">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--border-secondary)', display: 'inline-block' }} />
-                  Target
+                  Completed Projects ({completedTrends.data.reduce((a, b) => a + b, 0)} Total)
                 </span>
               </div>
             </div>
 
             {/* Dynamic Team Overview Cards (Matches Image 1) */}
-            <div className="pm-chart-card pm-chart-card--compact-org">
+            {/* <div className="pm-chart-card pm-chart-card--compact-org">
               <h3 className="pm-card-title" style={{ margin: '0 0 12px 0' }}>
                 <Users size={14} color="var(--c-primary)" /> Team Overview Role Counts
               </h3>
               <div className="pm-compact-org-list">
-                {calculateTeamRoleCounts(projectsList, 'itdl').slice(0, 5).map((item) => (
+                {calculateTeamRoleCounts(projectsList, changeRequestsList, 'itdl').slice(0, 5).map((item) => (
                   <div key={item.name} className="pm-compact-org-row" onClick={() => setDrilldownStage({ key: 'itdl', label: item.name, count: item.count, type: 'member' })}>
                     <span className="pm-compact-org-name">{item.name}</span>
                     <div className="pm-compact-org-bar-wrap">
@@ -729,12 +851,12 @@ export function ProjectMonitoringPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Dynamic 7-Role Team Overview Section (Matches Image 1) */}
           <div className="pm-itdl-overview-section">
-            <h3 className="pm-section-subtitle">Team Breakdown Cards</h3>
+            <h3 className="pm-section-subtitle">Projects Overview by Team</h3>
             <div className="pm-itdl-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {teamRoles.map((roleCard) => (
                 <div key={roleCard.id} className="pm-itdl-card">
@@ -749,9 +871,18 @@ export function ProjectMonitoringPage() {
                       <div
                         key={member.name}
                         className="pm-itdl-member-row"
-                        onClick={() => setDrilldownStage({ key: roleCard.field, label: member.name, count: member.count, type: 'member' })}
+                        onClick={() => setDrilldownStage({
+                          key: roleCard.field,
+                          label: member.name,
+                          count: member.count,
+                          type: 'member',
+                          roleLabel: roleCard.title.replace(/^Count By(?: |\s)/i, '').replace(/^Count BY(?: |\s)/i, ''),
+                          records: member.records,
+                        })}
                         role="button"
                         tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDrilldownStage({ key: roleCard.field, label: member.name, count: member.count, type: 'member', roleLabel: roleCard.title.replace(/^Count By(?: |\s)/i, '').replace(/^Count BY(?: |\s)/i, ''), records: member.records }); }}
+                        aria-label={`View ${member.count} ${roleCard.title.replace(/^Count By(?: |\s)/i, '').replace(/^Count BY(?: |\s)/i, '')} records for ${member.name}`}
                       >
                         <span className="pm-itdl-member-name">{member.name}</span>
                         <span className="pm-itdl-member-count" style={{ background: 'var(--c-primary)', color: 'var(--surface-primary)', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{member.count}</span>
@@ -845,7 +976,7 @@ export function ProjectMonitoringPage() {
                   className="pm-export-btn"
                   onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}
                 >
-                  <Download size={14} /> Export
+                  <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
                 </button>
               </div>
             </div>
@@ -891,6 +1022,7 @@ export function ProjectMonitoringPage() {
                     <ProjectRow
                       key={project.id}
                       project={project}
+                      changeRequests={changeRequestsList}
                       isExpanded={expandedId === project.id}
                       onToggleExpand={() => setExpandedId(expandedId === project.id ? null : project.id)}
                       mode={lifecycleMode}
@@ -903,71 +1035,139 @@ export function ProjectMonitoringPage() {
         </div>
       )}
 
-      {/* TAB 3: PROJECT BREACHES (Matches Image 4) */}
+      {/* TAB 3: PROJECT BREACHES */}
       {activeTab === 'breaches' && (
-        <div className="pm-tab-content">
+        <div className="pm-tab-content pm-tab-content--breaches">
+          {/* Governance Summary Banner */}
+          <div className="pm-breaches-banner">
+
+            <div className="pm-breaches-banner-pills">
+              <div className="pm-banner-pill pill-red">
+                <span className="pill-dot" />
+                <span className="pill-label">SLA Breaches</span>
+                <span className="pill-val">{totalSlaBreaches}</span>
+              </div>
+              <div className="pm-banner-pill pill-amber">
+                <span className="pill-dot" />
+                <span className="pill-label">Due Date Alerts</span>
+                <span className="pill-val">{totalDueDateBreaches}</span>
+              </div>
+              <div className="pm-banner-pill pill-emerald">
+                <span className="pill-dot" />
+                <span className="pill-label">CR Exceptions</span>
+                <span className="pill-val">{totalCrBreaches}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3-Column Governance Grid */}
           <div className="pm-governance-grid">
-            <div className="pm-gov-card">
+            {/* Column 1: SLA Breaches */}
+            <div className="pm-gov-card pm-gov-card--red">
               <div className="pm-gov-card-header">
-                <AlertTriangle size={14} className="pm-gov-card-icon text-red" />
-                <h3 className="pm-card-title">SLA &amp; Phase Breaches</h3>
+                <div className="pm-gov-header-left">
+                  <div className="pm-gov-icon-badge badge-red">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div className="pm-gov-title-block">
+                    <h3 className="pm-card-title">SLA &amp; Operational Breaches</h3>
+                    <span className="pm-card-subtitle">7 Rule Categories</span>
+                  </div>
+                </div>
+                <span className="pm-gov-total-badge badge-red">{totalSlaBreaches}</span>
               </div>
               <div className="pm-gov-card-body">
                 {breachMetrics.sla.map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
+                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : 'disabled-metric'}`}
                     onClick={() => {
-                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
+                      if (m.count > 0) setDrilldownStage(m);
                     }}
                   >
-                    <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
+                    <div className="pm-breach-metric-left">
+                      <span className={`pm-metric-dot ${m.count > 0 ? 'dot-red' : 'dot-muted'}`} />
+                      <span className="pm-breach-label">{m.label}</span>
+                    </div>
+                    <div className="pm-breach-metric-right">
+                      <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero nonzero-red'}`}>{m.count}</span>
+                      {m.count > 0 && <ChevronRight size={13} className="pm-breach-chevron" />}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="pm-gov-card">
+            {/* Column 2: Due Dates */}
+            <div className="pm-gov-card pm-gov-card--amber">
               <div className="pm-gov-card-header">
-                <Calendar size={14} className="pm-gov-card-icon text-amber" />
-                <h3 className="pm-card-title">Due Dates</h3>
+                <div className="pm-gov-header-left">
+                  <div className="pm-gov-icon-badge badge-amber">
+                    <Calendar size={16} />
+                  </div>
+                  <div className="pm-gov-title-block">
+                    <h3 className="pm-card-title">Due Date Thresholds</h3>
+                    <span className="pm-card-subtitle">3 Rule Categories</span>
+                  </div>
+                </div>
+                <span className="pm-gov-total-badge badge-amber">{totalDueDateBreaches}</span>
               </div>
               <div className="pm-gov-card-body">
                 {breachMetrics.dueDate.map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
+                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : 'disabled-metric'}`}
                     onClick={() => {
-                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
+                      if (m.count > 0) setDrilldownStage(m);
                     }}
                   >
-                    <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
+                    <div className="pm-breach-metric-left">
+                      <span className={`pm-metric-dot ${m.count > 0 ? 'dot-amber' : 'dot-muted'}`} />
+                      <span className="pm-breach-label">{m.label}</span>
+                    </div>
+                    <div className="pm-breach-metric-right">
+                      <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero nonzero-amber'}`}>{m.count}</span>
+                      {m.count > 0 && <ChevronRight size={13} className="pm-breach-chevron" />}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="pm-gov-card">
+            {/* Column 3: CR Exceptions */}
+            <div className="pm-gov-card pm-gov-card--emerald">
               <div className="pm-gov-card-header">
-                <ShieldCheck size={14} className="pm-gov-card-icon text-emerald" />
-                <h3 className="pm-card-title">CR Exceptions</h3>
+                <div className="pm-gov-header-left">
+                  <div className="pm-gov-icon-badge badge-emerald">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <div className="pm-gov-title-block">
+                    <h3 className="pm-card-title">CR Governance Exceptions</h3>
+                    <span className="pm-card-subtitle">{breachMetrics.cr.length} Rule Categories</span>
+                  </div>
+                </div>
+                <span className="pm-gov-total-badge badge-emerald">{totalCrBreaches}</span>
               </div>
               <div className="pm-gov-card-body">
                 {breachMetrics.cr.map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : ''}`}
+                    className={`pm-breach-metric ${m.count > 0 ? 'clickable' : 'disabled-metric'}`}
                     onClick={() => {
-                      if (m.count > 0) setDrilldownStage({ key: m.id, label: m.label, count: m.count });
+                      if (m.count > 0) setDrilldownStage(m);
                     }}
                   >
-                    <span className="pm-breach-label">{m.label}</span>
-                    <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero'}`}>{m.count}</span>
+                    <div className="pm-breach-metric-left">
+                      <span className={`pm-metric-dot ${m.count > 0 ? 'dot-emerald' : 'dot-muted'}`} />
+                      <span className="pm-breach-label">{m.label}</span>
+                    </div>
+                    <div className="pm-breach-metric-right">
+                      <span className={`pm-breach-val ${m.count === 0 ? 'zero' : 'nonzero nonzero-emerald'}`}>{m.count}</span>
+                      {m.count > 0 && <ChevronRight size={13} className="pm-breach-chevron" />}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -982,6 +1182,7 @@ export function ProjectMonitoringPage() {
           stage={drilldownStage}
           onClose={() => setDrilldownStage(null)}
           projectsData={categoryProjects}
+          changeRequestsData={changeRequestsList}
         />
       )}
     </div>

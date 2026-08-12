@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshCw, Wand2, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Wand2, AlertTriangle, X, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
+import { Link } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 
 import { useToast } from '@hooks/useToast';
 
@@ -185,9 +187,16 @@ export function StepMapColumns({ files, colMappings, onColMappingsChange, onBack
   return (
     <>
       <div className="rwiz-step-header">
-        <div className="rwiz-step-header-left">
-          <h2 className="rwiz-step-title">Step 3: Map Columns</h2>
-          <p className="rwiz-step-subtitle">Map columns from source file to corresponding columns in destination file.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="rwiz-step-header-left">
+            <h2 className="rwiz-step-title">Step 3: Map Columns</h2>
+            <p className="rwiz-step-subtitle">Map columns from source file to corresponding columns in destination file.</p>
+          </div>
+          <Link to={ROUTES.RECONCILIATION_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="rwiz-page-guide-btn">
+            <FileText size={14} />
+            <span>User Guide</span>
+            <ExternalLink size={14} />
+          </Link>
         </div>
         <div className="rwiz-step-header-actions">
           <button type="button" className="rwiz-btn rwiz-btn-outline" onClick={() => setShowResetConfirm(true)}>

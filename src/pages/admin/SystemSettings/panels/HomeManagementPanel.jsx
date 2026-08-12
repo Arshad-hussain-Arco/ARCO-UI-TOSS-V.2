@@ -1,5 +1,5 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Edit2, LayoutGrid, Loader2, Plus, Trash2, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -527,7 +527,7 @@ function HomeManagementPanelComponent() {
                     }}
                     title="Edit Card"
                   >
-                    <Edit2 size={13} />
+                    <Edit size={13} />
                   </button>
                   <button
                     type="button"
@@ -550,7 +550,7 @@ function HomeManagementPanelComponent() {
                     }}
                     title="Delete Card"
                   >
-                    <Trash2 size={13} />
+                    <Trash size={13} />
                   </button>
                 </div>
 

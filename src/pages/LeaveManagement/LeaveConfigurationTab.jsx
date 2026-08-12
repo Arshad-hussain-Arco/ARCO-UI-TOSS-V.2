@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, ArrowUpDown, Edit2, Check, X, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ArrowUpDown, Edit, Check, X, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
 import { activatable } from '@utils/interactive';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -414,7 +414,7 @@ export function LeaveConfigurationTab() {
                   <button className="lc-cancel-btn" onClick={handleCancelEdit} disabled={isSaving}><X size={14} /></button>
                 </div>
               ) : (
-                <button className="lc-edit-btn" onClick={() => handleStartEdit(emp)}><Edit2 size={14} /></button>
+                <button className="lc-edit-btn" onClick={() => handleStartEdit(emp)}><Edit size={14} /></button>
               )
             )}
           </td>
@@ -474,36 +474,11 @@ export function LeaveConfigurationTab() {
                       <ArrowUpDown size={12} />
                     </div>
                   </th>
-                  <th onClick={() => handleSort('team')} className="sortable">
-                    <div className="th-content">
-                      <span>Team</span>
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('carryOver')} className="sortable text-center">
-                    <div className="th-content center">
-                      <span>Carry Over</span>
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('sickLeave')} className="sortable text-center">
-                    <div className="th-content center">
-                      <span>Sick Leave</span>
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('compOff')} className="sortable text-center">
-                    <div className="th-content center">
-                      <span>Comp-Off</span>
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
-                  <th onClick={() => handleSort('weekendWork')} className="sortable text-center">
-                    <div className="th-content center">
-                      <span>Weekend Work</span>
-                      <ArrowUpDown size={12} />
-                    </div>
-                  </th>
+                  <th>Team</th>
+                  <th className="text-center">Carry Over</th>
+                  <th className="text-center">Sick Leave</th>
+                  <th className="text-center">Comp-Off</th>
+                  <th className="text-center">Weekend Work</th>
                   <th className="text-right">Edit</th>
                 </tr>
               </thead>

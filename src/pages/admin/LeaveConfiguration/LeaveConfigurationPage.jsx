@@ -3,11 +3,11 @@ import {
   Calendar,
   Check,
   ChevronDown,
-  Edit2,
+  Edit,
   ListChecks,
   Plus,
   Search,
-  Trash2,
+  Trash,
   X,
   RefreshCw,
   Loader2,
@@ -1382,19 +1382,19 @@ export function LeaveConfigurationPage() {
                               <div style={{ display: 'inline-flex', gap: '4px' }}>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
+                                  className="action-icon-btn edit"
                                   title="Edit Holiday"
                                   onClick={() => startHolidayInlineEdit(h)}
                                 >
-                                  <Edit2 size={15} />
+                                  <Edit size={15} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn danger"
+                                  className="action-icon-btn delete"
                                   title="Delete Holiday"
                                   onClick={() => handleDeleteHoliday(h)}
                                 >
-                                  <Trash2 size={15} />
+                                  <Trash size={15} />
                                 </button>
                               </div>
                             )}
@@ -1512,19 +1512,19 @@ export function LeaveConfigurationPage() {
                             <div style={{ display: 'inline-flex', gap: '4px' }}>
                               <button
                                 type="button"
-                                className="lc-ghost-btn"
+                                className="action-icon-btn edit"
                                 title="Edit Leave Type & Policy"
                                 onClick={() => openEditCombinedModal(row)}
                               >
-                                <Edit2 size={15} />
+                                <Edit size={15} />
                               </button>
                               <button
                                 type="button"
-                                className="lc-ghost-btn danger"
+                                className="action-icon-btn delete"
                                 title="Deactivate Leave Type & Policy"
                                 onClick={() => handleDeleteCombined(row)}
                               >
-                                <Trash2 size={15} />
+                                <Trash size={15} />
                               </button>
                             </div>
                           </td>
@@ -1625,19 +1625,19 @@ export function LeaveConfigurationPage() {
                               <div style={{ display: 'inline-flex', gap: '4px' }}>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
+                                  className="action-icon-btn edit"
                                   title="Edit Overlap Policy"
                                   onClick={() => openEditOverlapModal(rule)}
                                 >
-                                  <Edit2 size={15} />
+                                  <Edit size={15} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn danger"
+                                  className="action-icon-btn delete"
                                   title="Deactivate Overlap Policy"
                                   onClick={() => handleDeleteOverlapPolicy(rule)}
                                 >
-                                  <Trash2 size={15} />
+                                  <Trash size={15} />
                                 </button>
                               </div>
                             </td>

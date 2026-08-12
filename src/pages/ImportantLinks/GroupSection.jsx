@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { ExternalLink, Edit, Trash } from 'lucide-react';
 
 import './ImportantLinksPage.css';
 
@@ -39,7 +39,7 @@ function LinkItem({ link, onEdit, onDelete }) {
             onEdit(link);
           }}
         >
-          <Pencil size={12} />
+          <Edit size={12} />
         </button>
 
         <button
@@ -52,7 +52,7 @@ function LinkItem({ link, onEdit, onDelete }) {
             onDelete(link);
           }}
         >
-          <Trash2 size={12} />
+          <Trash size={12} />
         </button>
 
         <a

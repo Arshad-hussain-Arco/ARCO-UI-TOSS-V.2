@@ -6,8 +6,8 @@ import {
   ShieldCheck,
   Users,
   ShieldAlert,
-  Edit2,
-  Trash2,
+  Edit,
+  Trash,
   ChevronDown,
   ChevronUp,
   X,
@@ -503,7 +503,7 @@ export function RoleManagementPage() {
                                       isExpanded,
                                     })}
                                   >
-                                    <Edit2 size={13} />
+                                    <Edit size={13} />
                                     {/* <span>Configure</span> */}
                                     {/* {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} */}
                                   </button>
@@ -516,7 +516,7 @@ export function RoleManagementPage() {
                                       label: `Delete ${role.name}`,
                                     })}
                                   >
-                                    <Trash2 size={13} />
+                                    <Trash size={13} />
                                     {/* <span>Delete</span> */}
                                   </button>
                                 </div>

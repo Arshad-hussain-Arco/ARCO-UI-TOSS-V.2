@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, FileText, FolderPlus, Edit3 } from 'lucide-react';
+import { X, Upload, FileText, FolderPlus, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { documentService } from '@services/documentService';
 

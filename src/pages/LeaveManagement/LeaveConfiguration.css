@@ -264,7 +264,7 @@
 }
 
 .text-right {
-  text-align: right;
+  display: flex;
 }
 
 .lc-action-btns {
@@ -288,7 +288,7 @@
   color: var(--text-secondary);
 }
 
-.lc-act-btn.edit:hover   {
+.lc-act-btn.edit:hover {
   background: var(--bg-hover);
 }
 
@@ -298,7 +298,7 @@
   border-color: var(--c-primary);
 }
 
-.lc-act-btn.save:hover   {
+.lc-act-btn.save:hover {
   background: var(--bg-hover);
 }
 
@@ -308,7 +308,7 @@
   border-color: var(--border-primary);
 }
 
-.lc-act-btn.cancel:hover   {
+.lc-act-btn.cancel:hover {
   background: var(--bg-hover);
 }
 
@@ -372,7 +372,7 @@
   flex-shrink: 0;
 }
 
-.lc-expand-btn:hover   {
+.lc-expand-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -407,20 +407,24 @@
 }
 
 .lc-edit-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-secondary, #e2e8f0);
+    background: var(--surface-primary, #ffffff);
+    color: var(--text-secondary, #64748b);
+        cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .lc-edit-btn:hover   {
-  background: var(--bg-hover);
+   color: var(--c-info);
+  border-color: var(--c-info);
+  background: var(--surface-primary, #ffffff);
 }
 
 .lc-action-btns {

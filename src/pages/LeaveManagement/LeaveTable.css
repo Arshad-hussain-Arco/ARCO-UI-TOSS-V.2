@@ -196,14 +196,14 @@
   white-space: nowrap;
 }
 
-.leave-table-action-button.action-cancel {
-  background: var(--c-danger-light);
+.leave-table-action-button.action-cancel { 
   color: var(--c-danger);
   border-color: #fca5a5;
 }
 
-.leave-table-action-button.action-cancel:hover   {
-  background: var(--bg-hover);
+.leave-table-action-button.action-cancel:hover   { 
+   background: var(--c-danger-light);
+   border-color: var(--c-danger);
 }
 
 .leave-table-action-button.action-cancel .leave-table-action-icon {
@@ -211,13 +211,13 @@
 }
 
 .leave-table-action-button.action-edit {
-  background: #dbeafe;
+  
   color: #1d4ed8;
   border-color: #bfdbfe;
 }
 
 .leave-table-action-button.action-edit:hover   {
-  background: var(--bg-hover);
+   background: #dbeafe;
 }
 
 .leave-table-action-button.action-edit .leave-table-action-icon {

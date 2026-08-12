@@ -1097,3 +1097,27 @@
   font-size: 11px;
   color: var(--text-tertiary);
 }
+
+.tsa-util-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.tsa-util-badge[data-status='low'] {
+  color: var(--c-success);
+  background-color: var(--c-success-light);
+}
+
+.tsa-util-badge[data-status='moderate'] {
+  color: var(--c-warning);
+  background-color: var(--c-warning-light);
+}
+
+.tsa-util-badge[data-status='high'] {
+  color: var(--c-danger);
+  background-color: var(--c-danger-light);
+}

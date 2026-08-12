@@ -7,7 +7,7 @@ import {
   Key,
   User,
   Info,
-  Trash2,
+  Trash,
   Camera,
   Mail,
   Phone,
@@ -25,7 +25,6 @@ import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
-
 import { ActiveConsultants } from './ActiveConsultants';
 import { InactiveConsultants } from './InactiveConsultants';
 import { TeamsView } from './TeamsView';
@@ -259,7 +258,7 @@ export function ConsultantsPage() {
       if (found) compLocName = found.name;
     }
 
-    setFormData({ 
+    setFormData({
       ...c,
       username: c.username || c.user_name || c.userId || '',
       joiningDate: c.joiningDate || c.joining_date || '',
@@ -664,7 +663,7 @@ export function ConsultantsPage() {
                           <img
                             src={
                               formData.avatar ||
-                              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100'
+                              'https://static.vecteezy.com/system/resources/previews/024/766/958/non_2x/default-male-avatar-profile-icon-social-media-user-free-vector.jpg'
                             }
                             alt="Avatar"
                             className="ef-avatar-img"
@@ -693,7 +692,7 @@ export function ConsultantsPage() {
                                 className="ef-avatar-btn-sm ef-avatar-btn-danger"
                                 onClick={handlePhotoRemove}
                               >
-                                <Trash2 size={10} /> Remove
+                                <Trash size={10} /> Remove
                               </button>
                             )}
                           </div>

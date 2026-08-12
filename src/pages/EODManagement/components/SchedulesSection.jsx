@@ -4,8 +4,8 @@ import {
   Clock,
   Plus,
   RefreshCw,
-  Edit2,
-  Trash2,
+  Edit,
+  Trash,
   AlertTriangle,
   Loader2,
 } from 'lucide-react';
@@ -319,7 +319,7 @@ export function SchedulesSection() {
                               onClick={(e) => handleOpenEdit(sch, e)}
                               title="Edit Schedule"
                             >
-                              <Edit2 size={12} />
+                              <Edit size={12} />
                             </button>
                             <button
                               type="button"
@@ -330,7 +330,7 @@ export function SchedulesSection() {
                               }}
                               title="Delete Schedule"
                             >
-                              <Trash2 size={12} />
+                              <Trash size={12} />
                             </button>
                           </div>
                         </div>

@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useEffect } from 'react';
-import { ArrowUpDown, Edit2, Loader2 } from 'lucide-react';
+import { ArrowUpDown, Edit, Loader2 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
@@ -167,7 +167,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                     onClick={() => handleOpenEdit(row)}
                     title="Edit Column Mapping"
                   >
-                    <Edit2 size={16} />
+                    <Edit size={16} />
                   </button>
                 </td>
               </tr>
