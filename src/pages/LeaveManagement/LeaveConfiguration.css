@@ -293,19 +293,20 @@
 }
 
 .lc-act-btn.save {
-  background: var(--c-primary);
-  color: var(--surface-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  color: #ffffff;
+  border-color: #006633;
 }
 
 .lc-act-btn.save:hover {
-  background: var(--bg-hover);
+  background: #006633;
+  opacity: 0.9;
 }
 
 .lc-act-btn.cancel {
   background: var(--surface-primary);
-  color: var(--c-danger);
-  border-color: var(--border-primary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 
 .lc-act-btn.cancel:hover {
@@ -434,19 +435,30 @@
 }
 
 .lc-save-btn {
-  background: var(--c-success);
-  color: white;
-  border: none;
+  background: #006633;
+  color: #ffffff;
+  border: 1px solid #006633;
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-save-btn:hover {
+  background: #006633;
+  opacity: 0.9;
 }
 
 .lc-cancel-btn {
-  background: var(--bg-hover);
+  background: var(--surface-primary);
   color: var(--text-primary);
-  border: none;
+  border: 1px solid var(--border-secondary);
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-cancel-btn:hover {
+  background: var(--bg-hover);
 }

@@ -728,8 +728,8 @@
 }
 
 .murex-btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
   color: var(--text-primary);
 }
 

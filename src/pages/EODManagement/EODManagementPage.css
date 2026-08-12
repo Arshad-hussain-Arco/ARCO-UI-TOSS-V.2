@@ -964,26 +964,29 @@
   font-family: var(--font-family);
 }
 .eod-modal-btn.primary {
-  background:#006633  ;
+  background: #006633;
   color: #ffffff;
 }
 .eod-modal-btn.primary:hover {
   background: #006633;
+  opacity: 0.9;
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 .eod-modal-btn.cancel {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 .eod-modal-btn.cancel:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 .eod-modal-btn.danger {
-  background: var(--c-danger-light);
-  color: var(--c-danger);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+.eod-modal-btn.danger:hover {
+  background: var(--bg-hover);
 }
  
 

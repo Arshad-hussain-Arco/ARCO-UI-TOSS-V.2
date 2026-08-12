@@ -312,7 +312,8 @@
 }
 
 .consultants-add-button:hover {
-  background-color: var(--c-primary-hover);
+  background-color: #006633;
+  opacity: 0.9;
 }
 
 .consultants-add-icon {
@@ -537,10 +538,10 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 16px;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
   border: 1px solid transparent;
@@ -548,14 +549,13 @@
 }
 
 .con-drawer-btn-cancel {
-  background: transparent;
-  border-color: var(--border-primary, #eaeaea);
-  color: var(--text-secondary, #666666);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 
 .con-drawer-btn-cancel:hover {
-  border-color: var(--border-secondary, #d0d0d0);
-  color: var(--text-primary, #111111);
+  background: var(--bg-hover);
 }
 
 .con-drawer-btn-primary {
@@ -569,13 +569,13 @@
 }
 
 .con-drawer-btn-danger {
-  background: var(--c-danger);
-  color:  #ffffff;
-  border-color: var(--c-danger);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 
 .con-drawer-btn-danger:hover {
-  opacity: 0.88;
+  background: var(--bg-hover);
 }
 
 /* Delete confirmation layout */

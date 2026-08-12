@@ -76,20 +76,20 @@
 }
 
 .il-search-clear-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary, #64748b);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
-  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
   margin-left: 4px;
 }
 .il-search-clear-btn:hover {
-  background: var(--bg-tertiary, #f1f5f9);
-  color: var(--text-primary, #0f172a);
+  background: var(--bg-hover);
 }
 
 /* ── Custom Group Filter Trigger (matching app Select component) ─ */
@@ -1044,8 +1044,11 @@
     display: none;
   }
 }
-.tv-btn.cancel{
-    background-color: var(--surface-primary);
-    border: 1px solid var(--border-secondary);
-    color: var(--text-primary);
+.tv-btn.cancel {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+.tv-btn.cancel:hover {
+  background-color: var(--bg-hover);
 }

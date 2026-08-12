@@ -48,7 +48,7 @@
 
 .action-icon-btn.delete:not(:disabled):hover,
 .action-icon-btn.danger:not(:disabled):hover {
-  color: var(--c-danger);
-  border-color: var(--c-danger);
-  background: var(--surface-primary, #ffffff);
+  background: var(--bg-hover);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
 }
