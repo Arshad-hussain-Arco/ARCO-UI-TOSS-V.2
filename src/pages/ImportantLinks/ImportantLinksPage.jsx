@@ -183,8 +183,8 @@ export function ImportantLinksPage() {
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
-          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
+          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
           return;
         }
       }
@@ -239,8 +239,8 @@ export function ImportantLinksPage() {
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
-          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
+          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
           return;
         }
       }
@@ -312,8 +312,8 @@ export function ImportantLinksPage() {
     const category = mergedCategories.find(c => c.id === groupId);
     if (!category) return;
 
-    if (!currentPinnedStatus && pinnedLinks.length >= 5 && !pinnedLinks.some(p => p.groupId === groupId)) {
-      toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+    if (!currentPinnedStatus && pinnedLinks.length >= 4 && !pinnedLinks.some(p => p.groupId === groupId)) {
+      toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
       return;
     }
 

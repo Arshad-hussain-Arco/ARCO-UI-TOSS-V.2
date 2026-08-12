@@ -94,6 +94,7 @@ const MONTHS = [
 ];
 const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function avatarColor(name) {
+  if (!name) return AVATAR_COLORS[0];
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 export function initials(name) {

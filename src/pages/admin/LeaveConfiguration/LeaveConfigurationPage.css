@@ -38,8 +38,7 @@
   padding: 0 32px;
   background-color: var(--surface-primary);
   border-bottom: 1px solid var(--border-primary);
-  overflow-x: auto;
-  position: sticky;
+  overflow-x: auto; 
   top: 64px; /* match the header height */
   z-index: 10;
 }
@@ -432,18 +431,23 @@
 }
 
 .lc-inline-btn.save {
-  background-color: var(--c-primary);
-  color: var(--surface-primary);
+  background-color: #006633;
+  color: #ffffff;
+}
+
+.lc-inline-btn.save:hover {
+  background-color: #006633;
+  opacity: 0.9;
 }
 
 .lc-inline-btn.cancel {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 
 .lc-inline-btn.cancel:hover {
-  background-color: var(--c-danger-light);
-  color: var(--c-danger);
+  background-color: var(--bg-hover);
 }
 
 /* Empty State */

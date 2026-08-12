@@ -964,31 +964,31 @@
   font-family: var(--font-family);
 }
 .eod-modal-btn.primary {
-  background: var(--c-primary);
+  background: #006633;
   color: #ffffff;
 }
 .eod-modal-btn.primary:hover {
-  background: var(--c-primary-hover);
+  background: #006633;
+  opacity: 0.9;
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 .eod-modal-btn.cancel {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 .eod-modal-btn.cancel:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 .eod-modal-btn.danger {
-  background: var(--c-danger-light);
-  color: var(--c-danger);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 .eod-modal-btn.danger:hover {
-  background: var(--c-danger);
-  color: var(--text-inverse);
+  background: var(--bg-hover);
 }
+ 
 
 /* ── Configuration grid ──────────────────────────────────────── */
 .eod-config-grid {
@@ -1530,13 +1530,13 @@
 }
 
 .eod-modal-btn.primary-green {
-  background: #005A36 !important;
-  color: var(--surface-primary) !important;
+  background: #006633 !important;
+  color: #ffffff !important;
   border: none !important;
 }
 
 .eod-modal-btn.primary-green:hover {
-  background: #00472b !important;
+  background: #006633 !important;
   box-shadow: 0 2px 6px rgba(0, 90, 54, 0.3);
 }
 
@@ -1833,7 +1833,7 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 5px;
-  background: var(--c-primary);
+  background:  #006633;
   color:  #ffffff;
   border: none;
   font-size: 12px;
@@ -1844,7 +1844,7 @@
   font-family: var(--font-family);
 }
 .eod-add-btn:hover {
-  background: var(--c-primary-hover);
+  background:  #006633;
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 

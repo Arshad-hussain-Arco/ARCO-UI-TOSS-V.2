@@ -728,8 +728,8 @@
 }
 
 .murex-btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
   color: var(--text-primary);
 }
 
@@ -738,7 +738,7 @@
 }
 
 .murex-btn-primary {
-  background: var(--c-primary);
+  background: #006633;
   color: #ffffff;
 }
 
@@ -1168,7 +1168,7 @@
   justify-content: center;
   gap: 4px;
   padding: 7px;
-  background: var(--c-primary);
+  background:  #006633;
   border: none;
   border-radius: 3px;
   font-size: 10px;

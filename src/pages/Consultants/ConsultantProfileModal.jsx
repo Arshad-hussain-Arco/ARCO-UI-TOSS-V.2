@@ -23,7 +23,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
   const fetchInfo = useCallback(async () => {
     const info = await consultantService.getConsultantInfo(consultantId);
     let photoUrl = info.photo || info.avatar || '';
-    
+
     // Decode base64 if needed just like in utils.js
     if (photoUrl.startsWith('ZGF0Y')) {
       try {
@@ -35,10 +35,10 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
     if (photoUrl && !photoUrl.startsWith('data:image')) {
       photoUrl = `data:image/jpeg;base64,${photoUrl}`;
     }
-    
+
     return { ...info, avatar: photoUrl };
   }, [consultantId]);
-  
+
   const { data, isLoading, error, refetch } = useAsync(fetchInfo);
 
   if (error) {
@@ -88,12 +88,12 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
     leaveSummary = info.leaveSummary;
   }
 
-  const isActive = 
+  const isActive =
     info.active === true ||
-    info.account_status?.toLowerCase() === 'active' || 
-    Number(info.status_id) === 1 || 
-    info.status?.toLowerCase() === 'active' || 
-    info.is_active || 
+    info.account_status?.toLowerCase() === 'active' ||
+    Number(info.status_id) === 1 ||
+    info.status?.toLowerCase() === 'active' ||
+    info.is_active ||
     info.status_name?.toLowerCase() === 'active' ||
     info.account_status === 1 ||
     info.status === 1;
@@ -101,7 +101,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
   return (
     <div className="cp-modal-overlay" {...dismissBackdrop(onClose)}>
       <div className="cp-modal-content" role="dialog" aria-modal="true">
-        
+
         {/* Header */}
         <div className="cp-modal-header">
           <div className="cp-modal-header-info">
@@ -116,9 +116,9 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                 {(info.user_id || info.user_name) && <span className="cp-badge">{info.user_id || info.user_name}</span>}
                 {(info.designation_name || info.designation) && <span className="cp-badge" style={{ background: 'var(--c-info-light)', color: 'var(--c-info)' }}>{info.designation_name || info.designation}</span>}
                 {(info.team_name || info.team) && <span className="cp-badge" style={{ background: 'var(--c-warning-light)', color: 'var(--c-warning)' }}>{info.team_name || info.team}</span>}
-                <span className="cp-badge" style={{ 
-                  background: isActive ? 'var(--c-success-light)' : 'var(--c-danger-light)', 
-                  color: isActive ? 'var(--c-success)' : 'var(--c-danger)' 
+                <span className="cp-badge" style={{
+                  background: isActive ? 'var(--c-success-light)' : 'var(--c-danger-light)',
+                  color: isActive ? 'var(--c-success)' : 'var(--c-danger)'
                 }}>
                   {isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -132,7 +132,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
 
         {/* Body */}
         <div className="cp-modal-body">
-          
+
           <div className="cp-section">
             <h4 className="cp-section-title"><User size={14} /> General Information</h4>
             <div className="cp-grid">
@@ -192,62 +192,62 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
           {(() => {
             const managerName = info.manager_name || info.reporting_manager || info.manager;
             const isManager = user?.emp_id === info.manager_id || user?.userId === info.manager_id || (user?.name && managerName && user.name.toLowerCase() === managerName.toLowerCase());
-            
+
             if (!isManager || leaveSummary.length === 0) return null;
-            
+
             return (
               <div className="cp-section">
-              <h4 className="cp-section-title">Leave Summary</h4>
-              <div className="cp-leave-grid">
-                {leaveSummary.map((leave, idx) => {
-                  const total = (leave.entitled || 0) + (leave.carried_forward || 0);
-                  const used = (leave.used || 0);
-                  const pending = (leave.pending || 0);
-                  const available = leave.available ?? 0;
-                  
-                  const usedPct = total > 0 ? (used / total) * 100 : 0;
-                  const pendingPct = total > 0 ? (pending / total) * 100 : 0;
-                  
-                  return (
-                    <div className="cp-leave-card" key={idx}>
-                      <div className="cp-leave-header">
-                        <span className="cp-leave-name">{leave.leave_type || 'Leave'}</span>
-                        <span className="cp-leave-available">{available}</span>
-                      </div>
-                      
-                      <div className="cp-leave-progress">
-                        <div className="cp-progress-used" style={{ width: `${usedPct}%` }} title={`Used: ${used}`} />
-                        <div className="cp-progress-pending" style={{ width: `${pendingPct}%` }} title={`Pending: ${pending}`} />
-                      </div>
-                      
-                      <div className="cp-leave-stats">
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Total</span>
-                          <span className="cp-leave-stat-val">{total}</span>
+                <h4 className="cp-section-title">Leave Summary</h4>
+                <div className="cp-leave-grid">
+                  {leaveSummary.map((leave, idx) => {
+                    const total = (leave.entitled || 0) + (leave.carried_forward || 0);
+                    const used = (leave.used || 0);
+                    const pending = (leave.pending || 0);
+                    const available = leave.available ?? 0;
+
+                    const usedPct = total > 0 ? (used / total) * 100 : 0;
+                    const pendingPct = total > 0 ? (pending / total) * 100 : 0;
+
+                    return (
+                      <div className="cp-leave-card" key={idx}>
+                        <div className="cp-leave-header">
+                          <span className="cp-leave-name">{leave.leave_type || 'Leave'}</span>
+                          <span className="cp-leave-available">{available}</span>
                         </div>
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Used</span>
-                          <span className="cp-leave-stat-val">{used}</span>
+
+                        <div className="cp-leave-progress">
+                          <div className="cp-progress-used" style={{ width: `${usedPct}%` }} title={`Used: ${used}`} />
+                          <div className="cp-progress-pending" style={{ width: `${pendingPct}%` }} title={`Pending: ${pending}`} />
                         </div>
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Pending</span>
-                          <span className="cp-leave-stat-val">{pending}</span>
-                        </div>
-                        {leave.advance_taken > 0 && (
+
+                        <div className="cp-leave-stats">
                           <div className="cp-leave-stat-col">
-                            <span className="cp-leave-stat-label">Advance</span>
-                            <span className="cp-leave-stat-val">{leave.advance_taken}</span>
+                            <span className="cp-leave-stat-label">Total</span>
+                            <span className="cp-leave-stat-val">{total}</span>
                           </div>
-                        )}
+                          <div className="cp-leave-stat-col">
+                            <span className="cp-leave-stat-label">Used</span>
+                            <span className="cp-leave-stat-val">{used}</span>
+                          </div>
+                          <div className="cp-leave-stat-col">
+                            <span className="cp-leave-stat-label">Balance</span>
+                            <span className="cp-leave-stat-val">{pending}</span>
+                          </div>
+                          {leave.advance_taken > 0 && (
+                            <div className="cp-leave-stat-col">
+                              <span className="cp-leave-stat-label">Advance</span>
+                              <span className="cp-leave-stat-val">{leave.advance_taken}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
             );
           })()}
-          
+
         </div>
       </div>
     </div>

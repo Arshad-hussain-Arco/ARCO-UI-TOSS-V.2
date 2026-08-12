@@ -1181,8 +1181,8 @@
   background: var(--bg-hover);
 }
 .al-btn-primary {
-  background: var(--c-primary);
-  border: 1px solid var(--c-primary);
+  background: #006633;
+  border: 1px solid  #006633;
   color: #ffffff;
 }
 .al-btn-primary:hover:not(:disabled)   {

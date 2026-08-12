@@ -461,7 +461,6 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setIsModalOpen(false)}
               disabled={isSaving}
             >
@@ -470,7 +469,7 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-primary)', color: '#ffffff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ gap: '6px' }}
               onClick={handleSaveTeam}
               disabled={isSaving}
             >
@@ -526,7 +525,6 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}
               onClick={() => setDeleteTarget(null)}
               disabled={isSaving}
             >
@@ -534,8 +532,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             </button>
             <button
               type="button"
-              className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: 'var(--text-inverse)', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              className="tv-btn danger"
+              style={{ gap: '6px' }}
               onClick={executeDelete}
               disabled={isSaving}
             >
