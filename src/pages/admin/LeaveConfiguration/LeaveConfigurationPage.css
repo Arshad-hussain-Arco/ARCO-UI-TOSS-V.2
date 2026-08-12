@@ -112,7 +112,7 @@
 
 /* Content Area */
 .lc-tab-content {
-  padding: 24px 32px;
+  padding: 16px;
   flex: 1;
   overflow: hidden;
   display: flex;
