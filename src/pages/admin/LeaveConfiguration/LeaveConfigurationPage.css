@@ -38,8 +38,7 @@
   padding: 0 32px;
   background-color: var(--surface-primary);
   border-bottom: 1px solid var(--border-primary);
-  overflow-x: auto;
-  position: sticky;
+  overflow-x: auto; 
   top: 64px; /* match the header height */
   z-index: 10;
 }

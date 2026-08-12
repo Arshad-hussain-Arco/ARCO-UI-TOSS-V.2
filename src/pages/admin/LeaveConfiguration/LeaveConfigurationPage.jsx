@@ -1132,9 +1132,7 @@ export function LeaveConfigurationPage() {
   return (
     <div className="lc-redesign-container">
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="lc-page-header">
-        <h1 className="lc-page-title">LMS Configurations</h1>
-      </div>
+
 
       {/* ── Tabbed Navigation Bar ─────────────────────────────────────────── */}
       <div className="lc-nav-tabs" role="tablist" aria-label="Leave configurations sections">
