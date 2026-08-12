@@ -15,6 +15,7 @@ import { Line, Doughnut } from 'react-chartjs-2';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 import { PlotlyChart, getRunGanttSpec } from './MurexRuntimeTrendsPage';
+import { useTheme } from '@hooks/useTheme';
 import './ScriptRunMonitor.css';
 
 ChartJS.register(
@@ -92,8 +93,9 @@ const RunCard = ({ run, index }) => {
       cpuTime: s.cpuTime / 1000,
     }))
   };
-
-  const ganttSpec = steps.length > 0 ? getRunGanttSpec(plotlyRun) : null;
+  const { isDarkMode } = useTheme();
+  const ganttTextColor = isDarkMode ? '#f8fafc' : '#111111';
+  const ganttSpec = steps.length > 0 ? getRunGanttSpec(plotlyRun, ganttTextColor) : null;
 
   return (
     <div className="run-card">
@@ -123,6 +125,53 @@ const RunCard = ({ run, index }) => {
                 No step-level breakdown available for this run.
               </div>
             )}
+          </div>
+          
+          <div className="murex-run-table-container">
+            <table className="murex-run-table">
+              <thead>
+                <tr>
+                  <th>Step</th>
+                  <th style={{ textAlign: 'right' }}>CPU Time</th>
+                  <th style={{ textAlign: 'right' }}>Database Time</th>
+                  <th style={{ textAlign: 'right' }}>Step Total</th>
+                  <th style={{ textAlign: 'right' }}>Cumulative Start</th>
+                  <th style={{ textAlign: 'right' }}>Cumulative End</th>
+                </tr>
+              </thead>
+              <tbody>
+                {steps.map((s, idx) => {
+                  const cpuSec = (s.cpuTime || 0) / 1000;
+                  const dbSec = (s.dbTime || 0) / 1000;
+                  const stepTotal = cpuSec + dbSec;
+                  
+                  let cumStart = 0;
+                  for (let i = 0; i < idx; i++) {
+                    cumStart += ((steps[i].cpuTime || 0) / 1000) + ((steps[i].dbTime || 0) / 1000);
+                  }
+                  const cumEnd = cumStart + stepTotal;
+                  
+                  return (
+                    <tr key={idx}>
+                      <td>{s.name}</td>
+                      <td className="num-cell">{cpuSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                      <td className="num-cell">{dbSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                      <td className="num-cell">{stepTotal.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                      <td className="num-cell">{cumStart.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                      <td className="num-cell">{cumEnd.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                    </tr>
+                  );
+                })}
+                <tr className="total-row">
+                  <td>Total</td>
+                  <td className="num-cell">{totalCpuSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                  <td className="num-cell">{totalDbSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                  <td className="num-cell">{totalDurationSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                  <td className="num-cell">—</td>
+                  <td className="num-cell">Completed: {hhmmss(totalDurationSec)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
