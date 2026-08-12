@@ -233,10 +233,14 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                           <span className="cp-leave-stat-label">Pending</span>
                           <span className="cp-leave-stat-val">{pending}</span>
                         </div>
-                        {leave.advance_taken > 0 && (
+                        {/* outstanding_debt is the live borrowed-against-next-year
+                            figure under the generic negative-balance model —
+                            advance_taken is a legacy field no longer updated
+                            by new leave requests. */}
+                        {leave.outstanding_debt > 0 && (
                           <div className="cp-leave-stat-col">
                             <span className="cp-leave-stat-label">Advance</span>
-                            <span className="cp-leave-stat-val">{leave.advance_taken}</span>
+                            <span className="cp-leave-stat-val">{leave.outstanding_debt}</span>
                           </div>
                         )}
                       </div>

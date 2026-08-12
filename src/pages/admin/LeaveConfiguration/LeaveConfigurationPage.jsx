@@ -234,7 +234,7 @@ function combinedRowToForm(row) {
 }
 
 /** Build the API payload from the form, numeric-coercing and dropping empty-string optionals to null. */
-function combinedFormToPayload(form) {
+function combinedFormToPayload(form, isClaimTarget) {
   const numOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
   return {
     code: form.code.trim().toUpperCase(),
@@ -279,8 +279,16 @@ function combinedFormToPayload(form) {
     carry_forward_expiry_months: form.is_carry_forward_allowed
       ? numOrNull(form.carry_forward_expiry_months)
       : null,
-    allow_negative: form.allow_negative,
-    max_negative_days: form.allow_negative ? Number(form.max_negative_days) || 0 : 0,
+    // Advance leave (negative balance) only applies to a Limited-entitlement
+    // Actual leave type that isn't itself credited by a Claim type — mirrors
+    // the backend's LeavePolicyCreateSerializer.validate(). Force off rather
+    // than trust stale form state left over from a prior category/mode.
+    allow_negative: (
+      form.category === 'ACTUAL' && !form.is_unlimited && !form.is_flexible && !isClaimTarget
+    ) ? form.allow_negative : false,
+    max_negative_days: (
+      form.category === 'ACTUAL' && !form.is_unlimited && !form.is_flexible && !isClaimTarget && form.allow_negative
+    ) ? Number(form.max_negative_days) || 0 : 0,
     effective_from: form.effective_from || null,
     effective_to: form.effective_to || null,
   };
@@ -1008,7 +1016,7 @@ export function LeaveConfigurationPage() {
     }
     setCombinedFieldErrors({});
 
-    const payload = combinedFormToPayload(combinedForm);
+    const payload = combinedFormToPayload(combinedForm, claimTargetCodes.has(combinedForm.code));
 
     setIsSaving(true);
     try {
@@ -1070,6 +1078,9 @@ export function LeaveConfigurationPage() {
       is_unlimited: mode === 'UNLIMITED',
       is_flexible: mode === 'FLEXIBLE',
       entitled_days: mode === 'UNLIMITED' ? '' : prev.entitled_days,
+      // Advance-leave borrowing only applies to Limited entitlement; reset
+      // when switching away so a hidden, stale "on" doesn't ship.
+      ...(mode !== 'LIMITED' ? { allow_negative: false, max_negative_days: 0 } : {}),
     }));
   };
 
@@ -2443,8 +2454,16 @@ export function LeaveConfigurationPage() {
                 </div>
               </div>
 
-              {/* Advance leave borrowing: ACTUAL only */}
-              {combinedForm.category === 'ACTUAL' && (
+              {/* Advance leave borrowing: Limited-entitlement Actual leave
+                  types only, and not a leave type credited by a Claim type
+                  (mirrors LeavePolicyCreateSerializer.validate()). Flexible
+                  types already allow exceeding entitlement (with
+                  justification) via their own mechanism, and a claim-earned
+                  balance isn't something you borrow against. */}
+              {combinedForm.category === 'ACTUAL'
+                && !combinedForm.is_unlimited
+                && !combinedForm.is_flexible
+                && !claimTargetCodes.has(combinedForm.code) && (
                 <>
                   <label className="lc-checkrow" style={{ marginTop: '14px' }}>
                     <input

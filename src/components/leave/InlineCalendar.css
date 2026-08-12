@@ -1,0 +1,299 @@
+/* Shared date-range calendar (InlineCalendar) — used by ApplyLeaveModal and
+   EditLeaveModal. Mirrors the .al-cal-* rules originally defined inline in
+   ApplyLeaveModal.css; kept here so the component and its styling live
+   together regardless of which modal renders it. */
+
+.al-cal-wrap {
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.al-cal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+.al-cal-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.al-cal-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.al-cal-nav-btn {
+  background: none;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 3px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  transition: all 0.12s;
+}
+.al-cal-nav-btn:hover   {
+  background: var(--bg-hover);
+}
+
+.al-cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+}
+.al-cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+.al-cal-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.al-cal-legend-own {
+  border-bottom: 1px solid var(--border-primary);
+}
+.al-cal-legend-dot-striped {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 1px solid var(--text-tertiary);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--text-tertiary),
+    var(--text-tertiary) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+.al-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.al-cal-day-header {
+  padding: 5px 3px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+.al-cal-day-header:last-child {
+  border-right: none;
+}
+
+.al-cal-day {
+  border-right: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 5px;
+  min-height: 40px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.1s;
+  background: var(--surface-primary);
+}
+.al-cal-day:last-child {
+  border-right: none;
+}
+.al-cal-day:hover:not(.al-cal-day-empty):not(.al-cal-day-past) {
+  background: var(--bg-hover);
+}
+.al-cal-day-empty {
+  background: var(--bg-secondary);
+  cursor: default;
+  border-right: 1px solid var(--border-primary);
+}
+.al-cal-day-past {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.al-cal-day-weekend {
+  background: var(--c-warning-light);
+}
+.al-cal-day-weekend:hover:not(.al-cal-day-past) {
+  background: #fde68a;
+}
+.al-cal-day-holiday {
+  background: var(--c-info-light);
+}
+.al-cal-day-holiday:hover:not(.al-cal-day-past) {
+  background: #bfdbfe;
+}
+
+/* Rule 3 — employee's own pending/approved Actual/Nominal requests.
+   Color = type (Leave orange, WFH blue, Offshore purple); pattern =
+   status (pending striped, approved solid). Leave records always block
+   selection, so they're always shown as not-allowed. WFH/Offshore only
+   block a same-type re-application — the backend auto-adjusts a
+   different type applied over them — so their cursor follows the
+   .al-cal-day-past class (applied only when actually ineligible), not a
+   forced override here. */
+.al-cal-day-own-leave-approved,
+.al-cal-day-own-leave-pending {
+  cursor: not-allowed !important;
+}
+.al-cal-day-own-leave-approved {
+  background: #fb923c66;
+}
+.al-cal-day-own-leave-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #fb923c66,
+    #fb923c66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+.al-cal-day-own-wfh-approved {
+  background: #60a5fa66;
+}
+.al-cal-day-own-wfh-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #60a5fa66,
+    #60a5fa66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+.al-cal-day-own-offshore-approved {
+  background: #a78bfa66;
+}
+.al-cal-day-own-offshore-pending {
+  background: repeating-linear-gradient(
+    45deg,
+    #a78bfa66,
+    #a78bfa66 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+/* Custom hover tooltip for blocked (own-request) days — shows instantly on
+   mouse-over instead of the browser's native `title` delay, styled to
+   match the rest of the calendar. Only rendered when data-tooltip is set. */
+.al-cal-day[data-tooltip] {
+  position: relative;
+}
+.al-cal-day[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-size: 10px;
+  line-height: 1.35;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 4px;
+  white-space: normal;
+  width: 180px;
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.al-cal-day[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: var(--text-primary);
+  z-index: 20;
+  pointer-events: none;
+}
+/* Bottom two grid rows: flip the tooltip above the cell instead, so it
+   isn't clipped by .al-cal-wrap's overflow:hidden at the calendar's edge. */
+.al-cal-day[data-tooltip]:nth-last-child(-n + 14):hover::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.al-cal-day[data-tooltip]:nth-last-child(-n + 14):hover::before {
+  top: auto;
+  bottom: 100%;
+  border-bottom-color: transparent;
+  border-top-color: var(--text-primary);
+}
+
+.al-cal-day-in-range {
+  background: var(--c-primary-light) !important;
+}
+.al-cal-day-in-range:hover {
+  background: #c3dfd1 !important;
+}
+
+.al-cal-day-sel-start,
+.al-cal-day-sel-end {
+  background: var(--c-primary) !important;
+}
+.al-cal-day-sel-start .al-cal-day-num,
+.al-cal-day-sel-end .al-cal-day-num {
+  color: var(--text-inverse) !important;
+}
+
+.al-cal-day-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.al-cal-day-today .al-cal-day-num {
+  color: var(--c-primary);
+}
+.al-cal-day-today::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--c-primary);
+}
+.al-cal-dots {
+  display: flex;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+.al-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.al-cal-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  padding: 5px 12px;
+  text-align: center;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+}

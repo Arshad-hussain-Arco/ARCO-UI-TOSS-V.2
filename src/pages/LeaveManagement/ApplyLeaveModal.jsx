@@ -371,6 +371,20 @@ function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = n
     // needsFlexJustification/flexJustification) — so this is a warning to
     // surface in the panel, not a hard submit-blocking error.
     rows.push({ key: 'balance', label: 'Exceeds available balance — justification required', status: 'warn' });
+  } else if (lt.allowNegative && charged - lt.balance <= lt.maxNegativeDays) {
+    // Generic negative-balance ("advance leave") policy — balance may go
+    // negative up to maxNegativeDays; not a submit-blocking error.
+    rows.push({
+      key: 'balance',
+      label: `Exceeds balance — ${(charged - lt.balance).toFixed(1)} day(s) borrowed against next year (max ${lt.maxNegativeDays})`,
+      status: 'warn',
+    });
+  } else if (lt.allowNegative) {
+    rows.push({
+      key: 'balance',
+      label: `Exceeds max advance of ${lt.maxNegativeDays} day(s)`,
+      status: 'error',
+    });
   } else {
     rows.push({ key: 'balance', label: 'Insufficient leave balance', status: 'error' });
   }
@@ -453,7 +467,12 @@ function buildLeaveTypeItem(entry, balances) {
     requiresAttachment: false,
     maxConsecutive: entry.max_consecutive ?? Infinity,
     carryForward: !!entry.is_carry_forward_allowed,
-    advanceLeave: false,
+    // Generic negative-balance ("advance leave") policy — Limited+Actual
+    // types only (see hr_admin.LeavePolicyCreateSerializer.validate() on
+    // the backend). Lets balance go negative up to maxNegativeDays instead
+    // of hard-rejecting once entitlement is exhausted.
+    allowNegative: !isUnlimited && !entry.is_flexible && !!entry.allow_negative,
+    maxNegativeDays: Number(entry.max_negative_days ?? 0),
     minNoticeDays,
     noticePeriod:
       minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,
