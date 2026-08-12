@@ -15,6 +15,7 @@ import {
   Activity,
   Calendar,
   BarChart3,
+  SlidersHorizontal,
   Edit,
   Trash,
   Loader2,
@@ -36,6 +37,7 @@ import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
 import { useDebounce } from '@hooks/useDebounce';
 import { ScriptRunMonitor } from './ScriptRunMonitor';
+import { MurexOverviewTab } from './MurexOverviewTab';
 
 function useChartThemeColor() {
   const [themeColor, setThemeColor] = useState('#000000');
@@ -53,7 +55,7 @@ function useChartThemeColor() {
 }
 
 /* ─── Plotly Chart Wrapper Component (CDN Auto-Loader) ────────── */
-export function PlotlyChart({ data, layout, config, onClick, style }) {
+export function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover, style }) {
   const containerRef = useRef(null);
   const [plotlyLoaded, setPlotlyLoaded] = useState(Boolean(window.Plotly));
 
@@ -90,6 +92,16 @@ export function PlotlyChart({ data, layout, config, onClick, style }) {
       el.on('plotly_click', onClick);
     }
 
+    if (onHover) {
+      el.removeAllListeners?.('plotly_hover');
+      el.on('plotly_hover', onHover);
+    }
+
+    if (onUnhover) {
+      el.removeAllListeners?.('plotly_unhover');
+      el.on('plotly_unhover', onUnhover);
+    }
+
     const handleResize = () => {
       if (window.Plotly && el) {
         window.Plotly.Plots.resize(el);
@@ -103,7 +115,7 @@ export function PlotlyChart({ data, layout, config, onClick, style }) {
         window.Plotly.purge(el);
       }
     };
-  }, [plotlyLoaded, data, layout, config, onClick]);
+  }, [plotlyLoaded, data, layout, config, onClick, onHover, onUnhover]);
 
   if (!plotlyLoaded) {
     return (
@@ -827,7 +839,7 @@ export function MurexRuntimeTrendsPage() {
     [data, pinnedScriptIds, remoteCategories],
   );
 
-  const [activeTab, setActiveTab] = useState('runtime');
+  const [activeTab, setActiveTab] = useState('overview');
   const [filterScriptName, setFilterScriptName] = useState('All');
   const [filterRuntimeChecked, setFilterRuntimeChecked] = useState(true);
   const [filterRuntimeType, setFilterRuntimeType] = useState('Min vs Max');
@@ -1194,22 +1206,38 @@ export function MurexRuntimeTrendsPage() {
       {/* Tabs */}
       <div className="murex-tabs">
         <button
-          className={`murex-tab ${activeTab === 'runtime' ? 'active' : ''}`}
-          onClick={() => setActiveTab('runtime')}
+          type="button"
+          className={`murex-tab ${activeTab === 'overview' ? 'active' : ''}`}
+          data-active={activeTab === 'overview'}
+          onClick={() => setActiveTab('overview')}
         >
-          Runtime Trends
+          <BarChart3 className="murex-tab-icon" />
+          <span className="murex-tab-label">Overview</span>
         </button>
         <button
+          type="button"
+          className={`murex-tab ${activeTab === 'runtime' ? 'active' : ''}`}
+          data-active={activeTab === 'runtime'}
+          onClick={() => setActiveTab('runtime')}
+        >
+          <Clock className="murex-tab-icon" />
+          <span className="murex-tab-label">Runtime Trends</span>
+        </button>
+        <button
+          type="button"
           className={`murex-tab ${activeTab === 'management' ? 'active' : ''}`}
+          data-active={activeTab === 'management'}
           onClick={() => setActiveTab('management')}
         >
-          Script Management
+          <SlidersHorizontal className="murex-tab-icon" />
+          <span className="murex-tab-label">Script Management</span>
         </button>
       </div>
 
       {/* Tab Content */}
       <div className="murex-tab-content">
-        {activeTab === 'runtime' ? (
+        {activeTab === 'overview' && <MurexOverviewTab />}
+        {activeTab === 'runtime' && (
           <div className="murex-runtime-tab">
             {/* Unified Compact Filter Bar */}
             <div style={{
@@ -1416,7 +1444,8 @@ export function MurexRuntimeTrendsPage() {
               })()}
             </div>
           </div>
-        ) : (
+        )}
+        {activeTab === 'management' && (
           <div className="murex-management-tab">
             {/* Left Sidebar - Categories */}
             <div className="murex-category-sidebar">
