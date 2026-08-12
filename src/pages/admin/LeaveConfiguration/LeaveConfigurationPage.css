@@ -79,7 +79,7 @@
 .lc-tab-btn.active {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
-  border-bottom: 1px solid var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
   border-radius: 8px 8px 0 0;
   color: var(--c-primary);
   font-weight: 600;
