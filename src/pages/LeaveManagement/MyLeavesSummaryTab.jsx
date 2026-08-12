@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
+import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
+import { leaveService } from '@services/leaveService';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
@@ -75,12 +78,14 @@ export function MyLeavesSummaryTab({
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
-  // Normalize leave status for filtering
+  // Normalize leave status for filtering and exclude pending requests
   const normalizedLeaves = useMemo(() => {
-    return leaves.map(leave => {
-      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      return { ...leave, statusStr };
-    });
+    return leaves
+      .map(leave => {
+        const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
+        return { ...leave, statusStr };
+      })
+      .filter(leave => leave.statusStr !== 'pending');
   }, [leaves]);
 
   // Year and date-range are already applied server-side (leaves prop is
@@ -130,40 +135,6 @@ export function MyLeavesSummaryTab({
       setSortOrder('asc');
     }
   };
-
-  const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = normalizedLeaves.filter(l => l.statusStr === 'pending');
-    if (pendingLeaves.length === 0) return null;
-    
-    let minDate = new Date(8640000000000000);
-    let maxDate = new Date(-8640000000000000);
-    let hasValidDates = false;
-    
-    pendingLeaves.forEach(leave => {
-      const start = new Date(leave.start_date || leave.date);
-      const end = new Date(leave.end_date || leave.date || leave.start_date);
-      
-      if (!isNaN(start.getTime())) {
-        if (start < minDate) minDate = start;
-        hasValidDates = true;
-      }
-      if (!isNaN(end.getTime())) {
-        if (end > maxDate) maxDate = end;
-        hasValidDates = true;
-      }
-    });
-    
-    if (!hasValidDates) return null;
-    
-    const formatDate = (date) => {
-      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    };
-    
-    const minStr = formatDate(minDate);
-    const maxStr = formatDate(maxDate);
-    
-    return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
-  }, [normalizedLeaves]);
 
   const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
 

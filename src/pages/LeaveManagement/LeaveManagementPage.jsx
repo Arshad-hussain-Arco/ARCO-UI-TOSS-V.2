@@ -20,7 +20,8 @@ import {
   Home,
   Ship,
   ArrowUpDown,
-  MessageCircle
+  MessageCircle,
+  Bell
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -39,6 +40,7 @@ import { TeamRequestsTab } from './TeamRequestsTab';
 import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
 import leaveService from '@services/leaveService';
 import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
@@ -852,9 +854,12 @@ export function LeaveManagementPage() {
                               </td>
 
                               <td className="leave-table-cell" data-label="Status">
-                                <span className="leave-table-status" data-status={statusStr}>
-                                  {statusStr}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span className="leave-table-status" data-status={statusStr}>
+                                    {statusStr}
+                                  </span>
+                                  {statusStr === 'pending' && <RemindManagerButton leave={leave} />}
+                                </div>
                               </td>
 
                               <td className="leave-table-cell" data-label="Comments">
@@ -954,3 +959,86 @@ export function LeaveManagementPage() {
   );
 }
 export default LeaveManagementPage;
+
+export function RemindManagerButton({ leave }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  
+  const [remindersLeft, setRemindersLeft] = useState(leave.reminders_left ?? 5);
+  const [cooldownUntil, setCooldownUntil] = useState(leave.next_reminder_allowed_after ? new Date(leave.next_reminder_allowed_after) : null);
+  const [isSending, setIsSending] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
+
+  const isCoolingDown = cooldownUntil && cooldownUntil > now;
+  const disabled = isSending || isCoolingDown || remindersLeft <= 0;
+
+  const handleRemind = async () => {
+    setIsSending(true);
+    try {
+      const response = await leaveService.remindManager(leave.id || leave.leave_id, { emp_id: user?.emp_id || user?.id });
+      const data = response.data || response;
+      if (data.success) {
+        toast.success(data.message || 'Reminder sent to your manager.');
+        if (data.reminders_left !== undefined) setRemindersLeft(data.reminders_left);
+        if (data.next_reminder_allowed_after) setCooldownUntil(new Date(data.next_reminder_allowed_after));
+      } else {
+        toast.error(data.message || 'Failed to send reminder');
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to send reminder';
+      toast.error(msg);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  let title = "Send Reminder";
+  if (remindersLeft <= 0) title = "No reminders left";
+  else if (isCoolingDown) {
+    const diff = cooldownUntil - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    title = `Next reminder in ${h}h ${m}m ${s}s`;
+  } else {
+    title = `Remind Manager (${remindersLeft} left)`;
+  }
+
+  // Hide the button completely if it's the very first reminder and the 24h delay hasn't passed yet
+  if (isCoolingDown && remindersLeft === 5) {
+    return null;
+  }
+
+  return (
+    <button
+      title={title}
+      disabled={disabled}
+      onClick={handleRemind}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px',
+        borderRadius: '50%',
+        background: disabled ? '#f3f4f6' : isHovered ? '#fef3c7' : '#fffbeb',
+        color: disabled ? '#9ca3af' : '#d97706',
+        border: `1px solid ${disabled ? '#e5e7eb' : '#fde68a'}`,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'all 0.2s ease',
+        opacity: disabled ? 0.7 : 1,
+        boxShadow: disabled ? 'none' : '0 1px 2px rgba(0,0,0,0.05)'
+      }}
+    >
+      <Bell size={14} />
+    </button>
+  );
+}

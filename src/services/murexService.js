@@ -5,41 +5,44 @@ import { clone } from '@utils/async';
 import { MUREX_HOURLY_HEATMAP, MUREX_MONTHLY_HEATMAP } from '@mocks/data/murex';
 
 const formatTime = (totalMinutes) => {
-  if (isNaN(totalMinutes)) return '00:00:00';
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.floor(totalMinutes % 60);
-  const s = Math.floor((totalMinutes * 60) % 60);
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  if (isNaN(totalMinutes)) return '0s';
+  const totalSeconds = Math.round(totalMinutes * 60);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  
+  const parts = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 || h > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  
+  return parts.join(' ');
 };
 
 export const murexService = {
   ...murexMocks,
-  getRuntimeTrends: async () => {
+  getRuntimeTrends: async (timeRange = '7d') => {
     try {
-      const res = await api.get(endpoints.scriptManager.runtimeFile);
-      const rawData = res.data?.data || res.data || {};
+      const paramStr = timeRange ? timeRange.replace('d', 'days') : '7days';
+      const kpiRes = await api.get(`${endpoints.scriptManager.runtimeFileKpis}?${paramStr}`);
+      const kpiData = kpiRes.data?.data || kpiRes.data || {};
       
       const scripts = [];
-      let globalTrendMap = {}; // date -> array of runtimes
+      let minRuntimes = [];
+      let maxRuntimes = [];
+      let avgRuntimes = [];
       
-      Object.keys(rawData).forEach((scriptName, index) => {
-        const processData = rawData[scriptName];
-        const durations = processData.time_duration || [];
-        const labels = processData.labels || [];
+      Object.keys(kpiData).forEach((scriptName) => {
+        const scriptKpis = kpiData[scriptName] || {};
         
-        // Convert to minutes (assuming API returns milliseconds)
-        const durationsInMinutes = durations.map(d => d / 60000);
-        const minRuntime = durationsInMinutes.length ? Math.min(...durationsInMinutes) : 0;
-        const maxRuntime = durationsInMinutes.length ? Math.max(...durationsInMinutes) : 0;
-        const avgRuntimeMin = durationsInMinutes.length ? durationsInMinutes.reduce((a, b) => a + b, 0) / durationsInMinutes.length : 0;
+        const minRuntime = (scriptKpis.min_duration || 0) / 60;
+        const maxRuntime = (scriptKpis.max_duration || 0) / 60;
+        const avgRuntimeMin = (scriptKpis.average_duration || 0) / 60;
         
-        // Populate global trend map
-        labels.forEach((date, i) => {
-           if (!globalTrendMap[date]) globalTrendMap[date] = [];
-           globalTrendMap[date].push(durationsInMinutes[i] || 0);
-        });
-
-        // Determine category
+        minRuntimes.push(minRuntime);
+        maxRuntimes.push(maxRuntime);
+        avgRuntimes.push(avgRuntimeMin);
+        
         let category = 'Other';
         const upperName = scriptName.toUpperCase();
         if (upperName.includes('ETL')) category = 'ETL';
@@ -52,89 +55,49 @@ export const murexService = {
         if (maxRuntime > avgRuntimeMin * 2) health = 'Critical';
         else if (maxRuntime > avgRuntimeMin * 1.5) health = 'Warning';
 
-        const historyBase = processData.steps?.length ? processData.steps : labels;
-        const history = historyBase.map((runData, i) => {
-          const runDurationMin = durationsInMinutes[i] || 0;
-          let runStatus = 'success';
-          if (runDurationMin > avgRuntimeMin * 2) runStatus = 'error';
-          else if (runDurationMin > avgRuntimeMin * 1.5) runStatus = 'warning';
-          
-          let runTitle = 'Execution Completed';
-          if (runStatus === 'error') runTitle = 'Execution Failed';
-          else if (runStatus === 'warning') runTitle = 'Runtime Threshold Exceeded';
-
-          // Optional: we can include the breakdown of individual steps
-          const stepBreakdown = processData.steps?.length ? (runData.step || []).map((stepName, stepIndex) => ({
-             name: stepName,
-             cpu_time: (runData.cpu_time || [])[stepIndex] || 0,
-             db_time: (runData.db_time || [])[stepIndex] || 0,
-             elapsed_time: (runData.elapsed_time || [])[stepIndex] || 0,
-          })) : [];
-
-          return {
-            date: labels[i] || 'Unknown Date',
-            durationFormatted: formatTime(runDurationMin),
-            durationMin: Math.round(runDurationMin),
-            status: runStatus,
-            title: runTitle,
-            steps: stepBreakdown,
-          };
-        }).reverse(); // Most recent first
-
         scripts.push({
           id: scriptName,
           name: scriptName,
           category,
-          lastRun: labels[labels.length - 1] || 'N/A',
+          lastRun: scriptKpis.latest_run || 'N/A',
           avgRuntime: formatTime(avgRuntimeMin),
           status: 'Active',
           health,
-          frequency: 1, // Defaulting to 1 as we don't have this from API
+          frequency: 1,
           minRuntime: Math.round(minRuntime),
           maxRuntime: Math.round(maxRuntime),
-          trendData: durationsInMinutes.map(Math.round),
+          minRuntimeFormatted: formatTime(minRuntime),
+          maxRuntimeFormatted: formatTime(maxRuntime),
+          trendData: [], // Will be populated on expand
+          trendSlope: scriptKpis.trend_slope || 0,
           isPinned: false,
-          history,
-          totalExecutions: labels.length,
-          successRate: labels.length > 0 
-             ? Math.round((history.filter(h => h.status !== 'error').length / labels.length) * 100 * 10) / 10 
-             : 0,
-          failedRuns: history.filter(h => h.status === 'error').length,
+          history: [], // Will be populated on expand
+          totalExecutions: scriptKpis.run_count || 0,
+          runCount: scriptKpis.run_count || 0,
+          p95Duration: (scriptKpis.p95_duration || 0) / 60,
+          p95DurationFormatted: formatTime((scriptKpis.p95_duration || 0) / 60),
+          successRate: 100, // Hardcoded or calculated later
+          failedRuns: 0, // Outliers mock
+          outlierCount: 0,
         });
       });
       
-      // Calculate global trend
-      const allDates = Object.keys(globalTrendMap).sort();
-      const trend = allDates.map(date => {
-         const sum = globalTrendMap[date].reduce((a, b) => a + b, 0);
-         const average = sum / (Object.keys(rawData).length || 1); // rough average per script
-         return {
-           date,
-           runtime: Math.round(sum),
-           average: Math.round(average),
-           isOutlier: false,
-         };
-      });
-
-      // Calculate global summary
-      const allRuntimes = trend.map(t => t.runtime);
-      const minGlobal = allRuntimes.length ? Math.min(...allRuntimes) : 0;
-      const maxGlobal = allRuntimes.length ? Math.max(...allRuntimes) : 0;
-      const avgGlobal = allRuntimes.length ? allRuntimes.reduce((a, b) => a + b, 0) / allRuntimes.length : 0;
-      const latestGlobal = allRuntimes.length ? allRuntimes[allRuntimes.length - 1] : 0;
+      const minGlobal = minRuntimes.length ? Math.min(...minRuntimes) : 0;
+      const maxGlobal = maxRuntimes.length ? Math.max(...maxRuntimes) : 0;
+      const avgGlobal = avgRuntimes.length ? avgRuntimes.reduce((a, b) => a + b, 0) / avgRuntimes.length : 0;
 
       const summary = {
         min: formatTime(minGlobal),
         max: formatTime(maxGlobal),
         avg: formatTime(avgGlobal),
-        latest: formatTime(latestGlobal),
+        latest: 'N/A',
         trend: 0,
         outliers: 0,
       };
 
       return {
         summary,
-        trend,
+        trend: [], // Global trend requires full data, omit for now
         scripts,
         hourlyHeatmap: clone(MUREX_HOURLY_HEATMAP),
         monthlyHeatmap: clone(MUREX_MONTHLY_HEATMAP),
@@ -144,6 +107,46 @@ export const murexService = {
       // Fallback to mock data if API is not fully up or errors out
       const mock = await murexMocks.getRuntimeTrends();
       return mock;
+    }
+  },
+  fetchScriptTimeseries: async (scriptName, timeRange = '7d') => {
+    try {
+      const paramStr = timeRange ? timeRange.replace('d', 'days') : '7days';
+      const res = await api.get(`${endpoints.scriptManager.runtimeFile}?${paramStr}&script_name=${scriptName}`);
+      const rawData = res.data?.data || res.data || {};
+      const scriptData = rawData[scriptName] || {};
+      const durations = scriptData.time_duration || [];
+      const labels = scriptData.labels || [];
+      
+      const durationsInMinutes = durations.map(d => d / 60);
+      const avgRuntimeMin = durationsInMinutes.length ? durationsInMinutes.reduce((a, b) => a + b, 0) / durationsInMinutes.length : 0;
+      
+      const history = labels.map((date, i) => {
+        const runDurationMin = durationsInMinutes[i] || 0;
+        let runStatus = 'success';
+        if (runDurationMin > avgRuntimeMin * 2) runStatus = 'error';
+        else if (runDurationMin > avgRuntimeMin * 1.5) runStatus = 'warning';
+        
+        let runTitle = 'Execution Completed';
+        if (runStatus === 'error') runTitle = 'Execution Failed';
+        else if (runStatus === 'warning') runTitle = 'Runtime Threshold Exceeded';
+
+        return {
+          date,
+          durationFormatted: formatTime(runDurationMin),
+          durationMin: Math.round(runDurationMin),
+          status: runStatus,
+          title: runTitle,
+        };
+      }).reverse();
+      
+      return {
+        history,
+        trendData: durationsInMinutes.map(Math.round)
+      };
+    } catch (err) {
+      console.error('Failed to fetch script timeseries:', err);
+      return { history: [], trendData: [] };
     }
   },
   fetchRuntimeDetails: async (params) => {

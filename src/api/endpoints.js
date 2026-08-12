@@ -89,7 +89,7 @@ const endpoints = {
   },
   scriptManager: {
     runtimeFile: '/script-manager/runtime-file/',
-    runtimeDetails: '/script-manager/runtime-details/',
+    runtimeFileKpis: '/script-manager/runtime-file/kpis/',
     categories: {
       list: '/script-manager/categories/',
       create: '/script-manager/categories/create/',
