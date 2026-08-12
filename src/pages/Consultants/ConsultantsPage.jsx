@@ -492,15 +492,24 @@ export function ConsultantsPage() {
                 <span className="consultants-tab-label">
                   {t.label}
                   {count !== null && (
-                    <span
+                    <span className='tc-lab-count'
                       style={{
                         marginLeft: '8px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-secondary)',
+                        background:
+                          activeTab === t.id
+                            ? '#e6f4ed'
+                            : 'var(--bg-secondary)',
+                        color:
+                          activeTab === t.id
+                            ? 'var(--c-primary)'
+                            : 'var(--text-secondary)',
                         padding: '2px 8px',
                         borderRadius: '12px',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       {count}

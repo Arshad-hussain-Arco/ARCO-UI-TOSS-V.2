@@ -64,8 +64,8 @@ const ALL_TABS = [
 // created), not just a hardcoded pair.
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
-  { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: 'var(--c-primary)' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: 'var(--c-primary)' },
+  { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: '#006633' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: '#006633' },
   { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
   { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
@@ -963,7 +963,7 @@ export default LeaveManagementPage;
 export function RemindManagerButton({ leave }) {
   const { user } = useAuth();
   const toast = useToast();
-  
+
   const [remindersLeft, setRemindersLeft] = useState(leave.reminders_left ?? 5);
   const [cooldownUntil, setCooldownUntil] = useState(leave.next_reminder_allowed_after ? new Date(leave.next_reminder_allowed_after) : null);
   const [isSending, setIsSending] = useState(false);

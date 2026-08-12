@@ -1525,7 +1525,7 @@ export function MurexRuntimeTrendsPage() {
               <button
                 className="murex-add-category-btn"
                 onClick={handleAddCategory}
-                style={{ backgroundColor: 'var(--c-primary)', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+                style={{ backgroundColor: '#006633', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
               >
                 <Plus size={14} />
                 <span>Add Category</span>

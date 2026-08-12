@@ -34,41 +34,58 @@
 /* Navigation Bar (Tabs) */
 .lc-nav-tabs {
   display: flex;
-  gap: 8px;
-  padding: 0 32px;
-  background-color: var(--surface-primary);
+  align-items: flex-end;
+  width: 100%;
+  padding: 12px 16px 0 16px;
   border-bottom: 1px solid var(--border-primary);
-  overflow-x: auto;
-  position: sticky;
-  top: 64px; /* match the header height */
+  background-color: var(--bg-secondary);
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
   z-index: 10;
 }
 
 .lc-tab-btn {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 14px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: none;
+  padding: 8px 18px;
+  height: 38px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
 }
 
-.lc-tab-btn:hover {
+.lc-tab-btn:hover:not(.active) {
+  background-color: var(--bg-hover);
   color: var(--text-primary);
-  background-color: var(--bg-secondary);
+  border-color: var(--border-secondary);
 }
 
 .lc-tab-btn.active {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0 0;
   color: var(--c-primary);
-  border-bottom-color: var(--c-primary);
-  background-color: rgba(0, 104, 56, 0.04);
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .lc-tab-count {
@@ -95,7 +112,7 @@
 
 /* Content Area */
 .lc-tab-content {
-  padding: 24px 32px;
+  padding: 16px;
   flex: 1;
   overflow: hidden;
   display: flex;
@@ -192,7 +209,7 @@
   font-size: 13px;
   font-weight: 600;
   color: #ffffff;
-  background-color: var(--c-primary);
+  background-color: #006633;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -201,7 +218,7 @@
 }
 
 .lc-btn-primary:hover {
-  background-color: var(--c-primary-hover);
+  background-color: #006633;
   transform: translateY(-1px);
 }
 
@@ -359,23 +376,19 @@
 
 /* Action Ghost Icon Buttons */
 .lc-ghost-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid var(--c-primary);
-  background: transparent;
-  color: var(--c-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
+      height: 36px;
+    padding: 0px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.15s;
 }
 
-.lc-ghost-btn:hover {
-  background-color:var(--c-primary);
-  color:  #ffffff;
-}
+ 
 
 .lc-ghost-btn.danger {
   border-color: var(--c-danger);
@@ -436,18 +449,23 @@
 }
 
 .lc-inline-btn.save {
-  background-color: var(--c-primary);
-  color: var(--surface-primary);
+  background-color: #006633;
+  color: #ffffff;
+}
+
+.lc-inline-btn.save:hover {
+  background-color: #006633;
+  opacity: 0.9;
 }
 
 .lc-inline-btn.cancel {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 
 .lc-inline-btn.cancel:hover {
-  background-color: var(--c-danger-light);
-  color: var(--c-danger);
+  background-color: var(--bg-hover);
 }
 
 /* Empty State */

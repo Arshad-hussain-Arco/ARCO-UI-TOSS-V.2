@@ -254,8 +254,8 @@
 }
 
 .tr-chip[data-active='true'] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  border-color:  #006633;
   color: #ffffff;
 }
 
@@ -896,7 +896,7 @@
   margin-bottom: 6px;
   font-family: var(--font-family);
   font-size: 11.5px;
-  color: #92400e;
+  color: #ffffff;
 }
 
 .tr-conflict-card.info {
@@ -958,14 +958,10 @@
 
 .tr-btn-danger {
   background: var(--c-danger-light);
-  color: var(--c-danger);
+  color:  #ffffff;
   border-color: #fca5a5;
 }
 
-.tr-btn-danger:hover   {
-  background: var(--c-danger);
-  color: #ffffff;
-}
 
 .tr-btn-primary {
   background: var(--c-primary);

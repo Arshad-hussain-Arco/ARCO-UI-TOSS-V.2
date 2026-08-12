@@ -168,13 +168,15 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 160px;
+  width: 200px;
 }
 
 .tv-ah-progress-label {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 11px;
+  white-space: nowrap;
 }
 .tv-ah-progress-label span {
   color: var(--text-secondary);
@@ -489,4 +491,78 @@
   }
 }
 
+/* Teams Tab Search Bar */
+.tv-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
 
+.tv-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.tv-search-input {
+  padding: 5px 8px 5px 26px;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: 11px;
+  width: 220px;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+
+.tv-search-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  width: 240px;
+}
+
+/* ── MODAL BUTTONS ── */
+.tv-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+}
+
+.tv-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tv-btn.cancel,
+.tv-btn.danger {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.tv-btn.cancel:hover:not(:disabled),
+.tv-btn.danger:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.tv-btn.save {
+  background: #006633;
+  color: #ffffff;
+  border: 1px solid #006633;
+}
+
+.tv-btn.save:hover:not(:disabled) {
+  background: #006633;
+  opacity: 0.9;
+}

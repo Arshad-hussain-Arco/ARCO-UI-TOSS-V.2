@@ -70,13 +70,11 @@
 
 /* ── Variants ──────────────────────────────────────────────────────────────── */
 .primary {
-  background: var(--c-primary);
+  background: #006633;
   color: #ffffff;
 }
 
-.primary:hover:not(:disabled) {
-  background: var(--c-primary-hover);
-}
+ 
 
 .secondary {
   background: var(--bg-tertiary);
@@ -99,13 +97,8 @@
 }
 
 .ghost {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.ghost:hover:not(:disabled) {
   background: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .danger {

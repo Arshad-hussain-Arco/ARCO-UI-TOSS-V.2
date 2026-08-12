@@ -191,8 +191,8 @@
 
 .my-leaves-action-btn {
   padding: 5px 12px;
-  background-color: var(--btn-bg, var(--c-primary));
-  color:  #ffffff;
+  background-color: var(--btn-bg, #006633);
+  color: #ffffff;
   border: none;
   border-radius: 6px;
   font-size: 11px;
@@ -617,15 +617,15 @@
 }
 
 .leave-filter-chip[data-active='true'] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  border-color:  #006633;
   color: #ffffff;
   box-shadow: 0 2px 6px rgba(0, 102, 51, 0.25);
 }
 
 .leave-filter-chip[data-active='true']:hover {
-  background-color: var(--c-primary-hover);
-  border-color: var(--c-primary-hover);
+  background-color:  #006633;
+  border-color:  #006633;
 }
 
 .leave-filter-label {
@@ -638,19 +638,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  background-color: rgba(0, 0, 0, 0.08);
-  border-radius: 9px;
-  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: inherit;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .leave-filter-chip[data-active='true'] .leave-filter-badge {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background-color: #e6f4ed;
+  color: var(--c-primary);
 }
 
 
