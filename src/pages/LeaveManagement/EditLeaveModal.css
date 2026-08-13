@@ -1,0 +1,67 @@
+/* Workflow banner — direct edit (PENDING) vs modification request awaiting
+   manager approval (APPROVED), and the on-behalf auto-approve exception. */
+.el-workflow-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--c-info-light);
+  border: 1px solid var(--c-info);
+}
+.el-workflow-banner-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--c-info);
+}
+
+/* Balance-impact preview — reuses the ok/warn/error/info palette from
+   ApplyLeaveModal.css's .al-val-row, laid out as a standalone panel rather
+   than a checklist row. */
+.el-balance-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-top: 15px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.el-balance-panel-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.el-balance-panel.v-ok {
+  background: var(--c-success-light);
+  border: 1px solid var(--c-success);
+  color: var(--c-success);
+}
+.el-balance-panel.v-warn {
+  background: var(--c-warning-light);
+  border: 1px solid var(--c-warning);
+  color: var(--c-warning);
+}
+.el-balance-panel.v-error {
+  background: var(--c-danger-light);
+  border: 1px solid var(--c-danger);
+  color: var(--c-danger);
+}
+.el-balance-panel.v-info {
+  background: var(--c-info-light);
+  border: 1px solid var(--c-info);
+  color: var(--text-secondary);
+}
+
+/* Per-day list — flags a weekend/company-holiday row as excluded from the
+   business-day count, so the newDays total in the balance panel above
+   doesn't look mysterious. */
+.el-nonworking-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text-tertiary);
+}
