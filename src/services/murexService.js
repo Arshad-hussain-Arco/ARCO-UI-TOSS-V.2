@@ -23,9 +23,13 @@ export const murexService = {
   ...murexMocks,
   getRuntimeTrends: async (timeRange = '7d') => {
     try {
-      const days = timeRange ? timeRange.replace(/[^0-9]/g, '') : '7';
-      const paramStr = `days=${days}`;
-      const kpiRes = await api.get(`${endpoints.scriptManager.runtimeFileKpis}?${paramStr}`);
+      let paramStr = '';
+      if (timeRange && timeRange !== 'all') {
+        const days = timeRange.replace(/[^0-9]/g, '');
+        paramStr = `days=${days}`;
+      }
+      const query = paramStr ? `?${paramStr}` : '';
+      const kpiRes = await api.get(`${endpoints.scriptManager.runtimeFileKpis}${query}`);
       const kpiData = kpiRes.data?.data || kpiRes.data || {};
       
       const scripts = [];
@@ -123,11 +127,9 @@ export const murexService = {
       return mock;
     }
   },
-  fetchScriptTimeseries: async (scriptName, timeRange = '7d') => {
+  fetchScriptTimeseries: async (scriptName) => {
     try {
-      const days = timeRange ? timeRange.replace(/[^0-9]/g, '') : '7';
-      const paramStr = `days=${days}`;
-      const res = await api.get(`${endpoints.scriptManager.runtimeFile}?${paramStr}&script_name=${scriptName}`);
+      const res = await api.get(`${endpoints.scriptManager.runtimeFile}?script_name=${scriptName}`);
       const rawData = res.data?.data || res.data || {};
       const scriptData = rawData[scriptName] || {};
       const durations = scriptData.time_duration || [];
