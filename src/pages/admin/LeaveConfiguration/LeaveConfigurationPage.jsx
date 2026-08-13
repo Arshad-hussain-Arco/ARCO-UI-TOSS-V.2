@@ -189,6 +189,7 @@ function emptyCombinedForm() {
     carry_forward_expiry_months: '',
     allow_negative: false,
     max_negative_days: 0,
+    allow_year_spanning: true,
     effective_from: toDateInputValue(new Date()),
     effective_to: '',
   };
@@ -228,6 +229,7 @@ function combinedRowToForm(row) {
     carry_forward_expiry_months: p.carry_forward_expiry_months ?? '',
     allow_negative: p.allow_negative ?? false,
     max_negative_days: p.max_negative_days ?? 0,
+    allow_year_spanning: p.allow_year_spanning ?? true,
     effective_from: p.effective_from || toDateInputValue(new Date()),
     effective_to: p.effective_to || '',
   };
@@ -236,6 +238,9 @@ function combinedRowToForm(row) {
 /** Build the API payload from the form, numeric-coercing and dropping empty-string optionals to null. */
 function combinedFormToPayload(form, isClaimTarget) {
   const numOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+  const carryForwardEligible = (
+    form.category === 'ACTUAL' && ((!form.is_unlimited && !form.is_flexible) || isClaimTarget)
+  );
   return {
     code: form.code.trim().toUpperCase(),
     name: form.name.trim(),
@@ -274,9 +279,14 @@ function combinedFormToPayload(form, isClaimTarget) {
     max_consecutive: numOrNull(form.max_consecutive),
     accrual_type: form.accrual_type,
     proration_type: form.proration_type,
-    is_carry_forward_allowed: form.is_carry_forward_allowed,
-    max_carry_forward: form.is_carry_forward_allowed ? Number(form.max_carry_forward) || 0 : 0,
-    carry_forward_expiry_months: form.is_carry_forward_allowed
+    // Carry-forward: Limited-entitlement Actual types, or an Actual type
+    // that's a Claim credit target (regardless of mode) — mirrors
+    // year_end_processing.py's eligibility. Force off rather than trust
+    // stale form state left over from a prior category/mode.
+    is_carry_forward_allowed: carryForwardEligible ? form.is_carry_forward_allowed : false,
+    max_carry_forward: (carryForwardEligible && form.is_carry_forward_allowed)
+      ? Number(form.max_carry_forward) || 0 : 0,
+    carry_forward_expiry_months: (carryForwardEligible && form.is_carry_forward_allowed)
       ? numOrNull(form.carry_forward_expiry_months)
       : null,
     // Advance leave (negative balance) only applies to a Limited-entitlement
@@ -289,6 +299,13 @@ function combinedFormToPayload(form, isClaimTarget) {
     max_negative_days: (
       form.category === 'ACTUAL' && !form.is_unlimited && !form.is_flexible && !isClaimTarget && form.allow_negative
     ) ? Number(form.max_negative_days) || 0 : 0,
+    // Year-spanning eligibility includes Unlimited (unlike allow_negative
+    // above) — mirrors the backend's _is_year_spanning_eligible. Meaningless
+    // for an ineligible type, so force the permissive default rather than
+    // trust stale form state.
+    allow_year_spanning: (
+      form.category === 'ACTUAL' && !form.is_flexible && !isClaimTarget
+    ) ? form.allow_year_spanning : true,
     effective_from: form.effective_from || null,
     effective_to: form.effective_to || null,
   };
@@ -1081,6 +1098,15 @@ export function LeaveConfigurationPage() {
       // Advance-leave borrowing only applies to Limited entitlement; reset
       // when switching away so a hidden, stale "on" doesn't ship.
       ...(mode !== 'LIMITED' ? { allow_negative: false, max_negative_days: 0 } : {}),
+      // Year-spanning eligibility includes Unlimited (unlike advance-leave
+      // borrowing above) — only Flexible needs a reset here.
+      ...(mode === 'FLEXIBLE' ? { allow_year_spanning: true } : {}),
+      // Carry-forward stays eligible in any mode for a Claim credit target
+      // (e.g. WW/CompOff) — only reset for a non-claim-target type leaving
+      // Limited mode.
+      ...(mode !== 'LIMITED' && !claimTargetCodes.has(prev.code)
+        ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
+        : {}),
     }));
   };
 
@@ -2065,9 +2091,10 @@ export function LeaveConfigurationPage() {
                     ...(category === 'CLAIM'
                       ? { is_unlimited: false, is_flexible: false, entitled_days: 0 }
                       : { credits_to_leave_type_code: '', claim_date_rule: '', custom_claim_dates: [] }),
-                    // Carry-forward only applies to ACTUAL/CLAIM; reset when
-                    // switching to NOMINAL so a hidden, stale "on" doesn't ship.
-                    ...(category === 'NOMINAL'
+                    // Carry-forward only applies to ACTUAL now (CLAIM types
+                    // themselves don't hold a real balance); reset when
+                    // switching away so a hidden, stale "on" doesn't ship.
+                    ...(category !== 'ACTUAL'
                       ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
                       : {}),
                     // Advance-leave borrowing only applies to ACTUAL; reset when
@@ -2075,6 +2102,10 @@ export function LeaveConfigurationPage() {
                     ...(category !== 'ACTUAL'
                       ? { allow_negative: false, max_negative_days: 0 }
                       : {}),
+                    // Year-spanning only applies to ACTUAL too (Unlimited is
+                    // included within ACTUAL, unlike advance-leave above —
+                    // this reset is purely about category, not mode).
+                    ...(category !== 'ACTUAL' ? { allow_year_spanning: true } : {}),
                   }));
                 }}
               >
@@ -2408,51 +2439,62 @@ export function LeaveConfigurationPage() {
         <div className="lc-form-section">
           <div className="lc-form-section-title">Carry-Forward &amp; Advance</div>
 
-          {combinedForm.category === 'NOMINAL' ? (
-            <div className="lc-locked-field" title="Not applicable — Nominal leave types have no balance to carry forward or borrow against">
-              Not applicable — Nominal leave types (e.g. WFH) have no balance impact,
-              so there&apos;s nothing to carry forward or borrow against.
+          {combinedForm.category !== 'ACTUAL' ? (
+            <div className="lc-locked-field" title="Not applicable — only Actual leave types carry a balance to carry forward or borrow against">
+              Not applicable — only Actual leave types (e.g. AL) have a
+              balance to carry forward or borrow against.
             </div>
           ) : (
             <>
-              {/* Carry-forward: ACTUAL and CLAIM only */}
-              <label className="lc-checkrow">
-                <input
-                  type="checkbox"
-                  aria-label="Allow carry-forward"
-                  checked={combinedForm.is_carry_forward_allowed}
-                  onChange={(e) => toggleCarryForward(e.target.checked)}
-                />
-                <span>
-                  <span className="lc-checkrow-title">Allow carry-forward</span>
-                  <span className="lc-checkrow-sub">Unused days roll into the next year</span>
-                </span>
-              </label>
-              <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
-                <div className="ss-modal-form-group">
-                  <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
-                  <input
-                    id="lt-carryforward"
-                    type="number"
-                    className="ss-input"
-                    value={combinedForm.max_carry_forward}
-                    disabled={!combinedForm.is_carry_forward_allowed}
-                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
-                  />
-                </div>
-                <div className="ss-modal-form-group">
-                  <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
-                  <input
-                    id="lt-carryforward-expiry"
-                    type="number"
-                    className="ss-input"
-                    placeholder="Blank = never"
-                    value={combinedForm.carry_forward_expiry_months}
-                    disabled={!combinedForm.is_carry_forward_allowed}
-                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
-                  />
-                </div>
-              </div>
+              {/* Carry-forward: Limited-entitlement Actual types, OR an
+                  Actual type that's a Claim credit target (e.g. WW/CompOff,
+                  credited by CWW/CCompOff) — those earn their balance via
+                  approved claims rather than a flat grant, so the Limited-
+                  mode restriction doesn't apply to them; carry-forward
+                  still makes sense for whatever they've accumulated.
+                  Unlimited/Flexible non-claim-target types are excluded —
+                  mirrors year_end_processing.py's eligibility exactly. */}
+              {((!combinedForm.is_unlimited && !combinedForm.is_flexible) || claimTargetCodes.has(combinedForm.code)) && (
+                <>
+                  <label className="lc-checkrow">
+                    <input
+                      type="checkbox"
+                      aria-label="Allow carry-forward"
+                      checked={combinedForm.is_carry_forward_allowed}
+                      onChange={(e) => toggleCarryForward(e.target.checked)}
+                    />
+                    <span>
+                      <span className="lc-checkrow-title">Allow carry-forward</span>
+                      <span className="lc-checkrow-sub">Unused days roll into the next year</span>
+                    </span>
+                  </label>
+                  <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
+                      <input
+                        id="lt-carryforward"
+                        type="number"
+                        className="ss-input"
+                        value={combinedForm.max_carry_forward}
+                        disabled={!combinedForm.is_carry_forward_allowed}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
+                      />
+                    </div>
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
+                      <input
+                        id="lt-carryforward-expiry"
+                        type="number"
+                        className="ss-input"
+                        placeholder="Blank = never"
+                        value={combinedForm.carry_forward_expiry_months}
+                        disabled={!combinedForm.is_carry_forward_allowed}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Advance leave borrowing: Limited-entitlement Actual leave
                   types only, and not a leave type credited by a Claim type
@@ -2491,6 +2533,30 @@ export function LeaveConfigurationPage() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Year-spanning requests: Actual leave types only, Limited OR
+                  Unlimited (unlike advance-leave above, Unlimited IS
+                  included — there's no balance to protect either way), and
+                  not a leave type credited by a Claim type. Mirrors the
+                  backend's _is_year_spanning_eligible. */}
+              {combinedForm.category === 'ACTUAL'
+                && !combinedForm.is_flexible
+                && !claimTargetCodes.has(combinedForm.code) && (
+                <label className="lc-checkrow" style={{ marginTop: '14px' }}>
+                  <input
+                    type="checkbox"
+                    aria-label="Allow year spanning"
+                    checked={combinedForm.allow_year_spanning}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, allow_year_spanning: e.target.checked }))}
+                  />
+                  <span>
+                    <span className="lc-checkrow-title">Allow year spanning</span>
+                    <span className="lc-checkrow-sub">
+                      Employees can apply for/modify leave that crosses into, or falls entirely within, next year
+                    </span>
+                  </span>
+                </label>
               )}
             </>
           )}

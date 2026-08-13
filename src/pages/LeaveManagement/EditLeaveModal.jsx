@@ -68,8 +68,21 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         isFlexible: !isUnlimited && !!match?.is_flexible,
         allowNegative: !isUnlimited && !match?.is_flexible && !!match?.allow_negative,
         maxNegativeDays: Number(match?.max_negative_days ?? 0),
+        // Computed server-side (leaves.services._is_year_spanning_allowed).
+        // Default true if missing so an older API response doesn't
+        // spuriously block a year-spanning modification.
+        yearSpanningAllowed: match?.year_spanning_allowed ?? true,
+        // Preview of next year's real availability before it has actually
+        // begun (raw next-year entitlement minus this year's still-
+        // outstanding advance-leave debt) — see EligibleLeaveTypesView.
+        nextYearAvailable: match?.next_year_available != null ? Number(match.next_year_available) : null,
         entitledDays: match?.entitled_days != null ? Number(match.entitled_days) : null,
         available: bal?.available != null ? Number(bal.available) : null,
+        // Actual (any mode) and Nominal leave types may be self-logged/
+        // edited into the past — mirrors the backend exemption in
+        // leaves.services.LeaveApplyService.apply's is_backdatable_category
+        // check. Category-driven, not mode-driven.
+        allowPastDates: match?.category === 'ACTUAL' || match?.category === 'NOMINAL',
       });
     });
   }, [leave.emp_id, leave.leave_type, user?.emp_id]);
@@ -282,34 +295,103 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // accurate preview of a same-leave edit, not a fresh second request.
   const effectiveAvailable =
     typeInfo && typeInfo.available != null ? typeInfo.available + originalDays : null;
+
+  // Year-spanning shape computed up front — the balance check below must
+  // only ever compare the CURRENT-year portion of newDays against this
+  // year's available/cap, mirroring leaves.services._check_balance_year_spanning's
+  // cy_days/ny_days split. Using the full cross-year newDays there would
+  // check the wrong year's cap against the current year's balance.
+  const startYear = newStart ? Number(newStart.slice(0, 4)) : null;
+  const endYear = newEnd ? Number(newEnd.slice(0, 4)) : null;
+  const crossesBoundary = !!(startYear && endYear) && endYear > startYear;
+  const today = new Date();
+  const entirelyFutureYear = !!startYear && !crossesBoundary && startYear > today.getFullYear();
+  const nyBizDaysForCy = crossesBoundary
+    ? rangeDays.filter((d) => Number(d.slice(0, 4)) > startYear && !isNonWorkingDay(d)).length
+    : 0;
+  const cyNewDays = entirelyFutureYear ? 0 : crossesBoundary ? Math.max(0, newDays - nyBizDaysForCy) : newDays;
+
   const balanceStatus = (() => {
     if (!typeInfo || typeInfo.isClaim) return null; // no balance concept for Claim types
     if (effectiveAvailable == null) return null; // still loading
     if (typeInfo.isUnlimited) {
       return { status: 'info', label: 'Unlimited — no balance deducted' };
     }
-    if (newDays <= effectiveAvailable) {
+    if (cyNewDays <= effectiveAvailable) {
       return {
         status: 'ok',
-        label: `Sufficient balance — ${(effectiveAvailable - newDays).toFixed(1)} day(s) will remain`,
+        label: `Sufficient balance — ${(effectiveAvailable - cyNewDays).toFixed(1)} day(s) will remain`,
       };
     }
     if (typeInfo.isFlexible) {
       return { status: 'warn', label: 'Exceeds available balance — justification required' };
     }
     if (typeInfo.allowNegative) {
-      const projectedDebt = newDays - effectiveAvailable;
+      const projectedDebt = cyNewDays - effectiveAvailable;
       if (projectedDebt <= typeInfo.maxNegativeDays) {
         return {
           status: 'warn',
           label: `Exceeds balance — ${projectedDebt.toFixed(1)} day(s) borrowed against next year (max ${typeInfo.maxNegativeDays})`,
         };
       }
-      return { status: 'error', label: `Exceeds max advance of ${typeInfo.maxNegativeDays} day(s)` };
+      const remainingAdvance = Math.max(0, typeInfo.maxNegativeDays + Math.min(0, effectiveAvailable));
+      const alreadyBorrowed = Math.max(0, -effectiveAvailable);
+      return {
+        status: 'error',
+        label: alreadyBorrowed > 0
+          ? `Exceeds remaining advance of ${remainingAdvance.toFixed(1)} day(s) (${alreadyBorrowed.toFixed(1)} of ${typeInfo.maxNegativeDays} already borrowed)`
+          : `Exceeds max advance of ${typeInfo.maxNegativeDays} day(s)`,
+      };
     }
     return { status: 'error', label: 'Insufficient leave balance' };
   })();
   const hasBalanceError = balanceStatus?.status === 'error';
+
+  // Year-spanning: crossing into next year, or landing entirely within a
+  // future year, only if this leave type's policy allows it (computed
+  // server-side — see leaves.services._is_year_spanning_allowed).
+  const yearSpanningStatus = (() => {
+    if (!typeInfo || typeInfo.isClaim || !newStart || !newEnd) return null;
+    if (!crossesBoundary && !entirelyFutureYear) return null;
+    if (!typeInfo.yearSpanningAllowed) {
+      return {
+        status: 'error',
+        label: crossesBoundary
+          ? `${leave.leave_type} does not allow requests spanning into next year`
+          : `${leave.leave_type} does not allow requests made entirely within a future year`,
+      };
+    }
+    if (typeInfo.nextYearAvailable == null) return null;
+    // Preview against next year's REAL expected availability (raw
+    // entitlement minus this year's still-outstanding advance-leave debt)
+    // — the next-year portion can never itself borrow, regardless of
+    // allowNegative. Mirrors the backend's _future_year_check_kwargs.
+    const nyCharged = entirelyFutureYear ? newDays : nyBizDaysForCy;
+    // typeInfo.nextYearAvailable is a static snapshot (this year's EXISTING
+    // outstanding advance debt only) — it doesn't know about the additional
+    // debt THIS edit's own current-year portion would create. Discount it
+    // further, mirroring the backend's _check_balance_year_spanning
+    // projected_cy_debt fix, so the preview simulates the post-approval
+    // state. Only applies to crossesBoundary.
+    const existingDebt = Math.max(0, -effectiveAvailable);
+    const newDebt = Math.max(0, -(effectiveAvailable - cyNewDays));
+    const additionalDebtCreated = crossesBoundary ? Math.max(0, newDebt - existingDebt) : 0;
+    const effectiveNextYearAvailable = typeInfo.nextYearAvailable - additionalDebtCreated;
+    if (nyCharged > effectiveNextYearAvailable) {
+      return {
+        status: 'error',
+        label: `Next year's available balance is ${effectiveNextYearAvailable.toFixed(1)}d (after this year's outstanding advance) — requesting ${nyCharged.toFixed(1)}d`,
+      };
+    }
+    if (crossesBoundary) {
+      return {
+        status: 'info',
+        label: `${nyCharged.toFixed(1)}d next year, within the ${effectiveNextYearAvailable.toFixed(1)}d expected available`,
+      };
+    }
+    return null;
+  })();
+  const hasYearSpanningError = yearSpanningStatus?.status === 'error';
 
   const handleSubmit = async () => {
     if (!newStart || !newEnd) {
@@ -318,6 +400,10 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
     }
     if (hasBalanceError) {
       toast.error(balanceStatus.label);
+      return;
+    }
+    if (hasYearSpanningError) {
+      toast.error(yearSpanningStatus.label);
       return;
     }
     if (isOW && !newReason.trim()) {
@@ -448,7 +534,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
               onDayHover={setHoverDate}
               onPrev={prevMonth}
               onNext={nextMonth}
-              dateMode="future"
+              dateMode={typeInfo?.allowPastDates ? 'any' : 'future'}
               calendarDayMap={sanitizedDayMap}
               restrictToWorkingDays
               newLeaveTypeCode={leave.leave_type}
@@ -552,6 +638,15 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
             </div>
           )}
 
+          {yearSpanningStatus && (
+            <div className={`el-balance-panel v-${yearSpanningStatus.status}`}>
+              {yearSpanningStatus.status === 'error'
+                ? <AlertCircle size={14} className="el-balance-panel-icon" />
+                : <Info size={14} className="el-balance-panel-icon" />}
+              <span>{yearSpanningStatus.label}</span>
+            </div>
+          )}
+
           <div className="al-form-group" style={{ marginTop: '15px' }}>
             <label className="al-label">Leave Reason{isOW ? ' *' : ''}</label>
             <textarea
@@ -622,8 +717,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
             </button>
             <button
               className="al-btn al-btn-primary"
-              disabled={isSubmitting || hasBalanceError || (needsFlexJustification && !flexJustification.trim())}
-              title={hasBalanceError ? balanceStatus.label : undefined}
+              disabled={isSubmitting || hasBalanceError || hasYearSpanningError || (needsFlexJustification && !flexJustification.trim())}
+              title={hasBalanceError ? balanceStatus.label : hasYearSpanningError ? yearSpanningStatus.label : undefined}
               onClick={handleSubmit}
             >
               {isSubmitting

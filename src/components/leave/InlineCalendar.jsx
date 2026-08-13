@@ -166,9 +166,16 @@ export function InlineCalendar({
     if (isOverlapBlocked(d, calendarDayMap, newLeaveTypeCode)) return true;
     return false;
   }
+  // 'any' mode (Actual + Unlimited leave types — no balance to protect, so
+  // past dates can be self-logged retroactively same as future ones) skips
+  // the past/future direction check entirely; only isRuleIneligible applies.
+  function isPastOrFutureIneligible(d) {
+    if (dateMode === 'any') return false;
+    return dateMode === 'past' ? d > today : d < today;
+  }
   function dayClass(d) {
     const cls = ['al-cal-day'];
-    const isIneligible = (dateMode === 'past' ? d > today : d < today) || isRuleIneligible(d);
+    const isIneligible = isPastOrFutureIneligible(d) || isRuleIneligible(d);
     if (isIneligible) cls.push('al-cal-day-past');
     if (dateStr(d) === dateStr(today)) cls.push('al-cal-day-today');
     if (isRealWeekend(d, calendarDayMap)) cls.push('al-cal-day-weekend');
@@ -259,7 +266,7 @@ export function InlineCalendar({
               data-tooltip={ownRequestTooltip(getOwnRequest(d, calendarDayMap), newLeaveTypeCode) || undefined}
               {...activatable(
                 () => {
-                  const eligible = (dateMode === 'past' ? d < today : d >= today) && !isRuleIneligible(d);
+                  const eligible = !isPastOrFutureIneligible(d) && !isRuleIneligible(d);
                   if (eligible) onDayClick(d);
                 },
                 { label: d.toDateString() },
