@@ -158,7 +158,6 @@ export const authService = {
     return response.data;
   },
 
-<<<<<<< HEAD
   updateTheme: async (theme) => {
     const response = await httpClient.post(endpoints.auth.updateTheme, { theme });
     return response.data;
@@ -166,10 +165,11 @@ export const authService = {
 
   adminUpdatePassword: async (payload) => {
     const response = await httpClient.post(endpoints.auth.adminUpdatePassword, payload);
-=======
+    return response.data;
+  },
+
   changePassword: async (payload) => {
     const response = await httpClient.post(endpoints.auth.updatePassword, payload);
->>>>>>> 19051e613205a49c75ca1691a5751126133ae1bf
     return response.data;
   },
 };
