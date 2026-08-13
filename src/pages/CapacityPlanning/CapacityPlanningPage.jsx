@@ -23,6 +23,7 @@ import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
 import { settingsService } from '@services/settingsService';
@@ -60,6 +61,7 @@ export function CapacityPlanningPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [activeTeamTab, setActiveTeamTab] = useState('');
   const [collapsedTeams, setCollapsedTeams] = useState(new Set());
@@ -147,12 +149,12 @@ export function CapacityPlanningPage() {
   // Filters application
   const filteredConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.teamName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        c.teamName.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       const matchesTeam = selectedTeamFilter === 'all' || c.teamName === selectedTeamFilter;
       return matchesSearch && matchesTeam;
     });
-  }, [processedConsultants, searchQuery, selectedTeamFilter]);
+  }, [processedConsultants, debouncedSearchQuery, selectedTeamFilter]);
 
   // Group consultants by team for Summary View
   const groupedTeams = useMemo(() => {
@@ -173,11 +175,11 @@ export function CapacityPlanningPage() {
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
       const matchesActiveTab = c.teamName === activeTeamTab;
       return matchesSearch && matchesActiveTab;
     });
-  }, [processedConsultants, searchQuery, activeTeamTab]);
+  }, [processedConsultants, debouncedSearchQuery, activeTeamTab]);
 
   // Collapsing handlers
   const toggleTeamCollapse = (teamName) => {
@@ -425,77 +427,97 @@ export function CapacityPlanningPage() {
   }
 
   return (
-    <div className="leave-management">
-      <div className="leave-management-tabs">
+    <div className="capacity-planning">
+      <div className="capacity-planning-tabs">
         <button
           onClick={() => setViewMode('summary')}
-          className="leave-management-tab"
+          className="capacity-planning-tab"
           data-active={viewMode === 'summary'}
         >
-          <FileText className="leave-management-tab-icon" />
-          <span className="leave-management-tab-label">Summary View</span>
+          <FileText className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Summary View</span>
         </button>
         <button
           onClick={() => setViewMode('team')}
-          className="leave-management-tab"
+          className="capacity-planning-tab"
           data-active={viewMode === 'team'}
         >
-          <Users className="leave-management-tab-icon" />
-          <span className="leave-management-tab-label">Team View</span>
+          <Users className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Team View</span>
         </button>
       </div>
 
-      <div className="leave-management-content">
+      <div className="capacity-planning-content">
 
 
         {/* Filter Options */}
         <div className="cp-filter-panel">
           <div className="filter-row">
-            <SearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search consultants..."
-              classNames={{
-                wrapper: 'cp-search-wrapper',
-                icon: 'cp-search-icon',
-                input: 'cp-search-input'
-              }}
-            />
-
-            {viewMode === 'summary' && (
-              <Select
-                value={selectedTeamFilter}
-                onChange={setSelectedTeamFilter}
-                options={teamOptions}
-                width="team"
-              />
+            {viewMode === 'summary' ? (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search consultants..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <Select
+                  value={selectedTeamFilter}
+                  onChange={setSelectedTeamFilter}
+                  options={teamOptions}
+                  width="team"
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  <ExportButton
+                    excel
+                    pdf
+                    onExcelExport={handleExportExcel}
+                    onPdfExport={handleExportPDF}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search consultants..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div className="team-view-switcher">
+                    <button
+                      type="button"
+                      className={`switcher-btn ${teamViewSubMode === 'utilization' ? 'active' : ''}`}
+                      onClick={() => setTeamViewSubMode('utilization')}
+                    >
+                      Utilization View
+                    </button>
+                    <button
+                      type="button"
+                      className={`switcher-btn ${teamViewSubMode === 'compact' ? 'active' : ''}`}
+                      onClick={() => setTeamViewSubMode('compact')}
+                    >
+                      Compact View
+                    </button>
+                  </div>
+                  <ExportButton
+                    excel
+                    pdf
+                    onExcelExport={handleExportExcel}
+                    onPdfExport={handleExportPDF}
+                  />
+                </div>
+              </>
             )}
-
-            {viewMode === 'team' && (
-              <div className="team-view-switcher">
-                <button
-                  type="button"
-                  className={`switcher-btn ${teamViewSubMode === 'utilization' ? 'active' : ''}`}
-                  onClick={() => setTeamViewSubMode('utilization')}
-                >
-                  Utilization View
-                </button>
-                <button
-                  type="button"
-                  className={`switcher-btn ${teamViewSubMode === 'compact' ? 'active' : ''}`}
-                  onClick={() => setTeamViewSubMode('compact')}
-                >
-                  Compact View
-                </button>
-              </div>
-            )}
-
-            <ExportButton
-              excel
-              pdf
-              onExcelExport={handleExportExcel}
-              onPdfExport={handleExportPDF}
-            />
           </div>
         </div>
 
@@ -727,7 +749,7 @@ export function CapacityPlanningPage() {
                   );
                 } else {
                   return (
-                    <div key={c.id} className="consultant-card utilization">
+                    <div key={c.id} className="consultant-card list-card">
                       <div className="consultant-info-left">
                         <div className="consultant-avatar" style={{ overflow: 'hidden', flexShrink: 0 }}>
                           {c.photo ? (

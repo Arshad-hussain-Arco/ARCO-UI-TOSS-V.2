@@ -8,6 +8,7 @@ import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
@@ -117,6 +118,7 @@ export function ImportantLinksPage() {
   // ── Filter state ───────────────────────────────────────────────
   const [selectedGroup, setSelectedGroup] = useState('__all__');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const [showModal, setShowModal] = useState(false);
   const [editLink, setEditLink] = useState(null); // { ...link, group: 'Group Title' }
@@ -130,7 +132,7 @@ export function ImportantLinksPage() {
 
   // ── Filtered display ───────────────────────────────────────────
   const filteredCategories = useMemo(() => {
-    const q = norm(searchQuery.trim());
+    const q = norm(debouncedSearchQuery.trim());
 
     return mergedCategories
       .filter((cat) => {
@@ -149,15 +151,15 @@ export function ImportantLinksPage() {
         const matchingLinks = norm(cat.title).includes(q)
           ? cat.links
           : cat.links.filter(
-              (l) =>
-                norm(l.label).includes(q) ||
-                norm(l.url).includes(q) ||
-                norm(l.description).includes(q),
-            );
+            (l) =>
+              norm(l.label).includes(q) ||
+              norm(l.url).includes(q) ||
+              norm(l.description).includes(q),
+          );
         return { ...cat, links: matchingLinks };
       })
       .filter((cat) => cat.links.length > 0);
-  }, [mergedCategories, selectedGroup, searchQuery]);
+  }, [mergedCategories, selectedGroup, debouncedSearchQuery]);
 
   // Dropdown group options
   const dropdownGroups = useMemo(
@@ -181,8 +183,8 @@ export function ImportantLinksPage() {
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
-          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
+          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
           return;
         }
       }
@@ -190,7 +192,7 @@ export function ImportantLinksPage() {
       try {
         let groupId;
         const existingGroup = serverCategories?.find((c) => c.title === group);
-        
+
         if (isNewGroup || !existingGroup) {
           const newGroup = await linkService.createGroup(group);
           groupId = newGroup.id;
@@ -237,8 +239,8 @@ export function ImportantLinksPage() {
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 5) {
-          toast.error('Only 5 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
+          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
           return;
         }
       }
@@ -305,6 +307,47 @@ export function ImportantLinksPage() {
     }
   };
 
+  // ── Toggle Pin Group ───────────────────────────────────────────
+  const handleTogglePinGroup = useCallback(async (groupId, currentPinnedStatus) => {
+    const category = mergedCategories.find(c => c.id === groupId);
+    if (!category) return;
+
+    if (!currentPinnedStatus && pinnedLinks.length >= 4 && !pinnedLinks.some(p => p.groupId === groupId)) {
+      toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+      return;
+    }
+
+    const newPinStatus = !currentPinnedStatus;
+    setIsSaving(true);
+    try {
+      await Promise.all(category.links.map(link => {
+        if (link.pinToHeader !== newPinStatus) {
+          const formData = new FormData();
+          formData.append('link', link.label || '');
+          formData.append('url', link.url || '');
+          if (link.description) {
+            formData.append('content', link.description);
+          }
+          if (category.title) {
+            formData.append('group', category.title);
+          }
+          formData.append('is_header', newPinStatus ? 1 : 0);
+          formData.append('isHeader', newPinStatus ? 1 : 0);
+          return linkService.updateLink(link.id, formData);
+        }
+        return Promise.resolve();
+      }));
+      await refetch();
+      window.dispatchEvent(new Event('pinned-links:refresh'));
+      toast.success(newPinStatus ? 'Group pinned to header' : 'Group unpinned from header');
+    } catch (err) {
+      console.error('Failed to update group pin status:', err);
+      toast.error('Failed to update group pin status');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [mergedCategories, pinnedLinks, refetch, toast]);
+
   // ── Open edit modal ────────────────────────────────────────────
   const handleEditLink = useCallback(
     (link) => {
@@ -342,12 +385,12 @@ export function ImportantLinksPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search links"
-           style={{ paddingRight: '32px' }} />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+            style={{ paddingRight: '32px' }} />
+          {searchQuery && (
+            <button type="button" className="il-search-clear-btn" onClick={() => setSearchQuery('')}>
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         <span className="il-toolbar-spacer" aria-hidden="true" />
@@ -383,17 +426,22 @@ export function ImportantLinksPage() {
         />
       ) : (
         <div className="il-groups-grid">
-          {filteredCategories.map((category) => (
-            <GroupCard
-              key={category.id}
-              id={category.id}
-              title={category.title}
-              icon={CATEGORY_ICONS[category.iconKey] ?? null}
-              links={category.links}
-              onEditLink={handleEditLink}
-              onDeleteLink={handleDeleteLink}
-            />
-          ))}
+          {filteredCategories.map((category) => {
+            const isPinned = category.links.some(l => l.pinToHeader);
+            return (
+              <GroupCard
+                key={category.id}
+                id={category.id}
+                title={category.title}
+                icon={CATEGORY_ICONS[category.iconKey] ?? null}
+                links={category.links}
+                isPinned={isPinned}
+                onTogglePinGroup={(status) => handleTogglePinGroup(category.id, status)}
+                onEditLink={handleEditLink}
+                onDeleteLink={handleDeleteLink}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -420,7 +468,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '500' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'var(--font-family)' }}
               onClick={() => setDeleteTarget(null)}
               disabled={isSaving}
             >
@@ -429,7 +477,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeDelete}
               disabled={isSaving}
             >

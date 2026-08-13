@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { storage } from '@utils/storage';
+import { authService } from '@services/authService';
 
 export const THEMES = { LIGHT: 'light', DARK: 'dark' };
 
@@ -24,7 +25,15 @@ export function ThemeProvider({ children }) {
   }, [theme]);
 
   const toggleTheme = useCallback(
-    () => setTheme((current) => (current === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK)),
+    () => setTheme((current) => {
+      const newTheme = current === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK;
+      // Persist to backend asynchronously
+      authService.updateTheme(newTheme).catch((err) => {
+        // Silently ignore if user is unauthenticated or offline
+        console.debug('Failed to sync theme to backend:', err);
+      });
+      return newTheme;
+    }),
     [],
   );
 

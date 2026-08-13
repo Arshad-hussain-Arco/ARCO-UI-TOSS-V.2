@@ -13,24 +13,43 @@
   font-family: var(--font-family);
 }
 
-/* ── Page Header ── */
+/* ── Page Header & Welcome Greeting ── */
 .dc-page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
-  background: var(--surface-primary);
-  border-bottom: 1px solid var(--border-primary);
+  padding: 12px 20px 6px 20px;
+  background: transparent;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.dc-welcome-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dc-welcome-icon {
+  color: var(--c-primary, #006838);
   flex-shrink: 0;
 }
 
 .dc-page-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
   line-height: 1.2;
   letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dc-welcome-username {
+  color: var(--c-primary, #006838);
+  font-weight: 700;
 }
 
 .dc-page-sub {

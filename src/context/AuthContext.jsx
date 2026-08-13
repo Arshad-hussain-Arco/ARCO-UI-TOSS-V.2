@@ -3,6 +3,7 @@ import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 import { storage } from '@utils/storage';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
+import { useTheme } from '@hooks/useTheme';
 
 /**
  * @typedef  {Object} AuthContextValue
@@ -17,7 +18,7 @@ import { authService } from '@services/authService';
  * @property {() => void} clearError
  */
 
-export const AuthContext = createContext(/** @type {AuthContextValue | null} */ (null));
+export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -71,9 +72,14 @@ export function AuthProvider({ children }) {
             computerLocation: info.computerLocation || persistedUser?.computerLocation,
             locationRef: info.computerLocationRef || persistedUser?.locationRef,
             doj: info.dateOfJoining || persistedUser?.doj,
+            theme: info.theme || persistedUser?.theme,
           };
           if (info.userName || info.username) {
             persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
+          }
+
+          if (info.theme) {
+            setTheme(info.theme);
           }
 
           if (persistedUser.emp_id) {
@@ -117,17 +123,17 @@ export function AuthProvider({ children }) {
     storage.remove(STORAGE_KEYS.AUTH_TOKEN);
     storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
     storage.remove(STORAGE_KEYS.AUTH_USER);
-    
+
     // Clear all temporary UI states (tabs, views) from localStorage so they reset on next login
     const keysToKeep = [STORAGE_KEYS.THEME, STORAGE_KEYS.SIDEBAR_COLLAPSED];
     const allKeys = Object.keys(window.localStorage);
-    
+
     allKeys.forEach((key) => {
       if (!keysToKeep.includes(key)) {
         window.localStorage.removeItem(key);
       }
     });
-    
+
     // Also clear sessionStorage just in case future tabs use it
     window.sessionStorage.clear();
 
@@ -143,6 +149,8 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
   }, [clearSession]);
 
+  const { setTheme } = useTheme();
+
   const login = useCallback(async (credentials) => {
     setIsSubmitting(true);
     setError(null);
@@ -156,13 +164,17 @@ export function AuthProvider({ children }) {
       }
       storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
       setUser(authenticatedUser);
+      
+      if (authenticatedUser?.theme) {
+        setTheme(authenticatedUser.theme);
+      }
     } catch (caught) {
       setError(caught.message);
       throw caught;
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
+  }, [setTheme]);
 
   const logout = useCallback(async () => {
     try {

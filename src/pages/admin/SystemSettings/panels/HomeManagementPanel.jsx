@@ -1,8 +1,10 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Edit2, LayoutGrid, Loader2, Plus, Trash2, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { HomeCard } from '@components/home/HomeCard';
+import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
 import DOMPurify from 'dompurify';
 
 /**
@@ -362,51 +364,10 @@ function HomeManagementPanelComponent() {
 
   const renderWidthSelector = (currentWidth, setWidth) => {
     return (
-      <div className="ss-modal-form-group">
-        <label className="ss-modal-label">Card Display Width</label>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={() => setWidth('50%')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '12px',
-              border: currentWidth === '50%' ? '2px solid var(--c-primary)' : '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: currentWidth === '50%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '50%' ? 'var(--c-primary)' : 'var(--text-primary)' }}>50% Width</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Half row layout</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setWidth('100%')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '12px',
-              border: currentWidth === '100%' ? '2px solid var(--c-primary)' : '1px solid var(--border-primary)',
-              borderRadius: '8px',
-              background: currentWidth === '100%' ? 'var(--c-primary-light)' : 'var(--surface-primary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span style={{ fontSize: '13px', fontWeight: 600, color: currentWidth === '100%' ? 'var(--c-primary)' : 'var(--text-primary)' }}>100% Width</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Full row banner</span>
-          </button>
-        </div>
-      </div>
+      <HomeCardLayoutSelector
+        value={currentWidth}
+        onChange={setWidth}
+      />
     );
   };
 
@@ -454,8 +415,8 @@ function HomeManagementPanelComponent() {
             padding: '0 20px',
             fontSize: '13px',
             fontWeight: 600,
-            color: 'var(--surface-primary)',
-            background: 'var(--c-primary)',
+            color: '#ffffff',
+            background: '#006633',
             border: 'none',
             borderRadius: '6px',
             boxShadow: '0 2px 4px rgba(0, 104, 56, 0.2)',
@@ -527,7 +488,7 @@ function HomeManagementPanelComponent() {
                     }}
                     title="Edit Card"
                   >
-                    <Edit2 size={13} />
+                    <Edit size={13} />
                   </button>
                   <button
                     type="button"
@@ -550,7 +511,7 @@ function HomeManagementPanelComponent() {
                     }}
                     title="Delete Card"
                   >
-                    <Trash2 size={13} />
+                    <Trash size={13} />
                   </button>
                 </div>
 
@@ -932,171 +893,28 @@ function HomeManagementPanelComponent() {
                   borderRadius: '12px',
                   padding: '24px',
                   minHeight: '340px',
+                  alignItems: 'start',
+                  overflowX: 'auto',
                 }}>
                   <div
                     style={{
-                      background: 'var(--surface-primary)',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '12px',
-                      overflow: 'hidden',
-                      boxShadow: 'var(--shadow-md)',
-                      display: 'flex',
-                      flexDirection: 'column',
                       width: (activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
-                      minWidth: '240px',
+                      minWidth: '280px',
                       transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      alignSelf: 'start',
                     }}
                   >
-                    {activeTab === 'text' ? (
-                      activeSubtab === 'article' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px', textAlign: 'center' }}>
-                          {/* Person Image */}
-                          {personPreviewUrl ? (
-                            <img
-                              src={personPreviewUrl}
-                              alt={personName || "Article image"}
-                              style={{
-                                width: '90px',
-                                height: '90px',
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                border: '3px solid var(--surface-primary)',
-                                boxShadow: 'var(--shadow-md)',
-                                marginBottom: '16px',
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: '90px',
-                                height: '90px',
-                                borderRadius: '50%',
-                                background: 'var(--bg-secondary)',
-                                border: '2px dashed var(--border-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'var(--text-tertiary)',
-                                marginBottom: '16px',
-                              }}
-                            >
-                              <User size={36} />
-                            </div>
-                          )}
-
-                          {/* Person Name */}
-                          <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {personName || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Title</span>}
-                          </h4>
-
-                          {/* Designation */}
-                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--c-primary)', marginBottom: '16px' }}>
-                            {personDesignation || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Sub Head</span>}
-                          </div>
-
-                          {/* Separator */}
-                          <div style={{ width: '40px', height: '2px', background: 'var(--border-primary)', marginBottom: '16px' }} />
-
-                          {/* Details */}
-                          <p style={{
-                            margin: 0,
-                            fontSize: '13px',
-                            lineHeight: 1.5,
-                            color: 'var(--text-secondary)',
-                            wordBreak: 'break-word',
-                            whiteSpace: 'pre-wrap',
-                          }}>
-                            {personBio || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Description details will appear here...</span>}
-                          </p>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          {/* Banner Image */}
-                          <div style={{ height: '140px', width: '100%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {contentPreviewUrl ? (
-                              <img src={contentPreviewUrl} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-tertiary)' }}>
-                                <ImageIcon size={32} />
-                                <span style={{ fontSize: '11px', fontWeight: 500 }}>No banner uploaded</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Content Details */}
-                          <div style={{ padding: '16px 20px' }}>
-                            <p style={{
-                              margin: 0,
-                              fontSize: '13px',
-                              lineHeight: 1.6,
-                              color: 'var(--text-primary)',
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                            }}>
-                              {contentText ? contentText : (
-                                <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                                  Content text will preview here instantly as you type...
-                                </span>
-                              )}
-                            </p>
-                          </div>
-
-                          {/* Footer Placeholder */}
-                          <div style={{
-                            padding: '10px 16px',
-                            borderTop: '1px solid var(--border-primary)',
-                            background: 'var(--bg-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}>
-                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Card Footer Preview</span>
-                            <div style={{ display: 'flex', gap: '8px', opacity: 0.3 }}>
-                              <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'var(--text-tertiary)' }} />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        {/* Optional Banner Image */}
-                        {htmlPreviewUrl && (
-                          <div style={{ height: '140px', width: '100%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            <img src={htmlPreviewUrl} alt="HTML Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        )}
-
-                        {/* HTML Container */}
-                        <div style={{ padding: '16px 20px', minHeight: '120px' }}>
-                          {htmlContent.trim() ? (
-                            <div
-                              className="home-card-html-content"
-                              dangerouslySetInnerHTML={{ __html: htmlContent }}
-                            />
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100px', color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>
-                              HTML Preview will appear here...
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Footer Placeholder */}
-                        <div style={{
-                          padding: '10px 16px',
-                          borderTop: '1px solid var(--border-primary)',
-                          background: 'var(--bg-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Card Footer Preview</span>
-                          <div style={{ display: 'flex', gap: '8px', opacity: 0.3 }}>
-                            <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'var(--text-tertiary)' }} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <HomeCard
+                      card={{
+                        card_type: activeTab === 'text' ? (activeSubtab === 'article' ? 'person_card' : 'content_card') : 'html_code',
+                        display_width: activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth,
+                        photo: activeTab === 'text' ? (activeSubtab === 'article' ? personPreviewUrl : contentPreviewUrl) : htmlPreviewUrl,
+                        person_name: personName,
+                        designation: personDesignation,
+                        bio: personBio,
+                        text_content: contentText,
+                        html_content: htmlContent,
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -1144,8 +962,8 @@ function HomeManagementPanelComponent() {
                   padding: '0 20px',
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: 'var(--surface-primary)',
-                  background: isSaveDisabled ? 'var(--border-primary)' : 'var(--c-primary)',
+                  color: ' #ffffff',
+                  background: isSaveDisabled ? '#6db693ff' : '#006633',
                   border: 'none',
                   borderRadius: '6px',
                   boxShadow: isSaveDisabled ? 'none' : '0 2px 4px rgba(0, 104, 56, 0.2)',

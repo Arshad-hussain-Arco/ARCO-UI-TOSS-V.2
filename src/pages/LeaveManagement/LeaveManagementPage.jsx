@@ -19,12 +19,17 @@ import {
   CalendarPlus,
   Home,
   Ship,
-  ArrowUpDown
+  ArrowUpDown,
+  MessageCircle,
+  Bell
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import { TeamLeaveSummary } from '@components/data-display/TeamLeaveSummary/TeamLeaveSummary';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
@@ -35,6 +40,7 @@ import { TeamRequestsTab } from './TeamRequestsTab';
 import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
 import leaveService from '@services/leaveService';
 import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
@@ -58,10 +64,10 @@ const ALL_TABS = [
 // created), not just a hardcoded pair.
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
-  { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: 'var(--c-primary)' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: 'var(--c-primary)' },
+  { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: '#006633' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: '#006633' },
   { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
-  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: 'CLAIM', icon: CalendarPlus, color: '#f59e0b' },
+  { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
 
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
@@ -70,10 +76,10 @@ import { getRelativePendingTime } from './TeamRequestsTab';
 
 export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
   const [showFull, setShowFull] = useState(false);
-  
+
   if (!text) return '-';
   if (text.length <= maxLength) return <span>{text}</span>;
-  
+
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <span>{text.substring(0, maxLength)}...</span>
@@ -95,7 +101,7 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
       </span>
       {showFull && (
         <>
-          <div 
+          <div
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}
             onClick={(e) => { e.stopPropagation(); setShowFull(false); }}
           />
@@ -125,10 +131,10 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
               borderTopRightRadius: '8px',
             }}>
               <span style={{ fontWeight: '600', color: '#334155', fontSize: '13px' }}>{title}</span>
-              <X 
-                size={16} 
-                style={{ cursor: 'pointer', color: '#64748b' }} 
-                onClick={(e) => { e.stopPropagation(); setShowFull(false); }} 
+              <X
+                size={16}
+                style={{ cursor: 'pointer', color: '#64748b' }}
+                onClick={(e) => { e.stopPropagation(); setShowFull(false); }}
               />
             </div>
             <div style={{ padding: '12px 14px', fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
@@ -143,14 +149,14 @@ export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
 
 export const SortIcon = ({ field, sortField, sortOrder }) => {
   const isActive = field === sortField;
-  
+
   return (
-    <ArrowUpDown 
-      size={12} 
-      style={{ 
-        opacity: isActive ? 1 : 0.4, 
+    <ArrowUpDown
+      size={12}
+      style={{
+        opacity: isActive ? 1 : 0.4,
         transition: 'all 0.2s ease'
-      }} 
+      }}
     />
   );
 };
@@ -193,7 +199,8 @@ export function LeaveManagementPage() {
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortField, setSortField] = useState(null);
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [commentsModalText, setCommentsModalText] = useState(null);
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(currentDate.getMonth());
@@ -398,32 +405,57 @@ export function LeaveManagementPage() {
     }
   };
 
-  const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = leaves.filter(l => l.status_code?.toLowerCase() === 'pending');
-    if (pendingLeaves.length === 0) return null;
 
-    let minDate = new Date(8640000000000000);
-    let maxDate = new Date(-8640000000000000);
-    let hasValidDates = false;
+  const filteredSortedLeaves = useMemo(() => {
+    return leavesWithModRequests.filter(leave => {
+      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
+      return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+    }).sort((a, b) => {
+      if (!sortField) return 0;
+      let aVal = a[sortField];
+      let bVal = b[sortField];
 
-    pendingLeaves.forEach(leave => {
-      const start = new Date(leave.start_date || leave.date);
-      const end = new Date(leave.end_date || leave.date || leave.start_date);
-
-      if (!isNaN(start.getTime())) {
-        if (start < minDate) minDate = start;
-        hasValidDates = true;
+      if (sortField === 'comments') {
+        aVal = a.comments || a.approval_reason || a.rejected_reason || '';
+        bVal = b.comments || b.approval_reason || b.rejected_reason || '';
       }
-      if (!isNaN(end.getTime())) {
-        if (end > maxDate) maxDate = end;
-        hasValidDates = true;
-      }
+
+      if (aVal === bVal) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      const result = aVal > bVal ? 1 : -1;
+      return sortOrder === 'asc' ? result : -result;
     });
+  }, [leavesWithModRequests, filterStatus, sortField, sortOrder]);
 
-    if (!hasValidDates) return null;
-    const fmt = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    return minDate.getTime() === maxDate.getTime() ? fmt(minDate) : `${fmt(minDate)} to ${fmt(maxDate)}`;
-  }, [leaves]);
+  const handleExportCSV = () => {
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Status'];
+    const rows = filteredSortedLeaves.map(l => [
+      l.leave_type || '',
+      l.start_date || '',
+      l.end_date || '',
+      l.business_days || 0,
+      l.status_code || ''
+    ]);
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leaves');
+    XLSX.writeFile(workbook, 'leaves.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    autoTable(doc, {
+      head: [['Leave Type', 'Dates', 'Work Days', 'Status']],
+      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.status_code || '']),
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+    doc.save('leaves.pdf');
+  };
+
   return (
     <div className="leave-management">
       {modalType && (
@@ -459,6 +491,34 @@ export function LeaveManagementPage() {
             setRefreshKey(k => k + 1);
           }}
         />
+      )}
+
+      {commentsModalText && (
+        <div className="al-overlay" onClick={() => setCommentsModalText(null)} style={{ zIndex: 100 }}>
+          <div className="al-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', minHeight: 'auto' }}>
+            <div className="al-header">
+              <div className="al-header-left">
+                <h2 className="al-title">Comments</h2>
+              </div>
+              <button type="button" className="al-close-btn" onClick={() => setCommentsModalText(null)}>
+                <X size={15} />
+              </button>
+            </div>
+            <div style={{
+              padding: '24px',
+              fontSize: '14px',
+              color: '#334155',
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.6',
+              background: '#f8fafc',
+              borderBottomLeftRadius: '8px',
+              borderBottomRightRadius: '8px',
+              borderTop: '1px solid #e2e8f0'
+            }}>
+              {commentsModalText}
+            </div>
+          </div>
+        </div>
       )}
 
       {viewModalLeave && (
@@ -612,7 +672,7 @@ export function LeaveManagementPage() {
               />
               <LeaveCard
                 title="Offshore Work"
-                subtitle="Inside KSA"
+                subtitle="Outside KSA"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.OW?.entitled ?? 0}
                 left={leaveBalances?.OW?.available ?? 0}
@@ -623,7 +683,7 @@ export function LeaveManagementPage() {
               />
               <LeaveCard
                 title="WFH"
-                subtitle="Outside KSA"
+                subtitle="Inside KSA"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.WFH?.entitled ?? 0}
                 left={leaveBalances?.WFH?.available ?? 0}
@@ -646,6 +706,7 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-label">All</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
                       </button>
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterStatus === 'pending'}
@@ -654,6 +715,7 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-label">Pending</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterStatus === 'approved'}
@@ -670,14 +732,7 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-label">Rejected</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterStatus === 'self-rejected'}
-                        onClick={() => setFilterStatus('self-rejected')}
-                      >
-                        <span className="leave-filter-label">Self Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase().replace('_', '-') === 'self-rejected').length}</span>
-                      </button>
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterStatus === 'mod-pending'}
@@ -718,8 +773,8 @@ export function LeaveManagementPage() {
                     <ExportButton
                       excel
                       pdf
-                      onExcelExport={() => {}}
-                      onPdfExport={() => {}}
+                      onExcelExport={handleExportCSV}
+                      onPdfExport={handleExportPDF}
                     />
                   </div>
                 </div>
@@ -735,8 +790,7 @@ export function LeaveManagementPage() {
                         <col style={{ width: '15%' }} />
                         <col style={{ width: '20%' }} />
                         <col style={{ width: '10%' }} />
-                        <col style={{ width: filterStatus === 'pending' ? '15%' : '25%' }} />
-                        {filterStatus === 'pending' && <col style={{ width: '10%' }} />}
+                        <col style={{ width: '25%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
@@ -755,11 +809,7 @@ export function LeaveManagementPage() {
                           <th className="leave-table-header" onClick={() => handleSort('leave_reason')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE REASON <SortIcon field="leave_reason" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
-                          {filterStatus === 'pending' && (
-                            <th className="leave-table-header" onClick={() => handleSort('requested_date')} style={{ cursor: 'pointer' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requested_date" sortField={sortField} sortOrder={sortOrder} /></div>
-                            </th>
-                          )}
+
                           <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
@@ -770,26 +820,7 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        {leavesWithModRequests.filter(leave => {
-                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
-                        }).sort((a, b) => {
-                          if (!sortField) return 0;
-                          let aVal = a[sortField];
-                          let bVal = b[sortField];
-                          
-                          if (sortField === 'comments') {
-                            aVal = a.comments || a.approval_reason || a.rejected_reason || '';
-                            bVal = b.comments || b.approval_reason || b.rejected_reason || '';
-                          }
-                          
-                          if (aVal === bVal) return 0;
-                          if (aVal == null) return 1;
-                          if (bVal == null) return -1;
-                          
-                          const result = aVal > bVal ? 1 : -1;
-                          return sortOrder === 'asc' ? result : -result;
-                        }).map((leave) => {
+                        {filteredSortedLeaves.map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const dateDisplay = leave.start_date === leave.end_date ? startDate : `${startDate} - ${endDate}`;
@@ -821,23 +852,25 @@ export function LeaveManagementPage() {
                               <td className="leave-table-cell" data-label="Leave Reason">
                                 <TruncatedText text={leave.leave_reason} maxLength={30} title="Leave Reason" />
                               </td>
-                              {filterStatus === 'pending' && (
-                                <td className="leave-table-cell" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
-                                  {getRelativePendingTime(leave.requested_date || leave.created_at)}
-                                </td>
-                              )}
+
                               <td className="leave-table-cell" data-label="Status">
-                                <span className="leave-table-status" data-status={statusStr}>
-                                  {statusStr}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span className="leave-table-status" data-status={statusStr}>
+                                    {statusStr}
+                                  </span>
+                                  {statusStr === 'pending' && <RemindManagerButton leave={leave} />}
+                                </div>
                               </td>
 
                               <td className="leave-table-cell" data-label="Comments">
-                                {(leave.comments || leave.approval_reason || leave.rejected_reason) ? (
-                                  <span style={{ fontSize: '13px', color: '#666' }}>
-                                    <TruncatedText text={leave.comments || leave.approval_reason || leave.rejected_reason} maxLength={30} title="Comments" />
-                                  </span>
-                                ) : '-'}
+                                <button
+                                  className="leave-table-action-button"
+                                  style={{ color: '#64748b' }}
+                                  title="View Comments"
+                                  onClick={() => setCommentsModalText(leave.comments || leave.approval_reason || leave.rejected_reason || 'No comments available')}
+                                >
+                                  <FileCheck />
+                                </button>
                               </td>
 
                               <td className="leave-table-cell" data-label="Action">
@@ -854,19 +887,20 @@ export function LeaveManagementPage() {
                                   ) : (
                                     statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
                                       <>
+
                                         <button
-                                          className="leave-table-action-button action-cancel"
-                                          title="Cancel Request"
-                                          onClick={() => setCancelModalLeave(leave)}
-                                        >
-                                          <X className="leave-table-action-icon" />
-                                        </button>
-                                        <button
-                                          className="leave-table-action-button action-edit"
+                                          className="tr-act-btn tr-act-edit"
                                           title="Edit Request"
                                           onClick={() => setEditModalLeave(leave)}
                                         >
                                           <Edit className="leave-table-action-icon" />
+                                        </button>
+                                        <button
+                                          className="tr-act-btn tr-act-reject"
+                                          title="Cancel Request"
+                                          onClick={() => setCancelModalLeave(leave)}
+                                        >
+                                          <X className="leave-table-action-icon" />
                                         </button>
                                       </>
                                     )
@@ -876,14 +910,11 @@ export function LeaveManagementPage() {
                             </tr>
                           );
                         })}
-                        {leavesWithModRequests.filter(leave => {
-                          const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-                          return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
-                        }).length === 0 && (
-                            <tr className="leave-table-row">
-                              <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
-                            </tr>
-                          )}
+                        {filteredSortedLeaves.length === 0 && (
+                          <tr className="leave-table-row">
+                            <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -928,3 +959,86 @@ export function LeaveManagementPage() {
   );
 }
 export default LeaveManagementPage;
+
+export function RemindManagerButton({ leave }) {
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [remindersLeft, setRemindersLeft] = useState(leave.reminders_left ?? 5);
+  const [cooldownUntil, setCooldownUntil] = useState(leave.next_reminder_allowed_after ? new Date(leave.next_reminder_allowed_after) : null);
+  const [isSending, setIsSending] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
+
+  const isCoolingDown = cooldownUntil && cooldownUntil > now;
+  const disabled = isSending || isCoolingDown || remindersLeft <= 0;
+
+  const handleRemind = async () => {
+    setIsSending(true);
+    try {
+      const response = await leaveService.remindManager(leave.id || leave.leave_id, { emp_id: user?.emp_id || user?.id });
+      const data = response.data || response;
+      if (data.success) {
+        toast.success(data.message || 'Reminder sent to your manager.');
+        if (data.reminders_left !== undefined) setRemindersLeft(data.reminders_left);
+        if (data.next_reminder_allowed_after) setCooldownUntil(new Date(data.next_reminder_allowed_after));
+      } else {
+        toast.error(data.message || 'Failed to send reminder');
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to send reminder';
+      toast.error(msg);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  let title = "Send Reminder";
+  if (remindersLeft <= 0) title = "No reminders left";
+  else if (isCoolingDown) {
+    const diff = cooldownUntil - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    title = `Next reminder in ${h}h ${m}m ${s}s`;
+  } else {
+    title = `Remind Manager (${remindersLeft} left)`;
+  }
+
+  // Hide the button completely if it's the very first reminder and the 24h delay hasn't passed yet
+  if (isCoolingDown && remindersLeft === 5) {
+    return null;
+  }
+
+  return (
+    <button
+      title={title}
+      disabled={disabled}
+      onClick={handleRemind}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px',
+        borderRadius: '50%',
+        background: disabled ? '#f3f4f6' : isHovered ? '#fef3c7' : '#fffbeb',
+        color: disabled ? '#9ca3af' : '#d97706',
+        border: `1px solid ${disabled ? '#e5e7eb' : '#fde68a'}`,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'all 0.2s ease',
+        opacity: disabled ? 0.7 : 1,
+        boxShadow: disabled ? 'none' : '0 1px 2px rgba(0,0,0,0.05)'
+      }}
+    >
+      <Bell size={14} />
+    </button>
+  );
+}

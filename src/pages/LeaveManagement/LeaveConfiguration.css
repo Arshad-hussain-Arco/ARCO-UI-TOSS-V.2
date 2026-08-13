@@ -145,7 +145,6 @@
 .lc-table th:first-child {
   z-index: 2;
   /* Needs to be above the sticky column when scrolling vertically */
-  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
 }
 
 .lc-table tr:hover td:first-child {
@@ -265,7 +264,7 @@
 }
 
 .text-right {
-  text-align: right;
+  display: flex;
 }
 
 .lc-action-btns {
@@ -289,27 +288,28 @@
   color: var(--text-secondary);
 }
 
-.lc-act-btn.edit:hover   {
+.lc-act-btn.edit:hover {
   background: var(--bg-hover);
 }
 
 .lc-act-btn.save {
-  background: var(--c-primary);
-  color: var(--surface-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  color: #ffffff;
+  border-color: #006633;
 }
 
-.lc-act-btn.save:hover   {
-  background: var(--bg-hover);
+.lc-act-btn.save:hover {
+  background: #006633;
+  opacity: 0.9;
 }
 
 .lc-act-btn.cancel {
   background: var(--surface-primary);
-  color: var(--c-danger);
-  border-color: var(--border-primary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 
-.lc-act-btn.cancel:hover   {
+.lc-act-btn.cancel:hover {
   background: var(--bg-hover);
 }
 
@@ -373,7 +373,7 @@
   flex-shrink: 0;
 }
 
-.lc-expand-btn:hover   {
+.lc-expand-btn:hover {
   background: var(--bg-hover);
 }
 
@@ -401,36 +401,6 @@
   letter-spacing: 0.5px;
 }
 
-/* ── Premium Table Headers ────────────────────────────────────────────── */
-.lc-table th:nth-child(2) {
-  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-}
-
-.lc-table th:nth-child(3) {
-  background: linear-gradient(180deg, #f3e8ff 0%, #e9d5ff 100%);
-  color: #6b21a8;
-}
-
-.lc-table th:nth-child(4) {
-  background: linear-gradient(180deg, #ffe4e6 0%, #fecdd3 100%);
-  color: #be123c;
-}
-
-.lc-table th:nth-child(5) {
-  background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
-  color: #3730a3;
-}
-
-.lc-table th:nth-child(6) {
-  background: linear-gradient(180deg, #ccfbf1 0%, #a7f3d0 100%);
-  color: #047857;
-}
-
-.lc-table th:nth-child(7) {
-  background: linear-gradient(180deg, var(--c-success-light) 0%, var(--c-success-light) 100%);
-  color: var(--c-success);
-}
 
 .lc-plain-val {
   font-weight: 500;
@@ -438,20 +408,24 @@
 }
 
 .lc-edit-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-secondary, #e2e8f0);
+    background: var(--surface-primary, #ffffff);
+    color: var(--text-secondary, #64748b);
+        cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .lc-edit-btn:hover   {
-  background: var(--bg-hover);
+   color: var(--c-info);
+  border-color: var(--c-info);
+  background: var(--surface-primary, #ffffff);
 }
 
 .lc-action-btns {
@@ -461,19 +435,30 @@
 }
 
 .lc-save-btn {
-  background: var(--c-success);
-  color: white;
-  border: none;
+  background: #006633;
+  color: #ffffff;
+  border: 1px solid #006633;
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-save-btn:hover {
+  background: #006633;
+  opacity: 0.9;
 }
 
 .lc-cancel-btn {
-  background: var(--bg-hover);
+  background: var(--surface-primary);
   color: var(--text-primary);
-  border: none;
+  border: 1px solid var(--border-secondary);
   border-radius: 4px;
   padding: 4px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lc-cancel-btn:hover {
+  background: var(--bg-hover);
 }

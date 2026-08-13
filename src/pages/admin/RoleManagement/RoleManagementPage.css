@@ -53,7 +53,7 @@
   height: 34px;
   padding: 0 14px;
   border-radius: 6px;
-  background: var(--c-primary);
+  background:  #006633;
   color:  #ffffff;
   font-weight: 600;
   font-size: 12.5px;
@@ -330,14 +330,15 @@
 }
 
 .rm-btn-action.configure {
-  color: var(--c-primary);
-  border-color: var(--c-primary);
+  color: var(--text-secondary, #64748b);
+  border-color: var(--border-secondary, #e2e8f0);
 }
 
 .rm-btn-action.configure:hover,
 .rm-btn-action.configure.active {
-  background: var(--c-primary);
-  color:#ffffff;
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+  background: transparent;
 }
 
 .rm-btn-action.delete {
@@ -566,16 +567,17 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--border-primary);
-  background: var(--surface-primary);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s ease;
 }
 
 .rm-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 /* Single Scrollable Modal Body */

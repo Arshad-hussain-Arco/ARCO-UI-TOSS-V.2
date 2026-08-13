@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Check, X, Clock } from 'lucide-react';
+import { Edit, Trash, Clock } from 'lucide-react';
 import { leaveService } from '@services/leaveService';
 import { useAuth } from '@hooks/useAuth';
 import LeaveRequestDrawer from '../../LeaveManagement/components/LeaveRequestDrawer';
@@ -204,46 +204,22 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
               {/* Action Buttons - Right Column */}
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
                 <button
+                  type="button"
+                  className="action-icon-btn edit"
                   onClick={() => openDrawer(req, 'approve')}
                   disabled={isLoading}
                   title="Approve"
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '4px',
-                    background: 'var(--c-primary)',
-                    color: '#ffffff',
-                    border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    opacity: isLoading ? 0.5 : 1,
-                    transition: 'opacity 0.15s ease'
-                  }}
                 >
-                  <Check size={12} />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"></path></svg>
                 </button>
                 <button
+                  type="button"
+                  className="action-icon-btn delete"
                   onClick={() => openDrawer(req, 'reject')}
                   disabled={isLoading}
                   title="Reject"
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '4px',
-                    background: 'var(--c-danger)',
-                    color: '#ffffff',
-                    border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    opacity: isLoading ? 0.5 : 1,
-                    transition: 'opacity 0.15s ease'
-                  }}
                 >
-                  <X size={12} />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
                 </button>
               </div>
             </div>

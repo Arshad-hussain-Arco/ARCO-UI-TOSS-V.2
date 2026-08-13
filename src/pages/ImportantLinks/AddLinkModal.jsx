@@ -410,28 +410,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             />
           </div>
  
-          {/* Pin to Header */}
-          <div className="il-pin-row">
-            <div className="il-pin-row-info">
-              <div className="il-pin-row-title">
-                <Pin size={13} className="il-pin-row-icon" aria-hidden="true" />
-                Pin to Header
-              </div>
-              <p className="il-pin-row-desc">
-                Quickly access this resource directly from the application header.
-              </p>
-            </div>
- 
-            <label className="il-toggle" aria-label="Pin to header">
-              <input
-                type="checkbox"
-                checked={state.pinToHeader}
-                onChange={(e) => set('pinToHeader', e.target.checked)}
-              />
-              <span className="il-toggle-track" />
-              <span className="il-toggle-thumb" />
-            </label>
-          </div>
+
         </div>
  
         {/* ── Footer ──────────────────────────────────────────────── */}
@@ -445,11 +424,10 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
           <Button
             variant="primary"
             size="sm"
-            leadingIcon={isEditMode ? Check : Plus}
             onClick={handleSubmit}
             isLoading={isSaving}
           >
-            {isEditMode ? (isSaving ? 'Updating...' : 'Update Link') : (isSaving ? 'Adding...' : 'Add Link')}
+            {isEditMode ? 'Save Changes' : 'Create'}
           </Button>
         </div>
       </div>

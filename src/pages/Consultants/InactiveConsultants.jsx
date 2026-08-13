@@ -8,6 +8,7 @@ import {
   X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
+import { useDebounce } from '@hooks/useDebounce';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
@@ -16,7 +17,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
-export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, designationsData, teamsData }) {
+export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, designationsData, teamsData }) {
   const fetchInactive = useCallback(async () => {
     const res = await consultantService.getInactiveConsultants();
     const list = Array.isArray(res) ? res : res?.results || [];
@@ -27,6 +28,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
   const [selectedDesignation, setSelectedDesignation] = useState('All Designations');
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
@@ -59,7 +61,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   }, [inactiveConsultants, designationsData]);
 
   const filtered = useMemo(() => {
-    const q = searchQuery.toLowerCase();
+    const q = debouncedSearchQuery.toLowerCase();
     return inactiveConsultants.filter((c) => {
       return (
         (c.name.toLowerCase().includes(q) ||
@@ -69,7 +71,14 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
         (selectedDesignation === 'All Designations' || c.designation === selectedDesignation)
       );
     });
-  }, [inactiveConsultants, searchQuery, selectedTeam, selectedDesignation]);
+  }, [inactiveConsultants, debouncedSearchQuery, selectedTeam, selectedDesignation]);
+
+  useEffect(() => {
+    if (onFilteredCountChange) {
+      onFilteredCountChange(filtered.length);
+      return () => onFilteredCountChange(null);
+    }
+  }, [filtered.length, onFilteredCountChange]);
 
   const handleActivate = async (consultant) => {
     setActivatingId(consultant.id);

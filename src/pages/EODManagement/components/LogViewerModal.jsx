@@ -4,6 +4,7 @@ import {
   ChevronUp, ChevronDown, Download, WrapText,
   Maximize2, Minimize2, ExternalLink, FileText,
 } from 'lucide-react';
+import { useDebounce } from '../../../hooks/useDebounce';
 import { eodService } from '../../../services/eodService';
 
 // Splits a line into text segments — normal and matched — for inline highlighting
@@ -35,6 +36,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState('latest');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [logContent, setLogContent] = useState('');
   const [answerContent, setAnswerContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -95,20 +97,20 @@ export function LogViewerModal({ isOpen, onClose, env }) {
 
   // Recompute match indices on query/content/view change
   useEffect(() => {
-    if (!searchQuery) {
+    if (!debouncedSearchQuery) {
       setMatchIndices([]);
       setCurrentMatchIdx(0);
       return;
     }
     const content = activeView === 'logs' ? logContent : answerContent;
     const lines = content ? content.split('\n') : [];
-    const lowerQ = searchQuery.toLowerCase();
+    const lowerQ = debouncedSearchQuery.toLowerCase();
     const hits = lines
       .map((line, i) => (line.toLowerCase().includes(lowerQ) ? i : -1))
       .filter(i => i !== -1);
     setMatchIndices(hits);
     setCurrentMatchIdx(0);
-  }, [searchQuery, logContent, answerContent, activeView]);
+  }, [debouncedSearchQuery, logContent, answerContent, activeView]);
 
   // Scroll to active match
   useEffect(() => {
@@ -229,7 +231,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
         >
           {/* Left: title + view dropdown + job dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: 'var(--surface-primary)', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <span style={{ color: ' #ffffff', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
               {env.name} Logs
             </span>
 
@@ -307,7 +309,7 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               title="Download as file"
               style={{ ...iconBtn, opacity: currentContent ? 1 : 0.4 }}
             >
-              <Download size={13} />
+              <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg>
               <span>Download</span>
             </button>
 
@@ -360,18 +362,19 @@ export function LogViewerModal({ isOpen, onClose, env }) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={onSearchKeyDown}
-              style={{ paddingRight: '32px', 
+              style={{
+                paddingRight: '32px',
                 width: '100%', backgroundColor: '#0d0d0d',
                 border: `1px solid ${searchQuery && totalMatches === 0 ? '#f87171' : searchQuery ? '#6366f1' : '#333'}`,
                 borderRadius: '6px', padding: '5px 28px 5px 30px',
-                color: 'var(--surface-primary)', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
+                color: ' #fff', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s',
               }}
             />
-      {searchQuery && (
-        <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-          <X size={14} />
-        </button>
-      )}
+            {searchQuery && (
+              <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={14} />
+              </button>
+            )}
             {searchQuery && (
               <X
                 size={11}
@@ -437,72 +440,72 @@ export function LogViewerModal({ isOpen, onClose, env }) {
             <>
               {lines.map((line, idx) => {
                 const isActiveLine = idx === activeMatchLine;
-                const isMatchLine  = matchIndices.includes(idx);
-                const segments     = splitLineByMatch(line, searchQuery);
+                const isMatchLine = matchIndices.includes(idx);
+                const segments = splitLineByMatch(line, debouncedSearchQuery);
 
-              return (
-                <div
-                  key={idx}
-                  ref={(el) => { lineRefs.current[idx] = el; }}
-                  style={{
-                    display: 'flex',
-                    backgroundColor: isActiveLine
-                      ? 'rgba(99,102,241,0.18)'
-                      : isMatchLine
-                        ? 'rgba(99,102,241,0.07)'
-                        : 'transparent',
-                  }}
-                >
-                  {/* Gutter — line number */}
-                  <span
+                return (
+                  <div
+                    key={idx}
+                    ref={(el) => { lineRefs.current[idx] = el; }}
                     style={{
-                      flexShrink: 0,
-                      width: gutterWidth,
-                      textAlign: 'right',
-                      paddingLeft: '12px',
-                      paddingRight: '10px',
-                      color: isActiveLine ? '#6366f1' : '#444',
-                      fontSize: '11px',
-                      userSelect: 'none',
-                      borderRight: isActiveLine ? '2px solid #6366f1' : '2px solid transparent',
+                      display: 'flex',
+                      backgroundColor: isActiveLine
+                        ? 'rgba(99,102,241,0.18)'
+                        : isMatchLine
+                          ? 'rgba(99,102,241,0.07)'
+                          : 'transparent',
                     }}
                   >
-                    {idx + 1}
-                  </span>
+                    {/* Gutter — line number */}
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: gutterWidth,
+                        textAlign: 'right',
+                        paddingLeft: '12px',
+                        paddingRight: '10px',
+                        color: isActiveLine ? '#6366f1' : '#444',
+                        fontSize: '11px',
+                        userSelect: 'none',
+                        borderRight: isActiveLine ? '2px solid #6366f1' : '2px solid transparent',
+                      }}
+                    >
+                      {idx + 1}
+                    </span>
 
-                  {/* Content */}
-                  <span
-                    style={{
-                      flex: 1,
-                      paddingLeft: '12px',
-                      paddingRight: '16px',
-                      color: getLineColor(line),
-                      wordBreak: wrapLines ? 'break-all' : 'normal',
-                      whiteSpace: wrapLines ? 'pre-wrap' : 'pre',
-                    }}
-                  >
-                    {segments.map((seg, si) =>
-                      seg.match ? (
-                        <mark
-                          key={si}
-                          style={{
-                            backgroundColor: isActiveLine ? 'var(--c-warning)' : '#6366f1',
-                            color: 'var(--surface-primary)',
-                            borderRadius: '2px',
-                            padding: '0 1px',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {seg.text}
-                        </mark>
-                      ) : (
-                        <span key={si}>{seg.text}</span>
-                      )
-                    )}
-                  </span>
-                </div>
-              );
-            })}
+                    {/* Content */}
+                    <span
+                      style={{
+                        flex: 1,
+                        paddingLeft: '12px',
+                        paddingRight: '16px',
+                        color: getLineColor(line),
+                        wordBreak: wrapLines ? 'break-all' : 'normal',
+                        whiteSpace: wrapLines ? 'pre-wrap' : 'pre',
+                      }}
+                    >
+                      {segments.map((seg, si) =>
+                        seg.match ? (
+                          <mark
+                            key={si}
+                            style={{
+                              backgroundColor: isActiveLine ? 'var(--c-warning)' : '#6366f1',
+                              color: 'var(--surface-primary)',
+                              borderRadius: '2px',
+                              padding: '0 1px',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {seg.text}
+                          </mark>
+                        ) : (
+                          <span key={si}>{seg.text}</span>
+                        )
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>

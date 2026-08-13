@@ -153,11 +153,11 @@
 }
 
 .doc-sidebar-btn.primary {
-  background-color:  var(--c-primary); /* Forest Green */
+  background-color:   #006633; /* Forest Green */
   color: #ffffff;
 }
 .doc-sidebar-btn.primary:hover {
-  background-color: var(--c-primary);
+  background-color:   #006633; 
 }
 
 .doc-sidebar-btn.secondary {
@@ -796,14 +796,17 @@
 }
 
 .doc-modal-close-btn {
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .doc-modal-body {
@@ -927,12 +930,12 @@
 }
 
 .doc-modal-btn.primary {
-  background-color:  var(--c-primary);
+  background-color: #006633; 
   color:  #ffffff;
   border: none;
 }
 .doc-modal-btn.primary:hover {
-  background-color: var(--c-primary);
+  background-color: #006633; 
 }
 
 .doc-modal-btn.ghost {
@@ -942,4 +945,17 @@
 }
 .doc-modal-btn.ghost:hover {
   background-color: var(--bg-secondary);
+}
+
+/* Override action buttons in Document Folder Tree to be borderless */
+.doc-file-actions-group .action-icon-btn,
+.doc-folder-actions .action-icon-btn {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.doc-file-actions-group .action-icon-btn:hover,
+.doc-folder-actions .action-icon-btn:hover {
+  background-color: var(--bg-secondary) !important;
 }

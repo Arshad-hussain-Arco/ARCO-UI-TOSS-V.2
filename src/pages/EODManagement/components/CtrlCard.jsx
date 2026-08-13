@@ -100,8 +100,8 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
         }
       };
 
-      ws.onerror = () => {};
-    } catch (e) {}
+      ws.onerror = () => { };
+    } catch (e) { }
 
     pollInterval = setInterval(async () => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -131,14 +131,14 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
 
   const displayTime = env.duration || '—';
   const totalJobs = liveStepsTotal || env.stepsTotal || 0;
-  const currentJobNo = isCompleted 
-    ? totalJobs 
+  const currentJobNo = isCompleted
+    ? totalJobs
     : (liveRunningJobNo || env.runningJobNo || liveStepsDone || env.stepsDone || (isRunning ? 1 : 0));
-  const currentJobName = isCompleted 
-    ? 'All Jobs Completed' 
+  const currentJobName = isCompleted
+    ? 'All Jobs Completed'
     : (liveRunningJobName || env.runningJobName || currentStepName || '—');
-  const nextJobName = isCompleted 
-    ? '—' 
+  const nextJobName = isCompleted
+    ? '—'
     : (liveNextJobName || env.nextJobName || 'None');
   const currentProgress = liveProgress !== undefined ? liveProgress : (env.progress || 0);
 
@@ -251,8 +251,8 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
               {/* Current Job Name */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Current Job:</span>
-                <span style={{ 
-                  color: isCompleted ? 'var(--c-success)' : isFailed ? 'var(--c-danger)' : '#000000', 
+                <span style={{
+                  color: isCompleted ? 'var(--c-success)' : isFailed ? 'var(--c-danger)' : 'var(--text-secondary)',
                   fontWeight: 600,
                   backgroundColor: 'rgba(0, 0, 0, 0.05)',
                   padding: '2px 8px',
@@ -266,8 +266,8 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
               {/* Next Job Name in Queue */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Next Job:</span>
-                <span style={{ 
-                  color: isCompleted ? 'var(--text-secondary)' : '#6366f1', 
+                <span style={{
+                  color: isCompleted ? 'var(--text-secondary)' : '#6366f1',
                   fontWeight: 600,
                   fontFamily: 'monospace'
                 }}>
@@ -303,7 +303,7 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
       <LogViewerModal
         isOpen={isLogModalOpen}
         onClose={() => setIsLogModalOpen(false)}
-        env={{...env, currentStep: currentStepName}}
+        env={{ ...env, currentStep: currentStepName }}
       />
     </>
   );

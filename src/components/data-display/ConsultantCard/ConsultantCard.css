@@ -99,9 +99,9 @@
 
 /* User ID */
 .consultant-user-id {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #666666);
+  color: #6b7280;
   margin: 0;
   line-height: 1.2;
 }
@@ -150,6 +150,15 @@
   flex: 1;
   padding-top: 8px;
   border-top: 1px solid var(--border-primary, #eaeaea);
+  position: relative;
+}
+
+.consultant-id-copy-absolute {
+  position: absolute;
+  top: -23px; /* Sits perfectly above the grey break line without overlapping it */
+  right: 0;
+  z-index: 2;
+  background-color: var(--bg-tertiary, #f4f4f4);
 }
 
 .consultant-detail-item {

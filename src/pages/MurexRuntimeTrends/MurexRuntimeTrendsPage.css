@@ -1,18 +1,15 @@
 /* Murex Runtime Trends - Ultra Compact Enterprise Design */
+
 :root {
   --murex-text: #000000;
 }
+
 [data-theme='dark'] {
   --murex-text: #ffffff;
 }
 
 .murex-runtime-page {
-  --text-primary: var(--murex-text) !important;
-  --text-secondary: var(--murex-text) !important;
-  --text-tertiary: var(--murex-text) !important;
-  --text-muted: var(--murex-text) !important;
-  color: var(--murex-text) !important;
-  padding: 10px 14px;
+  color: var(--text-primary);
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -210,45 +207,494 @@
   color: var(--text-tertiary);
 }
 
-/* Tabs */
+/* Tabs - Styled matching Leave Management Tab Design System */
 .murex-tabs {
   display: flex;
-  gap: 2px;
-  background: var(--bg-secondary);
-  padding: 2px;
-  border-radius: 3px;
-  border: 1px solid var(--border-primary);
+  align-items: flex-end;
+  width: 100%;
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  gap: 6px;
   flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
 }
 
 .murex-tab {
-  flex: 1;
-  padding: 7px 14px;
-  background: transparent;
-  border: none;
-  border-radius: 2px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: none !important;
+  padding: 8px 18px;
+  height: 38px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
 }
 
-.murex-tab:hover {
+.murex-tab:hover:not([data-active='true']) {
+  background-color: var(--bg-hover);
   color: var(--text-primary);
-  background: var(--bg-hover);
+  border-color: var(--border-secondary);
 }
 
+.murex-tab[data-active='true'],
 .murex-tab.active {
-  background: var(--c-primary);
-  color:  #ffffff;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--surface-primary);
+  border-radius: 8px 8px 0 0;
+  color: var(--c-primary);
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.murex-tab-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.murex-tab.active .murex-tab-icon,
+.murex-tab[data-active='true'] .murex-tab-icon {
+  color: var(--c-primary);
+}
+
+.murex-tab-label {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* Tab Content */
 .murex-tab-content {
   flex: 1;
+  padding: 14px;
 }
+
+/* Overview Tab Layout & Date Navigation Header */
+.murex-overview-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.murex-overview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+
+.murex-overview-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.murex-date-nav-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.murex-date-arrow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 6px;
+  color: var(--text-secondary, #4b5563);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.murex-date-arrow-btn:hover:not(:disabled) {
+  background: var(--bg-hover, #f3f4f6);
+  border-color: var(--border-secondary, #d1d5db);
+  color: var(--c-primary, #005A36);
+}
+
+.murex-date-arrow-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-tertiary, #94a3b8);
+  border-color: var(--border-secondary, #e2e8f0);
+}
+
+.murex-date-display-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 5px 14px;
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.murex-date-display-btn:hover,
+.murex-date-display-btn[data-state='open'] {
+  border-color: var(--c-primary, #005A36);
+  background: var(--bg-hover, #f9fafb);
+  box-shadow: 0 0 0 2px rgba(0, 90, 54, 0.1);
+}
+
+.murex-date-icon {
+  color: var(--c-primary, #005A36);
+}
+
+.murex-date-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  letter-spacing: 0.2px;
+}
+
+.murex-overview-job-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.murex-overview-job-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.murex-overview-job-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+}
+
+.murex-meta-dot {
+  color: var(--text-tertiary, #94a3b8);
+}
+
+.murex-overview-chart-card {
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.murex-overview-legend {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-primary, #f1f5f9);
+}
+
+.murex-overview-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.murex-overview-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.murex-overview-legend-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+}
+
+.murex-overview-plotly-wrapper {
+  width: 100%;
+  min-height: 560px;
+  position: relative;
+}
+
+.murex-overview-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 20px;
+  color: var(--text-tertiary, #94a3b8);
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg-primary, #f8fafc);
+  border-radius: 6px;
+  border: 1px dashed var(--border-primary, #e2e8f0);
+}
+
+.murex-empty-icon {
+  color: var(--text-tertiary, #94a3b8);
+}
+
+
+/* New Tabular Job - Duration Matrix Layout */
+.murex-matrix-card-new {
+  /* Inherits background and border from .murex-overview-chart-card */
+  padding: 16px 20px;
+}
+
+.murex-matrix-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-bottom: 16px;
+  width: 100%;
+}
+
+.murex-matrix-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  text-align: center;
+  letter-spacing: -0.2px;
+}
+
+.murex-matrix-card-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+}
+
+.murex-matrix-list-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.murex-matrix-list-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-primary, #e2e8f0);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.murex-matrix-list-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 380px; /* Limits height roughly same as before */
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for matrix list to look professional */
+.murex-matrix-list-body::-webkit-scrollbar {
+  width: 6px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-track {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 4px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-thumb {
+  background: var(--border-secondary, #cbd5e1);
+  border-radius: 4px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary, #94a3b8);
+}
+
+.murex-matrix-list-row {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-secondary, #f1f5f9);
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.murex-matrix-list-row:last-child {
+  border-bottom: none;
+}
+
+.murex-matrix-list-row:hover {
+  background-color: var(--bg-hover, #f8fafc);
+}
+
+.mxl-col {
+  display: flex;
+  align-items: center;
+}
+
+.mxl-col-job {
+  flex: 1;
+  min-width: 200px;
+}
+
+.mxl-col-timeline {
+  flex: 2;
+  min-width: 250px;
+  padding: 0 16px;
+}
+
+.mxl-col-duration {
+  width: 120px;
+  justify-content: flex-end;
+  padding-right: 24px;
+}
+
+.mxl-col-start-end {
+  width: 160px;
+  justify-content: flex-end;
+}
+
+.mxl-job-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.mxl-timeline-track {
+  width: 100%;
+  height: 12px;
+  position: relative;
+}
+
+.mxl-timeline-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 10px;
+  background-color: #8B5CF6; /* Purple/violet execution bar color */
+  border-radius: 4px;
+  min-width: 4px;
+}
+
+.mxl-duration-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+}
+
+.mxl-start-end-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsible MO_EOD Job Timeline Accordion Card */
+.murex-timeline-accordion-card {
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.murex-timeline-accordion-card.is-expanded {
+  border-color: var(--border-secondary, #cbd5e1);
+}
+
+.murex-timeline-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  cursor: pointer;
+  background: var(--surface-primary, #ffffff);
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.murex-timeline-accordion-header:hover {
+  background-color: var(--bg-hover, #f8fafc);
+}
+
+.murex-timeline-accordion-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.murex-timeline-accordion-chevron-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-primary, #f8fafc);
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 6px;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.murex-timeline-accordion-header:hover .murex-timeline-accordion-chevron-btn {
+  background: var(--bg-hover, #f1f5f9);
+  color: var(--c-primary, #005A36);
+  border-color: var(--border-secondary, #cbd5e1);
+}
+
+.murex-timeline-accordion-body {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+
+
 
 /* Modal Form Elements and Buttons */
 .murex-form-input {
@@ -286,8 +732,8 @@
 }
 
 .murex-btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
   color: var(--text-primary);
 }
 
@@ -296,8 +742,8 @@
 }
 
 .murex-btn-primary {
-  background: var(--c-primary);
-  color: #ffffff; 
+  background: #006633;
+  color: #ffffff;
 }
 
 .murex-btn-primary:hover:not(:disabled) {
@@ -315,6 +761,7 @@
     opacity: 0;
     transform: translateY(-3px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -725,7 +1172,7 @@
   justify-content: center;
   gap: 4px;
   padding: 7px;
-  background: var(--c-primary);
+  background:  #006633;
   border: none;
   border-radius: 3px;
   font-size: 10px;
@@ -875,7 +1322,7 @@
   border-radius: 10px;
   font-size: 8px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -933,6 +1380,12 @@
   color: var(--text-primary);
 }
 
+.murex-icon-btn.error:hover {
+  background: var(--surface-primary, #ffffff);
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}
+
 .murex-icon-btn.active {
   background: var(--c-primary);
   border-color: var(--c-primary);
@@ -985,6 +1438,7 @@
   from {
     transform: translateX(100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -1777,14 +2231,14 @@
   white-space: nowrap;
 }
 
-.murex-job-health-badge { 
+.murex-job-health-badge {
   border-radius: 10px;
   font-size: 9px;
   font-weight: 700;
-  color:  #ffffff;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  white-space: nowrap; 
+  white-space: nowrap;
   padding: 2px 8px;
 }
 
@@ -1845,13 +2299,24 @@
   height: 26px;
   border-radius: 5px;
   flex-shrink: 0;
-  color:  #ffffff;
+  color: #ffffff;
 }
 
-.murex-job-metric-icon.blue  { background: var(--c-info); }
-.murex-job-metric-icon.green { background: var(--c-success); }
-.murex-job-metric-icon.red   { background: var(--c-danger); }
-.murex-job-metric-icon.purple { background: #8b5cf6; }
+.murex-job-metric-icon.blue {
+  background: var(--c-info);
+}
+
+.murex-job-metric-icon.green {
+  background: var(--c-success);
+}
+
+.murex-job-metric-icon.red {
+  background: var(--c-danger);
+}
+
+.murex-job-metric-icon.purple {
+  background: #8b5cf6;
+}
 
 .murex-job-metric-info {
   display: flex;
@@ -1880,10 +2345,21 @@
   text-overflow: ellipsis;
 }
 
-.murex-job-metric-value.blue   { color: var(--c-info); }
-.murex-job-metric-value.green  { color: var(--c-success); }
-.murex-job-metric-value.red    { color: var(--c-danger); }
-.murex-job-metric-value.purple { color: #8b5cf6; }
+.murex-job-metric-value.blue {
+  color: var(--c-info);
+}
+
+.murex-job-metric-value.green {
+  color: var(--c-success);
+}
+
+.murex-job-metric-value.red {
+  color: var(--c-danger);
+}
+
+.murex-job-metric-value.purple {
+  color: #8b5cf6;
+}
 
 /* Last Run Row */
 .murex-job-last-run {
@@ -2029,6 +2505,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(-360deg);
   }
@@ -2038,3 +2515,20 @@
   animation: spin-anim 0.5s linear;
 }
 
+@keyframes spin-infinite {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin-infinite 1s linear infinite;
+}
+.murex-matrix-list-footer {
+  display: flex;
+  padding: 8px 16px;
+  background-color: var(--bg-tertiary, #f8fafc);
+  border-top: 1px solid var(--border-secondary, #e2e8f0);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}

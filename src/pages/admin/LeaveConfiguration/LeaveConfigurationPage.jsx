@@ -3,11 +3,11 @@ import {
   Calendar,
   Check,
   ChevronDown,
-  Edit2,
+  Edit,
   ListChecks,
   Plus,
   Search,
-  Trash2,
+  Trash,
   X,
   RefreshCw,
   Loader2,
@@ -19,6 +19,7 @@ import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
+import { useDebounce } from '@hooks/useDebounce';
 import { leaveService } from '@services/leaveService';
 import { Loader } from '@components/feedback/Loader/Loader';
 import './LeaveConfigurationPage.css';
@@ -120,15 +121,15 @@ function eachDay(s, e) {
 function formatHolidayDates(dates) {
   if (!dates || dates.length === 0) return '';
   if (dates.length === 1) return formatDate(dates[0]);
-  
+
   // Sort dates asc
   const sorted = [...dates].sort((a, b) => new Date(a) - new Date(b));
   const start = sorted[0];
   const end = sorted[sorted.length - 1];
-  
+
   const startD = new Date(start);
   const endD = new Date(end);
-  
+
   const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
   return `${fmt(startD)} - ${fmt(endD)}`;
 }
@@ -492,13 +493,6 @@ export function LeaveConfigurationPage() {
   const [workScheduleSummary, setWorkScheduleSummary] = useState(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
-  // Reset Work Schedule selections when changing away from that tab
-  useEffect(() => {
-    if (activeTab !== 'work-schedule') {
-      setSelectedCustomDays([]);
-    }
-  }, [activeTab]);
-
   // Fetch Holidays — runs once on mount, not gated to the active tab, so all
   // tabs' data is ready as soon as the page loads.
   useEffect(() => {
@@ -560,10 +554,11 @@ export function LeaveConfigurationPage() {
         const data = await leaveService.getWorkScheduleSummary();
         if (active) {
           setWorkScheduleSummary(data);
-          // The user explicitly requested that no days be checked by default upon loading,
-          // so we intentionally do NOT pre-populate selectedCustomDays here from the backend.
           if (data?.meta?.distinct_schedules === 1) {
-            setSelectedCustomDays([]);
+            const group = data.results[0];
+            if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
+              setSelectedCustomDays(group.custom_weekend_days);
+            }
           }
         }
       } catch (err) {
@@ -581,6 +576,7 @@ export function LeaveConfigurationPage() {
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Leave Types + Policies Fetch & Search Effect
   const fetchCombinedLeaveTypes = async () => {
@@ -721,22 +717,30 @@ export function LeaveConfigurationPage() {
     }
   }
 
-  async function handleDeleteOverlapPolicy(rule) {
-    const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
-    const targetLabel = (rule.target_leave_type_codes || []).join(', ');
-    if (!window.confirm(`Deactivate the rule "${sourceLabel} -> ${targetLabel}"?`)) return;
+  const handleDeleteOverlapPolicy = (rule) => {
+    setDeleteTargetOverlap(rule);
+  };
+
+  const executeDeleteOverlapPolicy = async () => {
+    if (!deleteTargetOverlap) return;
+    setIsSaving(true);
     try {
-      await leaveService.deleteOverlapPolicy(rule.id);
+      await leaveService.deleteOverlapPolicy(deleteTargetOverlap.id);
       toast.success('Overlap adjustment policy deactivated');
       await fetchOverlapPolicies();
+      setDeleteTargetOverlap(null);
     } catch (err) {
       console.error('Failed to deactivate overlap adjustment policy', err);
       toast.error('Error deactivating overlap adjustment policy');
+    } finally {
+      setIsSaving(false);
     }
-  }
+  };
 
-  // Delete Target state for Holidays confirmation popup
+  // Delete Target states
   const [deleteTargetHoliday, setDeleteTargetHoliday] = useState(null);
+  const [deleteTargetCombined, setDeleteTargetCombined] = useState(null);
+  const [deleteTargetOverlap, setDeleteTargetOverlap] = useState(null);
 
   // ── Inline Edit State for Holidays ────────────────────────────────────────
   const [editingHolidayId, setEditingHolidayId] = useState(null);
@@ -871,7 +875,7 @@ export function LeaveConfigurationPage() {
     }
 
     setIsSaving(true);
-    
+
     // Generate dates list from startDate to endDate
     const datesList = [];
     if (holidayForm.startDate) {
@@ -929,13 +933,26 @@ export function LeaveConfigurationPage() {
         toast.error('Please select at least one weekend day');
         return;
       }
+      setIsSaving(true);
       const payload = { work_schedule: 'CUSTOM', custom_weekend_days: selectedCustomDays };
 
-      await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
-      toast.success('Work schedule applied successfully!');
+      const response = await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
+      toast.success(`Work schedule applied! Updated ${response.updated} employees.`);
+
+      // Refresh the summary
+      const data = await leaveService.getWorkScheduleSummary();
+      setWorkScheduleSummary(data);
+      if (data?.meta?.distinct_schedules === 1) {
+        const group = data.results[0];
+        if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
+          setSelectedCustomDays(group.custom_weekend_days);
+        }
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to apply work schedule');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1063,16 +1080,23 @@ export function LeaveConfigurationPage() {
     }
   };
 
-  const handleDeleteCombined = async (row) => {
-    if (window.confirm(`Deactivate "${row.name}" and its policy?`)) {
-      try {
-        await leaveService.deleteLeaveTypeWithPolicy(row.code);
-        toast.success(`Deactivated ${row.name}`);
-        fetchCombinedLeaveTypes();
-      } catch (err) {
-        toast.error('Failed to deactivate leave type');
-        console.error(err);
-      }
+  const handleDeleteCombined = (row) => {
+    setDeleteTargetCombined(row);
+  };
+
+  const executeDeleteCombined = async () => {
+    if (!deleteTargetCombined) return;
+    setIsSaving(true);
+    try {
+      await leaveService.deleteLeaveTypeWithPolicy(deleteTargetCombined.code);
+      toast.success(`Deactivated ${deleteTargetCombined.name}`);
+      fetchCombinedLeaveTypes();
+      setDeleteTargetCombined(null);
+    } catch (err) {
+      toast.error('Failed to deactivate leave type');
+      console.error(err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1130,12 +1154,12 @@ export function LeaveConfigurationPage() {
   // Filtered views based on search query
   const filteredHolidays = holidays.filter(
     (h) =>
-      (h.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-      (h.type || '').toLowerCase().includes((searchQuery || '').toLowerCase()),
+      (h.name || '').toLowerCase().includes((debouncedSearchQuery || '').toLowerCase()) ||
+      (h.type || '').toLowerCase().includes((debouncedSearchQuery || '').toLowerCase()),
   );
 
   const filteredCombinedLeaveTypes = combinedLeaveTypes.filter((row) => {
-    const q = (searchQuery || '').toLowerCase();
+    const q = (debouncedSearchQuery || '').toLowerCase();
     return (
       (row.name || '').toLowerCase().includes(q) ||
       (row.code || '').toLowerCase().includes(q)
@@ -1145,9 +1169,7 @@ export function LeaveConfigurationPage() {
   return (
     <div className="lc-redesign-container">
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="lc-page-header">
-        <h1 className="lc-page-title">Leaves Configurations</h1>
-      </div>
+
 
       {/* ── Tabbed Navigation Bar ─────────────────────────────────────────── */}
       <div className="lc-nav-tabs" role="tablist" aria-label="Leave configurations sections">
@@ -1202,7 +1224,7 @@ export function LeaveConfigurationPage() {
           onClick={() => { setActiveTab('work-schedule'); setSearchQuery(''); }}
         >
           <Calendar size={16} />
-          <span>weekend configurations</span>
+          <span>Weekend Configurations</span>
         </button>
       </div>
 
@@ -1237,6 +1259,11 @@ export function LeaveConfigurationPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <button type="button" className="lc-btn-primary" onClick={openAddHolidayModal}>
                 <Plus size={16} />
@@ -1397,19 +1424,19 @@ export function LeaveConfigurationPage() {
                               <div style={{ display: 'inline-flex', gap: '4px' }}>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn"
+                                  className="action-icon-btn edit"
                                   title="Edit Holiday"
                                   onClick={() => startHolidayInlineEdit(h)}
                                 >
-                                  <Edit2 size={15} />
+                                  <Edit size={15} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="lc-ghost-btn danger"
+                                  className="action-icon-btn delete"
                                   title="Delete Holiday"
                                   onClick={() => handleDeleteHoliday(h)}
                                 >
-                                  <Trash2 size={15} />
+                                  <Trash size={15} />
                                 </button>
                               </div>
                             )}
@@ -1436,6 +1463,11 @@ export function LeaveConfigurationPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <button type="button" className="lc-btn-primary" onClick={openAddCombinedModal}>
                 <Plus size={16} />
@@ -1522,19 +1554,19 @@ export function LeaveConfigurationPage() {
                             <div style={{ display: 'inline-flex', gap: '4px' }}>
                               <button
                                 type="button"
-                                className="lc-ghost-btn"
+                                className="action-icon-btn edit"
                                 title="Edit Leave Type & Policy"
                                 onClick={() => openEditCombinedModal(row)}
                               >
-                                <Edit2 size={15} />
+                                <Edit size={15} />
                               </button>
                               <button
                                 type="button"
-                                className="lc-ghost-btn danger"
+                                className="action-icon-btn delete"
                                 title="Deactivate Leave Type & Policy"
                                 onClick={() => handleDeleteCombined(row)}
                               >
-                                <Trash2 size={15} />
+                                <Trash size={15} />
                               </button>
                             </div>
                           </td>
@@ -1559,6 +1591,11 @@ export function LeaveConfigurationPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <button type="button" className="lc-btn-primary" onClick={openAddOverlapModal}>
                 <Plus size={16} />
@@ -1587,12 +1624,12 @@ export function LeaveConfigurationPage() {
                       </td>
                     </tr>
                   ) : overlapPolicies.filter((r) => {
-                      const q = searchQuery.trim().toLowerCase();
-                      if (!q) return true;
-                      const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
-                      const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
-                      return sourceText.includes(q) || targetText.includes(q);
-                    }).length === 0 ? (
+                    const q = searchQuery.trim().toLowerCase();
+                    if (!q) return true;
+                    const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
+                    const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
+                    return sourceText.includes(q) || targetText.includes(q);
+                  }).length === 0 ? (
                     <tr>
                       <td colSpan={5} className="lc-empty-state">
                         No overlap adjustment policies match your search criteria.
@@ -1611,42 +1648,42 @@ export function LeaveConfigurationPage() {
                         const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
                         const targetLabel = (rule.target_leave_type_codes || []).join(', ');
                         return (
-                        <tr key={rule.id}>
-                          <td>
-                            <span className="lc-code-badge">{sourceLabel}</span>
-                          </td>
-                          <td>
-                            <span className="lc-code-badge">{targetLabel}</span>
-                          </td>
-                          <td style={{ color: '#64748b' }}>{rule.notes || '—'}</td>
-                          <td>
-                            <Toggle
-                              checked={rule.is_active}
-                              onChange={(val) => handleToggleOverlapActive(rule, val)}
-                              ariaLabel={`Toggle active status for ${sourceLabel} to ${targetLabel}`}
-                            />
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '4px' }}>
-                              <button
-                                type="button"
-                                className="lc-ghost-btn"
-                                title="Edit Overlap Policy"
-                                onClick={() => openEditOverlapModal(rule)}
-                              >
-                                <Edit2 size={15} />
-                              </button>
-                              <button
-                                type="button"
-                                className="lc-ghost-btn danger"
-                                title="Deactivate Overlap Policy"
-                                onClick={() => handleDeleteOverlapPolicy(rule)}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                          <tr key={rule.id}>
+                            <td>
+                              <span className="lc-code-badge">{sourceLabel}</span>
+                            </td>
+                            <td>
+                              <span className="lc-code-badge">{targetLabel}</span>
+                            </td>
+                            <td >{rule.notes || '—'}</td>
+                            <td>
+                              <Toggle
+                                checked={rule.is_active}
+                                onChange={(val) => handleToggleOverlapActive(rule, val)}
+                                ariaLabel={`Toggle active status for ${sourceLabel} to ${targetLabel}`}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  className="action-icon-btn edit"
+                                  title="Edit Overlap Policy"
+                                  onClick={() => openEditOverlapModal(rule)}
+                                >
+                                  <Edit size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="action-icon-btn delete"
+                                  title="Deactivate Overlap Policy"
+                                  onClick={() => handleDeleteOverlapPolicy(rule)}
+                                >
+                                  <Trash size={15} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
                         );
                       })
                   )}
@@ -1703,67 +1740,67 @@ export function LeaveConfigurationPage() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div className="ss-modal-form-group">
-                  <div style={{ marginBottom: '20px' }}>
-                    <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                      <div style={{ marginBottom: '20px' }}>
+                        <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => {
+                          const isSelected = selectedCustomDays.includes(day.value);
+                          return (
+                            <label
+                              key={day.value}
+                              htmlFor={`ws-weekend-day-${day.value}`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                color: 'var(--text-primary)',
+                                userSelect: 'none'
+                              }}
+                            >
+                              <input
+                                id={`ws-weekend-day-${day.value}`}
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedCustomDays([...selectedCustomDays, day.value]);
+                                  } else {
+                                    setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
+                                  }
+                                }}
+                                style={{
+                                  width: '18px',
+                                  height: '18px',
+                                  accentColor: 'var(--c-primary)',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                              <span>{day.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {(workScheduleOptions.custom_weekend_days?.days || []).map((day) => {
-                      const isSelected = selectedCustomDays.includes(day.value);
-                      return (
-                        <label 
-                          key={day.value} 
-                          htmlFor={`ws-weekend-day-${day.value}`}
-                          style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '12px', 
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: 'var(--text-primary)',
-                            userSelect: 'none'
-                          }}
-                        >
-                          <input
-                            id={`ws-weekend-day-${day.value}`}
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedCustomDays([...selectedCustomDays, day.value]);
-                              } else {
-                                setSelectedCustomDays(selectedCustomDays.filter(d => d !== day.value));
-                              }
-                            }}
-                            style={{ 
-                              width: '18px', 
-                              height: '18px', 
-                              accentColor: 'var(--c-primary)',
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <span>{day.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
 
-              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-secondary)', paddingTop: '24px' }}>
-                <button
-                  type="button"
-                  className="lc-btn-primary"
-                  onClick={handleApplyWorkSchedule}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Check size={16} />
-                  Apply Work Schedule
-                </button>
-              </div>
+                  <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-secondary)', paddingTop: '24px' }}>
+                    <button
+                      type="button"
+                      className="lc-btn-primary"
+                      onClick={handleApplyWorkSchedule}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <Check size={16} />
+                      Apply Work Schedule
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -2754,7 +2791,7 @@ export function LeaveConfigurationPage() {
                   );
                 })}
             </div>
-            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', marginTop: '4px' }}>
               Leave all unchecked ("Any leave type") to trigger this rule no matter what leave type is applied for.
             </p>
           </div>
@@ -2792,7 +2829,7 @@ export function LeaveConfigurationPage() {
             {overlapFieldErrors.non_field && (
               <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px' }}>{overlapFieldErrors.non_field}</p>
             )}
-            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', marginTop: '4px' }}>
               These leave types' overlapping PENDING/APPROVED records get adjusted. A leave type can't be selected as both source and target.
             </p>
           </div>
@@ -2857,7 +2894,7 @@ export function LeaveConfigurationPage() {
                 borderRadius: '6px',
                 border: 'none',
                 backgroundColor: 'var(--c-danger)',
-                color: 'var(--surface-primary)',
+                color: '#fffff',
                 cursor: 'pointer',
                 fontWeight: '500',
                 display: 'flex',
@@ -2877,6 +2914,124 @@ export function LeaveConfigurationPage() {
       >
         <div style={{ padding: '16px 0', fontSize: '13px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the holiday <strong>{deleteTargetHoliday?.name}</strong>?
+        </div>
+      </AdminModal>
+
+      {/* Confirm Delete Leave Type & Policy Modal */}
+      <AdminModal
+        isOpen={!!deleteTargetCombined}
+        onClose={() => setDeleteTargetCombined(null)}
+        title="Confirm Deactivation"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--surface-primary)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontWeight: '500',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={() => setDeleteTargetCombined(null)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="lc-btn-primary"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'var(--c-danger)',
+                color: '#ffffff',
+                cursor: 'pointer',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={executeDeleteCombined}
+              disabled={isSaving}
+            >
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '13px', color: 'var(--text-primary)' }}>
+          Are you sure you want to deactivate <strong>{deleteTargetCombined?.name}</strong> and its policy?
+        </div>
+      </AdminModal>
+
+      {/* Confirm Delete Overlap Policy Modal */}
+      <AdminModal
+        isOpen={!!deleteTargetOverlap}
+        onClose={() => setDeleteTargetOverlap(null)}
+        title="Confirm Deactivation"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="lc-ghost-btn"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--surface-primary)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontWeight: '500',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={() => setDeleteTargetOverlap(null)}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="lc-btn-primary"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'var(--c-danger)',
+                color: '#ffffff',
+                cursor: 'pointer',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '36px',
+                width: 'auto',
+                fontSize: '13px'
+              }}
+              onClick={executeDeleteOverlapPolicy}
+              disabled={isSaving}
+            >
+              {isSaving ? <><Loader2 size={16} className="spin-animation" /> Deactivating...</> : 'Deactivate'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '13px', color: 'var(--text-primary)' }}>
+          Are you sure you want to deactivate the rule <strong>{(deleteTargetOverlap?.source_leave_type_codes || []).join(', ') || 'Any'} &rarr; {(deleteTargetOverlap?.target_leave_type_codes || []).join(', ')}</strong>?
         </div>
       </AdminModal>
     </div>

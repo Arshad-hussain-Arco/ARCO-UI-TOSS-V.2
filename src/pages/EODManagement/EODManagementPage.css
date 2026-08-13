@@ -563,7 +563,7 @@
 }
 .eod-badge.running {
   background: var(--c-success);
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 .eod-badge.completed {
   background: var(--c-success-light);
@@ -811,18 +811,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
   background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 5px;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
-  transition: all 0.12s;
+  transition: all 0.15s ease;
 }
 .eod-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 /* Modal sub-tabs */
@@ -964,31 +965,31 @@
   font-family: var(--font-family);
 }
 .eod-modal-btn.primary {
-  background: var(--c-primary);
-  color: var(--text-inverse);
+  background: #006633;
+  color: #ffffff;
 }
 .eod-modal-btn.primary:hover {
-  background: var(--c-primary-hover);
+  background: #006633;
+  opacity: 0.9;
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 .eod-modal-btn.cancel {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 .eod-modal-btn.cancel:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
 }
 .eod-modal-btn.danger {
-  background: var(--c-danger-light);
-  color: var(--c-danger);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
 }
 .eod-modal-btn.danger:hover {
-  background: var(--c-danger);
-  color: var(--text-inverse);
+  background: var(--bg-hover);
 }
+ 
 
 /* ── Configuration grid ──────────────────────────────────────── */
 .eod-config-grid {
@@ -1125,12 +1126,11 @@
   transition: all 0.12s;
 }
 .eod-icon-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--c-primary);
-  color: var(--c-primary);
+   color: var(--c-info);
+  border-color: var(--c-info);
+  background: var(--surface-primary, #ffffff);
 }
-.eod-icon-btn.danger:hover {
-  background: var(--c-danger-light);
+.eod-icon-btn.danger:hover { 
   border-color: var(--c-danger);
   color: var(--c-danger);
 }
@@ -1283,7 +1283,7 @@
 
 .eod-add-btn.primary-green {
   background: #005A36 !important;
-  color: var(--surface-primary) !important;
+  color: #ffffff;
   border: 1px solid #004d2e !important;
   border-radius: 6px;
   padding: 6px 14px;
@@ -1292,14 +1292,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  box-shadow: 0 1px 3px rgba(0, 90, 54, 0.2);
+  cursor: pointer; 
 }
 
 .eod-add-btn.primary-green:hover {
-  background: #00472b !important;
-  box-shadow: 0 3px 8px rgba(0, 90, 54, 0.35);
+  background: #00472b !important; 
   transform: translateY(-1px);
 }
 
@@ -1534,19 +1531,19 @@
 }
 
 .eod-modal-btn.primary-green {
-  background: #005A36 !important;
-  color: var(--surface-primary) !important;
+  background: #006633 !important;
+  color: #ffffff !important;
   border: none !important;
 }
 
 .eod-modal-btn.primary-green:hover {
-  background: #00472b !important;
+  background: #006633 !important;
   box-shadow: 0 2px 6px rgba(0, 90, 54, 0.3);
 }
 
 .eod-modal-btn.danger {
   background: var(--c-danger) !important;
-  color: var(--surface-primary) !important;
+  color: #ffffff;
   border: none !important;
 }
 
@@ -1837,8 +1834,8 @@
   gap: 5px;
   padding: 5px 12px;
   border-radius: 5px;
-  background: var(--c-primary);
-  color: var(--text-inverse);
+  background:  #006633;
+  color:  #ffffff;
   border: none;
   font-size: 12px;
   font-weight: 600;
@@ -1848,7 +1845,7 @@
   font-family: var(--font-family);
 }
 .eod-add-btn:hover {
-  background: var(--c-primary-hover);
+  background:  #006633;
   box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
 }
 

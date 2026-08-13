@@ -7,7 +7,7 @@ import {
   Key,
   User,
   Info,
-  Trash2,
+  Trash,
   Camera,
   Mail,
   Phone,
@@ -25,7 +25,7 @@ import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
-
+import { authService } from '@services/authService';
 import { ActiveConsultants } from './ActiveConsultants';
 import { InactiveConsultants } from './InactiveConsultants';
 import { TeamsView } from './TeamsView';
@@ -103,6 +103,9 @@ const EfSwitchRow = ({ checked, onChange, label }) => (
 export function ConsultantsPage() {
   useDocumentTitle('Consultants');
   const toast = useToast();
+
+  const [activeFilteredCount, setActiveFilteredCount] = useState(null);
+  const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
 
   const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
 
@@ -259,7 +262,7 @@ export function ConsultantsPage() {
       if (found) compLocName = found.name;
     }
 
-    setFormData({ 
+    setFormData({
       ...c,
       username: c.username || c.user_name || c.userId || '',
       joiningDate: c.joiningDate || c.joining_date || '',
@@ -367,9 +370,9 @@ export function ConsultantsPage() {
 
       setIsSaving(true);
       try {
-        await consultantService.updateConsultant({
-          ...editingTarget,
-          password: passwordData.newPassword,
+        await authService.adminUpdatePassword({
+          emp_id: editingTarget.id || editingTarget.emp_id,
+          new_password: passwordData.newPassword,
         });
         toast.success('Password updated successfully');
         closeDrawer();
@@ -478,8 +481,12 @@ export function ConsultantsPage() {
           {pageTabs.map((t) => {
             let count = null;
             if (!isEmployeesLoading) {
-              if (t.id === 'consultants' && employeesData) count = dynamicEmployees.length;
-              if (t.id === 'inactive' && inactiveData) count = inactiveCount;
+              if (t.id === 'consultants' && employeesData) {
+                count = activeFilteredCount !== null ? activeFilteredCount : dynamicEmployees.length;
+              }
+              if (t.id === 'inactive' && inactiveData) {
+                count = inactiveFilteredCount !== null ? inactiveFilteredCount : inactiveCount;
+              }
               if (t.id === 'teams') count = dynamicTeams.length;
             }
 
@@ -493,15 +500,24 @@ export function ConsultantsPage() {
                 <span className="consultants-tab-label">
                   {t.label}
                   {count !== null && (
-                    <span
+                    <span className='tc-lab-count'
                       style={{
                         marginLeft: '8px',
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-secondary)',
+                        background:
+                          activeTab === t.id
+                            ? '#e6f4ed'
+                            : 'var(--bg-secondary)',
+                        color:
+                          activeTab === t.id
+                            ? 'var(--c-primary)'
+                            : 'var(--text-secondary)',
                         padding: '2px 8px',
                         borderRadius: '12px',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       {count}
@@ -522,6 +538,7 @@ export function ConsultantsPage() {
               onPassword={handlePw}
               onDelete={handleDelete}
               onProfileView={setViewProfileId}
+              onFilteredCountChange={setActiveFilteredCount}
               employeesData={employeesData}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
@@ -536,6 +553,7 @@ export function ConsultantsPage() {
               onPassword={handlePw}
               onDelete={handleDelete}
               onProfileView={setViewProfileId}
+              onFilteredCountChange={setInactiveFilteredCount}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
             />
@@ -664,7 +682,7 @@ export function ConsultantsPage() {
                           <img
                             src={
                               formData.avatar ||
-                              'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100'
+                              'https://static.vecteezy.com/system/resources/previews/024/766/958/non_2x/default-male-avatar-profile-icon-social-media-user-free-vector.jpg'
                             }
                             alt="Avatar"
                             className="ef-avatar-img"
@@ -685,7 +703,7 @@ export function ConsultantsPage() {
                                 style={{ display: 'none' }}
                                 onChange={handlePhotoUpload}
                               />
-                              <Upload size={10} /> Upload
+                              <Upload size={10} /> {formData.avatar ? 'Replace' : 'Upload'}
                             </label>
                             {formData.avatar && (
                               <button
@@ -693,14 +711,13 @@ export function ConsultantsPage() {
                                 className="ef-avatar-btn-sm ef-avatar-btn-danger"
                                 onClick={handlePhotoRemove}
                               >
-                                <Trash2 size={10} /> Remove
+                                <Trash size={10} /> Remove
                               </button>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <EfSection label="Personal Information" />
                       <div className="ef-grid">
                         <EfField label="Full Name" required>
                           <div className="ef-input-wrap">
@@ -756,61 +773,6 @@ export function ConsultantsPage() {
                           </div>
                         </EfField>
 
-                        <EfField label="Landline">
-                          <input
-                            type="tel"
-                            className="ef-input"
-                            value={formData.landline || ''}
-                            onChange={(e) => patch({ landline: e.target.value })}
-                          />
-                        </EfField>
-
-                        <EfField label="Extension">
-                          <input
-                            type="text"
-                            className="ef-input"
-                            value={formData.extension || ''}
-                            onChange={(e) => patch({ extension: e.target.value })}
-                          />
-                        </EfField>
-
-                        <EfField label="Address" className="ef-col-span-2">
-                          <input
-                            type="text"
-                            className="ef-input"
-                            value={formData.address || ''}
-                            onChange={(e) => patch({ address: e.target.value })}
-                          />
-                        </EfField>
-                      </div>
-
-                      <EfSection label="Organization" />
-                      <div className="ef-grid">
-                        <EfField label="Role" required>
-                          <Select
-                            value={String(
-                              formData.roleId || formData.role_id || formData.role || '',
-                            )}
-                            onChange={(v) => {
-                              const selectedRole = dynamicRoles.find(
-                                (r) => String(r.id) === String(v),
-                              );
-                              patch({
-                                roleId: v,
-                                role_id: v,
-                                role_name: selectedRole?.name || '',
-                                role: selectedRole?.name || '',
-                              });
-                            }}
-                            options={[
-                              { value: '', label: 'Select role' },
-                              ...dynamicRoles.map((r) => ({
-                                value: String(r.id),
-                                label: r.name || String(r.id),
-                              })),
-                            ]}
-                          />
-                        </EfField>
                         <EfField label="Designation" required>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <Select
@@ -842,6 +804,7 @@ export function ConsultantsPage() {
                             </button>
                           </div>
                         </EfField>
+
                         <EfField label="Team" required>
                           <Select
                             value={String(
@@ -867,6 +830,33 @@ export function ConsultantsPage() {
                             ]}
                           />
                         </EfField>
+
+                        <EfField label="Role" required>
+                          <Select
+                            value={String(
+                              formData.roleId || formData.role_id || formData.role || '',
+                            )}
+                            onChange={(v) => {
+                              const selectedRole = dynamicRoles.find(
+                                (r) => String(r.id) === String(v),
+                              );
+                              patch({
+                                roleId: v,
+                                role_id: v,
+                                role_name: selectedRole?.name || '',
+                                role: selectedRole?.name || '',
+                              });
+                            }}
+                            options={[
+                              { value: '', label: 'Select role' },
+                              ...dynamicRoles.map((r) => ({
+                                value: String(r.id),
+                                label: r.name || String(r.id),
+                              })),
+                            ]}
+                          />
+                        </EfField>
+
                         <EfField label="Reporting Manager" required>
                           <Select
                             value={String(
@@ -882,11 +872,12 @@ export function ConsultantsPage() {
                             ]}
                           />
                         </EfField>
+
                         <EfField label="Joining Date" required>
                           <DatePicker
                             value={formData.joiningDate ? new Date(formData.joiningDate) : null}
                             onChange={(d) =>
-                              patch({ joiningDate: d ? d.toISOString().split('T')[0] : '' })
+                              patch({ joiningDate: d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0] : '' })
                             }
                           />
                         </EfField>
@@ -896,7 +887,6 @@ export function ConsultantsPage() {
 
                   {formTab === 'user-info' && (
                     <div className="ef-form">
-                      <EfSection label="Account Identity" />
                       <div className="ef-grid">
                         <EfField label="Username / Employee ID" required>
                           <div className="ef-input-wrap">
@@ -923,87 +913,26 @@ export function ConsultantsPage() {
                         </EfField>
                         {!isEditing && (
                           <EfField label="Initial Password" required>
-                            <input
-                              type="password"
-                              className="ef-input"
-                              value={formData.password || ''}
-                              onChange={(e) => patch({ password: e.target.value })}
-                            />
+                            <div className="ef-input-wrap">
+                              <span className="ef-input-icon">
+                                <Key size={12} />
+                              </span>
+                              <input
+                                type={showPw ? 'text' : 'password'}
+                                className="ef-input has-action"
+                                value={formData.password || ''}
+                                onChange={(e) => patch({ password: e.target.value })}
+                              />
+                              <button
+                                type="button"
+                                className="ef-input-action"
+                                onClick={() => setShowPw(!showPw)}
+                              >
+                                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
                           </EfField>
                         )}
-                      </div>
-
-                      <div style={{ marginTop: '24px' }}>
-                        <EfSwitchRow
-                          label="Include in Capacity Planning"
-                          checked={formData.includeInCp}
-                          onChange={(v) => patch({ includeInCp: v })}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {formTab === 'additional-info' && (
-                    <div className="ef-form">
-                      <EfSection label="VISA INFORMATION" />
-                      <div className="ef-grid">
-                        <EfField label="VISA NUMBER">
-                          <input
-                            type="text"
-                            className="ef-input"
-                            placeholder="Visa document number"
-                            value={formData.visaNumber || ''}
-                            onChange={(e) => patch({ visaNumber: e.target.value })}
-                          />
-                        </EfField>
-                        <EfField label="VISA TYPE">
-                          <input
-                            type="text"
-                            className="ef-input"
-                            placeholder="e.g. H1-B, Work Permit"
-                            value={formData.visa || ''}
-                            onChange={(e) => patch({ visa: e.target.value })}
-                          />
-                        </EfField>
-                        <EfField label="VISA EXPIRY">
-                          <DatePicker
-                            value={formData.visaExpire ? new Date(formData.visaExpire) : null}
-                            onChange={(d) =>
-                              patch({ visaExpire: d ? d.toISOString().split('T')[0] : '' })
-                            }
-                          />
-                        </EfField>
-                        <EfField label="VISA RENEWAL DATE">
-                          <DatePicker
-                            value={formData.visaRenewal ? new Date(formData.visaRenewal) : null}
-                            onChange={(d) =>
-                              patch({ visaRenewal: d ? d.toISOString().split('T')[0] : '' })
-                            }
-                          />
-                        </EfField>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <EfField label="NEXT VISA EXIT">
-                            <DatePicker
-                              value={formData.nextVisaExit ? new Date(formData.nextVisaExit) : null}
-                              onChange={(d) =>
-                                patch({ nextVisaExit: d ? d.toISOString().split('T')[0] : '' })
-                              }
-                            />
-                          </EfField>
-                        </div>
-                      </div>
-
-                      <EfSection label="WORK ASSIGNMENT" />
-                      <div className="ef-grid">
-                        <EfField label="WEBEX / CHAT ID">
-                          <input
-                            type="text"
-                            className="ef-input"
-                            placeholder="username@chat.com"
-                            value={formData.webexId || ''}
-                            onChange={(e) => patch({ webexId: e.target.value })}
-                          />
-                        </EfField>
                         <EfField label="WORK LOCATION" required>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {dynamicLocations
@@ -1043,6 +972,14 @@ export function ConsultantsPage() {
                               })}
                           </div>
                         </EfField>
+                      </div>
+
+                      <div style={{ marginTop: '24px' }}>
+                        <EfSwitchRow
+                          label="Include in Capacity Planning"
+                          checked={formData.includeInCp}
+                          onChange={(v) => patch({ includeInCp: v })}
+                        />
                       </div>
 
                       <div style={{ marginTop: '16px', marginBottom: '24px' }}>
@@ -1111,8 +1048,100 @@ export function ConsultantsPage() {
                           </div>
                         </>
                       )}
+                    </div>
+                  )}
 
-                      <EfSection label="REMARKS" />
+                  {formTab === 'additional-info' && (
+                    <div className="ef-form">
+                      <div className="ef-grid">
+                        <EfField label="Landline">
+                          <input
+                            type="tel"
+                            className="ef-input"
+                            value={formData.landline || ''}
+                            onChange={(e) => patch({ landline: e.target.value })}
+                          />
+                        </EfField>
+
+                        <EfField label="Extension">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            value={formData.extension || ''}
+                            onChange={(e) => patch({ extension: e.target.value })}
+                          />
+                        </EfField>
+
+                        <EfField label="Address" className="ef-col-span-2">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            value={formData.address || ''}
+                            onChange={(e) => patch({ address: e.target.value })}
+                          />
+                        </EfField>
+                      </div>
+
+                      <EfSection label="VISA INFORMATION" />
+                      <div className="ef-grid">
+                        <EfField label="VISA NUMBER">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="Visa document number"
+                            value={formData.visaNumber || ''}
+                            onChange={(e) => patch({ visaNumber: e.target.value })}
+                          />
+                        </EfField>
+                        <EfField label="VISA TYPE">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="e.g. H1-B, Work Permit"
+                            value={formData.visa || ''}
+                            onChange={(e) => patch({ visa: e.target.value })}
+                          />
+                        </EfField>
+                        <EfField label="VISA EXPIRY">
+                          <DatePicker
+                            value={formData.visaExpire ? new Date(formData.visaExpire) : null}
+                            onChange={(d) =>
+                              patch({ visaExpire: d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0] : '' })
+                            }
+                          />
+                        </EfField>
+                        <EfField label="VISA RENEWAL DATE">
+                          <DatePicker
+                            value={formData.visaRenewal ? new Date(formData.visaRenewal) : null}
+                            onChange={(d) =>
+                              patch({ visaRenewal: d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0] : '' })
+                            }
+                          />
+                        </EfField>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <EfField label="NEXT VISA EXIT">
+                            <DatePicker
+                              value={formData.nextVisaExit ? new Date(formData.nextVisaExit) : null}
+                              onChange={(d) =>
+                                patch({ nextVisaExit: d ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0] : '' })
+                              }
+                            />
+                          </EfField>
+                        </div>
+                      </div>
+
+                      <div className="ef-grid">
+                        <EfField label="WEBEX / CHAT ID">
+                          <input
+                            type="text"
+                            className="ef-input"
+                            placeholder="username@chat.com"
+                            value={formData.webexId || ''}
+                            onChange={(e) => patch({ webexId: e.target.value })}
+                          />
+                        </EfField>
+                      </div>
+
                       <EfField label="Additional Notes">
                         <textarea
                           className="ef-input"

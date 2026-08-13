@@ -1,10 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Pin, Sun } from 'lucide-react';
+import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
-import { HEADER_NAVIGATION } from '@constants/navigation';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useSidebar } from '@hooks/useSidebar';
@@ -24,13 +22,14 @@ import './Header.css';
  * @param {import('@services/authService').AuthUser} props.user
  * @param {() => void} props.onLogout
  * @param {() => void} props.onOpenProfileSettings
+ * @param {() => void} [props.onOpenChangePassword]
  */
-export function Header({ user, onLogout, onOpenProfileSettings }) {
+export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePassword }) {
   const { toggle: toggleSidebar } = useSidebar();
   const { isDarkMode, toggleTheme } = useTheme();
   const { pinnedLinks } = usePinnedLinks();
   const { user: authUser } = useAuth();
-
+  
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
@@ -173,7 +172,7 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
           <Bell className="header-icon" aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="header-notification-badge" aria-hidden="true">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>
@@ -195,6 +194,7 @@ export function Header({ user, onLogout, onOpenProfileSettings }) {
           user={user}
           onLogout={onLogout}
           onOpenProfileSettings={onOpenProfileSettings}
+          onOpenChangePassword={onOpenChangePassword}
         />
       </div>
     </header>

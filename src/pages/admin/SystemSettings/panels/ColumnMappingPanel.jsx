@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useEffect } from 'react';
-import { ArrowUpDown, Edit2, Loader2 } from 'lucide-react';
+import { ArrowUpDown, Edit, Loader2 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
@@ -119,7 +119,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
                 onClick={() => handleSort('code_col')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Code Column</span>
                   <ArrowUpDown size={14} style={{ opacity: sortField === 'code_col' ? 1 : 0.4 }} />
                 </div>
@@ -128,7 +128,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 style={{ padding: '12px 20px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', width: '45%' }}
                 onClick={() => handleSort('excel_col')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Excel Column</span>
                   <ArrowUpDown size={14} style={{ opacity: sortField === 'excel_col' ? 1 : 0.4 }} />
                 </div>
@@ -167,7 +167,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                     onClick={() => handleOpenEdit(row)}
                     title="Edit Column Mapping"
                   >
-                    <Edit2 size={16} />
+                    <Edit size={16} />
                   </button>
                 </td>
               </tr>

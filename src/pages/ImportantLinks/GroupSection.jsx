@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { ExternalLink, Edit, Trash } from 'lucide-react';
 
 import './ImportantLinksPage.css';
 
@@ -39,7 +39,7 @@ function LinkItem({ link, onEdit, onDelete }) {
             onEdit(link);
           }}
         >
-          <Pencil size={12} />
+          <Edit size={12} />
         </button>
 
         <button
@@ -52,7 +52,7 @@ function LinkItem({ link, onEdit, onDelete }) {
             onDelete(link);
           }}
         >
-          <Trash2 size={12} />
+          <Trash size={12} />
         </button>
 
         <a
@@ -83,7 +83,7 @@ function LinkItem({ link, onEdit, onDelete }) {
  * @param {(link: Object) => void} props.onEditLink   Called when user clicks the edit icon on a link.
  * @param {(link: Object) => void} props.onDeleteLink Called when user clicks the delete icon on a link.
  */
-function GroupCardComponent({ id, title, icon: Icon, links, onEditLink, onDeleteLink }) {
+function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, onEditLink, onDeleteLink }) {
   return (
     <article className="il-group-card" aria-labelledby={`group-heading-${id}`}>
 
@@ -92,12 +92,26 @@ function GroupCardComponent({ id, title, icon: Icon, links, onEditLink, onDelete
         {Icon && (
           <Icon size={14} className="il-group-card-icon" aria-hidden="true" />
         )}
-        <h2 className="il-group-card-title" id={`group-heading-${id}`}>
-          {title}
-        </h2>
-        <span className="il-group-card-count" aria-label={`${links.length} links`}>
-          {links.length}
-        </span>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 className="il-group-card-title" id={`group-heading-${id}`} style={{ flex: '0 1 auto', flexGrow: 0 }}>
+            {title}
+          </h2>
+          <span className="il-group-card-count" aria-label={`${links.length} links`} style={{ flexShrink: 0 }}>
+            {links.length}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pin to header</span>
+          <label className="il-toggle" aria-label="Pin to header" style={{ margin: 0 }}>
+            <input
+              type="checkbox"
+              checked={isPinned}
+              onChange={(e) => onTogglePinGroup(isPinned)}
+            />
+            <span className="il-toggle-track" />
+            <span className="il-toggle-thumb" />
+          </label>
+        </div>
       </div>
 
       {/* Card Body — scrollable */}

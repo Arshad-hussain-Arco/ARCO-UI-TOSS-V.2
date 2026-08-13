@@ -6,6 +6,9 @@ const endpoints = {
     logout: '/auth/logout/',
     userInfo: '/auth/user-info/',
     updateUserInfo: '/auth/update-user-info/',
+    updateTheme: '/auth/update-theme/',
+    adminUpdatePassword: '/auth/admin-update-password/',
+    updatePassword: '/auth/update-password/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
@@ -89,7 +92,7 @@ const endpoints = {
   },
   scriptManager: {
     runtimeFile: '/script-manager/runtime-file/',
-    runtimeDetails: '/script-manager/runtime-details/',
+    runtimeFileKpis: '/script-manager/runtime-file/kpis/',
     categories: {
       list: '/script-manager/categories/',
       create: '/script-manager/categories/create/',

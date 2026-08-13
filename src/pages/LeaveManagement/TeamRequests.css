@@ -254,8 +254,8 @@
 }
 
 .tr-chip[data-active='true'] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  border-color:  #006633;
   color: #ffffff;
 }
 
@@ -436,8 +436,8 @@
 }
 
 .tr-status-pending {
-  background: var(--c-warning-light);
-  color:  var(--text-secondary);
+  background: var(--c-warning);
+  color:  #fff;
 }
 
 .tr-status-approved {
@@ -452,7 +452,7 @@
 
 .tr-status-self_rejected {
   background: #94a3b8;
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 
 /* ─── Priority Badge ──────────────────────────────────────────────── */
@@ -491,8 +491,7 @@
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--border-primary);
-  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary); 
   color: var(--text-secondary);
   transition: all 0.1s;
   white-space: nowrap;
@@ -502,27 +501,25 @@
   background: var(--bg-hover);
 }
 
-.tr-act-approve {
-  background: var(--c-success-light);
+.tr-act-approve { 
   color:  var(--c-primary);
   border-color: #a7f3d0;
 }
 
 .tr-act-approve:hover {
   background: var(--c-success);
-  color: var(--surface-primary);
+  color:  #ffffff;
   border-color: var(--c-success);
 }
 
-.tr-act-reject {
-  background: var(--c-danger-light);
+.tr-act-reject { 
   color: var(--c-danger);
   border-color: #fca5a5;
 }
 
 .tr-act-reject:hover {
   background: var(--c-danger);
-  color: var(--surface-primary);
+  color: #ffffff;
   border-color: var(--c-danger);
 }
 
@@ -899,7 +896,7 @@
   margin-bottom: 6px;
   font-family: var(--font-family);
   font-size: 11.5px;
-  color: #92400e;
+  color: #ffffff;
 }
 
 .tr-conflict-card.info {
@@ -961,14 +958,10 @@
 
 .tr-btn-danger {
   background: var(--c-danger-light);
-  color: var(--c-danger);
+  color:  #ffffff;
   border-color: #fca5a5;
 }
 
-.tr-btn-danger:hover   {
-  background: var(--c-danger);
-  color: #ffffff;
-}
 
 .tr-btn-primary {
   background: var(--c-primary);

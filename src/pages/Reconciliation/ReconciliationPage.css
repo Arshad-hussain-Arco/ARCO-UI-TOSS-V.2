@@ -238,24 +238,22 @@
 }
 
 .rwiz-btn-primary {
-  background: var(--c-primary);
+  background:  #006633;
   color: white;
-  border-color: var(--c-primary);
+  border-color:  #006633;
 }
 
 .rwiz-btn-primary:hover {
-  background: var(--c-primary-hover);
+  background:  #006633;
 }
 
 .rwiz-btn-outline {
-  background: transparent;
-  color: var(--c-primary);
-  border-color: var(--c-primary);
+      background-color: var(--surface-primary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
 }
 
-.rwiz-btn-outline:hover {
-  background: var(--c-primary-light);
-}
+ 
 
 .rwiz-btn-ghost {
   background: transparent;
@@ -535,6 +533,7 @@
 
 .rsk-column-badge {
   display: inline-flex;
+  align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;
@@ -1042,9 +1041,7 @@
   background: var(--bg-hover);
 }
 
-.rrs-tr--mismatch {
-  background: rgba(220, 38, 38, 0.025);
-}
+
 
 .rrs-tr--missing {
   background: rgba(249, 115, 22, 0.025);
@@ -1118,7 +1115,7 @@
   margin-bottom: 2px;
   flex-shrink: 0;
   align-self: center;
-  background: var(--c-primary) !important;
+  background: #006633 !important;
   color: #ffffff !important;
   border: none !important;
 }
@@ -1162,19 +1159,23 @@
 }
 
 .rrs-modal-close {
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
   display: flex;
-  transition: background 0.14s;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .rrs-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 .rrs-modal-body {

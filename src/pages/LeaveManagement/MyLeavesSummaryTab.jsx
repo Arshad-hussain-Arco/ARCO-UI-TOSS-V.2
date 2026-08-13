@@ -1,10 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
+import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
+import { leaveService } from '@services/leaveService';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
 import { getRelativePendingTime } from './TeamRequestsTab';
 import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -72,12 +78,14 @@ export function MyLeavesSummaryTab({
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
-  // Normalize leave status for filtering
+  // Normalize leave status for filtering and exclude pending requests
   const normalizedLeaves = useMemo(() => {
-    return leaves.map(leave => {
-      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      return { ...leave, statusStr };
-    });
+    return leaves
+      .map(leave => {
+        const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
+        return { ...leave, statusStr };
+      })
+      .filter(leave => leave.statusStr !== 'pending');
   }, [leaves]);
 
   // Year and date-range are already applied server-side (leaves prop is
@@ -128,41 +136,48 @@ export function MyLeavesSummaryTab({
     }
   };
 
-  const pendingDateRangeText = useMemo(() => {
-    const pendingLeaves = normalizedLeaves.filter(l => l.statusStr === 'pending');
-    if (pendingLeaves.length === 0) return null;
-    
-    let minDate = new Date(8640000000000000);
-    let maxDate = new Date(-8640000000000000);
-    let hasValidDates = false;
-    
-    pendingLeaves.forEach(leave => {
-      const start = new Date(leave.start_date || leave.date);
-      const end = new Date(leave.end_date || leave.date || leave.start_date);
-      
-      if (!isNaN(start.getTime())) {
-        if (start < minDate) minDate = start;
-        hasValidDates = true;
-      }
-      if (!isNaN(end.getTime())) {
-        if (end > maxDate) maxDate = end;
-        hasValidDates = true;
-      }
-    });
-    
-    if (!hasValidDates) return null;
-    
-    const formatDate = (date) => {
-      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    };
-    
-    const minStr = formatDate(minDate);
-    const maxStr = formatDate(maxDate);
-    
-    return minStr === maxStr ? minStr : `${minStr} to ${maxStr}`;
-  }, [normalizedLeaves]);
-
   const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
+
+  const handleExportCSV = () => {
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
+    const rows = filteredLeaves.map(leave => [
+      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.start_date || leave.date || '',
+      leave.end_date || leave.date || leave.start_date || '',
+      leave.business_days || leave.in_days || 0,
+      leave.leave_reason || '',
+      leave.statusStr || ''
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'My Leaves');
+    XLSX.writeFile(workbook, 'my_leaves_summary.xlsx');
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape');
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
+    const body = filteredLeaves.map(leave => [
+      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.start_date || leave.date || '',
+      leave.end_date || leave.date || leave.start_date || '',
+      leave.business_days || leave.in_days || 0,
+      leave.leave_reason || '',
+      leave.statusStr || ''
+    ]);
+
+    autoTable(doc, {
+      head: [headers],
+      body: body,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [29, 78, 216] }
+    });
+
+    doc.save('my_leaves_summary.pdf');
+  };
+
 
   return (
     <div className="my-leaves-summary-tab" style={{ marginTop: '20px' }}>
@@ -177,10 +192,7 @@ export function MyLeavesSummaryTab({
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
             </button>
-            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
-              <span className="leave-filter-label">Pending</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
-            </button>
+
             <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
@@ -190,18 +202,14 @@ export function MyLeavesSummaryTab({
               <span className="leave-filter-label">Rejected</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
             </button>
-            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')}>
-              <span className="leave-filter-label">Self Rejected</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
-            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <ExportButton
               excel
               pdf
-              onExcelExport={() => {}}
-              onPdfExport={() => {}}
+              onExcelExport={handleExportCSV}
+              onPdfExport={handleExportPDF}
             />
           </div>
         </div>
