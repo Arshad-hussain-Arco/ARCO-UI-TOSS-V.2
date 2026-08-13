@@ -468,7 +468,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn cancel"
-              style={{ padding: '6px 12px', borderRadius: '4px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.1s ease' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'var(--font-family)' }}
               onClick={() => setDeleteTarget(null)}
               disabled={isSaving}
             >
@@ -477,7 +477,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeDelete}
               disabled={isSaving}
             >

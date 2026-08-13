@@ -272,7 +272,7 @@
 .il-group-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
-  border-color: var(--c-primary-light, var(--border-secondary));
+  border-color:  var(--border-secondary);
 }
 
 /* Card Header */
@@ -553,22 +553,23 @@
 }
 
 .il-modal-close {
-  background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 5px;
-  padding: 5px;
-  cursor: pointer;
-  color: var(--text-secondary);
   display: flex;
   align-items: center;
-  transition: all 0.12s ease;
-  flex-shrink: 0;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .il-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 /* Modal Body */

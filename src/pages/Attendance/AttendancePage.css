@@ -10,13 +10,16 @@
 /* Sub-tabs */
 .attendance-subtabs {
   display: flex;
-  gap: 4px;
-  padding: 8px 16px 0;
-  background-color: var(--surface-primary);
-  border-bottom: 2px solid var(--border-primary);
+  align-items: flex-end;
+  width: 100%;
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
   position: relative;
-  overflow-x: auto;
-  scrollbar-width: none;
+  z-index: 1;
 }
 
 .attendance-subtabs::-webkit-scrollbar {
@@ -24,39 +27,63 @@
 }
 
 .attendance-subtab {
-  padding: 10px 18px;
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: none !important;
+  padding: 8px 18px;
+  height: 38px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  border-radius: 6px 6px 0 0;
-  white-space: nowrap;
-  min-width: fit-content;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
 }
 
-.attendance-subtab:hover {
+.attendance-subtab:hover:not([data-active='true']) {
+  background-color: var(--bg-hover);
   color: var(--text-primary);
-  background-color: var(--surface-secondary);
+  border-color: var(--border-secondary);
 }
 
-.attendance-subtab-active {
-  color: var(--brand-primary);
+.attendance-subtab[data-active='true'] {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--surface-primary);
+  border-radius: 8px 8px 0 0;
+  color: var(--c-primary);
   font-weight: 600;
-  background-color: var(--surface-secondary);
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
 }
 
-.attendance-subtab-indicator {
-  position: absolute;
-  bottom: -2px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 3px 3px 0 0;
-  box-shadow: 0 2px 8px rgba(0, 102, 51, 0.3);
+.attendance-subtab-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.attendance-subtab[data-active='true'] .attendance-subtab-icon {
+  color: var(--c-primary);
+}
+
+.attendance-subtab-label {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* Removed hardcoded data-tab indicator styles, now driven by React refs dynamically */

@@ -14,8 +14,10 @@ import {
   Check,
   RotateCcw,
   Laptop,
+  Upload,
+  Trash,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useToast } from '@hooks/useToast';
 import { authService } from '@services/authService';
 import { consultantService } from '@services/consultantService';
 import './ProfileSettingsModal.css';
@@ -31,6 +33,7 @@ import './ProfileSettingsModal.css';
 export function ProfileSettingsModal({ isOpen, onClose, user }) {
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
+  const toast = useToast();
 
   // Smooth close state for animation
   const [isClosing, setIsClosing] = useState(false);
@@ -78,7 +81,9 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
       locationRef: user?.locationRef || '',
     };
     setFormData(initialFormData.current);
-    if (user?.avatar) setAvatarUrl(user.avatar);
+    if (user?.avatar) {
+      setAvatarUrl(user.avatar);
+    }
   }, [user]);
 
   // Smooth close handler
@@ -125,7 +130,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
           const pureBase64 = base64Data.split(',')[1] || base64Data;
 
           await consultantService.uploadPhoto(user.emp_id || user.id, pureBase64);
-          toast.success('Profile photo uploaded successfully.');
+          toast.success('Photo uploaded successfully');
         } catch (error) {
           toast.error(error.message || 'Failed to upload photo.');
           // Revert on failure
@@ -133,6 +138,16 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoRemove = async () => {
+    try {
+      await consultantService.deletePhoto(user.emp_id || user.id);
+      setAvatarUrl(null);
+      toast.success('Photo removed successfully');
+    } catch (error) {
+      toast.error(error.message || 'Failed to remove photo.');
     }
   };
 
@@ -196,6 +211,7 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
           type="file"
           ref={fileInputRef}
           onChange={handlePhotoUpload}
+          onClick={(e) => (e.target.value = null)}
           accept="image/*"
           style={{ display: 'none' }}
         />
@@ -224,10 +240,10 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
 
         {/* ── Compact Body Content ─────────────────────────────── */}
         <div className="eps-drawer-body">
-          {/* Compact Avatar Strip */}
-          <div className="eps-compact-avatar-strip">
+          {/* Avatar Upload Component */}
+          <div className="eps-avatar-upload">
             <div
-              className="eps-avatar-wrapper"
+              className="eps-avatar-circle"
               onClick={() => fileInputRef.current?.click()}
               title="Change Photo"
             >
@@ -236,13 +252,41 @@ export function ProfileSettingsModal({ isOpen, onClose, user }) {
               ) : (
                 <div className="eps-avatar-initials">{userInitials}</div>
               )}
-              <div className="eps-avatar-camera-overlay">
-                <Camera size={11} />
+              <div className="eps-avatar-overlay">
+                <Camera size={16} color="white" />
               </div>
             </div>
-            <div className="eps-avatar-text-details">
+            <div className="eps-avatar-actions">
               <span className="eps-avatar-name">{formData.name}</span>
               <span className="eps-avatar-tag">{formData.designation}</span>
+              <div className="eps-avatar-btns">
+                {avatarUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      className="eps-btn-avatar"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <RotateCcw size={10} /> Replace
+                    </button>
+                    <button
+                      type="button"
+                      className="eps-btn-avatar danger"
+                      onClick={handlePhotoRemove}
+                    >
+                      <Trash size={10} /> Remove
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="eps-btn-avatar"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload size={10} /> Upload
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

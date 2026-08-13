@@ -79,16 +79,17 @@
 }
 
 .admin-modal-close {
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
-  transition: all 0.2s ease;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .admin-modal-close:not(.variant-panel) {
@@ -99,8 +100,9 @@
 }
 
 .admin-modal-close:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 .admin-modal-body {
@@ -114,14 +116,14 @@
 }
 
 .admin-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 11px 20px;
-  border-top: 1px solid var(--border-primary);
-  background: var(--surface-primary);
-  flex-shrink: 0;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 11px 20px;
+    border-top: 1px solid var(--border-primary);
+    background: var(--surface-primary);
+    flex-shrink: 0;
+    gap: 8px;
 }
 
 /* ── Panel variant: full-height slide-over anchored to the right edge ───── */
