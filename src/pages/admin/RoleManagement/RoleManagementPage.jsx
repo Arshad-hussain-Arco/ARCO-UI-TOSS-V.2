@@ -24,38 +24,124 @@ import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
 
-// Application Modules List
-const MODULES = [
-  'Leave Management',
-  'Attendance',
-  'Consultants',
-  'EOD Management',
-  'Settings',
-  'Teams',
-  'Documents',
-  'Reports',
-];
+// Application Modules List and their specific actions
+const MODULE_ACTIONS = {
+  'Home': [
+    { key: 'read', label: 'Read' },
+  ],
+  'Dashboard': [
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Project Monitoring': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Environment Dashboard': [
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Murex Runtime Trends': [
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'EOD Management': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Consultants': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Leave Management': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Attendance': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Capacity Planning': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Reconciliation': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Important Links': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'upload', label: 'Upload' },
+    { key: 'export', label: 'Export' },
+    { key: 'pin', label: 'Pin to Header' },
+  ],
+  'Documents': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'upload', label: 'Upload' },
+  ],
+  'Admin Panel': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Teams': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+  ],
+  'Reports': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+    { key: 'export', label: 'Export' },
+  ],
+  'Settings': [
+    { key: 'add', label: 'Add' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete' },
+    { key: 'read', label: 'Read' },
+  ],
+};
 
-// Actions List
-const ACTIONS = [
-  { key: 'add', label: 'Add' },
-  { key: 'edit', label: 'Edit' },
-  { key: 'delete', label: 'Delete' },
-  { key: 'read', label: 'Read' },
-  { key: 'export', label: 'Export' },
-];
+const MODULES = Object.keys(MODULE_ACTIONS);
 
 // Default Deny matrix helper
 const createEmptyMatrix = () => {
   const matrix = {};
   MODULES.forEach((mod) => {
-    matrix[mod] = {
-      add: 'Deny',
-      edit: 'Deny',
-      delete: 'Deny',
-      read: 'Deny',
-      export: 'Deny',
-    };
+    matrix[mod] = {};
+    MODULE_ACTIONS[mod].forEach((act) => {
+      matrix[mod][act.key] = 'Deny';
+    });
   });
   return matrix;
 };
@@ -324,6 +410,74 @@ export function RoleManagementPage() {
     );
   };
 
+  // Set all permissions for Inline Configure
+  const handleSetAllInlinePermissions = (roleId, status) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    setRoles((prev) =>
+      prev.map((role) => {
+        if (role.id === roleId) {
+          const nextPerms = { ...role.permissions };
+          MODULES.forEach((mod) => {
+            nextPerms[mod] = { ...role.permissions[mod] };
+            MODULE_ACTIONS[mod].forEach((act) => {
+              nextPerms[mod][act.key] = status;
+            });
+          });
+          return { ...role, permissions: nextPerms };
+        }
+        return role;
+      })
+    );
+  };
+
+  // Set all permissions for Add Modal
+  const handleSetAllModalPermissions = (status) => {
+    setNewRoleMatrix((prev) => {
+      const next = { ...prev };
+      MODULES.forEach((mod) => {
+        next[mod] = { ...prev[mod] };
+        MODULE_ACTIONS[mod].forEach((act) => {
+          next[mod][act.key] = status;
+        });
+      });
+      return next;
+    });
+  };
+
+  // Toggle entire module in Inline Accordion
+  const handleToggleInlineModule = (roleId, moduleName, isActive) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    setRoles((prev) =>
+      prev.map((role) => {
+        if (role.id === roleId) {
+          const nextPerms = { ...role.permissions };
+          nextPerms[moduleName] = { ...role.permissions[moduleName] };
+          
+          MODULE_ACTIONS[moduleName].forEach((act) => {
+            nextPerms[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
+          });
+          
+          return { ...role, permissions: nextPerms };
+        }
+        return role;
+      })
+    );
+  };
+
+  // Toggle entire module in Add Modal
+  const handleToggleModalModule = (moduleName, isActive) => {
+    setNewRoleMatrix((prev) => {
+      const next = { ...prev };
+      next[moduleName] = { ...prev[moduleName] };
+      
+      MODULE_ACTIONS[moduleName].forEach((act) => {
+        next[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
+      });
+      
+      return next;
+    });
+  };
+
   // Update Role Description Inline
   const handleInlineDescriptionChange = (roleId, newDescription) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
@@ -488,9 +642,37 @@ export function RoleManagementPage() {
                               </td>
 
                               <td style={{ width: '10%' }} className="text-center">
-                                <span className={`rm-admin-pill ${role.isAdmin ? 'yes' : 'no'}`}>
-                                  {role.isAdmin ? 'Yes' : 'No'}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                  <label 
+                                    className="rm-switch-btn" 
+                                    style={{ 
+                                      margin: 0, 
+                                      opacity: isExpanded ? 1 : 0.6, 
+                                      cursor: isExpanded ? 'pointer' : 'default',
+                                      transform: 'scale(0.85)'
+                                    }}
+                                  >
+                                    <input 
+                                      type="checkbox" 
+                                      checked={role.isAdmin}
+                                      disabled={!isExpanded}
+                                      onChange={(e) => {
+                                        setDirtyRoles((prev) => new Set(prev).add(role.id));
+                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: e.target.checked } : r));
+                                      }}
+                                    />
+                                    <span className="rm-switch-slider" />
+                                  </label>
+                                  <span style={{ 
+                                    fontSize: '12px', 
+                                    fontWeight: '600', 
+                                    color: role.isAdmin ? '#10b981' : 'var(--text-secondary)',
+                                    minWidth: '24px',
+                                    textAlign: 'left'
+                                  }}>
+                                    {role.isAdmin ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
                               </td>
 
                               <td style={{ width: '20%' }} className="text-right">
@@ -568,56 +750,77 @@ export function RoleManagementPage() {
                               </div>
                             </div>
 
-                            <table className="rm-matrix-table">
-                              <thead>
-                                <tr>
-                                  <th style={{ width: '35%' }}>Function / Module Name</th>
-                                  {ACTIONS.map((act) => (
-                                    <th key={act.key} style={{ width: '13%' }} className="text-center">
-                                      {act.label}
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {MODULES.map((mod) => (
-                                  <tr key={mod}>
-                                    <td className="rm-mod-name" style={{ width: '35%' }}>
-                                      {mod}
-                                    </td>
-                                    {ACTIONS.map((act) => {
-                                      const status =
-                                        role.permissions[mod]?.[act.key] || 'Deny';
+                            <div className="rm-module-permissions-wrapper">
+                              <div className="rm-permissions-global-actions">
+                                <span className="rm-global-actions-label">Global Permissions:</span>
+                                <button
+                                  type="button"
+                                  className="rm-btn-global-allow"
+                                  onClick={() => handleSetAllInlinePermissions(role.id, 'Allow')}
+                                >
+                                  Allow All
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rm-btn-global-deny"
+                                  onClick={() => handleSetAllInlinePermissions(role.id, 'Deny')}
+                                >
+                                  Deny All
+                                </button>
+                              </div>
+                              {MODULES.map((mod) => {
+                                const isModuleActive = Object.values(role.permissions[mod] || {}).some(status => status === 'Allow');
+                                return (
+                                <div key={mod} className="rm-module-section-row">
+                                  <div className="rm-module-section-title-col">
+                                    <h4 className="rm-module-section-title">{mod}</h4>
+                                    <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isModuleActive}
+                                        onChange={(e) => handleToggleInlineModule(role.id, mod, e.target.checked)}
+                                      />
+                                      <span className="rm-switch-slider" />
+                                    </label>
+                                  </div>
+                                  <div className="rm-permission-cards-col">
+                                    {MODULE_ACTIONS[mod].map((act) => {
+                                      const status = role.permissions[mod]?.[act.key] || 'Deny';
                                       const isAllow = status === 'Allow';
 
                                       return (
-                                        <td key={act.key} style={{ width: '13%' }} className="text-center">
-                                          <button
-                                            type="button"
-                                            className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'
-                                              }`}
-                                            {...activatable(
-                                              () =>
-                                                handleToggleInlinePermission(
-                                                  role.id,
-                                                  mod,
-                                                  act.key
-                                                ),
-                                              {
-                                                label: `Toggle ${act.label} for ${mod} in ${role.name}`,
-                                                isPressed: isAllow,
-                                              }
-                                            )}
-                                          >
-                                            {isAllow ? 'Allow' : 'Deny'}
-                                          </button>
-                                        </td>
+                                        <div key={act.key} className="rm-permission-card">
+                                          <span className="rm-permission-card-title">{act.label}</span>
+                                          <div className="rm-permission-toggle-group">
+                                            <button
+                                              type="button"
+                                              className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
+                                              {...activatable(
+                                                () => handleToggleInlinePermission(role.id, mod, act.key),
+                                                { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
+                                              )}
+                                            >
+                                              Allow
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
+                                              {...activatable(
+                                                () => handleToggleInlinePermission(role.id, mod, act.key),
+                                                { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
+                                              )}
+                                            >
+                                              Deny
+                                            </button>
+                                          </div>
+                                        </div>
                                       );
                                     })}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                  </div>
+                                </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </td>
@@ -811,50 +1014,79 @@ export function RoleManagementPage() {
 
                 {/* Modal Permissions Matrix Section */}
                 <div className="rm-modal-matrix-section">
-                  <h4 className="rm-matrix-heading">Configure Module Permissions</h4>
-                  <table className="rm-matrix-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '35%' }}>Function / Module Name</th>
-                        {ACTIONS.map((act) => (
-                          <th key={act.key} style={{ width: '13%' }} className="text-center">
-                            {act.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {MODULES.map((mod) => (
-                        <tr key={mod}>
-                          <td className="rm-mod-name" style={{ width: '35%' }}>
-                            {mod}
-                          </td>
-                          {ACTIONS.map((act) => {
-                            const status = newRoleMatrix[mod][act.key];
+                  <div className="rm-matrix-heading-row">
+                    <h4 className="rm-matrix-heading">Configure Module Permissions</h4>
+                    <div className="rm-permissions-global-actions">
+                      <button
+                        type="button"
+                        className="rm-btn-global-allow"
+                        onClick={() => handleSetAllModalPermissions('Allow')}
+                      >
+                        Allow All
+                      </button>
+                      <button
+                        type="button"
+                        className="rm-btn-global-deny"
+                        onClick={() => handleSetAllModalPermissions('Deny')}
+                      >
+                        Deny All
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rm-module-permissions-wrapper">
+                    {MODULES.map((mod) => {
+                      const isModuleActive = Object.values(newRoleMatrix[mod] || {}).some(status => status === 'Allow');
+                      return (
+                      <div key={mod} className="rm-module-section-row">
+                        <div className="rm-module-section-title-col">
+                          <h4 className="rm-module-section-title">{mod}</h4>
+                          <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isModuleActive}
+                              onChange={(e) => handleToggleModalModule(mod, e.target.checked)}
+                            />
+                            <span className="rm-switch-slider" />
+                          </label>
+                        </div>
+                        <div className="rm-permission-cards-col">
+                          {MODULE_ACTIONS[mod].map((act) => {
+                            const status = newRoleMatrix[mod]?.[act.key] || 'Deny';
                             const isAllow = status === 'Allow';
 
                             return (
-                              <td key={act.key} style={{ width: '13%' }} className="text-center">
-                                <button
-                                  type="button"
-                                  className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
-                                  {...activatable(
-                                    () => handleToggleModalPermission(mod, act.key),
-                                    {
-                                      label: `Toggle ${act.label} permission for ${mod}`,
-                                      isPressed: isAllow,
-                                    }
-                                  )}
-                                >
-                                  {isAllow ? 'Allow' : 'Deny'}
-                                </button>
-                              </td>
+                              <div key={act.key} className="rm-permission-card">
+                                <span className="rm-permission-card-title">{act.label}</span>
+                                <div className="rm-permission-toggle-group">
+                                  <button
+                                    type="button"
+                                    className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
+                                    {...activatable(
+                                      () => handleToggleModalPermission(mod, act.key),
+                                      { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
+                                    )}
+                                  >
+                                    Allow
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
+                                    {...activatable(
+                                      () => handleToggleModalPermission(mod, act.key),
+                                      { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
+                                    )}
+                                  >
+                                    Deny
+                                  </button>
+                                </div>
+                              </div>
                             );
                           })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
