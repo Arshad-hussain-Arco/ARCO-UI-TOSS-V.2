@@ -18,7 +18,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
-export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
+export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
   const activeConsultants = useMemo(() => {
     const list = Array.isArray(employeesData) ? employeesData : employeesData?.results || [];
     return list.map(c => normalizeConsultant(c, true));
@@ -76,6 +76,13 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   const filteredDesignationsCount = useMemo(() => {
     return new Set(filtered.map(c => c.designation).filter(Boolean)).size;
   }, [filtered]);
+
+  useEffect(() => {
+    if (onFilteredCountChange) {
+      onFilteredCountChange(filtered.length);
+      return () => onFilteredCountChange(null);
+    }
+  }, [filtered.length, onFilteredCountChange]);
 
   if (error) {
     return (

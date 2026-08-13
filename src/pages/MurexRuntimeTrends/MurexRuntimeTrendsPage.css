@@ -477,9 +477,9 @@
 }
 
 
-/* 3-Column Job - Duration Matrix Layout & Unified Header */
-.murex-matrix-card {
-  gap: 16px;
+/* New Tabular Job - Duration Matrix Layout */
+.murex-matrix-card-new {
+  /* Inherits background and border from .murex-overview-chart-card */
   padding: 16px 20px;
 }
 
@@ -489,8 +489,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-primary, #f1f5f9);
+  padding-bottom: 16px;
   width: 100%;
 }
 
@@ -510,79 +509,124 @@
   text-align: center;
 }
 
-.murex-matrix-container {
-  display: flex;
-  align-items: flex-start;
-  width: 100%;
-  position: relative;
-}
-
-.murex-matrix-col-jobs {
-  width: 110px;
-  flex-shrink: 0;
+.murex-matrix-list-container {
   display: flex;
   flex-direction: column;
-  height: 160px;
-  /* Aligned with 160px plot area height */
+  width: 100%;
 }
 
-.murex-matrix-row-label {
-  height: 40px;
-  /* 160px / 4 rows = 40px per row */
+.murex-matrix-list-header {
   display: flex;
   align-items: center;
-  padding-left: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-primary, #e2e8f0);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.murex-matrix-list-body {
+  display: flex;
+  flex-direction: column;
+  max-height: 380px; /* Limits height roughly same as before */
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for matrix list to look professional */
+.murex-matrix-list-body::-webkit-scrollbar {
+  width: 6px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-track {
+  background: var(--bg-secondary, #f8fafc);
   border-radius: 4px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-thumb {
+  background: var(--border-secondary, #cbd5e1);
+  border-radius: 4px;
+}
+.murex-matrix-list-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary, #94a3b8);
+}
+
+.murex-matrix-list-row {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-secondary, #f1f5f9);
   transition: background-color 0.15s ease;
   cursor: pointer;
 }
 
-.murex-matrix-row-label.is-hovered {
-  background-color: rgba(241, 245, 249, 0.85);
+.murex-matrix-list-row:last-child {
+  border-bottom: none;
 }
 
-.murex-matrix-job-name {
+.murex-matrix-list-row:hover {
+  background-color: var(--bg-hover, #f8fafc);
+}
+
+.mxl-col {
+  display: flex;
+  align-items: center;
+}
+
+.mxl-col-job {
+  flex: 1;
+  min-width: 200px;
+}
+
+.mxl-col-timeline {
+  flex: 2;
+  min-width: 250px;
+  padding: 0 16px;
+}
+
+.mxl-col-duration {
+  width: 120px;
+  justify-content: flex-end;
+  padding-right: 24px;
+}
+
+.mxl-col-start-end {
+  width: 160px;
+  justify-content: flex-end;
+}
+
+.mxl-job-name {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-primary, #0f172a);
 }
 
-.murex-matrix-col-timeline {
-  flex: 1;
-  min-width: 0;
+.mxl-timeline-track {
+  width: 100%;
+  height: 12px;
   position: relative;
 }
 
-.murex-matrix-col-durations {
-  width: 120px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  height: 160px;
-  /* Aligned with 160px plot area height */
-}
-
-.murex-matrix-row-duration {
-  height: 40px;
-  /* 160px / 4 rows = 40px per row */
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 8px;
+.mxl-timeline-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 10px;
+  background-color: #8B5CF6; /* Purple/violet execution bar color */
   border-radius: 4px;
-  transition: background-color 0.15s ease;
-  cursor: pointer;
+  min-width: 4px;
 }
 
-.murex-matrix-row-duration.is-hovered {
-  background-color: rgba(241, 245, 249, 0.85);
-}
-
-.murex-matrix-duration-text {
+.mxl-duration-text {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary, #64748b);
-  white-space: nowrap;
+}
+
+.mxl-start-end-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Collapsible MO_EOD Job Timeline Accordion Card */
@@ -2478,4 +2522,13 @@
 
 .spin {
   animation: spin-infinite 1s linear infinite;
+}
+.murex-matrix-list-footer {
+  display: flex;
+  padding: 8px 16px;
+  background-color: var(--bg-tertiary, #f8fafc);
+  border-top: 1px solid var(--border-secondary, #e2e8f0);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
