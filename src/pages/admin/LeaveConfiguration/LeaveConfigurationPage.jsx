@@ -190,6 +190,7 @@ function emptyCombinedForm() {
     carry_forward_expiry_months: '',
     allow_negative: false,
     max_negative_days: 0,
+    allow_year_spanning: true,
     effective_from: toDateInputValue(new Date()),
     effective_to: '',
   };
@@ -229,14 +230,18 @@ function combinedRowToForm(row) {
     carry_forward_expiry_months: p.carry_forward_expiry_months ?? '',
     allow_negative: p.allow_negative ?? false,
     max_negative_days: p.max_negative_days ?? 0,
+    allow_year_spanning: p.allow_year_spanning ?? true,
     effective_from: p.effective_from || toDateInputValue(new Date()),
     effective_to: p.effective_to || '',
   };
 }
 
 /** Build the API payload from the form, numeric-coercing and dropping empty-string optionals to null. */
-function combinedFormToPayload(form) {
+function combinedFormToPayload(form, isClaimTarget) {
   const numOrNull = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+  const carryForwardEligible = (
+    form.category === 'ACTUAL' && ((!form.is_unlimited && !form.is_flexible) || isClaimTarget)
+  );
   return {
     code: form.code.trim().toUpperCase(),
     name: form.name.trim(),
@@ -275,13 +280,33 @@ function combinedFormToPayload(form) {
     max_consecutive: numOrNull(form.max_consecutive),
     accrual_type: form.accrual_type,
     proration_type: form.proration_type,
-    is_carry_forward_allowed: form.is_carry_forward_allowed,
-    max_carry_forward: form.is_carry_forward_allowed ? Number(form.max_carry_forward) || 0 : 0,
-    carry_forward_expiry_months: form.is_carry_forward_allowed
+    // Carry-forward: Limited-entitlement Actual types, or an Actual type
+    // that's a Claim credit target (regardless of mode) — mirrors
+    // year_end_processing.py's eligibility. Force off rather than trust
+    // stale form state left over from a prior category/mode.
+    is_carry_forward_allowed: carryForwardEligible ? form.is_carry_forward_allowed : false,
+    max_carry_forward: (carryForwardEligible && form.is_carry_forward_allowed)
+      ? Number(form.max_carry_forward) || 0 : 0,
+    carry_forward_expiry_months: (carryForwardEligible && form.is_carry_forward_allowed)
       ? numOrNull(form.carry_forward_expiry_months)
       : null,
-    allow_negative: form.allow_negative,
-    max_negative_days: form.allow_negative ? Number(form.max_negative_days) || 0 : 0,
+    // Advance leave (negative balance) only applies to a Limited-entitlement
+    // Actual leave type that isn't itself credited by a Claim type — mirrors
+    // the backend's LeavePolicyCreateSerializer.validate(). Force off rather
+    // than trust stale form state left over from a prior category/mode.
+    allow_negative: (
+      form.category === 'ACTUAL' && !form.is_unlimited && !form.is_flexible && !isClaimTarget
+    ) ? form.allow_negative : false,
+    max_negative_days: (
+      form.category === 'ACTUAL' && !form.is_unlimited && !form.is_flexible && !isClaimTarget && form.allow_negative
+    ) ? Number(form.max_negative_days) || 0 : 0,
+    // Year-spanning eligibility includes Unlimited (unlike allow_negative
+    // above) — mirrors the backend's _is_year_spanning_eligible. Meaningless
+    // for an ineligible type, so force the permissive default rather than
+    // trust stale form state.
+    allow_year_spanning: (
+      form.category === 'ACTUAL' && !form.is_flexible && !isClaimTarget
+    ) ? form.allow_year_spanning : true,
     effective_from: form.effective_from || null,
     effective_to: form.effective_to || null,
   };
@@ -1025,7 +1050,7 @@ export function LeaveConfigurationPage() {
     }
     setCombinedFieldErrors({});
 
-    const payload = combinedFormToPayload(combinedForm);
+    const payload = combinedFormToPayload(combinedForm, claimTargetCodes.has(combinedForm.code));
 
     setIsSaving(true);
     try {
@@ -1094,6 +1119,18 @@ export function LeaveConfigurationPage() {
       is_unlimited: mode === 'UNLIMITED',
       is_flexible: mode === 'FLEXIBLE',
       entitled_days: mode === 'UNLIMITED' ? '' : prev.entitled_days,
+      // Advance-leave borrowing only applies to Limited entitlement; reset
+      // when switching away so a hidden, stale "on" doesn't ship.
+      ...(mode !== 'LIMITED' ? { allow_negative: false, max_negative_days: 0 } : {}),
+      // Year-spanning eligibility includes Unlimited (unlike advance-leave
+      // borrowing above) — only Flexible needs a reset here.
+      ...(mode === 'FLEXIBLE' ? { allow_year_spanning: true } : {}),
+      // Carry-forward stays eligible in any mode for a Claim credit target
+      // (e.g. WW/CompOff) — only reset for a non-claim-target type leaving
+      // Limited mode.
+      ...(mode !== 'LIMITED' && !claimTargetCodes.has(prev.code)
+        ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
+        : {}),
     }));
   };
 
@@ -1994,663 +2031,711 @@ export function LeaveConfigurationPage() {
         }
       >
         <div className="lc-combined-form">
-          {/* Section: Basic Info */}
-          <div className="lc-form-section">
-            <div className="lc-form-section-title">Basic Info</div>
-            <div className="lc-modal-grid">
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-code">
-                  Code
-                </label>
-                {editingCombinedCode ? (
-                  <div className="lc-locked-field" title="Cannot be changed once created">
-                    {combinedForm.code}
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      id="lt-code"
-                      type="text"
-                      className={`ss-input ${(combinedCodeError || combinedFieldErrors.code) ? 'has-error' : ''}`}
-                      style={{ textTransform: 'uppercase' }}
-                      value={combinedForm.code}
-                      placeholder="e.g. PAT"
-                      aria-invalid={!!(combinedCodeError || combinedFieldErrors.code)}
-                      onChange={(e) => {
-                        setCombinedCodeError('');
-                        setCombinedFieldErrors((prev) => ({ ...prev, code: undefined }));
-                        setCombinedForm((prev) => ({ ...prev, code: e.target.value }));
-                      }}
-                    />
-                    {(combinedCodeError || combinedFieldErrors.code) && (
-                      <div className="lc-field-error">
-                        {combinedCodeError || combinedFieldErrors.code}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+        {/* Section: Basic Info */}
+        <div className="lc-form-section">
+          <div className="lc-form-section-title">Basic Info</div>
+          <div className="lc-modal-grid">
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-code">
+                Code
+              </label>
+              {editingCombinedCode ? (
+                <div className="lc-locked-field" title="Cannot be changed once created">
+                  {combinedForm.code}
+                </div>
+              ) : (
+                <div>
+                  <input
+                    id="lt-code"
+                    type="text"
+                    className={`ss-input ${(combinedCodeError || combinedFieldErrors.code) ? 'has-error' : ''}`}
+                    style={{ textTransform: 'uppercase' }}
+                    value={combinedForm.code}
+                    placeholder="e.g. PAT"
+                    aria-invalid={!!(combinedCodeError || combinedFieldErrors.code)}
+                    onChange={(e) => {
+                      setCombinedCodeError('');
+                      setCombinedFieldErrors((prev) => ({ ...prev, code: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, code: e.target.value }));
+                    }}
+                  />
+                  {(combinedCodeError || combinedFieldErrors.code) && (
+                    <div className="lc-field-error">
+                      {combinedCodeError || combinedFieldErrors.code}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-name">
-                  Name
-                </label>
-                <input
-                  id="lt-name"
-                  type="text"
-                  className={`ss-input ${combinedFieldErrors.name ? 'has-error' : ''}`}
-                  value={combinedForm.name}
-                  placeholder="e.g. Paternity Leave"
-                  aria-invalid={!!combinedFieldErrors.name}
-                  onChange={(e) => {
-                    setCombinedFieldErrors((prev) => ({ ...prev, name: undefined }));
-                    setCombinedForm((prev) => ({ ...prev, name: e.target.value }));
-                  }}
-                />
-                {combinedFieldErrors.name && (
-                  <div className="lc-field-error">{combinedFieldErrors.name}</div>
-                )}
-              </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label ss-modal-label-required" htmlFor="lt-name">
+                Name
+              </label>
+              <input
+                id="lt-name"
+                type="text"
+                className={`ss-input ${combinedFieldErrors.name ? 'has-error' : ''}`}
+                value={combinedForm.name}
+                placeholder="e.g. Paternity Leave"
+                aria-invalid={!!combinedFieldErrors.name}
+                onChange={(e) => {
+                  setCombinedFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  setCombinedForm((prev) => ({ ...prev, name: e.target.value }));
+                }}
+              />
+              {combinedFieldErrors.name && (
+                <div className="lc-field-error">{combinedFieldErrors.name}</div>
+              )}
+            </div>
 
-              <div className="ss-modal-form-group lc-modal-grid-span-2">
-                <label className="ss-modal-label" htmlFor="lt-desc">
-                  Description
-                </label>
-                <input
-                  id="lt-desc"
-                  type="text"
-                  className="ss-input"
-                  placeholder="Shown to employees when applying"
-                  value={combinedForm.description}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
+            <div className="ss-modal-form-group lc-modal-grid-span-2">
+              <label className="ss-modal-label" htmlFor="lt-desc">
+                Description
+              </label>
+              <input
+                id="lt-desc"
+                type="text"
+                className="ss-input"
+                placeholder="Shown to employees when applying"
+                value={combinedForm.description}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-category">Category</label>
-                <select
-                  id="lt-category"
-                  className="ss-input"
-                  value={combinedForm.category}
-                  onChange={(e) => {
-                    const category = e.target.value;
-                    setCombinedFieldErrors((prev) => ({
-                      ...prev,
-                      entitled_days: undefined,
-                      credits_to_leave_type_code: undefined,
-                      claim_date_rule: undefined,
-                      custom_claim_dates: undefined,
-                    }));
-                    setCombinedForm((prev) => ({
-                      ...prev,
-                      category,
-                      // Claim leave types aren't entitlement-capped — the manager's
-                      // approval is the only gate (see hr_admin serializers). Reset
-                      // Limited/Unlimited/Flexible so a stale selection doesn't get
-                      // silently rejected on save.
-                      ...(category === 'CLAIM'
-                        ? { is_unlimited: false, is_flexible: false, entitled_days: 0 }
-                        : { credits_to_leave_type_code: '', claim_date_rule: '', custom_claim_dates: [] }),
-                      // Carry-forward only applies to ACTUAL/CLAIM; reset when
-                      // switching to NOMINAL so a hidden, stale "on" doesn't ship.
-                      ...(category === 'NOMINAL'
-                        ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
-                        : {}),
-                      // Advance-leave borrowing only applies to ACTUAL; reset when
-                      // switching away so a hidden, stale "on" doesn't ship.
-                      ...(category !== 'ACTUAL'
-                        ? { allow_negative: false, max_negative_days: 0 }
-                        : {}),
-                    }));
-                  }}
-                >
-                  <option value="ACTUAL">Actual — deducts balance</option>
-                  <option value="CLAIM">Claim — earns balance</option>
-                  <option value="NOMINAL">Nominal — no balance impact</option>
-                </select>
-              </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-category">Category</label>
+              <select
+                id="lt-category"
+                className="ss-input"
+                value={combinedForm.category}
+                onChange={(e) => {
+                  const category = e.target.value;
+                  setCombinedFieldErrors((prev) => ({
+                    ...prev,
+                    entitled_days: undefined,
+                    credits_to_leave_type_code: undefined,
+                    claim_date_rule: undefined,
+                    custom_claim_dates: undefined,
+                  }));
+                  setCombinedForm((prev) => ({
+                    ...prev,
+                    category,
+                    // Claim leave types aren't entitlement-capped — the manager's
+                    // approval is the only gate (see hr_admin serializers). Reset
+                    // Limited/Unlimited/Flexible so a stale selection doesn't get
+                    // silently rejected on save.
+                    ...(category === 'CLAIM'
+                      ? { is_unlimited: false, is_flexible: false, entitled_days: 0 }
+                      : { credits_to_leave_type_code: '', claim_date_rule: '', custom_claim_dates: [] }),
+                    // Carry-forward only applies to ACTUAL now (CLAIM types
+                    // themselves don't hold a real balance); reset when
+                    // switching away so a hidden, stale "on" doesn't ship.
+                    ...(category !== 'ACTUAL'
+                      ? { is_carry_forward_allowed: false, max_carry_forward: 0, carry_forward_expiry_months: '' }
+                      : {}),
+                    // Advance-leave borrowing only applies to ACTUAL; reset when
+                    // switching away so a hidden, stale "on" doesn't ship.
+                    ...(category !== 'ACTUAL'
+                      ? { allow_negative: false, max_negative_days: 0 }
+                      : {}),
+                    // Year-spanning only applies to ACTUAL too (Unlimited is
+                    // included within ACTUAL, unlike advance-leave above —
+                    // this reset is purely about category, not mode).
+                    ...(category !== 'ACTUAL' ? { allow_year_spanning: true } : {}),
+                  }));
+                }}
+              >
+                <option value="ACTUAL">Actual — deducts balance</option>
+                <option value="CLAIM">Claim — earns balance</option>
+                <option value="NOMINAL">Nominal — no balance impact</option>
+              </select>
+            </div>
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-payment">Payment Type</label>
-                <select
-                  id="lt-payment"
-                  className="ss-input"
-                  value={combinedForm.payment_type}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, payment_type: e.target.value }))}
-                >
-                  <option value="PAID">Paid</option>
-                  <option value="UNPAID">Unpaid</option>
-                </select>
-              </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-payment">Payment Type</label>
+              <select
+                id="lt-payment"
+                className="ss-input"
+                value={combinedForm.payment_type}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, payment_type: e.target.value }))}
+              >
+                <option value="PAID">Paid</option>
+                <option value="UNPAID">Unpaid</option>
+              </select>
+            </div>
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-order">Display Order</label>
-                <input
-                  id="lt-order"
-                  type="number"
-                  className="ss-input"
-                  value={combinedForm.display_order}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, display_order: e.target.value }))}
-                />
-              </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-order">Display Order</label>
+              <input
+                id="lt-order"
+                type="number"
+                className="ss-input"
+                value={combinedForm.display_order}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, display_order: e.target.value }))}
+              />
             </div>
           </div>
+        </div>
 
-          {/* Section: Entitlement */}
-          <div className="lc-form-section">
-            <div className="lc-form-section-title">
-              Entitlement <span className="lc-form-section-hint">Creates the policy row</span>
-            </div>
+        {/* Section: Entitlement */}
+        <div className="lc-form-section">
+          <div className="lc-form-section-title">
+            Entitlement <span className="lc-form-section-hint">Creates the policy row</span>
+          </div>
 
-            {combinedForm.category === 'CLAIM' ? (
-              <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
-                <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
-                <div className="lc-locked-field" title="Claims are approval-gated by the manager, not entitlement-capped">
-                  Not applicable — Claim leave types aren&apos;t entitlement-capped. The
-                  employee isn&apos;t drawing down a balance, they&apos;re asserting they
-                  worked a day, and the manager&apos;s approval is the only gate.
-                </div>
+          {combinedForm.category === 'CLAIM' ? (
+            <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
+              <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
+              <div className="lc-locked-field" title="Claims are approval-gated by the manager, not entitlement-capped">
+                Not applicable — Claim leave types aren&apos;t entitlement-capped. The
+                employee isn&apos;t drawing down a balance, they&apos;re asserting they
+                worked a day, and the manager&apos;s approval is the only gate.
+              </div>
 
-                <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
-                  Credits To
+              <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
+                Credits To
+              </label>
+              <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
+                Which Actual leave type gains a day when this claim is approved (e.g. Claim
+                Weekend Work &rarr; Weekend Work).
+              </div>
+              <Select
+                value={combinedForm.credits_to_leave_type_code}
+                onChange={(v) => {
+                  setCombinedFieldErrors((prev) => ({ ...prev, credits_to_leave_type_code: undefined }));
+                  setCombinedForm((prev) => ({ ...prev, credits_to_leave_type_code: v }));
+                }}
+                options={combinedLeaveTypes
+                  .filter((row) => (row.leave_type || {}).category === 'ACTUAL' && (row.leave_type || {}).is_active)
+                  .filter((row) => row.code !== combinedForm.code)
+                  .map((row) => ({ value: row.code, label: `${row.name} (${row.code})` }))}
+                placeholder="Select an Actual leave type"
+                width="320px"
+              />
+              {combinedFieldErrors.credits_to_leave_type_code && (
+                <div className="lc-field-error">{combinedFieldErrors.credits_to_leave_type_code}</div>
+              )}
+
+              <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
+                Claim Dates
+              </label>
+              <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
+                Which calendar dates count as claimable for this leave type.
+              </div>
+              <div className="lc-gender-radio-row">
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'WEEKEND' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'WEEKEND'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'WEEKEND', custom_claim_dates: [] }));
+                    }}
+                  />
+                  <span className="rtitle">Weekend</span>
+                  <span className="rsub">Employee&apos;s weekend days</span>
                 </label>
-                <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
-                  Which Actual leave type gains a day when this claim is approved (e.g. Claim
-                  Weekend Work &rarr; Weekend Work).
-                </div>
-                <Select
-                  value={combinedForm.credits_to_leave_type_code}
-                  onChange={(v) => {
-                    setCombinedFieldErrors((prev) => ({ ...prev, credits_to_leave_type_code: undefined }));
-                    setCombinedForm((prev) => ({ ...prev, credits_to_leave_type_code: v }));
-                  }}
-                  options={combinedLeaveTypes
-                    .filter((row) => (row.leave_type || {}).category === 'ACTUAL' && (row.leave_type || {}).is_active)
-                    .filter((row) => row.code !== combinedForm.code)
-                    .map((row) => ({ value: row.code, label: `${row.name} (${row.code})` }))}
-                  placeholder="Select an Actual leave type"
-                  width="320px"
-                />
-                {combinedFieldErrors.credits_to_leave_type_code && (
-                  <div className="lc-field-error">{combinedFieldErrors.credits_to_leave_type_code}</div>
-                )}
-
-                <label className="ss-modal-label ss-modal-label-required" style={{ marginTop: '14px' }}>
-                  Claim Dates
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'HOLIDAY' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'HOLIDAY'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'HOLIDAY', custom_claim_dates: [] }));
+                    }}
+                  />
+                  <span className="rtitle">Company Holiday</span>
+                  <span className="rsub">Registered holiday calendar</span>
                 </label>
-                <div className="lc-checkrow-sub" style={{ marginBottom: '8px' }}>
-                  Which calendar dates count as claimable for this leave type.
-                </div>
-                <div className="lc-gender-radio-row">
-                  <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'WEEKEND' ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="claim_date_rule"
-                      checked={combinedForm.claim_date_rule === 'WEEKEND'}
-                      onChange={() => {
-                        setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
-                        setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'WEEKEND', custom_claim_dates: [] }));
-                      }}
-                    />
-                    <span className="rtitle">Weekend</span>
-                    <span className="rsub">Employee&apos;s weekend days</span>
-                  </label>
-                  <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'HOLIDAY' ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="claim_date_rule"
-                      checked={combinedForm.claim_date_rule === 'HOLIDAY'}
-                      onChange={() => {
-                        setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined, custom_claim_dates: undefined }));
-                        setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'HOLIDAY', custom_claim_dates: [] }));
-                      }}
-                    />
-                    <span className="rtitle">Company Holiday</span>
-                    <span className="rsub">Registered holiday calendar</span>
-                  </label>
-                  <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'CUSTOM' ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="claim_date_rule"
-                      checked={combinedForm.claim_date_rule === 'CUSTOM'}
-                      onChange={() => {
-                        setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined }));
-                        setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'CUSTOM' }));
-                      }}
-                    />
-                    <span className="rtitle">Custom Dates</span>
-                    <span className="rsub">HR-picked specific dates</span>
-                  </label>
-                </div>
-                {combinedFieldErrors.claim_date_rule && (
-                  <div className="lc-field-error">{combinedFieldErrors.claim_date_rule}</div>
-                )}
+                <label className={`lc-gender-radio-card ${combinedForm.claim_date_rule === 'CUSTOM' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="claim_date_rule"
+                    checked={combinedForm.claim_date_rule === 'CUSTOM'}
+                    onChange={() => {
+                      setCombinedFieldErrors((prev) => ({ ...prev, claim_date_rule: undefined }));
+                      setCombinedForm((prev) => ({ ...prev, claim_date_rule: 'CUSTOM' }));
+                    }}
+                  />
+                  <span className="rtitle">Custom Dates</span>
+                  <span className="rsub">HR-picked specific dates</span>
+                </label>
+              </div>
+              {combinedFieldErrors.claim_date_rule && (
+                <div className="lc-field-error">{combinedFieldErrors.claim_date_rule}</div>
+              )}
 
-                {combinedForm.claim_date_rule === 'CUSTOM' && (
-                  <div style={{ marginTop: '10px' }}>
-                    <div className="lc-inline-edit-wrap" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <DatePicker
-                        value={pendingCustomClaimDate}
-                        onChange={setPendingCustomClaimDate}
-                        placeholder="Select a date"
-                        width="220px"
-                        showClear={false}
-                      />
-                      <button
-                        type="button"
-                        className="lc-ghost-btn"
-                        style={{ width: 'auto', padding: '0 12px' }}
-                        onClick={() => {
-                          if (!pendingCustomClaimDate) return;
-                          const dateStr = toDateInputValue(pendingCustomClaimDate);
-                          setCombinedFieldErrors((prev) => ({ ...prev, custom_claim_dates: undefined }));
-                          setCombinedForm((prev) => ({
-                            ...prev,
-                            custom_claim_dates: Array.from(new Set([...prev.custom_claim_dates, dateStr])).sort(),
-                          }));
-                          setPendingCustomClaimDate(null);
-                        }}
-                      >
-                        <Plus size={14} />
-                        Add date
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-                      {combinedForm.custom_claim_dates.length === 0 ? (
-                        <span className="lc-checkrow-sub">No dates added yet.</span>
-                      ) : (
-                        combinedForm.custom_claim_dates.map((d) => (
-                          <span key={d} className="lc-code-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            {formatDate(d)}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${d}`}
-                              onClick={() =>
-                                setCombinedForm((prev) => ({
-                                  ...prev,
-                                  custom_claim_dates: prev.custom_claim_dates.filter((x) => x !== d),
-                                }))
-                              }
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
-                            >
-                              <X size={12} />
-                            </button>
-                          </span>
-                        ))
-                      )}
-                    </div>
-                    {combinedFieldErrors.custom_claim_dates && (
-                      <div className="lc-field-error">{combinedFieldErrors.custom_claim_dates}</div>
+              {combinedForm.claim_date_rule === 'CUSTOM' && (
+                <div style={{ marginTop: '10px' }}>
+                  <div className="lc-inline-edit-wrap" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <DatePicker
+                      value={pendingCustomClaimDate}
+                      onChange={setPendingCustomClaimDate}
+                      placeholder="Select a date"
+                      width="220px"
+                      showClear={false}
+                    />
+                    <button
+                      type="button"
+                      className="lc-ghost-btn"
+                      style={{ width: 'auto', padding: '0 12px' }}
+                      onClick={() => {
+                        if (!pendingCustomClaimDate) return;
+                        const dateStr = toDateInputValue(pendingCustomClaimDate);
+                        setCombinedFieldErrors((prev) => ({ ...prev, custom_claim_dates: undefined }));
+                        setCombinedForm((prev) => ({
+                          ...prev,
+                          custom_claim_dates: Array.from(new Set([...prev.custom_claim_dates, dateStr])).sort(),
+                        }));
+                        setPendingCustomClaimDate(null);
+                      }}
+                    >
+                      <Plus size={14} />
+                      Add date
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                    {combinedForm.custom_claim_dates.length === 0 ? (
+                      <span className="lc-checkrow-sub">No dates added yet.</span>
+                    ) : (
+                      combinedForm.custom_claim_dates.map((d) => (
+                        <span key={d} className="lc-code-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          {formatDate(d)}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${d}`}
+                            onClick={() =>
+                              setCombinedForm((prev) => ({
+                                ...prev,
+                                custom_claim_dates: prev.custom_claim_dates.filter((x) => x !== d),
+                              }))
+                            }
+                            style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))
                     )}
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
-                <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
-                <div className="lc-gender-radio-row">
-                  <label className={`lc-gender-radio-card ${!combinedForm.is_unlimited && !combinedForm.is_flexible ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="entitlement_mode"
-                      checked={!combinedForm.is_unlimited && !combinedForm.is_flexible}
-                      onChange={() => setEntitlementMode('LIMITED')}
-                    />
-                    <span className="rtitle">Limited</span>
-                    <span className="rsub">Fixed entitled days</span>
-                  </label>
-                  <label className={`lc-gender-radio-card ${combinedForm.is_unlimited ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="entitlement_mode"
-                      checked={combinedForm.is_unlimited}
-                      onChange={() => setEntitlementMode('UNLIMITED')}
-                    />
-                    <span className="rtitle">Unlimited</span>
-                    <span className="rsub">No balance validation</span>
-                  </label>
-                  <label className={`lc-gender-radio-card ${combinedForm.is_flexible ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="entitlement_mode"
-                      checked={combinedForm.is_flexible}
-                      onChange={() => setEntitlementMode('FLEXIBLE')}
-                    />
-                    <span className="rtitle">Flexible</span>
-                    <span className="rsub">Entitled days cap, overrideable with justification</span>
-                  </label>
+                  {combinedFieldErrors.custom_claim_dates && (
+                    <div className="lc-field-error">{combinedFieldErrors.custom_claim_dates}</div>
+                  )}
                 </div>
+              )}
+            </div>
+          ) : (
+            <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
+              <div className="ss-modal-label" role="heading" aria-level="4">Entitlement Mode</div>
+              <div className="lc-gender-radio-row">
+                <label className={`lc-gender-radio-card ${!combinedForm.is_unlimited && !combinedForm.is_flexible ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={!combinedForm.is_unlimited && !combinedForm.is_flexible}
+                    onChange={() => setEntitlementMode('LIMITED')}
+                  />
+                  <span className="rtitle">Limited</span>
+                  <span className="rsub">Fixed entitled days</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.is_unlimited ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={combinedForm.is_unlimited}
+                    onChange={() => setEntitlementMode('UNLIMITED')}
+                  />
+                  <span className="rtitle">Unlimited</span>
+                  <span className="rsub">No balance validation</span>
+                </label>
+                <label className={`lc-gender-radio-card ${combinedForm.is_flexible ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="entitlement_mode"
+                    checked={combinedForm.is_flexible}
+                    onChange={() => setEntitlementMode('FLEXIBLE')}
+                  />
+                  <span className="rtitle">Flexible</span>
+                  <span className="rsub">Entitled days cap, overrideable with justification</span>
+                </label>
               </div>
+            </div>
+          )}
+
+          <div className="lc-modal-grid">
+            <div className="ss-modal-form-group">
+              {(() => {
+                const isClaimTarget = combinedForm.category !== 'CLAIM' && claimTargetCodes.has(combinedForm.code);
+                const isRequired = !combinedForm.is_unlimited && combinedForm.category !== 'CLAIM' && !isClaimTarget;
+                return (
+                  <>
+                    <label
+                      className={`ss-modal-label ${isRequired ? 'ss-modal-label-required' : ''}`}
+                      htmlFor="lt-entitled"
+                    >
+                      Entitled Days
+                    </label>
+                    {combinedForm.category === 'CLAIM' ? (
+                      <div className="lc-locked-field" title="Not applicable — Claim leave types have no entitlement cap">
+                        Not applicable
+                      </div>
+                    ) : combinedForm.is_unlimited ? (
+                      <div className="lc-locked-field" title="Not applicable — this leave type is unlimited">
+                        Unlimited
+                      </div>
+                    ) : (
+                      <>
+                        {isClaimTarget && (
+                          <div className="lc-checkrow-sub" style={{ marginBottom: '6px' }}>
+                            Credited by a Claim leave type — balance is earned via approved
+                            claims. Optional base allocation on top of that; defaults to 0.
+                          </div>
+                        )}
+                        <input
+                          id="lt-entitled"
+                          type="number"
+                          className={`ss-input ${combinedFieldErrors.entitled_days ? 'has-error' : ''}`}
+                          placeholder={isClaimTarget ? '0' : 'e.g. 10'}
+                          value={combinedForm.entitled_days}
+                          aria-invalid={!!combinedFieldErrors.entitled_days}
+                          onChange={(e) => {
+                            setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
+                            setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }));
+                          }}
+                        />
+                        {combinedFieldErrors.entitled_days && (
+                          <div className="lc-field-error">{combinedFieldErrors.entitled_days}</div>
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            {combinedForm.category === 'ACTUAL' && (
+              <>
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
+                  <select
+                    id="lt-accrual"
+                    className="ss-input"
+                    value={combinedForm.accrual_type}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
+                  >
+                    <option value="NONE">Grant all at start of year</option>
+                    <option value="MONTHLY">Accrue monthly</option>
+                  </select>
+                </div>
+
+                <div className="ss-modal-form-group">
+                  <label className="ss-modal-label" htmlFor="lt-proration">Proration Type</label>
+                  <select
+                    id="lt-proration"
+                    className="ss-input"
+                    value={combinedForm.proration_type}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, proration_type: e.target.value }))}
+                  >
+                    <option value="NONE">No proration</option>
+                    <option value="MONTHLY">By full months worked</option>
+                    <option value="DAILY">By calendar days worked</option>
+                  </select>
+                </div>
+              </>
             )}
 
-            <div className="lc-modal-grid">
-              <div className="ss-modal-form-group">
-                {(() => {
-                  const isClaimTarget = combinedForm.category !== 'CLAIM' && claimTargetCodes.has(combinedForm.code);
-                  const isRequired = !combinedForm.is_unlimited && combinedForm.category !== 'CLAIM' && !isClaimTarget;
-                  return (
-                    <>
-                      <label
-                        className={`ss-modal-label ${isRequired ? 'ss-modal-label-required' : ''}`}
-                        htmlFor="lt-entitled"
-                      >
-                        Entitled Days
-                      </label>
-                      {combinedForm.category === 'CLAIM' ? (
-                        <div className="lc-locked-field" title="Not applicable — Claim leave types have no entitlement cap">
-                          Not applicable
-                        </div>
-                      ) : combinedForm.is_unlimited ? (
-                        <div className="lc-locked-field" title="Not applicable — this leave type is unlimited">
-                          Unlimited
-                        </div>
-                      ) : (
-                        <>
-                          {isClaimTarget && (
-                            <div className="lc-checkrow-sub" style={{ marginBottom: '6px' }}>
-                              Credited by a Claim leave type — balance is earned via approved
-                              claims. Optional base allocation on top of that; defaults to 0.
-                            </div>
-                          )}
-                          <input
-                            id="lt-entitled"
-                            type="number"
-                            className={`ss-input ${combinedFieldErrors.entitled_days ? 'has-error' : ''}`}
-                            placeholder={isClaimTarget ? '0' : 'e.g. 10'}
-                            value={combinedForm.entitled_days}
-                            aria-invalid={!!combinedFieldErrors.entitled_days}
-                            onChange={(e) => {
-                              setCombinedFieldErrors((prev) => ({ ...prev, entitled_days: undefined }));
-                              setCombinedForm((prev) => ({ ...prev, entitled_days: e.target.value }));
-                            }}
-                          />
-                          {combinedFieldErrors.entitled_days && (
-                            <div className="lc-field-error">{combinedFieldErrors.entitled_days}</div>
-                          )}
-                        </>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-notice">Min Notice (days)</label>
+              <input
+                id="lt-notice"
+                type="number"
+                className="ss-input"
+                value={combinedForm.min_notice_days}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, min_notice_days: e.target.value }))}
+              />
+            </div>
 
-              {combinedForm.category === 'ACTUAL' && (
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-consecutive">Max Consecutive (days)</label>
+              <input
+                id="lt-consecutive"
+                type="number"
+                className="ss-input"
+                placeholder="Blank = no limit"
+                value={combinedForm.max_consecutive}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_consecutive: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Carry-Forward & Advance */}
+        <div className="lc-form-section">
+          <div className="lc-form-section-title">Carry-Forward &amp; Advance</div>
+
+          {combinedForm.category !== 'ACTUAL' ? (
+            <div className="lc-locked-field" title="Not applicable — only Actual leave types carry a balance to carry forward or borrow against">
+              Not applicable — only Actual leave types (e.g. AL) have a
+              balance to carry forward or borrow against.
+            </div>
+          ) : (
+            <>
+              {/* Carry-forward: Limited-entitlement Actual types, OR an
+                  Actual type that's a Claim credit target (e.g. WW/CompOff,
+                  credited by CWW/CCompOff) — those earn their balance via
+                  approved claims rather than a flat grant, so the Limited-
+                  mode restriction doesn't apply to them; carry-forward
+                  still makes sense for whatever they've accumulated.
+                  Unlimited/Flexible non-claim-target types are excluded —
+                  mirrors year_end_processing.py's eligibility exactly. */}
+              {((!combinedForm.is_unlimited && !combinedForm.is_flexible) || claimTargetCodes.has(combinedForm.code)) && (
                 <>
-                  <div className="ss-modal-form-group">
-                    <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
-                    <select
-                      id="lt-accrual"
-                      className="ss-input"
-                      value={combinedForm.accrual_type}
-                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
-                    >
-                      <option value="NONE">Grant all at start of year</option>
-                      <option value="MONTHLY">Accrue monthly</option>
-                    </select>
-                  </div>
-
-                  <div className="ss-modal-form-group">
-                    <label className="ss-modal-label" htmlFor="lt-proration">Proration Type</label>
-                    <select
-                      id="lt-proration"
-                      className="ss-input"
-                      value={combinedForm.proration_type}
-                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, proration_type: e.target.value }))}
-                    >
-                      <option value="NONE">No proration</option>
-                      <option value="MONTHLY">By full months worked</option>
-                      <option value="DAILY">By calendar days worked</option>
-                    </select>
+                  <label className="lc-checkrow">
+                    <input
+                      type="checkbox"
+                      aria-label="Allow carry-forward"
+                      checked={combinedForm.is_carry_forward_allowed}
+                      onChange={(e) => toggleCarryForward(e.target.checked)}
+                    />
+                    <span>
+                      <span className="lc-checkrow-title">Allow carry-forward</span>
+                      <span className="lc-checkrow-sub">Unused days roll into the next year</span>
+                    </span>
+                  </label>
+                  <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
+                      <input
+                        id="lt-carryforward"
+                        type="number"
+                        className="ss-input"
+                        value={combinedForm.max_carry_forward}
+                        disabled={!combinedForm.is_carry_forward_allowed}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
+                      />
+                    </div>
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
+                      <input
+                        id="lt-carryforward-expiry"
+                        type="number"
+                        className="ss-input"
+                        placeholder="Blank = never"
+                        value={combinedForm.carry_forward_expiry_months}
+                        disabled={!combinedForm.is_carry_forward_allowed}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
+                      />
+                    </div>
                   </div>
                 </>
               )}
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-notice">Min Notice (days)</label>
-                <input
-                  id="lt-notice"
-                  type="number"
-                  className="ss-input"
-                  value={combinedForm.min_notice_days}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, min_notice_days: e.target.value }))}
-                />
-              </div>
+              {/* Advance leave borrowing: Limited-entitlement Actual leave
+                  types only, and not a leave type credited by a Claim type
+                  (mirrors LeavePolicyCreateSerializer.validate()). Flexible
+                  types already allow exceeding entitlement (with
+                  justification) via their own mechanism, and a claim-earned
+                  balance isn't something you borrow against. */}
+              {combinedForm.category === 'ACTUAL'
+                && !combinedForm.is_unlimited
+                && !combinedForm.is_flexible
+                && !claimTargetCodes.has(combinedForm.code) && (
+                <>
+                  <label className="lc-checkrow" style={{ marginTop: '14px' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Allow advance leave"
+                      checked={combinedForm.allow_negative}
+                      onChange={(e) => toggleAllowNegative(e.target.checked)}
+                    />
+                    <span>
+                      <span className="lc-checkrow-title">Allow advance leave</span>
+                      <span className="lc-checkrow-sub">Employees can borrow from next year&apos;s balance</span>
+                    </span>
+                  </label>
+                  <div className={`lc-conditional-grid ${combinedForm.allow_negative ? '' : 'disabled'}`}>
+                    <div className="ss-modal-form-group lc-modal-grid-span-2">
+                      <label className="ss-modal-label" htmlFor="lt-negative-days">Max Negative Days</label>
+                      <input
+                        id="lt-negative-days"
+                        type="number"
+                        className="ss-input"
+                        value={combinedForm.max_negative_days}
+                        disabled={!combinedForm.allow_negative}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_negative_days: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-consecutive">Max Consecutive (days)</label>
-                <input
-                  id="lt-consecutive"
-                  type="number"
-                  className="ss-input"
-                  placeholder="Blank = no limit"
-                  value={combinedForm.max_consecutive}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_consecutive: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Carry-Forward & Advance */}
-          <div className="lc-form-section">
-            <div className="lc-form-section-title">Carry-Forward &amp; Advance</div>
-
-            {combinedForm.category === 'NOMINAL' ? (
-              <div className="lc-locked-field" title="Not applicable — Nominal leave types have no balance to carry forward or borrow against">
-                Not applicable — Nominal leave types (e.g. WFH) have no balance impact,
-                so there&apos;s nothing to carry forward or borrow against.
-              </div>
-            ) : (
-              <>
-                {/* Carry-forward: ACTUAL and CLAIM only */}
-                <label className="lc-checkrow">
+              {/* Year-spanning requests: Actual leave types only, Limited OR
+                  Unlimited (unlike advance-leave above, Unlimited IS
+                  included — there's no balance to protect either way), and
+                  not a leave type credited by a Claim type. Mirrors the
+                  backend's _is_year_spanning_eligible. */}
+              {combinedForm.category === 'ACTUAL'
+                && !combinedForm.is_flexible
+                && !claimTargetCodes.has(combinedForm.code) && (
+                <label className="lc-checkrow" style={{ marginTop: '14px' }}>
                   <input
                     type="checkbox"
-                    aria-label="Allow carry-forward"
-                    checked={combinedForm.is_carry_forward_allowed}
-                    onChange={(e) => toggleCarryForward(e.target.checked)}
+                    aria-label="Allow year spanning"
+                    checked={combinedForm.allow_year_spanning}
+                    onChange={(e) => setCombinedForm((prev) => ({ ...prev, allow_year_spanning: e.target.checked }))}
                   />
                   <span>
-                    <span className="lc-checkrow-title">Allow carry-forward</span>
-                    <span className="lc-checkrow-sub">Unused days roll into the next year</span>
+                    <span className="lc-checkrow-title">Allow year spanning</span>
+                    <span className="lc-checkrow-sub">
+                      Employees can apply for/modify leave that crosses into, or falls entirely within, next year
+                    </span>
                   </span>
                 </label>
-                <div className={`lc-conditional-grid ${combinedForm.is_carry_forward_allowed ? '' : 'disabled'}`}>
-                  <div className="ss-modal-form-group">
-                    <label className="ss-modal-label" htmlFor="lt-carryforward">Max Carry Forward (days)</label>
-                    <input
-                      id="lt-carryforward"
-                      type="number"
-                      className="ss-input"
-                      value={combinedForm.max_carry_forward}
-                      disabled={!combinedForm.is_carry_forward_allowed}
-                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_carry_forward: e.target.value }))}
-                    />
-                  </div>
-                  <div className="ss-modal-form-group">
-                    <label className="ss-modal-label" htmlFor="lt-carryforward-expiry">Expires After (months)</label>
-                    <input
-                      id="lt-carryforward-expiry"
-                      type="number"
-                      className="ss-input"
-                      placeholder="Blank = never"
-                      value={combinedForm.carry_forward_expiry_months}
-                      disabled={!combinedForm.is_carry_forward_allowed}
-                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, carry_forward_expiry_months: e.target.value }))}
-                    />
-                  </div>
-                </div>
+              )}
+            </>
+          )}
+        </div>
 
-                {/* Advance leave borrowing: ACTUAL only */}
-                {combinedForm.category === 'ACTUAL' && (
-                  <>
-                    <label className="lc-checkrow" style={{ marginTop: '14px' }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Allow advance leave"
-                        checked={combinedForm.allow_negative}
-                        onChange={(e) => toggleAllowNegative(e.target.checked)}
-                      />
-                      <span>
-                        <span className="lc-checkrow-title">Allow advance leave</span>
-                        <span className="lc-checkrow-sub">Employees can borrow from next year&apos;s balance</span>
-                      </span>
-                    </label>
-                    <div className={`lc-conditional-grid ${combinedForm.allow_negative ? '' : 'disabled'}`}>
-                      <div className="ss-modal-form-group lc-modal-grid-span-2">
-                        <label className="ss-modal-label" htmlFor="lt-negative-days">Max Negative Days</label>
-                        <input
-                          id="lt-negative-days"
-                          type="number"
-                          className="ss-input"
-                          value={combinedForm.max_negative_days}
-                          disabled={!combinedForm.allow_negative}
-                          onChange={(e) => setCombinedForm((prev) => ({ ...prev, max_negative_days: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
+        {/* Section: Restrictions & Status */}
+        <div className="lc-form-section">
+          <div className="lc-form-section-title">Restrictions &amp; Status</div>
 
-          {/* Section: Restrictions & Status */}
-          <div className="lc-form-section">
-            <div className="lc-form-section-title">Restrictions &amp; Status</div>
-
-            <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
-              <div className="ss-modal-label" role="heading" aria-level="4">Gender Restriction</div>
-              <div className="lc-gender-radio-row">
-                <label className={`lc-gender-radio-card ${combinedForm.gender_restriction === '' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="gender_restriction"
-                    checked={combinedForm.gender_restriction === ''}
-                    onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: '' }))}
-                  />
-                  <span className="rtitle">All employees</span>
-                  <span className="rsub">No restriction</span>
-                </label>
-                <label className={`lc-gender-radio-card male ${combinedForm.gender_restriction === 'M' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="gender_restriction"
-                    checked={combinedForm.gender_restriction === 'M'}
-                    onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: 'M' }))}
-                  />
-                  <span className="rtitle">&#9794; Male only</span>
-                  <span className="rsub">e.g. Paternity</span>
-                </label>
-                <label className={`lc-gender-radio-card female ${combinedForm.gender_restriction === 'F' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="gender_restriction"
-                    checked={combinedForm.gender_restriction === 'F'}
-                    onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: 'F' }))}
-                  />
-                  <span className="rtitle">&#9792; Female only</span>
-                  <span className="rsub">e.g. Maternity</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="lc-modal-grid" style={{ marginBottom: '6px' }}>
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-eff-from">Effective From</label>
-                <DatePicker
-                  id="lt-eff-from"
-                  value={parseDateValue(combinedForm.effective_from)}
-                  onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_from: toDateInputValue(value) }))}
-                  placeholder="Select date"
-                  width="100%"
-                  showClear={false}
+          <div className="ss-modal-form-group" style={{ marginBottom: '16px' }}>
+            <div className="ss-modal-label" role="heading" aria-level="4">Gender Restriction</div>
+            <div className="lc-gender-radio-row">
+              <label className={`lc-gender-radio-card ${combinedForm.gender_restriction === '' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="gender_restriction"
+                  checked={combinedForm.gender_restriction === ''}
+                  onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: '' }))}
                 />
-              </div>
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-eff-to">Effective To</label>
-                <DatePicker
-                  id="lt-eff-to"
-                  value={parseDateValue(combinedForm.effective_to)}
-                  onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_to: toDateInputValue(value) }))}
-                  placeholder="Blank = ongoing"
-                  width="100%"
-                  showClear={true}
+                <span className="rtitle">All employees</span>
+                <span className="rsub">No restriction</span>
+              </label>
+              <label className={`lc-gender-radio-card male ${combinedForm.gender_restriction === 'M' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="gender_restriction"
+                  checked={combinedForm.gender_restriction === 'M'}
+                  onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: 'M' }))}
                 />
-              </div>
-            </div>
-
-            <div className="lc-toggle-field">
-              <div>
-                <div className="lc-toggle-field-label">Requires Work Location for Leave Type</div>
-                <div className="lc-toggle-field-hint">
-                  Optional — only turn on for leave types tied to a specific work location.
-                  Leave off for types anyone can apply for regardless of work location.
-                </div>
-              </div>
-              <Toggle
-                checked={combinedForm.requires_work_location}
-                onChange={(v) =>
-                  setCombinedForm((prev) => ({
-                    ...prev,
-                    requires_work_location: v,
-                    required_location: v ? prev.required_location : '',
-                  }))
-                }
-                ariaLabel="Requires Work Location for Leave Type"
-              />
-            </div>
-            {combinedForm.requires_work_location && (
-              <div className="ss-modal-form-group" style={{ marginBottom: '14px' }}>
-                <label className="ss-modal-label">Work Location Type</label>
-                <Select
-                  value={combinedForm.required_location === '' ? '' : String(combinedForm.required_location)}
-                  onChange={(v) => setCombinedForm((prev) => ({ ...prev, required_location: v }))}
-                  options={workLocations.map((loc) => ({ value: String(loc.id), label: loc.name }))}
-                  placeholder="Select Work Location"
-                  width="260px"
+                <span className="rtitle">&#9794; Male only</span>
+                <span className="rsub">e.g. Paternity</span>
+              </label>
+              <label className={`lc-gender-radio-card female ${combinedForm.gender_restriction === 'F' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="gender_restriction"
+                  checked={combinedForm.gender_restriction === 'F'}
+                  onChange={() => setCombinedForm((prev) => ({ ...prev, gender_restriction: 'F' }))}
                 />
-                {combinedFieldErrors.required_location && (
-                  <div className="lc-field-error">{combinedFieldErrors.required_location}</div>
-                )}
-              </div>
-            )}
-            <div className="lc-toggle-field">
-              <div>
-                <div className="lc-toggle-field-label">Active</div>
-                <div className="lc-toggle-field-hint">Inactive leave types can&apos;t be applied for</div>
-              </div>
-              <Toggle
-                checked={combinedForm.is_active}
-                onChange={(v) => setCombinedForm((prev) => ({ ...prev, is_active: v }))}
-                ariaLabel="Active status"
-              />
-            </div>
-
-            <div className="lc-modal-grid" style={{ marginTop: '14px' }}>
-              <div className="ss-modal-form-group lc-modal-grid-span-2">
-                <label className="ss-modal-label" htmlFor="lt-notes">Notes <span className="lc-form-optional-hint">— internal, on the leave type</span></label>
-                <textarea
-                  id="lt-notes"
-                  className="ss-input"
-                  style={{ minHeight: '56px', resize: 'vertical' }}
-                  placeholder="Internal HR reference note"
-                  value={combinedForm.notes}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, notes: e.target.value }))}
-                />
-              </div>
-              <div className="ss-modal-form-group lc-modal-grid-span-2">
-                <label className="ss-modal-label" htmlFor="lt-policy-notes">Policy Notes <span className="lc-form-optional-hint">— internal, on the policy</span></label>
-                <textarea
-                  id="lt-policy-notes"
-                  className="ss-input"
-                  style={{ minHeight: '56px', resize: 'vertical' }}
-                  placeholder="Optional — note specific to this entitlement rule"
-                  value={combinedForm.policy_notes}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, policy_notes: e.target.value }))}
-                />
-              </div>
+                <span className="rtitle">&#9792; Female only</span>
+                <span className="rsub">e.g. Maternity</span>
+              </label>
             </div>
           </div>
+
+          <div className="lc-modal-grid" style={{ marginBottom: '6px' }}>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-eff-from">Effective From</label>
+              <DatePicker
+                id="lt-eff-from"
+                value={parseDateValue(combinedForm.effective_from)}
+                onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_from: toDateInputValue(value) }))}
+                placeholder="Select date"
+                width="100%"
+                showClear={false}
+              />
+            </div>
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="lt-eff-to">Effective To</label>
+              <DatePicker
+                id="lt-eff-to"
+                value={parseDateValue(combinedForm.effective_to)}
+                onChange={(value) => setCombinedForm((prev) => ({ ...prev, effective_to: toDateInputValue(value) }))}
+                placeholder="Blank = ongoing"
+                width="100%"
+                showClear={true}
+              />
+            </div>
+          </div>
+
+          <div className="lc-toggle-field">
+            <div>
+              <div className="lc-toggle-field-label">Requires Work Location for Leave Type</div>
+              <div className="lc-toggle-field-hint">
+                Optional — only turn on for leave types tied to a specific work location.
+                Leave off for types anyone can apply for regardless of work location.
+              </div>
+            </div>
+            <Toggle
+              checked={combinedForm.requires_work_location}
+              onChange={(v) =>
+                setCombinedForm((prev) => ({
+                  ...prev,
+                  requires_work_location: v,
+                  required_location: v ? prev.required_location : '',
+                }))
+              }
+              ariaLabel="Requires Work Location for Leave Type"
+            />
+          </div>
+          {combinedForm.requires_work_location && (
+            <div className="ss-modal-form-group" style={{ marginBottom: '14px' }}>
+              <label className="ss-modal-label">Work Location Type</label>
+              <Select
+                value={combinedForm.required_location === '' ? '' : String(combinedForm.required_location)}
+                onChange={(v) => setCombinedForm((prev) => ({ ...prev, required_location: v }))}
+                options={workLocations.map((loc) => ({ value: String(loc.id), label: loc.name }))}
+                placeholder="Select Work Location"
+                width="260px"
+              />
+              {combinedFieldErrors.required_location && (
+                <div className="lc-field-error">{combinedFieldErrors.required_location}</div>
+              )}
+            </div>
+          )}
+          <div className="lc-toggle-field">
+            <div>
+              <div className="lc-toggle-field-label">Active</div>
+              <div className="lc-toggle-field-hint">Inactive leave types can&apos;t be applied for</div>
+            </div>
+            <Toggle
+              checked={combinedForm.is_active}
+              onChange={(v) => setCombinedForm((prev) => ({ ...prev, is_active: v }))}
+              ariaLabel="Active status"
+            />
+          </div>
+
+          <div className="lc-modal-grid" style={{ marginTop: '14px' }}>
+            <div className="ss-modal-form-group lc-modal-grid-span-2">
+              <label className="ss-modal-label" htmlFor="lt-notes">Notes <span className="lc-form-optional-hint">— internal, on the leave type</span></label>
+              <textarea
+                id="lt-notes"
+                className="ss-input"
+                style={{ minHeight: '56px', resize: 'vertical' }}
+                placeholder="Internal HR reference note"
+                value={combinedForm.notes}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+            <div className="ss-modal-form-group lc-modal-grid-span-2">
+              <label className="ss-modal-label" htmlFor="lt-policy-notes">Policy Notes <span className="lc-form-optional-hint">— internal, on the policy</span></label>
+              <textarea
+                id="lt-policy-notes"
+                className="ss-input"
+                style={{ minHeight: '56px', resize: 'vertical' }}
+                placeholder="Optional — note specific to this entitlement rule"
+                value={combinedForm.policy_notes}
+                onChange={(e) => setCombinedForm((prev) => ({ ...prev, policy_notes: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
         </div>
       </AdminModal>
 
