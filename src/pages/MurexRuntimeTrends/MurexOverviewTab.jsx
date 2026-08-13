@@ -10,7 +10,7 @@ import {
   setYear as dateFnsSetYear,
   getYear,
   getMonth,
-  isToday,
+  parseISO,
 } from 'date-fns';
 import {
   ChevronLeft,
@@ -18,14 +18,12 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar as CalendarIcon,
+  FileQuestion,
 } from 'lucide-react';
 import 'react-day-picker/dist/style.css';
 import '@components/forms/DatePicker/DatePicker.css';
 import { PlotlyChart } from './MurexRuntimeTrendsPage';
-import {
-  mockJobDurationMatrixData,
-  mockOverviewTimelineList,
-} from './mockOverviewTimelineData';
+import { overviewParsedData } from './overviewCsvParser';
 
 const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr',
@@ -51,16 +49,21 @@ function useChartThemeColor() {
 }
 
 export function MurexOverviewTab() {
-  // Default date: 12 Aug 2026
-  const [selectedDate, setSelectedDate] = useState(() => new Date(2026, 7, 12));
+  const availableDates = overviewParsedData.availableDates;
+  const latestIsoDate = availableDates[availableDates.length - 1] || '2026-08-11';
+
+  // Default date: latest available date in CSV (2026-08-11 -> 11 Aug 2026)
+  const [selectedIsoDate, setSelectedIsoDate] = useState(latestIsoDate);
+  const selectedDate = useMemo(() => parseISO(selectedIsoDate), [selectedIsoDate]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('calendar');
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(2026, 7, 12));
+  const [currentMonth, setCurrentMonth] = useState(() => selectedDate);
 
   const [hoveredMatrixIdx, setHoveredMatrixIdx] = useState(null);
   const [hoveredTimelineRow, setHoveredTimelineRow] = useState(null);
 
-  // Map of expanded accordion state: all accordions collapsed by default
+  // Accordions expanded state map: all collapsed by default
   const [expandedAccordions, setExpandedAccordions] = useState({});
 
   const toggleAccordion = (id) => {
@@ -72,25 +75,39 @@ export function MurexOverviewTab() {
 
   const themeColor = useChartThemeColor();
 
+  // Navigation handlers cycling strictly through available CSV dates
   const handlePrevDay = () => {
-    setSelectedDate((prev) => {
-      const next = subDays(prev, 1);
-      setCurrentMonth(next);
-      return next;
-    });
+    const currentIdx = availableDates.indexOf(selectedIsoDate);
+    if (currentIdx > 0) {
+      const prevIso = availableDates[currentIdx - 1];
+      setSelectedIsoDate(prevIso);
+      setCurrentMonth(parseISO(prevIso));
+    } else {
+      const nextDate = subDays(selectedDate, 1);
+      const isoStr = format(nextDate, 'yyyy-MM-dd');
+      setSelectedIsoDate(isoStr);
+      setCurrentMonth(nextDate);
+    }
   };
 
   const handleNextDay = () => {
-    setSelectedDate((prev) => {
-      const next = addDays(prev, 1);
-      setCurrentMonth(next);
-      return next;
-    });
+    const currentIdx = availableDates.indexOf(selectedIsoDate);
+    if (currentIdx !== -1 && currentIdx < availableDates.length - 1) {
+      const nextIso = availableDates[currentIdx + 1];
+      setSelectedIsoDate(nextIso);
+      setCurrentMonth(parseISO(nextIso));
+    } else {
+      const nextDate = addDays(selectedDate, 1);
+      const isoStr = format(nextDate, 'yyyy-MM-dd');
+      setSelectedIsoDate(isoStr);
+      setCurrentMonth(nextDate);
+    }
   };
 
   const handleSelectDate = (date) => {
     if (date) {
-      setSelectedDate(date);
+      const isoStr = format(date, 'yyyy-MM-dd');
+      setSelectedIsoDate(isoStr);
       setCurrentMonth(date);
       setIsOpen(false);
       setView('calendar');
@@ -113,9 +130,21 @@ export function MurexOverviewTab() {
 
   const formattedDate = format(selectedDate, 'dd MMM yyyy');
 
-  // 1. Build Plotly Spec for "Job - Duration Matrix"
+  // Extract CSV data for current selected ISO date
+  const currentDayData = useMemo(() => {
+    return overviewParsedData.dataByDate[selectedIsoDate] || { matrixJobs: [], timelineList: [] };
+  }, [selectedIsoDate]);
+
+  const matrixJobs = currentDayData.matrixJobs || [];
+  const timelineList = currentDayData.timelineList || [];
+
+  // 1. Build Dynamic Plotly Spec for "Job - Duration Matrix"
   const matrixChartSpec = useMemo(() => {
-    const allJobNames = mockJobDurationMatrixData.jobs.map((j) => j.name);
+    if (!matrixJobs || matrixJobs.length === 0) {
+      return null;
+    }
+
+    const allJobNames = matrixJobs.map((j) => j.name);
     const reversedJobNames = [...allJobNames].reverse();
 
     const yVals = [];
@@ -123,19 +152,23 @@ export function MurexOverviewTab() {
     const baseVals = [];
     const customDataArr = [];
 
-    mockJobDurationMatrixData.jobs.forEach((job) => {
+    matrixJobs.forEach((job) => {
       yVals.push(job.name);
-      const startMs = new Date(job.start.replace(' ', 'T')).getTime();
-      const endMs = new Date(job.end.replace(' ', 'T')).getTime();
-      const durationMs = endMs - startMs;
+
+      const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
+      const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
+      const durationMs = Math.max(endMs - startMs, 2000); // minimum 2s bar for visibility
 
       xVals.push(durationMs);
       baseVals.push(job.start);
       customDataArr.push({
         name: job.name,
-        startTimeStr: job.startTimeStr,
-        endTimeStr: job.endTimeStr,
+        rawScriptName: job.rawScriptName,
+        rawStartTime: job.rawStartTime,
+        rawEndTime: job.rawEndTime,
         durationStr: job.durationStr,
+        timeCpu: job.timeCpu,
+        timeSyb: job.timeSyb,
       });
     });
 
@@ -145,7 +178,7 @@ export function MurexOverviewTab() {
       orientation: 'h',
       showlegend: false,
       marker: {
-        color: '#8B5CF6',
+        color: '#8B5CF6', // Purple/violet execution bar color
         line: { width: 0 },
       },
       y: yVals,
@@ -153,9 +186,11 @@ export function MurexOverviewTab() {
       base: baseVals,
       customdata: customDataArr,
       hovertemplate:
-        '<b>%{customdata.name}</b><br><br>' +
-        'Time: %{customdata.startTimeStr} - %{customdata.endTimeStr}<br>' +
-        'Duration: %{customdata.durationStr}<extra></extra>',
+        '<b>Script: %{customdata.rawScriptName}</b><br><br>' +
+        'Start: %{customdata.rawStartTime}<br>' +
+        'End: %{customdata.rawEndTime}<br>' +
+        'Duration: %{customdata.durationStr}<br>' +
+        'CPU: %{customdata.timeCpu} | System: %{customdata.timeSyb}<extra></extra>',
       hoverlabel: {
         bgcolor: '#1E293B',
         font: { color: '#FFFFFF', family: 'Inter, system-ui, sans-serif', size: 11 },
@@ -164,16 +199,15 @@ export function MurexOverviewTab() {
       },
     };
 
-    const tickvals = [
-      '2026-07-12 00:00:00', '2026-07-12 02:00:00', '2026-07-12 04:00:00',
-      '2026-07-12 06:00:00', '2026-07-12 08:00:00', '2026-07-12 10:00:00',
-      '2026-07-12 12:00:00', '2026-07-12 14:00:00', '2026-07-12 16:00:00',
-      '2026-07-12 18:00:00', '2026-07-12 20:00:00', '2026-07-12 22:00:00',
-      '2026-07-13 00:00:00'
-    ];
+    // Build 24-hour tick values for the selected ISO date (00:00 to 24:00)
+    const nextDayIso = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
+    const tickhours = ['00:00:00', '02:00:00', '04:00:00', '06:00:00', '08:00:00', '10:00:00', '12:00:00', '14:00:00', '16:00:00', '18:00:00', '20:00:00', '22:00:00'];
+    const tickvals = tickhours.map((th) => `${selectedIsoDate} ${th}`);
+    tickvals.push(`${nextDayIso} 00:00:00`);
+
     const ticktext = ['0:00', '2:00', '4:00', '6:00', '8:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '24:00'];
 
-    const hoveredJobName = hoveredMatrixIdx != null ? mockJobDurationMatrixData.jobs[hoveredMatrixIdx]?.name : null;
+    const hoveredJobName = hoveredMatrixIdx != null ? matrixJobs[hoveredMatrixIdx]?.name : null;
     const shapes =
       hoveredJobName != null
         ? [
@@ -192,15 +226,17 @@ export function MurexOverviewTab() {
           ]
         : [];
 
+    const chartHeight = Math.max(160, matrixJobs.length * 40);
+
     const layout = {
       autosize: true,
-      height: 195,
+      height: chartHeight + 35,
       margin: { t: 5, r: 12, b: 30, l: 12 },
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: themeColor, size: 11, family: 'Inter, system-ui, sans-serif' },
       barmode: 'overlay',
-      bargap: 0.45,
+      bargap: 0.4,
       xaxis: {
         type: 'date',
         tickvals: tickvals,
@@ -208,7 +244,7 @@ export function MurexOverviewTab() {
         showgrid: true,
         gridcolor: 'rgba(226, 232, 240, 0.6)',
         zeroline: false,
-        range: ['2026-07-12 00:00:00', '2026-07-13 00:00:00'],
+        range: [`${selectedIsoDate} 00:00:00`, `${nextDayIso} 00:00:00`],
         tickfont: { size: 10, color: '#64748B' },
       },
       yaxis: {
@@ -222,26 +258,26 @@ export function MurexOverviewTab() {
       shapes,
     };
 
-    return { data: [trace], layout };
-  }, [themeColor, hoveredMatrixIdx]);
+    return { data: [trace], layout, chartHeight };
+  }, [themeColor, matrixJobs, hoveredMatrixIdx, selectedIsoDate, selectedDate]);
 
-  // 2. Helper to build Plotly Spec for any EOD Job Timeline dataset
-  const buildTimelineChartSpec = (timelineData) => {
-    const allRowNames = timelineData.rows.map((r) => r.name);
+  // 2. Helper to build Plotly Spec for EOD Job Timeline accordion items
+  const buildTimelineChartSpec = (timelineItem) => {
+    const allRowNames = timelineItem.rows.map((r) => r.name);
     const reversedRowNames = [...allRowNames].reverse();
 
-    const traces = timelineData.categories.map((cat) => {
+    const traces = timelineItem.categories.map((cat) => {
       const yVals = [];
       const xVals = [];
       const baseVals = [];
       const customDataArr = [];
 
-      timelineData.rows.forEach((row) => {
+      timelineItem.rows.forEach((row) => {
         (row.segments || []).forEach((seg) => {
           if (seg.type === cat.key) {
             yVals.push(row.name);
-            const startMs = new Date(seg.start.replace(' ', 'T')).getTime();
-            const endMs = new Date(seg.end.replace(' ', 'T')).getTime();
+            const startMs = seg.start ? new Date(seg.start.replace(' ', 'T')).getTime() : 0;
+            const endMs = seg.end ? new Date(seg.end.replace(' ', 'T')).getTime() : startMs;
             const durationMs = Math.max(endMs - startMs, 1000);
 
             xVals.push(durationMs);
@@ -251,6 +287,8 @@ export function MurexOverviewTab() {
               unit: row.unit,
               typeName: seg.typeName,
               durationStr: seg.durationFormatted,
+              rawStart: seg.rawStart || seg.start,
+              rawEnd: seg.rawEnd || seg.end,
             });
           }
         });
@@ -271,8 +309,10 @@ export function MurexOverviewTab() {
         customdata: customDataArr,
         hovertemplate:
           '<b>%{customdata.scriptName}</b><br><br>' +
-          'Unit: %{customdata.unit}<br>' +
-          '%{customdata.typeName}: %{customdata.durationStr}<extra></extra>',
+          'Phase: %{customdata.typeName}<br>' +
+          'Duration: %{customdata.durationStr}<br>' +
+          'Start: %{customdata.rawStart}<br>' +
+          'End: %{customdata.rawEnd}<extra></extra>',
         hoverlabel: {
           bgcolor: '#1E293B',
           font: { color: '#FFFFFF', family: 'Inter, system-ui, sans-serif', size: 11 },
@@ -300,23 +340,22 @@ export function MurexOverviewTab() {
           ]
         : [];
 
-    const defaultRange = ['2026-07-12 23:20:00', '2026-07-13 00:58:00'];
-    const xRange = timelineData.jobInfo.xRange || defaultRange;
-    const chartHeight = Math.max(220, timelineData.rows.length * 40 + 80);
+    const defaultRange = [`${selectedIsoDate} 00:00:00`, `${selectedIsoDate} 23:59:59`];
+    const xRange = timelineItem.jobInfo.xRange || defaultRange;
+    const chartHeight = Math.max(220, timelineItem.rows.length * 36 + 60);
 
     const layout = {
       autosize: true,
       height: chartHeight,
-      margin: { t: 15, r: 25, b: 45, l: 160 },
+      margin: { t: 15, r: 25, b: 45, l: 200 },
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: themeColor, size: 11, family: 'Inter, system-ui, sans-serif' },
       barmode: 'overlay',
-      bargap: 0.45,
+      bargap: 0.4,
       xaxis: {
         type: 'date',
         tickformat: '%H:%M',
-        dtick: 600000,
         showgrid: true,
         gridcolor: 'rgba(226, 232, 240, 0.6)',
         zeroline: false,
@@ -506,124 +545,151 @@ export function MurexOverviewTab() {
         <div className="murex-overview-chart-card murex-matrix-card">
           {/* Centered Card Header */}
           <div className="murex-matrix-card-header">
-            <h3 className="murex-matrix-card-title">{mockJobDurationMatrixData.header.title}</h3>
-            <div className="murex-matrix-card-subtitle">{mockJobDurationMatrixData.header.subtitle}</div>
+            <h3 className="murex-matrix-card-title">Job - Duration Matrix</h3>
+            <div className="murex-matrix-card-subtitle">24-Hour Overview Window ({formattedDate})</div>
           </div>
 
-          <div className="murex-matrix-container">
-            {/* Left Column: Job Names */}
-            <div className="murex-matrix-col-jobs">
-              {mockJobDurationMatrixData.jobs.map((job, idx) => (
-                <div
-                  key={job.id}
-                  className={`murex-matrix-row-label ${hoveredMatrixIdx === idx ? 'is-hovered' : ''}`}
-                  onMouseEnter={() => setHoveredMatrixIdx(idx)}
-                  onMouseLeave={() => setHoveredMatrixIdx(null)}
-                >
-                  <span className="murex-matrix-job-name">{job.name}</span>
-                </div>
-              ))}
-            </div>
+          {matrixChartSpec ? (
+            <div className="murex-matrix-container">
+              {/* Left Column: Job Names */}
+              <div
+                className="murex-matrix-col-jobs"
+                style={{ height: matrixChartSpec.chartHeight }}
+              >
+                {matrixJobs.map((job, idx) => (
+                  <div
+                    key={job.id}
+                    className={`murex-matrix-row-label ${hoveredMatrixIdx === idx ? 'is-hovered' : ''}`}
+                    style={{ height: 40 }}
+                    onMouseEnter={() => setHoveredMatrixIdx(idx)}
+                    onMouseLeave={() => setHoveredMatrixIdx(null)}
+                    title={job.rawScriptName}
+                  >
+                    <span className="murex-matrix-job-name">{job.name}</span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Middle Column: 24-Hour Plotly Timeline */}
-            <div className="murex-matrix-col-timeline">
-              <PlotlyChart
-                data={matrixChartSpec.data}
-                layout={matrixChartSpec.layout}
-                config={{ responsive: true, displayModeBar: false }}
-                onHover={(ev) => {
-                  if (ev?.points?.[0]) {
-                    const yVal = ev.points[0].y;
-                    const idx = mockJobDurationMatrixData.jobs.findIndex((j) => j.name === yVal);
-                    if (idx !== -1) setHoveredMatrixIdx(idx);
-                  }
-                }}
-                onUnhover={() => setHoveredMatrixIdx(null)}
-                style={{ width: '100%', height: 195 }}
-              />
-            </div>
+              {/* Middle Column: 24-Hour Plotly Timeline */}
+              <div className="murex-matrix-col-timeline">
+                <PlotlyChart
+                  data={matrixChartSpec.data}
+                  layout={matrixChartSpec.layout}
+                  config={{ responsive: true, displayModeBar: false }}
+                  onHover={(ev) => {
+                    if (ev?.points?.[0]) {
+                      const yVal = ev.points[0].y;
+                      const idx = matrixJobs.findIndex((j) => j.name === yVal);
+                      if (idx !== -1) setHoveredMatrixIdx(idx);
+                    }
+                  }}
+                  onUnhover={() => setHoveredMatrixIdx(null)}
+                  style={{ width: '100%', height: matrixChartSpec.layout.height }}
+                />
+              </div>
 
-            {/* Right Column: Duration Values */}
-            <div className="murex-matrix-col-durations">
-              {mockJobDurationMatrixData.jobs.map((job, idx) => (
-                <div
-                  key={job.id}
-                  className={`murex-matrix-row-duration ${hoveredMatrixIdx === idx ? 'is-hovered' : ''}`}
-                  onMouseEnter={() => setHoveredMatrixIdx(idx)}
-                  onMouseLeave={() => setHoveredMatrixIdx(null)}
-                >
-                  <span className="murex-matrix-duration-text">{job.durationStr}</span>
-                </div>
-              ))}
+              {/* Right Column: Duration Values */}
+              <div
+                className="murex-matrix-col-durations"
+                style={{ height: matrixChartSpec.chartHeight }}
+              >
+                {matrixJobs.map((job, idx) => (
+                  <div
+                    key={job.id}
+                    className={`murex-matrix-row-duration ${hoveredMatrixIdx === idx ? 'is-hovered' : ''}`}
+                    style={{ height: 40 }}
+                    onMouseEnter={() => setHoveredMatrixIdx(idx)}
+                    onMouseLeave={() => setHoveredMatrixIdx(null)}
+                  >
+                    <span className="murex-matrix-duration-text">{job.durationStr}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="murex-overview-empty-state">
+              <FileQuestion size={28} className="murex-empty-icon" />
+              <span>No EOD job executions recorded for {formattedDate}.</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 3. List of Collapsible EOD Job Timeline Accordions */}
-      {mockOverviewTimelineList.map((timelineItem) => {
-        const isExpanded = !!expandedAccordions[timelineItem.id];
-        const chartSpec = buildTimelineChartSpec(timelineItem);
+      {/* 3. List of Data-Driven Collapsible EOD Job Timeline Accordions */}
+      {timelineList.length > 0 ? (
+        timelineList.map((timelineItem) => {
+          const isExpanded = !!expandedAccordions[timelineItem.id];
+          const chartSpec = buildTimelineChartSpec(timelineItem);
 
-        return (
-          <div key={timelineItem.id} className="murex-overview-section">
-            <div className={`murex-timeline-accordion-card ${isExpanded ? 'is-expanded' : ''}`}>
-              {/* Accordion Header */}
-              <div
-                className="murex-timeline-accordion-header"
-                onClick={() => toggleAccordion(timelineItem.id)}
-              >
-                <div className="murex-timeline-accordion-header-left">
-                  <h3 className="murex-overview-job-title">{timelineItem.jobInfo.title}</h3>
-                  <div className="murex-overview-job-meta">
-                    <span>{timelineItem.jobInfo.startTimeStr} — {timelineItem.jobInfo.endTimeStr}</span>
-                    <span className="murex-meta-dot">•</span>
-                    <span>Duration: <strong>{timelineItem.jobInfo.durationStr}</strong></span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="murex-timeline-accordion-chevron-btn"
-                  aria-label={isExpanded ? 'Collapse timeline' : 'Expand timeline'}
+          return (
+            <div key={timelineItem.id} className="murex-overview-section">
+              <div className={`murex-timeline-accordion-card ${isExpanded ? 'is-expanded' : ''}`}>
+                {/* Accordion Header */}
+                <div
+                  className="murex-timeline-accordion-header"
+                  onClick={() => toggleAccordion(timelineItem.id)}
                 >
-                  {isExpanded ? (
-                    <ChevronUp size={18} className="murex-chevron-icon" />
-                  ) : (
-                    <ChevronDown size={18} className="murex-chevron-icon" />
-                  )}
-                </button>
-              </div>
-
-              {/* Accordion Body: Legend + Plotly Chart */}
-              {isExpanded && (
-                <div className="murex-timeline-accordion-body">
-                  {/* Legend */}
-                  <div className="murex-overview-legend">
-                    {timelineItem.categories.map((cat) => (
-                      <div key={cat.key} className="murex-overview-legend-item">
-                        <span className="murex-overview-legend-dot" style={{ backgroundColor: cat.color }} />
-                        <span className="murex-overview-legend-text">{cat.name}</span>
-                      </div>
-                    ))}
+                  <div className="murex-timeline-accordion-header-left">
+                    <h3 className="murex-overview-job-title">{timelineItem.jobInfo.title}</h3>
+                    <div className="murex-overview-job-meta">
+                      <span>{timelineItem.jobInfo.startTimeStr} — {timelineItem.jobInfo.endTimeStr}</span>
+                      <span className="murex-meta-dot">•</span>
+                      <span>Duration: <strong>{timelineItem.jobInfo.durationStr}</strong></span>
+                    </div>
                   </div>
-
-                  {/* Plotly Timeline Chart */}
-                  <div className="murex-overview-plotly-wrapper" style={{ minHeight: chartSpec.layout.height }}>
-                    <PlotlyChart
-                      data={chartSpec.data}
-                      layout={chartSpec.layout}
-                      config={{ responsive: true, displayModeBar: false }}
-                      onHover={(ev) => ev?.points?.[0] && setHoveredTimelineRow(ev.points[0].y)}
-                      onUnhover={() => setHoveredTimelineRow(null)}
-                      style={{ width: '100%', height: chartSpec.layout.height }}
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    className="murex-timeline-accordion-chevron-btn"
+                    aria-label={isExpanded ? 'Collapse timeline' : 'Expand timeline'}
+                  >
+                    {isExpanded ? (
+                      <ChevronUp size={18} className="murex-chevron-icon" />
+                    ) : (
+                      <ChevronDown size={18} className="murex-chevron-icon" />
+                    )}
+                  </button>
                 </div>
-              )}
+
+                {/* Accordion Body: Legend + Plotly Chart */}
+                {isExpanded && (
+                  <div className="murex-timeline-accordion-body">
+                    {/* Legend */}
+                    <div className="murex-overview-legend">
+                      {timelineItem.categories.map((cat) => (
+                        <div key={cat.key} className="murex-overview-legend-item">
+                          <span className="murex-overview-legend-dot" style={{ backgroundColor: cat.color }} />
+                          <span className="murex-overview-legend-text">{cat.name}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Plotly Timeline Chart */}
+                    <div className="murex-overview-plotly-wrapper" style={{ minHeight: chartSpec.layout.height }}>
+                      <PlotlyChart
+                        data={chartSpec.data}
+                        layout={chartSpec.layout}
+                        config={{ responsive: true, displayModeBar: false }}
+                        onHover={(ev) => ev?.points?.[0] && setHoveredTimelineRow(ev.points[0].y)}
+                        onUnhover={() => setHoveredTimelineRow(null)}
+                        style={{ width: '100%', height: chartSpec.layout.height }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div className="murex-overview-section">
+          <div className="murex-timeline-accordion-card">
+            <div className="murex-overview-empty-state">
+              <FileQuestion size={24} className="murex-empty-icon" />
+              <span>No EOD job timelines recorded for {formattedDate}.</span>
             </div>
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
