@@ -1477,18 +1477,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--border-secondary);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .pm-modal-close-btn:hover {
-  background: var(--bg-hover);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 /* Modal Toolbar */
@@ -2879,21 +2881,23 @@
 }
 
 .pm-modal-close-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: none;
-  color: #252525;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .pm-modal-close-btn:hover {
-  background: var(--bg-hover);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 .pm-modal-toolbar {

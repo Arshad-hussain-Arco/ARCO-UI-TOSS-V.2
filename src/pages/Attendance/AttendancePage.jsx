@@ -746,13 +746,22 @@ export function AttendancePage() {
           <button
             key={id}
             ref={el => (tabsRef.current[id] = el)}
-            className={`attendance-subtab${subTab === id ? ' attendance-subtab-active' : ''}`}
+            className="attendance-subtab"
+            data-active={subTab === id}
             onClick={() => setSubTab(id)}
           >
-            {id === 'on-duty' ? 'On Duty Today' : id === 'on-wfh' ? 'On WFH Today' : id === 'on-leave' ? 'On Leave' : 'Attendance Report'}
+            {id === 'on-duty' && <Users className="attendance-subtab-icon" />}
+            {id === 'on-wfh' && <Home className="attendance-subtab-icon" />}
+            {id === 'on-leave' && <Calendar className="attendance-subtab-icon" />}
+            {id === 'report' && <FileText className="attendance-subtab-icon" />}
+            <span className="attendance-subtab-label">
+              {id === 'on-duty' && 'On Duty'}
+              {id === 'on-wfh' && 'WFH'}
+              {id === 'on-leave' && 'On Leave'}
+              {id === 'report' && 'Full Report'}
+            </span>
           </button>
         ))}
-        <div className="attendance-subtab-indicator" style={{ left: indicatorStyle.left, width: indicatorStyle.width }} />
       </div>
 
       {/* ── Filters — compact single row ── */}

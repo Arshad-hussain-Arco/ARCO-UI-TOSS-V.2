@@ -165,6 +165,8 @@ export const authService = {
 
   adminUpdatePassword: async (payload) => {
     const response = await httpClient.post(endpoints.auth.adminUpdatePassword, payload);
+  changePassword: async (payload) => {
+    const response = await httpClient.post(endpoints.auth.updatePassword, payload);
     return response.data;
   },
 };

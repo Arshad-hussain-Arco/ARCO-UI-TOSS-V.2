@@ -497,15 +497,15 @@ export function RoleManagementPage() {
                                 <div className="rm-action-btns">
                                   <button
                                     type="button"
-                                    className={`action-icon-btn edit ${isExpanded ? 'active' : ''}`}
+                                    className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
                                     {...activatable(() => handleToggleConfigure(role.id), {
                                       label: `Configure permissions for ${role.name}`,
                                       isExpanded,
                                     })}
                                   >
-                                    <Edit size={13} />
-                                    {/* <span>Configure</span> */}
-                                    {/* {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} */}
+                                    {/* <Edit size={13} /> */}
+                                    <span>Configure</span>
+                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                                   </button>
 
                                   <button

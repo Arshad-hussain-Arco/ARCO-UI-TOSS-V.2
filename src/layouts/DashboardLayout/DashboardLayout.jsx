@@ -7,6 +7,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { Header } from '@components/layout/Header/Header';
 import { Sidebar } from '@components/layout/Sidebar/Sidebar';
 import { ProfileSettingsModal } from '@components/profile/ProfileSettingsModal';
+import { ChangePasswordModal } from '@components/profile/ChangePasswordModal';
 import { ROUTES } from '@constants/routes';
 import { useAuth } from '@hooks/useAuth';
 import { useSidebar } from '@hooks/useSidebar';
@@ -28,6 +29,7 @@ export function DashboardLayout() {
   const navigate = useNavigate();
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -55,6 +57,7 @@ export function DashboardLayout() {
           user={user}
           onLogout={handleLogout}
           onOpenProfileSettings={() => setIsProfileModalOpen(true)}
+          onOpenChangePassword={() => setIsChangePasswordModalOpen(true)}
         />
 
         <div className="page-outlet">
@@ -70,6 +73,11 @@ export function DashboardLayout() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         user={user}
+      />
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
       />
     </div>
   );

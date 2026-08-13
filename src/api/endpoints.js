@@ -8,6 +8,7 @@ const endpoints = {
     updateUserInfo: '/auth/update-user-info/',
     updateTheme: '/auth/update-theme/',
     adminUpdatePassword: '/auth/admin-update-password/',
+    updatePassword: '/auth/update-password/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
