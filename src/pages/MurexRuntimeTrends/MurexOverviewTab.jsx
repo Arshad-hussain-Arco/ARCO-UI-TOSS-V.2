@@ -531,6 +531,7 @@ export function MurexOverviewTab() {
             type="button"
             className="murex-date-arrow-btn"
             onClick={handleNextDay}
+            disabled={isToday(selectedDate)}
             title="Next Day"
             aria-label="Next Day"
           >

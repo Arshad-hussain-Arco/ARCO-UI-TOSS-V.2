@@ -168,13 +168,15 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 160px;
+  width: 200px;
 }
 
 .tv-ah-progress-label {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 11px;
+  white-space: nowrap;
 }
 .tv-ah-progress-label span {
   color: var(--text-secondary);
@@ -520,4 +522,47 @@
   outline: none;
   border-color: var(--brand-primary);
   width: 240px;
+}
+
+/* ── MODAL BUTTONS ── */
+.tv-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+}
+
+.tv-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tv-btn.cancel,
+.tv-btn.danger {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.tv-btn.cancel:hover:not(:disabled),
+.tv-btn.danger:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.tv-btn.save {
+  background: #006633;
+  color: #ffffff;
+  border: 1px solid #006633;
+}
+
+.tv-btn.save:hover:not(:disabled) {
+  background: #006633;
+  opacity: 0.9;
 }

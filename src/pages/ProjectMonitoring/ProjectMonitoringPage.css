@@ -105,8 +105,8 @@
 }
 
 .pm-chip.active {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: #006633;
+  border-color: #006633;
   color: #ffffff;
 }
 
@@ -856,7 +856,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #ffffff;
-  background: var(--c-primary);
+  background: #006633;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -905,7 +905,7 @@
   font-size: 12px;
   font-weight: 700;
   color: #ffffff;
-  background: var(--c-primary);
+  background: #006633;
   border: none;
   border-radius: 8px;
   cursor: pointer;

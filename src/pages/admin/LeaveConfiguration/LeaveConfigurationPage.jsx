@@ -468,13 +468,6 @@ export function LeaveConfigurationPage() {
   const [workScheduleSummary, setWorkScheduleSummary] = useState(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
-  // Reset Work Schedule selections when changing away from that tab
-  useEffect(() => {
-    if (activeTab !== 'work-schedule') {
-      setSelectedCustomDays([]);
-    }
-  }, [activeTab]);
-
   // Fetch Holidays — runs once on mount, not gated to the active tab, so all
   // tabs' data is ready as soon as the page loads.
   useEffect(() => {
@@ -536,10 +529,11 @@ export function LeaveConfigurationPage() {
         const data = await leaveService.getWorkScheduleSummary();
         if (active) {
           setWorkScheduleSummary(data);
-          // The user explicitly requested that no days be checked by default upon loading,
-          // so we intentionally do NOT pre-populate selectedCustomDays here from the backend.
           if (data?.meta?.distinct_schedules === 1) {
-            setSelectedCustomDays([]);
+            const group = data.results[0];
+            if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
+              setSelectedCustomDays(group.custom_weekend_days);
+            }
           }
         }
       } catch (err) {
@@ -914,13 +908,26 @@ export function LeaveConfigurationPage() {
         toast.error('Please select at least one weekend day');
         return;
       }
+      setIsSaving(true);
       const payload = { work_schedule: 'CUSTOM', custom_weekend_days: selectedCustomDays };
 
-      await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
-      toast.success('Work schedule applied successfully!');
+      const response = await leaveService.bulkUpdateEmployeeProfiles(payload, { all: true });
+      toast.success(`Work schedule applied! Updated ${response.updated} employees.`);
+
+      // Refresh the summary
+      const data = await leaveService.getWorkScheduleSummary();
+      setWorkScheduleSummary(data);
+      if (data?.meta?.distinct_schedules === 1) {
+        const group = data.results[0];
+        if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
+          setSelectedCustomDays(group.custom_weekend_days);
+        }
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to apply work schedule');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1125,9 +1132,7 @@ export function LeaveConfigurationPage() {
   return (
     <div className="lc-redesign-container">
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="lc-page-header">
-        <h1 className="lc-page-title">Leaves Configurations</h1>
-      </div>
+
 
       {/* ── Tabbed Navigation Bar ─────────────────────────────────────────── */}
       <div className="lc-nav-tabs" role="tablist" aria-label="Leave configurations sections">
@@ -1182,7 +1187,7 @@ export function LeaveConfigurationPage() {
           onClick={() => { setActiveTab('work-schedule'); setSearchQuery(''); }}
         >
           <Calendar size={16} />
-          <span>weekend configurations</span>
+          <span>Weekend Configurations</span>
         </button>
       </div>
 
