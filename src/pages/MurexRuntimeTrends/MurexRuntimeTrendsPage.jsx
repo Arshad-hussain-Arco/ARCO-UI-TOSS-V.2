@@ -285,7 +285,7 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
       if (!scriptDetails) {
         setIsLoading(true);
         try {
-          const details = await murexService.fetchScriptTimeseries(script.id, timeRange);
+          const details = await murexService.fetchScriptTimeseries(script.id);
           setScriptDetails(details);
         } catch (err) {
           console.error("Failed to fetch script details:", err);
@@ -844,11 +844,33 @@ export function MurexRuntimeTrendsPage() {
     [data, pinnedScriptIds, remoteCategories],
   );
 
+  const managementScripts = useMemo(() => {
+    const scriptsMap = new Map();
+    remoteCategories.forEach(cat => {
+      (cat.scripts || []).forEach(s => {
+        if (!scriptsMap.has(s.script_name)) {
+          scriptsMap.set(s.script_name, {
+            id: s.script_name,
+            name: s.script_name,
+            category: cat.name || 'Unassigned Scripts',
+            isPinned: pinnedScriptIds.has(s.script_name),
+            status: 'N/A',
+            health: 'Unknown',
+            trendSlope: 0,
+            totalExecutions: 0,
+            avgRuntime: 'N/A',
+            minRuntimeFormatted: 'N/A',
+            maxRuntimeFormatted: 'N/A',
+            p95DurationFormatted: 'N/A',
+          });
+        }
+      });
+    });
+    return Array.from(scriptsMap.values());
+  }, [remoteCategories, pinnedScriptIds]);
+
   const [activeTab, setActiveTab] = useState('overview');
 
-  useEffect(() => {
-    setTimeRange('7d');
-  }, [activeTab]);
   const [filterScriptName, setFilterScriptName] = useState('All');
   const [filterRuntimeChecked, setFilterRuntimeChecked] = useState(true);
   const [filterRuntimeType, setFilterRuntimeType] = useState('Min vs Max');
@@ -895,7 +917,7 @@ export function MurexRuntimeTrendsPage() {
     if (!scriptDetailsMap[scriptId] && !loadingScriptIds.has(scriptId)) {
       setLoadingScriptIds(prev => new Set(prev).add(scriptId));
       try {
-        const details = await murexService.fetchScriptTimeseries(scriptId, timeRange);
+        const details = await murexService.fetchScriptTimeseries(scriptId);
         setScriptDetailsMap(prev => ({
           ...prev,
           [scriptId]: details
@@ -1012,6 +1034,16 @@ export function MurexRuntimeTrendsPage() {
       if (!a.isPinned && b.isPinned) return 1;
       return 0;
     });
+
+  const filteredManagementScripts = managementScripts
+    .filter((s) => selectedCategory === 'all' || s.category === selectedCategory)
+    .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0;
+    });
+
   const selectedScriptData = scripts.find((s) => s.id === selectedScript);
   const togglePin = (scriptId) => {
     setPinnedScriptIds((current) => {
@@ -1565,7 +1597,7 @@ export function MurexRuntimeTrendsPage() {
                     </tr>
                   </thead>
                   <tbody className="murex-script-tbody">
-                    {filteredScripts.length === 0 ? (
+                    {filteredManagementScripts.length === 0 ? (
                       <tr>
                         <td colSpan="6" style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-tertiary)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -1575,7 +1607,7 @@ export function MurexRuntimeTrendsPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredScripts.map((script) => {
+                      filteredManagementScripts.map((script) => {
                         const isExpanded = expandedScriptIds.has(script.id);
                         const isLoading = loadingScriptIds.has(script.id);
                         const scriptWithDetails = { ...script, ...(scriptDetailsMap[script.id] || {}) };
