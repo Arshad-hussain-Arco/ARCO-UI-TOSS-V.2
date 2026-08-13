@@ -160,24 +160,37 @@ export function parseOverviewCsvData(csvText = rawCsvContent) {
     });
 
     // 2. Process "EOD Job Timeline Accordions"
-    // Group execution rows by distinct SCRPT_NAME for that date
-    const distinctScriptsForDate = Array.from(new Set(dateRows.map((r) => r.scriptName)));
+    const scriptSeenCountsTL = {};
 
-    const timelineList = distinctScriptsForDate.map((scName) => {
+    const timelineList = overallEndRows.map((overallRow, idx) => {
+      const scName = overallRow.scriptName;
+      scriptSeenCountsTL[scName] = (scriptSeenCountsTL[scName] || 0) + 1;
+      const count = scriptCounts[scName];
+      const displayName = count > 1 ? `${scName} (#${scriptSeenCountsTL[scName]})` : scName;
+
+      // Filter step END rows strictly between this overall run's start and end time
+      const startPlotly = parseCsvTimestampToPlotly(overallRow.dateTimeCmp, isoDate);
+      const endPlotly = parseCsvTimestampToPlotly(overallRow.finishedTime, isoDate);
+      const overallStartMs = new Date(startPlotly.replace(' ', 'T')).getTime();
+      const overallEndMs = new Date(endPlotly.replace(' ', 'T')).getTime();
+
       const scRows = dateRows.filter((r) => r.scriptName === scName);
-      const overallRow = scRows.find(
-        (r) => r.startEnd === 'END' && r.comment === `Script [${scName}]`
-      );
+      
+      const stepRows = scRows.filter((r) => {
+        if (r.startEnd !== 'END' || r.comment === `Script [${scName}]`) return false;
+        
+        const stepEndPlotly = parseCsvTimestampToPlotly(r.finishedTime, isoDate);
+        if (!stepEndPlotly) return false;
+        
+        const stepEndMs = new Date(stepEndPlotly.replace(' ', 'T')).getTime();
+        // Allow a small 60-second margin for CSV timestamp inaccuracies
+        return stepEndMs >= overallStartMs - 60000 && stepEndMs <= overallEndMs + 60000;
+      });
 
-      const startTimeStr = overallRow?.dateTimeCmp || scRows[0]?.dateTimeCmp || '';
-      const endTimeStr = overallRow?.finishedTime || scRows[scRows.length - 1]?.finishedTime || '';
-      const durationSec = parseTimeStringToSeconds(overallRow?.timeElap);
+      const startTimeStr = overallRow.dateTimeCmp || '';
+      const endTimeStr = overallRow.finishedTime || '';
+      const durationSec = parseTimeStringToSeconds(overallRow.timeElap);
       const durationStr = formatDurationSeconds(durationSec);
-
-      // Extract step END rows
-      const stepRows = scRows.filter(
-        (r) => r.startEnd === 'END' && r.comment !== `Script [${scName}]`
-      );
 
       const categories = [
         { key: 'overall', name: 'Overall Job', color: '#3B82F6' },
@@ -189,27 +202,23 @@ export function parseOverviewCsvData(csvText = rawCsvContent) {
       // Build overall row
       const parsedRows = [];
 
-      if (overallRow) {
-        const startPlotly = parseCsvTimestampToPlotly(overallRow.dateTimeCmp, isoDate);
-        const endPlotly = parseCsvTimestampToPlotly(overallRow.finishedTime, isoDate);
-        parsedRows.push({
-          id: `overall_${scName}`,
-          name: `${scName} (overall)`,
-          unit: `${scName}_OVERALL`,
-          segments: [
-            {
-              type: 'overall',
-              typeName: 'Overall Job',
-              start: startPlotly,
-              end: endPlotly,
-              durationSec,
-              durationFormatted: durationStr,
-              rawStart: overallRow.dateTimeCmp,
-              rawEnd: overallRow.finishedTime,
-            },
-          ],
-        });
-      }
+      parsedRows.push({
+        id: `overall_${scName}_${idx}`,
+        name: `${displayName} (overall)`,
+        unit: `${scName}_OVERALL`,
+        segments: [
+          {
+            type: 'overall',
+            typeName: 'Overall Job',
+            start: startPlotly,
+            end: endPlotly,
+            durationSec,
+            durationFormatted: durationStr,
+            rawStart: overallRow.dateTimeCmp,
+            rawEnd: overallRow.finishedTime,
+          },
+        ],
+      });
 
       // Build step rows
       stepRows.forEach((step, sIdx) => {

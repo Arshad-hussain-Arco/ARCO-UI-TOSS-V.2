@@ -57,7 +57,7 @@ export const authService = {
         });
         const fullInfo = userInfoRes.data;
         const info = fullInfo.userInformation || fullInfo; // Fallback in case backend changes
-        
+
         user = {
           id: info.id || decoded.user_id || decoded.sub || 'unknown',
           emp_id: info.empId || info.emp_id || info.employee_id || decoded.emp_id || decoded.employee_id || 1,
@@ -81,8 +81,9 @@ export const authService = {
           computerLocation: info.computerLocation,
           locationRef: info.computerLocationRef,
           doj: info.dateOfJoining,
+          theme: info.theme,
         };
-        
+
         if (user.emp_id) {
           try {
             const photoRes = await httpClient.get(endpoints.consultants.photo(user.emp_id), {
@@ -157,6 +158,13 @@ export const authService = {
     return response.data;
   },
 
+  updateTheme: async (theme) => {
+    const response = await httpClient.post(endpoints.auth.updateTheme, { theme });
+    return response.data;
+  },
+
+  adminUpdatePassword: async (payload) => {
+    const response = await httpClient.post(endpoints.auth.adminUpdatePassword, payload);
   changePassword: async (payload) => {
     const response = await httpClient.post(endpoints.auth.updatePassword, payload);
     return response.data;

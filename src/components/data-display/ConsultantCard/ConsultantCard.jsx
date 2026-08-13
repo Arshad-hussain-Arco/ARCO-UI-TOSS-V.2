@@ -34,7 +34,7 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
   const handleCopy = (e, text) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
-    toast.success('Employee ID copied');
+    toast.success('Username copied');
   };
   
   return (
@@ -85,6 +85,19 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
 
       {/* Card Body */}
       <div className="consultant-card-body">
+        {/* Absolute Pill on the break line */}
+        <div 
+          className="consultant-id-copy consultant-id-copy-absolute" 
+          onClick={(e) => handleCopy(e, String(consultant.userId || ''))}
+          title="Copy Username"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, String(consultant.userId || ''))}
+        >
+          <span className="consultant-user-id">{consultant.userId}</span>
+          <Copy size={12} className="copy-icon" />
+        </div>
+
         <div className="consultant-detail-item" title={consultant.team}>
           <Users className="consultant-detail-icon" />
           <span className="consultant-detail-text">{consultant.team}</span>
