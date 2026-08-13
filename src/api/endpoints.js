@@ -6,6 +6,7 @@ const endpoints = {
     logout: '/auth/logout/',
     userInfo: '/auth/user-info/',
     updateUserInfo: '/auth/update-user-info/',
+    updatePassword: '/auth/update-password/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',

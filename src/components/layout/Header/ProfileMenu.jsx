@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
 
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 
@@ -9,8 +9,10 @@ import { useOnClickOutside } from '@hooks/useOnClickOutside';
  * @param {Object} props
  * @param {import('@services/authService').AuthUser} props.user
  * @param {() => void} props.onLogout
+ * @param {() => void} [props.onOpenProfileSettings]
+ * @param {() => void} [props.onOpenChangePassword]
  */
-export function ProfileMenu({ user, onLogout, onOpenProfileSettings }) {
+export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChangePassword }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -48,6 +50,18 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings }) {
             }}
           >
             <span className="header-profile-menu-text">Profile Settings</span>
+          </button>
+          <button
+            type="button"
+            className="header-profile-menu-item"
+            role="menuitem"
+            onClick={() => {
+              close();
+              if (onOpenChangePassword) onOpenChangePassword();
+            }}
+          >
+
+            <span className="header-profile-menu-text">Change Password</span>
           </button>
           <button type="button" className="header-profile-menu-item" role="menuitem">
             <span className="header-profile-menu-text">Preferences</span>

@@ -156,6 +156,11 @@ export const authService = {
     const response = await httpClient.post(endpoints.auth.updateUserInfo, payload);
     return response.data;
   },
+
+  changePassword: async (payload) => {
+    const response = await httpClient.post(endpoints.auth.updatePassword, payload);
+    return response.data;
+  },
 };
 
 export default authService;
