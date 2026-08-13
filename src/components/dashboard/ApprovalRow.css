@@ -71,11 +71,17 @@
 }
 
 .approval-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
   background: transparent;
-  border: none;
-  font-size: 1.5rem;
-  color: #5B6B65; /* colors.textSecondary */
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .approval-modal-body {

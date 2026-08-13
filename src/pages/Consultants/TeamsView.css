@@ -543,12 +543,18 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
-
-.tv-btn.cancel,
 .tv-btn.danger {
+  background: var(--c-danger) !important;
+  color: #ffffff;
+  border: none !important
+}
+.tv-btn.cancel{
   background: var(--surface-primary);
   border: 1px solid var(--border-secondary);
   color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center; 
 }
 
 .tv-btn.cancel:hover:not(:disabled),

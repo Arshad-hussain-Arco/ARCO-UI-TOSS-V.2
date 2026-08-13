@@ -203,24 +203,23 @@
 
 .cp-close-btn,
 .cp-modal-close {
-  background: transparent;
-  border: 1px solid transparent;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  background: transparent;
   color: var(--text-secondary, #64748b);
   cursor: pointer;
   transition: all 0.15s ease;
-  flex-shrink: 0;
 }
 
 .cp-close-btn:hover,
 .cp-modal-close:hover {
-  background: var(--bg-hover, #f1f5f9);
-  border-color: var(--border-light, #e2e8f0);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
   color: var(--text-primary, #0f172a);
 }
 

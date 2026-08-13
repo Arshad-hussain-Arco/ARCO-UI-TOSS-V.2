@@ -811,18 +811,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #e2e8f0);
   background: transparent;
-  border: 1px solid var(--border-primary);
-  border-radius: 5px;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #64748b);
   cursor: pointer;
-  transition: all 0.12s;
+  transition: all 0.15s ease;
 }
 .eod-modal-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--bg-tertiary, #f8fafc);
+  border-color: var(--border-primary, #cbd5e1);
+  color: var(--text-primary, #0f172a);
 }
 
 /* Modal sub-tabs */
