@@ -505,7 +505,7 @@ export function RoleManagementPage() {
                                   >
                                     {/* <Edit size={13} /> */}
                                     <span>Configure</span>
-                                    {/* {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />} */}
+                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                                   </button>
 
                                   <button
