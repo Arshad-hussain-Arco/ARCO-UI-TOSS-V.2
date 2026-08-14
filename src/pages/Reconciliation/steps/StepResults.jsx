@@ -559,7 +559,7 @@ function DuplicateTable({ rows, mappings, isSource }) {
 
 const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
-export function StepResults({ results, file1Name, file2Name, onReset, onPageChange }) {
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, canExport }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');
@@ -960,14 +960,16 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
           ))}
           {/* Spacer pushes Export button to the right */}
           <span style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="rwiz-btn rwiz-btn-outline rrs-export-btn"
-            onClick={() => setShowExportModal(true)}
-          >
-            <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg>
-            Export Report
-          </button>
+          {canExport && (
+            <button
+              type="button"
+              className="rwiz-btn rwiz-btn-outline rrs-export-btn"
+              onClick={() => setShowExportModal(true)}
+            >
+              <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg>
+              Export Report
+            </button>
+          )}
         </div>
 
         {/* Tab content */}

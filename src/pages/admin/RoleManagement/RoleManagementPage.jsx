@@ -24,82 +24,175 @@ import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
 
-// Application Modules List
-const MODULES = [
-  'Leave Management',
-  'Attendance',
-  'Consultants',
-  'EOD Management',
-  'Settings',
-  'Teams',
-  'Documents',
-  'Reports',
+// Permission catalog — mirrors the codes seeded by
+// ARCO-API-TOSS-V.2/rbac/management/commands/seed_permissions.py. Every
+// role's `permissions` is a flat list of these codes (never the old nested
+// module/Allow-Deny matrix). Admin Panel access (Roles & Permissions, Leave
+// Policy Management, System Settings) is a separate `isAdmin` flag and has
+// no codes of its own here.
+const PERMISSION_CATALOG = [
+  {
+    module: 'Project Monitoring',
+    codes: [
+      { code: 'PROJECT_MONITORING_VIEW', label: 'View' },
+      { code: 'PROJECT_MONITORING_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Environment Dashboard',
+    codes: [
+      { code: 'ENVIRONMENT_DASHBOARD_VIEW', label: 'View' },
+      { code: 'ENVIRONMENT_DASHBOARD_CREATE', label: 'Create' },
+      { code: 'ENVIRONMENT_DASHBOARD_EDIT', label: 'Edit' },
+      { code: 'ENVIRONMENT_DASHBOARD_DELETE', label: 'Delete' },
+      { code: 'ENVIRONMENT_DASHBOARD_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Murex Runtime Trends',
+    codes: [
+      { code: 'MUREX_RUNTIME_VIEW', label: 'View' },
+      // Script Management tab (category CRUD) — a mutable sub-feature of
+      // this otherwise read-only screen, gated separately.
+      { code: 'MUREX_SCRIPT_CATEGORY_CREATE', label: 'Create Category' },
+      { code: 'MUREX_SCRIPT_CATEGORY_EDIT', label: 'Edit Category' },
+      { code: 'MUREX_SCRIPT_CATEGORY_DELETE', label: 'Delete Category' },
+    ],
+  },
+  {
+    module: 'EOD Management — Overview',
+    codes: [{ code: 'EOD_OVERVIEW_VIEW', label: 'View' }],
+  },
+  {
+    module: 'EOD Management — Configuration',
+    codes: [
+      { code: 'EOD_CONFIG_VIEW', label: 'View' },
+      { code: 'EOD_CONFIG_CREATE', label: 'Create' },
+      { code: 'EOD_CONFIG_EDIT', label: 'Edit' },
+      { code: 'EOD_CONFIG_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'EOD Management — Schedules',
+    codes: [
+      { code: 'EOD_SCHEDULE_VIEW', label: 'View' },
+      { code: 'EOD_SCHEDULE_CREATE', label: 'Create' },
+      { code: 'EOD_SCHEDULE_EDIT', label: 'Edit' },
+      { code: 'EOD_SCHEDULE_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'EOD Management — Control',
+    codes: [
+      { code: 'EOD_CONTROL_VIEW', label: 'View' },
+      // Start/Stop/Pause/Resume/Run-All are one merged code, not split
+      // further, per explicit direction.
+      { code: 'EOD_CONTROL_EXECUTE', label: 'Execute' },
+      { code: 'EOD_CONTROL_VIEW_LOGS', label: 'View Logs' },
+    ],
+  },
+  {
+    // Sidebar label is "Consultants" — matched here so admins can find it.
+    module: 'Consultants',
+    codes: [
+      { code: 'EMPLOYEE_VIEW', label: 'View' },
+      { code: 'EMPLOYEE_CREATE', label: 'Create' },
+      // Resetting another employee's password rides on this same code —
+      // no separate "Reset Password" permission.
+      { code: 'EMPLOYEE_EDIT', label: 'Edit (incl. Reset Password)' },
+      // Not a real delete — the action soft-toggles ACTIVE/INACTIVE status.
+      { code: 'EMPLOYEE_ACTIVATE_DEACTIVATE', label: 'Activate / Deactivate' },
+      { code: 'EMPLOYEE_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Consultants — Teams',
+    codes: [
+      { code: 'TEAMS_VIEW', label: 'View' },
+      { code: 'TEAMS_CREATE', label: 'Create' },
+      { code: 'TEAMS_EDIT', label: 'Edit' },
+      { code: 'TEAMS_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    // 4 sub-tabs are read-only views over the same team-calendar/quota
+    // data — no edit action exists on this screen.
+    module: 'Attendance',
+    codes: [
+      { code: 'ATTENDANCE_VIEW', label: 'View' },
+      { code: 'ATTENDANCE_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    // Summary/Team views are two display modes over one dataset — no
+    // create/edit action exists on this screen. CR/WO column mapping
+    // lives under Admin Panel > System Settings instead (is_admin).
+    module: 'Capacity Planning',
+    codes: [
+      { code: 'CAPACITY_PLANNING_VIEW', label: 'View' },
+      { code: 'CAPACITY_PLANNING_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    // Upload + Run Reconciliation are two halves of one stateless
+    // workflow (CREATE) — no DB persistence exists to "edit".
+    module: 'Reconciliation',
+    codes: [
+      { code: 'RECONCILIATION_VIEW', label: 'View' },
+      { code: 'RECONCILIATION_CREATE', label: 'Upload / Run' },
+      { code: 'RECONCILIATION_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Important Links',
+    codes: [
+      { code: 'IMPORTANT_LINKS_VIEW', label: 'View' },
+      { code: 'IMPORTANT_LINKS_CREATE', label: 'Create' },
+      { code: 'IMPORTANT_LINKS_EDIT', label: 'Edit' },
+      { code: 'IMPORTANT_LINKS_DELETE', label: 'Delete' },
+      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
+    ],
+  },
+  {
+    module: 'Important Links — Groups',
+    codes: [
+      { code: 'IMPORTANT_LINKS_GROUP_CREATE', label: 'Create' },
+      { code: 'IMPORTANT_LINKS_GROUP_EDIT', label: 'Rename' },
+      { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'Documents',
+    codes: [
+      { code: 'DOCUMENTS_VIEW', label: 'View (tree only)' },
+      { code: 'DOCUMENTS_CREATE', label: 'Create' },
+      { code: 'DOCUMENTS_EDIT', label: 'Edit' },
+      { code: 'DOCUMENTS_DELETE', label: 'Delete' },
+      { code: 'DOCUMENTS_DOWNLOAD', label: 'Download / View Content' },
+    ],
+  },
 ];
 
-// Actions List
-const ACTIONS = [
-  { key: 'add', label: 'Add' },
-  { key: 'edit', label: 'Edit' },
-  { key: 'delete', label: 'Delete' },
-  { key: 'read', label: 'Read' },
-  { key: 'export', label: 'Export' },
-];
+// Count assigned permission codes
+const countPermissions = (codes) => (Array.isArray(codes) ? codes.length : 0);
 
-// Default Deny matrix helper
-const createEmptyMatrix = () => {
-  const matrix = {};
-  MODULES.forEach((mod) => {
-    matrix[mod] = {
-      add: 'Deny',
-      edit: 'Deny',
-      delete: 'Deny',
-      read: 'Deny',
-      export: 'Deny',
-    };
-  });
-  return matrix;
-};
-
-// Count active "Allow" permissions
-const countPermissions = (matrix) => {
-  if (!matrix) return 0;
-  let count = 0;
-  Object.values(matrix).forEach((mod) => {
-    Object.values(mod).forEach((val) => {
-      if (val === 'Allow') count++;
-    });
-  });
-  return count;
-};
-
-// Map backend role structure to frontend structure
+// Map backend role structure (flat permission-code list) to frontend structure
 const mapRole = (r) => {
-  let perms = createEmptyMatrix();
-  try {
-    let parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
-
-    // If backend returned a list (because the serializer forced it to), unwrap the first element
-    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
-      parsed = parsed[0];
+  let codes = r.permissions;
+  if (typeof codes === 'string') {
+    try {
+      codes = JSON.parse(codes);
+    } catch (e) {
+      console.error('Failed to parse permissions', e);
+      codes = [];
     }
-
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      // Merge parsed with the empty matrix to ensure all fields exist
-      Object.keys(perms).forEach((mod) => {
-        if (parsed[mod]) {
-          perms[mod] = { ...perms[mod], ...parsed[mod] };
-        }
-      });
-    }
-  } catch (e) {
-    console.error("Failed to parse permissions", e);
   }
   return {
     id: r.id,
     name: r.role_name,
     description: r.description || '-',
     isAdmin: r.isadmin === 1 || r.isadmin === true,
-    permissions: perms,
+    permissions: Array.isArray(codes) ? codes : [],
   };
 };
 
@@ -151,7 +244,7 @@ export function RoleManagementPage() {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
   const [newRoleIsAdmin, setNewRoleIsAdmin] = useState(false);
-  const [newRoleMatrix, setNewRoleMatrix] = useState(createEmptyMatrix);
+  const [newRoleCodes, setNewRoleCodes] = useState(() => []);
   const [nameError, setNameError] = useState(false);
 
   // Filtered Roles
@@ -168,7 +261,7 @@ export function RoleManagementPage() {
     setNewRoleName('');
     setNewRoleDesc('');
     setNewRoleIsAdmin(false);
-    setNewRoleMatrix(createEmptyMatrix());
+    setNewRoleCodes([]);
     setNameError(false);
     setIsAddModalOpen(true);
   };
@@ -181,23 +274,15 @@ export function RoleManagementPage() {
     setNewRoleName('');
     setNewRoleDesc('');
     setNewRoleIsAdmin(false);
-    setNewRoleMatrix(createEmptyMatrix());
+    setNewRoleCodes([]);
     setNameError(false);
   };
 
-  // Toggle Modal Permission Matrix Cell
-  const handleToggleModalPermission = (moduleName, actionKey) => {
-    setNewRoleMatrix((prev) => {
-      const current = prev[moduleName][actionKey];
-      const next = current === 'Allow' ? 'Deny' : 'Allow';
-      return {
-        ...prev,
-        [moduleName]: {
-          ...prev[moduleName],
-          [actionKey]: next,
-        },
-      };
-    });
+  // Toggle a permission code in the "Add Role" modal
+  const handleToggleModalPermission = (code) => {
+    setNewRoleCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   };
 
   // Create Role Submit
@@ -214,7 +299,7 @@ export function RoleManagementPage() {
         name: newRoleName.trim(),
         description: newRoleDesc,
         isAdmin: newRoleIsAdmin,
-        permissions: newRoleMatrix,
+        permissions: newRoleCodes,
       };
       await roleService.createRole(payload);
       toast.success('Role permissions added successfully.');
@@ -300,23 +385,18 @@ export function RoleManagementPage() {
     setDirtyRoles(new Set()); // Reset dirty state
   };
 
-  // Toggle Permission Cell in Inline Accordion
-  const handleToggleInlinePermission = (roleId, moduleName, actionKey) => {
+  // Toggle a permission code for a role in the inline accordion
+  const handleToggleInlinePermission = (roleId, code) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
       prev.map((role) => {
         if (role.id === roleId) {
-          const currentVal = role.permissions[moduleName]?.[actionKey] || 'Deny';
-          const nextVal = currentVal === 'Allow' ? 'Deny' : 'Allow';
+          const has = role.permissions.includes(code);
           return {
             ...role,
-            permissions: {
-              ...role.permissions,
-              [moduleName]: {
-                ...role.permissions[moduleName],
-                [actionKey]: nextVal,
-              },
-            },
+            permissions: has
+              ? role.permissions.filter((c) => c !== code)
+              : [...role.permissions, code],
           };
         }
         return role;
@@ -571,49 +651,37 @@ export function RoleManagementPage() {
                             <table className="rm-matrix-table">
                               <thead>
                                 <tr>
-                                  <th style={{ width: '35%' }}>Function / Module Name</th>
-                                  {ACTIONS.map((act) => (
-                                    <th key={act.key} style={{ width: '13%' }} className="text-center">
-                                      {act.label}
-                                    </th>
-                                  ))}
+                                  <th>Function / Module Name</th>
+                                  <th>Permissions</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {MODULES.map((mod) => (
-                                  <tr key={mod}>
-                                    <td className="rm-mod-name" style={{ width: '35%' }}>
-                                      {mod}
+                                {PERMISSION_CATALOG.map(({ module, codes }) => (
+                                  <tr key={module}>
+                                    <td className="rm-mod-name">{module}</td>
+                                    <td>
+                                      <div className="rm-code-badges">
+                                        {codes.map(({ code, label }) => {
+                                          const isAllow = role.permissions.includes(code);
+                                          return (
+                                            <button
+                                              key={code}
+                                              type="button"
+                                              className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
+                                              {...activatable(
+                                                () => handleToggleInlinePermission(role.id, code),
+                                                {
+                                                  label: `Toggle ${label} for ${module} in ${role.name}`,
+                                                  isPressed: isAllow,
+                                                }
+                                              )}
+                                            >
+                                              {label}: {isAllow ? 'Allow' : 'Deny'}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     </td>
-                                    {ACTIONS.map((act) => {
-                                      const status =
-                                        role.permissions[mod]?.[act.key] || 'Deny';
-                                      const isAllow = status === 'Allow';
-
-                                      return (
-                                        <td key={act.key} style={{ width: '13%' }} className="text-center">
-                                          <button
-                                            type="button"
-                                            className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'
-                                              }`}
-                                            {...activatable(
-                                              () =>
-                                                handleToggleInlinePermission(
-                                                  role.id,
-                                                  mod,
-                                                  act.key
-                                                ),
-                                              {
-                                                label: `Toggle ${act.label} for ${mod} in ${role.name}`,
-                                                isPressed: isAllow,
-                                              }
-                                            )}
-                                          >
-                                            {isAllow ? 'Allow' : 'Deny'}
-                                          </button>
-                                        </td>
-                                      );
-                                    })}
                                   </tr>
                                 ))}
                               </tbody>
@@ -815,42 +883,37 @@ export function RoleManagementPage() {
                   <table className="rm-matrix-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '35%' }}>Function / Module Name</th>
-                        {ACTIONS.map((act) => (
-                          <th key={act.key} style={{ width: '13%' }} className="text-center">
-                            {act.label}
-                          </th>
-                        ))}
+                        <th>Function / Module Name</th>
+                        <th>Permissions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {MODULES.map((mod) => (
-                        <tr key={mod}>
-                          <td className="rm-mod-name" style={{ width: '35%' }}>
-                            {mod}
+                      {PERMISSION_CATALOG.map(({ module, codes }) => (
+                        <tr key={module}>
+                          <td className="rm-mod-name">{module}</td>
+                          <td>
+                            <div className="rm-code-badges">
+                              {codes.map(({ code, label }) => {
+                                const isAllow = newRoleCodes.includes(code);
+                                return (
+                                  <button
+                                    key={code}
+                                    type="button"
+                                    className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
+                                    {...activatable(
+                                      () => handleToggleModalPermission(code),
+                                      {
+                                        label: `Toggle ${label} permission for ${module}`,
+                                        isPressed: isAllow,
+                                      }
+                                    )}
+                                  >
+                                    {label}: {isAllow ? 'Allow' : 'Deny'}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </td>
-                          {ACTIONS.map((act) => {
-                            const status = newRoleMatrix[mod][act.key];
-                            const isAllow = status === 'Allow';
-
-                            return (
-                              <td key={act.key} style={{ width: '13%' }} className="text-center">
-                                <button
-                                  type="button"
-                                  className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
-                                  {...activatable(
-                                    () => handleToggleModalPermission(mod, act.key),
-                                    {
-                                      label: `Toggle ${act.label} permission for ${mod}`,
-                                      isPressed: isAllow,
-                                    }
-                                  )}
-                                >
-                                  {isAllow ? 'Allow' : 'Deny'}
-                                </button>
-                              </td>
-                            );
-                          })}
                         </tr>
                       ))}
                     </tbody>

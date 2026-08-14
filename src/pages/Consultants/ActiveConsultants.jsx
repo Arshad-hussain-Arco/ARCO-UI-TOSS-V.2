@@ -214,7 +214,7 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
               consultant={c}
               onEdit={() => onEdit && onEdit(c)}
               onChangePassword={() => onPassword && onPassword(c)}
-              onDelete={() => onDelete && onDelete(c)}
+              onDelete={onDelete ? () => onDelete(c) : undefined}
               onAvatarClick={() => onProfileView && onProfileView(c.id)}
             />
           ))}

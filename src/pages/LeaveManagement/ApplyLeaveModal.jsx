@@ -561,7 +561,12 @@ function buildLeaveTypeItem(entry, balances) {
     gender: entry.gender_restriction || undefined,
   };
 }
-function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
+// `canApplyOnBehalf`: whether this user may apply leave for a subordinate,
+// i.e. whether "Apply for: self / behalf" appears at all. Required — no
+// default — since this is a manager-hierarchy capability (derived from
+// user.mySubordinates by the caller), never a role/permission check, and a
+// truthy default here would silently grant it to everyone.
+function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   const MODAL_TITLES = {
     leave: 'Apply Leave',
     wfh: 'Apply WFH',
@@ -1233,7 +1238,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             {/* ── Form ──────────────────────────────────────────────────── */}
             <div className="al-form-col">
               {/* Apply For + Employee row */}
-              {isAdmin ? (
+              {canApplyOnBehalf ? (
                 <>
                   <div className="al-apply-for-row">
                     <span className="al-apply-for-label">Apply for</span>

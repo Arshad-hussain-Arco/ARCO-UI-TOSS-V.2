@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { AuthLayout } from '@layouts/AuthLayout/AuthLayout';
 import { BlankLayout } from '@layouts/BlankLayout/BlankLayout';
@@ -8,6 +8,7 @@ import { ROUTES } from '@constants/routes';
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
+import { RequirePermission } from './RequirePermission';
 import { lazyPage } from './lazyPage';
 
 /* ── Pages ────────────────────────────────────────────────────────────────────
@@ -122,28 +123,114 @@ export const routes = [
           // Full-bleed pages: both own their scrolling regions and render no
           // breadcrumb, matching the original design.
           { path: ROUTES.DASHBOARD, element: <DashboardPage /> },
-          { path: ROUTES.DOCUMENTS, element: <DocumentsPage /> },
+          {
+            path: ROUTES.DOCUMENTS,
+            element: (
+              <RequirePermission code="DOCUMENTS_VIEW">
+                <DocumentsPage />
+              </RequirePermission>
+            ),
+          },
 
           // Every other page gets the standard breadcrumb + content chrome.
           {
             element: <PageLayout />,
             children: [
+              // Open to every authenticated user — no permission gate.
               { path: ROUTES.HOME, element: <HomePage /> },
-              { path: ROUTES.ENVIRONMENT_DASHBOARD, element: <EnvironmentDashboardPage /> },
-              { path: ROUTES.MUREX_RUNTIME, element: <MurexRuntimeTrendsPage /> },
-              { path: ROUTES.EOD_MANAGEMENT, element: <EODManagementPage /> },
-              { path: ROUTES.CONSULTANTS, element: <ConsultantsPage /> },
-              { path: ROUTES.CONSULTANT_DETAIL, element: <ConsultantsPage /> },
               { path: ROUTES.LEAVE_MANAGEMENT, element: <LeaveManagementPage /> },
-              { path: ROUTES.ATTENDANCE, element: <AttendancePage /> },
-              { path: ROUTES.CAPACITY_PLANNING, element: <CapacityPlanningPage /> },
-              { path: ROUTES.RECONCILIATION, element: <ReconciliationPage /> },
-              { path: ROUTES.PROJECT_MONITORING, element: <ProjectMonitoringPage /> },
-              { path: ROUTES.IMPORTANT_LINKS, element: <ImportantLinksPage /> },
 
-              // ── Admin section ─────────────────────────────────────────
+              {
+                path: ROUTES.ENVIRONMENT_DASHBOARD,
+                element: (
+                  <RequirePermission code="ENVIRONMENT_DASHBOARD_VIEW">
+                    <EnvironmentDashboardPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.MUREX_RUNTIME,
+                element: (
+                  <RequirePermission code="MUREX_RUNTIME_VIEW">
+                    <MurexRuntimeTrendsPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.EOD_MANAGEMENT,
+                element: (
+                  <RequirePermission
+                    codes={['EOD_OVERVIEW_VIEW', 'EOD_CONFIG_VIEW', 'EOD_SCHEDULE_VIEW', 'EOD_CONTROL_VIEW']}
+                  >
+                    <EODManagementPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.CONSULTANTS,
+                element: (
+                  <RequirePermission code="EMPLOYEE_VIEW">
+                    <ConsultantsPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.CONSULTANT_DETAIL,
+                element: (
+                  <RequirePermission code="EMPLOYEE_VIEW">
+                    <ConsultantsPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.ATTENDANCE,
+                element: (
+                  <RequirePermission code="ATTENDANCE_VIEW">
+                    <AttendancePage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.CAPACITY_PLANNING,
+                element: (
+                  <RequirePermission code="CAPACITY_PLANNING_VIEW">
+                    <CapacityPlanningPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.RECONCILIATION,
+                element: (
+                  <RequirePermission code="RECONCILIATION_VIEW">
+                    <ReconciliationPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.PROJECT_MONITORING,
+                element: (
+                  <RequirePermission code="PROJECT_MONITORING_VIEW">
+                    <ProjectMonitoringPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.IMPORTANT_LINKS,
+                element: (
+                  <RequirePermission code="IMPORTANT_LINKS_VIEW">
+                    <ImportantLinksPage />
+                  </RequirePermission>
+                ),
+              },
+
+              // ── Admin section — gated by user.isAdmin only, never a permission code ──
               {
                 path: ROUTES.ADMIN,
+                element: (
+                  <RequirePermission admin>
+                    <Outlet />
+                  </RequirePermission>
+                ),
                 children: [
                   { index: true, element: <Navigate to={ROUTES.ADMIN_ROLES} replace /> },
                   { path: 'roles', element: <RoleManagementPage /> },

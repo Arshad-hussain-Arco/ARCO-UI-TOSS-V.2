@@ -12,6 +12,7 @@ import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
+import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { createId } from '@utils/id';
 
@@ -109,6 +110,11 @@ export function ImportantLinksPage() {
   useDocumentTitle('Important Links');
 
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('IMPORTANT_LINKS_CREATE');
+  const canEdit = hasPermission('IMPORTANT_LINKS_EDIT');
+  const canDelete = hasPermission('IMPORTANT_LINKS_DELETE');
+  const canPinHeader = hasPermission('IMPORTANT_LINKS_PIN_HEADER');
   const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
@@ -395,15 +401,17 @@ export function ImportantLinksPage() {
 
         <span className="il-toolbar-spacer" aria-hidden="true" />
 
-        <Button
-          id="il-add-link-btn"
-          variant="primary"
-          size="sm"
-          leadingIcon={Plus}
-          onClick={() => { setEditLink(null); setShowModal(true); }}
-        >
-          Add Link
-        </Button>
+        {canCreate && (
+          <Button
+            id="il-add-link-btn"
+            variant="primary"
+            size="sm"
+            leadingIcon={Plus}
+            onClick={() => { setEditLink(null); setShowModal(true); }}
+          >
+            Add Link
+          </Button>
+        )}
       </div>
 
       {/* ── Main Content ─────────────────────────────────────────── */}
@@ -436,7 +444,9 @@ export function ImportantLinksPage() {
                 icon={CATEGORY_ICONS[category.iconKey] ?? null}
                 links={category.links}
                 isPinned={isPinned}
-                onTogglePinGroup={(status) => handleTogglePinGroup(category.id, status)}
+                onTogglePinGroup={canPinHeader ? (status) => handleTogglePinGroup(category.id, status) : undefined}
+                canEdit={canEdit}
+                canDelete={canDelete}
                 onEditLink={handleEditLink}
                 onDeleteLink={handleDeleteLink}
               />

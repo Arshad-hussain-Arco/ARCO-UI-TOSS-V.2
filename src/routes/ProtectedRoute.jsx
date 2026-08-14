@@ -5,17 +5,16 @@ import { ROUTES } from '@constants/routes';
 import { useAuth } from '@hooks/useAuth';
 
 /**
- * Route guard for authenticated areas.
+ * Route guard for authenticated areas — authentication only. Per-route
+ * permission/admin gating is handled by RequirePermission, applied to
+ * individual routes inside this guard's tree (see routes.jsx).
  *
  * Renders nothing decisive until the persisted session has been restored,
  * otherwise a refresh would bounce a signed-in user to the login screen. The
  * attempted location is carried in state so login can return the user there.
- *
- * @param {Object} props
- * @param {string} [props.requiredPermission]  Optional per-route authorisation.
  */
-export function ProtectedRoute({ requiredPermission }) {
-  const { isAuthenticated, isInitialising, hasPermission } = useAuth();
+export function ProtectedRoute() {
+  const { isAuthenticated, isInitialising } = useAuth();
   const location = useLocation();
 
   if (isInitialising) {
@@ -24,10 +23,6 @@ export function ProtectedRoute({ requiredPermission }) {
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
-  }
-
-  if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to={ROUTES.FORBIDDEN} replace />;
   }
 
   return <Outlet />;

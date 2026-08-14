@@ -19,6 +19,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
+import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { Image } from '@components/common/Image/Image';
 import { Select } from '@components/forms/Select/Select';
@@ -103,6 +104,8 @@ const EfSwitchRow = ({ checked, onChange, label }) => (
 export function ConsultantsPage() {
   useDocumentTitle('Consultants');
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canActivateDeactivate = hasPermission('EMPLOYEE_ACTIVATE_DEACTIVATE');
 
   const [activeFilteredCount, setActiveFilteredCount] = useState(null);
   const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
@@ -465,7 +468,7 @@ export function ConsultantsPage() {
         : 'Add Consultant'
       : drawerMode === 'password'
         ? 'Change Password'
-        : 'Delete Consultant';
+        : 'Deactivate Consultant';
 
   return (
     <div className="consultants-page">
@@ -536,7 +539,7 @@ export function ConsultantsPage() {
               onAdd={handleAdd}
               onEdit={handleEdit}
               onPassword={handlePw}
-              onDelete={handleDelete}
+              onDelete={canActivateDeactivate ? handleDelete : undefined}
               onProfileView={setViewProfileId}
               onFilteredCountChange={setActiveFilteredCount}
               employeesData={employeesData}

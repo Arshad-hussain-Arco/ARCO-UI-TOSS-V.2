@@ -56,7 +56,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
@@ -75,7 +75,10 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 
   const { manager, employees } = useMemo(() => {
     const mems = activeMembers;
-    let mgr = mems.find(m => m.designation?.toLowerCase().includes('manager') || m.designation?.toLowerCase().includes('lead') || m.role?.toLowerCase().includes('manager'));
+    // Manager hierarchy only — never inferred from designation/role text.
+    // The team's manager is whoever another member's managerId points at.
+    const managerIds = new Set(mems.map(m => m.managerId).filter(Boolean));
+    let mgr = mems.find(m => managerIds.has(m.id));
     if (!mgr && mems.length > 0) mgr = mems[0];
     const emps = mgr ? mems.filter(m => m.id !== mgr.id) : mems;
     return { manager: mgr, employees: emps };
@@ -122,22 +125,28 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
         </div>
 
         <div className="tv-ah-right">
-          <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="action-icon-btn edit"
-              title="Edit Team"
-              onClick={(e) => { e.stopPropagation(); onEdit(team); }}
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              className="action-icon-btn delete"
-              title="Delete Team"
-              onClick={(e) => { e.stopPropagation(); onDelete(team); }}
-            >
-              <Trash size={16} />
-            </button>
-          </div>
+          {(canEdit || canDelete) && (
+            <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px' }}>
+              {canEdit && (
+                <button
+                  className="action-icon-btn edit"
+                  title="Edit Team"
+                  onClick={(e) => { e.stopPropagation(); onEdit(team); }}
+                >
+                  <Edit size={16} />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  className="action-icon-btn delete"
+                  title="Delete Team"
+                  onClick={(e) => { e.stopPropagation(); onDelete(team); }}
+                >
+                  <Trash size={16} />
+                </button>
+              )}
+            </div>
+          )}
 
           <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} style={{ marginLeft: '16px' }} />
         </div>
@@ -187,7 +196,10 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 }
 
 export function TeamsView({ onProfileView, onTeamChanged }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canCreateTeam = hasPermission('TEAMS_CREATE');
+  const canEditTeam = hasPermission('TEAMS_EDIT');
+  const canDeleteTeam = hasPermission('TEAMS_DELETE');
 
   const fetchTeams = useCallback(async () => {
     const res = await consultantService.getTeams();
@@ -410,10 +422,12 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <RotateCcw size={16} />
             <span>Reset</span>
           </button>
-          <button className="consultants-add-button" onClick={openAddModal}>
-            <Plus size={16} />
-            <span>Add Team</span>
-          </button>
+          {canCreateTeam && (
+            <button className="consultants-add-button" onClick={openAddModal}>
+              <Plus size={16} />
+              <span>Add Team</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -493,6 +507,8 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               headcountMap={headcountMap}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
+              canEdit={canEditTeam}
+              canDelete={canDeleteTeam}
             />
           </div>
         ))}

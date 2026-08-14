@@ -1,17 +1,31 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useAuth } from '@hooks/useAuth';
 import { linkService } from '@services/linkService';
 
 /**
  * Holds the list of resources pinned to the application header by the
  * Important Links module. Any page can read the list; only the Important
  * Links page writes to it.
+ *
+ * IMPORTANT_LINKS_PIN_HEADER — not IMPORTANT_LINKS_VIEW — gates whether a
+ * user sees this widget. The two are deliberately independent: VIEW only
+ * controls sidebar/tab access to the Important Links page itself; someone
+ * without VIEW (no sidebar item, can't browse/manage links) can still see
+ * org-pinned links in the header if they hold PIN_HEADER, and conversely a
+ * user with VIEW but not PIN_HEADER sees no header widget at all.
  */
 const PinnedLinksContext = createContext(null);
 
 export function PinnedLinksProvider({ children }) {
+  const { hasPermission } = useAuth();
+  const canSeeHeaderLinks = hasPermission('IMPORTANT_LINKS_PIN_HEADER');
   const [pinnedLinks, setPinnedLinks] = useState([]);
 
   const refreshPinnedLinks = useCallback(() => {
+    if (!canSeeHeaderLinks) {
+      setPinnedLinks([]);
+      return;
+    }
     linkService.getLinkCategories()
       .then(categories => {
         const grouped = [];
@@ -32,7 +46,7 @@ export function PinnedLinksProvider({ children }) {
         setPinnedLinks(grouped);
       })
       .catch(err => console.error("Failed to fetch pinned links:", err));
-  }, []);
+  }, [canSeeHeaderLinks]);
 
   useEffect(() => {
     refreshPinnedLinks();

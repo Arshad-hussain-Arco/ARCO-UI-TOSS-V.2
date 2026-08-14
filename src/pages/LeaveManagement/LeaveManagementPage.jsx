@@ -47,12 +47,16 @@ import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 import './LeaveManagementPage.css';
 import './LeaveTable.css';
 import './TeamRequests.css';
+// Apply Leave / My Leaves Summary: open to every authenticated user, no gate.
+// Team Leave Requests / Team Leave Summary / Leave Configuration: gated by
+// manager hierarchy (managerOnly), never by role or permission — see
+// `isManager` above, derived from user.mySubordinates.
 const ALL_TABS = [
   { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
   { id: 'my-leaves-summary', label: 'My Leaves Summary', icon: FileText },
-  { id: 'team-requests', label: 'Team Leave Requests', icon: Users },
-  { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3 },
-  { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, adminOnly: true },
+  { id: 'team-requests', label: 'Team Leave Requests', icon: Users, managerOnly: true },
+  { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3, managerOnly: true },
+  { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, managerOnly: true },
 ];
 
 // Maps each leave-application action button to the eligible-leave-types API
@@ -389,12 +393,13 @@ export function LeaveManagementPage() {
     return eligibleLeaveTypes.some((t) => codes.includes(t.code) && t.active !== false);
   };
 
-  const canApplyOnBehalf = Boolean(
-    user?.mySubordinates?.length > 0 ||
-    user?.isAdmin === 1 || user?.isAdmin === true ||
-    user?.role === 'admin' || user?.roleName?.includes('HR') ||
-    user?.role?.toLowerCase()?.includes('admin')
-  );
+  // Leave Management is manager-hierarchy-gated, never role/permission-gated:
+  // any employee whose emp_id is another employee's manager_id counts as a
+  // manager here, full stop. mySubordinates (direct reports, from
+  // /auth/user-info/) is the single signal for every manager-only affordance
+  // on this screen — Apply Leave / My Leave Summary have no gate at all.
+  const isManager = Boolean(user?.mySubordinates?.length > 0);
+  const canApplyOnBehalf = isManager;
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -466,7 +471,7 @@ export function LeaveManagementPage() {
               setRefreshKey(k => k + 1);
             }
           }}
-          isAdmin={canApplyOnBehalf}
+          canApplyOnBehalf={canApplyOnBehalf}
           type={modalType}
         />
       )}
@@ -545,7 +550,7 @@ export function LeaveManagementPage() {
         />
       )}
       <div className="leave-management-tabs">
-        {ALL_TABS.filter(tab => !tab.adminOnly || user?.isAdmin === 1 || user?.isAdmin === true || user?.role === 'admin' || user?.roleName?.includes('HR') || user?.role?.toLowerCase()?.includes('admin')).map((tab) => {
+        {ALL_TABS.filter(tab => !tab.managerOnly || isManager).map((tab) => {
           const Icon = tab.icon;
           return (
             <button

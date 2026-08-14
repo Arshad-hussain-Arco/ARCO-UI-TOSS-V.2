@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Phone, Mail, Users, Lock, Trash, Edit, Power, Copy } from 'lucide-react';
+import { Phone, Mail, Users, Lock, UserX, Edit, Power, Copy } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
 import './ConsultantCard.css';
@@ -115,20 +115,22 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
       {/* Card Footer - Action Buttons */}
       <div className="consultant-card-footer">
         {isInactive ? (
-          <button
-            onClick={() => onActivate && onActivate(consultant)}
-            className="consultant-footer-btn consultant-footer-btn-activate"
-            title="Activate Consultant"
-            disabled={isActivating}
-            style={{ width: '100%', display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center', opacity: isActivating ? 0.6 : 1, cursor: isActivating ? 'not-allowed' : 'pointer' }}
-          >
-            {isActivating ? (
-              <span className="spin-animation" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid var(--c-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-            ) : (
-              <Power className="consultant-footer-btn-icon" />
-            )}
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>{isActivating ? 'Activating...' : 'Activate'}</span>
-          </button>
+          onActivate && (
+            <button
+              onClick={() => onActivate(consultant)}
+              className="consultant-footer-btn consultant-footer-btn-activate"
+              title="Activate Consultant"
+              disabled={isActivating}
+              style={{ width: '100%', display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center', opacity: isActivating ? 0.6 : 1, cursor: isActivating ? 'not-allowed' : 'pointer' }}
+            >
+              {isActivating ? (
+                <span className="spin-animation" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid var(--c-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+              ) : (
+                <Power className="consultant-footer-btn-icon" />
+              )}
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>{isActivating ? 'Activating...' : 'Activate'}</span>
+            </button>
+          )
         ) : (
           <>
             <button
@@ -145,13 +147,15 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
             >
               <Lock className="consultant-footer-btn-icon" />
             </button>
-            <button
-              onClick={() => onDelete && onDelete(consultant)}
-              className="consultant-footer-btn consultant-footer-btn-delete"
-              title="Delete Consultant"
-            >
-              <Trash className="consultant-footer-btn-icon" />
-            </button>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(consultant)}
+                className="consultant-footer-btn consultant-footer-btn-delete"
+                title="Deactivate Consultant"
+              >
+                <UserX className="consultant-footer-btn-icon" />
+              </button>
+            )}
           </>
         )}
       </div>

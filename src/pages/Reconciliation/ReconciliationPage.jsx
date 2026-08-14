@@ -3,6 +3,7 @@ import { Check, ArrowUpRight, AlertTriangle, FileText, ExternalLink } from 'luci
 import { Link } from 'react-router-dom';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 
+import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
 import { reconciliationService } from '@services/reconciliationService';
@@ -171,6 +172,9 @@ function normalizeRow(row, activeMappings, defaultKeyCols = []) {
 export function ReconciliationPage() {
   useDocumentTitle('File Reconciliation');
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('RECONCILIATION_CREATE');
+  const canExport = hasPermission('RECONCILIATION_EXPORT');
 
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState([null, null]);
@@ -369,6 +373,7 @@ export function ReconciliationPage() {
             file2Name={files[1]?.name || ''}
             onReset={reset}
             onPageChange={(page) => runReconciliation(page)}
+            canExport={canExport}
           />
         ) : null;
       default:
@@ -389,7 +394,19 @@ export function ReconciliationPage() {
     reset,
     isReconciling,
     reconcileError,
+    canExport,
   ]);
+
+  if (!canCreate) {
+    return (
+      <div className="rwiz-page">
+        <div className="rwiz-step-card" style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <h2>You don't have permission to run reconciliation</h2>
+          <p>Uploading files and running a reconciliation requires additional permission.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rwiz-page">
