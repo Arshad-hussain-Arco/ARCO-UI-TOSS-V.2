@@ -109,6 +109,15 @@
   justify-content: center;
 }
 
+/* Rich Text (html_code) cards have no media-wrapper sibling — content
+   fills the full card width and should read top-down like a document,
+   not vertically centered the way a short photo+text card does. */
+.home-card-html-only.home-card-100 .home-card-content-wrapper,
+.home-card-html-only.home-card-50 .home-card-content-wrapper {
+  justify-content: flex-start;
+  width: 100%;
+}
+
 /* ───────────────────────────────────────────────────────────────────────────
    Content Elements & Typography
    ─────────────────────────────────────────────────────────────────────────── */
@@ -198,6 +207,200 @@
   object-fit: contain;
   border-radius: 6px;
   margin: 8px 0;
+}
+
+/* Rich Text HTML Styling — RichEditor-produced elements */
+.home-card-html-content h5,
+.home-card-html-content h6 {
+  color: var(--text-primary, #0f172a);
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.home-card-html-content blockquote {
+  margin: 0 0 12px 0;
+  padding: 6px 16px;
+  border-left: 3px solid var(--c-primary, #006838);
+  color: var(--text-secondary, #475569);
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.home-card-html-content hr {
+  border: none;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+  margin: 16px 0;
+}
+
+.home-card-html-content video {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 8px 0;
+  display: block;
+}
+
+.home-card-html-content .rte-media-wrap {
+  max-width: 100%;
+}
+
+.home-card-html-content .rte-align-left { float: left; margin-right: 16px; }
+.home-card-html-content .rte-align-right { float: right; margin-left: 16px; }
+.home-card-html-content .rte-align-center { display: block; margin-left: auto; margin-right: auto; float: none; }
+
+.home-card-html-content figure {
+  margin: 8px 0;
+}
+
+.home-card-html-content figcaption {
+  font-size: 12px;
+  color: var(--text-tertiary, #94a3b8);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Checklist */
+.home-card-html-content .rte-checklist {
+  list-style: none;
+  padding-left: 4px;
+  margin: 0 0 12px 0;
+}
+
+.home-card-html-content .rte-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.home-card-html-content .rte-checkbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 2px solid var(--border-primary, #cbd5e1);
+  border-radius: 4px;
+  position: relative;
+}
+
+.home-card-html-content .rte-checklist-item[data-checked="true"] .rte-checkbox {
+  background: var(--c-primary, #006838);
+  border-color: var(--c-primary, #006838);
+}
+
+.home-card-html-content .rte-checklist-item[data-checked="true"] .rte-checkbox::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.home-card-html-content .rte-checklist-item[data-checked="true"] {
+  color: var(--text-tertiary, #94a3b8);
+  text-decoration: line-through;
+}
+
+/* Tables */
+.home-card-html-content table.rte-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.home-card-html-content table.rte-table td,
+.home-card-html-content table.rte-table th {
+  border: 1px solid var(--border-primary, #e2e8f0);
+  padding: 6px 10px;
+  vertical-align: top;
+}
+
+.home-card-html-content table.rte-table th {
+  background: var(--bg-secondary, #f8fafc);
+  font-weight: 700;
+  text-align: left;
+}
+
+/* PDF embed */
+.home-card-html-content .rte-pdf-wrap {
+  margin: 10px 0;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.home-card-html-content .rte-pdf-embed {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.home-card-html-content .rte-pdf-download {
+  display: block;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary, #006838);
+  background: var(--bg-secondary, #f8fafc);
+  text-decoration: none;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+}
+
+/* Attachment cards */
+.home-card-html-content .rte-attachment-card {
+  margin: 8px 0;
+  max-width: 320px;
+}
+
+.home-card-html-content .rte-attachment-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  text-decoration: none;
+  color: inherit;
+}
+
+.home-card-html-content .rte-attachment-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--c-primary, #006838);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.home-card-html-content .rte-attachment-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.home-card-html-content .rte-attachment-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-card-html-content .rte-attachment-size {
+  font-size: 11px;
+  color: var(--text-tertiary, #94a3b8);
 }
 
 /* ───────────────────────────────────────────────────────────────────────────

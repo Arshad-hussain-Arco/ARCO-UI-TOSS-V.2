@@ -1,0 +1,583 @@
+/* RichEditor chrome — toolbar, popovers, resize handles, table grid picker.
+   Uses the app's existing CSS custom property tokens (var(--c-primary) etc.)
+   so the editor matches the surrounding admin theme automatically. */
+
+.rte-root {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-primary, #ffffff);
+  overflow: hidden;
+}
+
+.rte-root.rte-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  border-radius: 0;
+  height: 100vh;
+  width: 100vw;
+}
+
+.rte-fullscreen-exit-hint {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 2001;
+  background: var(--c-primary, #006838);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+.rte-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #f8fafc);
+  border-bottom: 1px solid var(--border-primary, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.rte-tb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.rte-tb-btn:hover {
+  background: var(--bg-tertiary, #eef2f6);
+  color: var(--text-primary, #0f172a);
+}
+
+.rte-tb-btn-active {
+  background: var(--c-primary, #006838);
+  color: #fff;
+}
+
+/* Quick paragraph-style buttons (P/H1/H2/H3/H4) — wider than the square
+   icon buttons since they hold 1-2 characters of text. */
+.rte-tb-btn-text {
+  width: auto;
+  min-width: 30px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Fullscreen toggle — deliberately more prominent than plain formatting
+   buttons since it's a distinct, viewport-taking-over action. */
+.rte-tb-btn-highlight {
+  background: var(--c-primary, #006838);
+  color: #fff;
+}
+
+.rte-tb-btn-highlight:hover {
+  background: var(--c-primary-dark, #00522c);
+  color: #fff;
+}
+
+.rte-tb-color-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.rte-tb-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-primary, #e2e8f0);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.rte-tb-select {
+  height: 30px;
+  padding: 0 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 5px;
+  background: var(--surface-primary, #fff);
+  color: var(--text-primary, #0f172a);
+  max-width: 130px;
+  cursor: pointer;
+}
+
+.rte-tb-select-sm {
+  max-width: 70px;
+}
+
+/* ── Popovers ────────────────────────────────────────────────────────── */
+.rte-tb-popover-wrap {
+  position: relative;
+}
+
+.rte-popover {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  z-index: 30;
+  background: var(--surface-primary, #fff);
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rte-popover-input {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 5px;
+}
+
+.rte-popover-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+}
+
+.rte-popover-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rte-popover-btn {
+  flex: 1;
+  height: 30px;
+  border-radius: 5px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary, #0f172a);
+}
+
+.rte-popover-btn-primary {
+  background: var(--c-primary, #006838);
+  border-color: var(--c-primary, #006838);
+  color: #fff;
+}
+
+.rte-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12.5px;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  text-align: left;
+}
+
+.rte-menu-item:hover {
+  background: var(--bg-tertiary, #eef2f6);
+}
+
+.rte-menu-item-danger {
+  color: var(--c-danger, #dc2626);
+}
+
+.rte-table-ops-popover {
+  min-width: 200px;
+}
+
+/* Table insert grid picker */
+.rte-table-grid-popover {
+  align-items: center;
+}
+
+.rte-table-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rte-table-grid-row {
+  display: flex;
+  gap: 2px;
+}
+
+.rte-table-grid-cell {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 2px;
+  background: var(--bg-secondary, #f8fafc);
+  cursor: pointer;
+}
+
+.rte-table-grid-cell-active {
+  background: var(--c-primary, #006838);
+  border-color: var(--c-primary, #006838);
+}
+
+.rte-table-grid-label {
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+  font-weight: 600;
+}
+
+/* ── Editable surface ────────────────────────────────────────────────── */
+.rte-editable {
+  min-height: 220px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary, #0f172a);
+  outline: none;
+}
+
+.rte-root.rte-fullscreen .rte-editable {
+  max-height: none;
+  flex: 1;
+}
+
+.rte-editable:empty::before,
+.rte-editable.rte-empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary, #94a3b8);
+  pointer-events: none;
+}
+
+.rte-editable p {
+  margin: 0 0 10px 0;
+}
+
+/* Headings and plain (non-checklist) lists need explicit typography here
+   — the app's global styles reset `list-style`/padding on ul/ol to none
+   for its own nav/menu UI, so without this, toggling a heading or bullet
+   list changes the underlying tag correctly but looks like nothing
+   happened while editing. */
+.rte-editable h1,
+.rte-editable h2,
+.rte-editable h3,
+.rte-editable h4,
+.rte-editable h5,
+.rte-editable h6 {
+  margin: 0 0 10px 0;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary, #0f172a);
+}
+
+.rte-editable h1 { font-size: 28px; }
+.rte-editable h2 { font-size: 24px; }
+.rte-editable h3 { font-size: 20px; }
+.rte-editable h4 { font-size: 17px; }
+.rte-editable h5 { font-size: 15px; }
+.rte-editable h6 { font-size: 14px; }
+
+.rte-editable ul,
+.rte-editable ol {
+  margin: 0 0 10px 0;
+  padding-left: 24px;
+}
+
+.rte-editable ul:not(.rte-checklist) {
+  list-style: disc;
+}
+
+.rte-editable ol {
+  list-style: decimal;
+}
+
+.rte-editable li {
+  margin-bottom: 4px;
+}
+
+.rte-editable a {
+  color: var(--c-primary, #006838);
+  text-decoration: underline;
+}
+
+.rte-editable blockquote {
+  margin: 0 0 12px 0;
+  padding: 6px 16px;
+  border-left: 3px solid var(--c-primary, #006838);
+  color: var(--text-secondary, #475569);
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.rte-editable hr {
+  border: none;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+  margin: 16px 0;
+}
+
+/* Checklist */
+.rte-checklist {
+  list-style: none;
+  padding-left: 4px;
+  margin: 0 0 12px 0;
+}
+
+.rte-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rte-checkbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 2px solid var(--border-primary, #cbd5e1);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+}
+
+.rte-checklist-item[data-checked="true"] .rte-checkbox {
+  background: var(--c-primary, #006838);
+  border-color: var(--c-primary, #006838);
+}
+
+.rte-checklist-item[data-checked="true"] .rte-checkbox::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.rte-checklist-item[data-checked="true"] {
+  color: var(--text-tertiary, #94a3b8);
+  text-decoration: line-through;
+}
+
+/* Media wrap (image/video) + resize handles */
+.rte-media-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 4px 0;
+}
+
+.rte-media-wrap img,
+.rte-media-wrap video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  display: block;
+}
+
+.rte-media-wrap.rte-selected {
+  outline: 2px solid var(--c-primary, #006838);
+  outline-offset: 2px;
+}
+
+.rte-align-left { float: left; margin-right: 16px; }
+.rte-align-right { float: right; margin-left: 16px; }
+.rte-align-center { display: block; margin-left: auto; margin-right: auto; float: none; }
+
+.rte-media-wrap figcaption {
+  font-size: 12px;
+  color: var(--text-tertiary, #94a3b8);
+  text-align: center;
+  margin-top: 4px;
+}
+
+.rte-resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--c-primary, #006838);
+  border: 1px solid #fff;
+  border-radius: 50%;
+  z-index: 5;
+}
+
+.rte-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.rte-resize-n { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.rte-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.rte-resize-e { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.rte-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.rte-resize-s { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.rte-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.rte-resize-w { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+
+/* PDF embed */
+.rte-pdf-wrap {
+  margin: 10px 0;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.rte-pdf-embed {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.rte-pdf-download {
+  display: block;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary, #006838);
+  background: var(--bg-secondary, #f8fafc);
+  text-decoration: none;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+}
+
+/* Attachment cards */
+.rte-attachment-card {
+  margin: 8px 0;
+  max-width: 320px;
+}
+
+.rte-attachment-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  text-decoration: none;
+  color: inherit;
+}
+
+.rte-attachment-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--c-primary, #006838);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rte-attachment-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rte-attachment-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rte-attachment-size {
+  font-size: 11px;
+  color: var(--text-tertiary, #94a3b8);
+}
+
+/* Tables inside the editable surface */
+.rte-editable table.rte-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.rte-editable table.rte-table td,
+.rte-editable table.rte-table th {
+  border: 1px solid var(--border-primary, #e2e8f0);
+  padding: 6px 10px;
+  min-width: 40px;
+  vertical-align: top;
+}
+
+.rte-editable table.rte-table th {
+  background: var(--bg-secondary, #f8fafc);
+  font-weight: 700;
+  text-align: left;
+}
+
+.rte-editable table.rte-table td.rte-cell-selected,
+.rte-editable table.rte-table th.rte-cell-selected {
+  background: rgba(0, 104, 56, 0.12);
+}
+
+/* ── Preview panel ───────────────────────────────────────────────────── */
+.rte-preview-toggle-row {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.rte-preview-toggle {
+  border: none;
+  background: transparent;
+  color: var(--c-primary, #006838);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.rte-preview-panel {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-primary, #e2e8f0);
+  background: var(--surface-primary, #fff);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.rte-preview-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary, #94a3b8);
+  margin-bottom: 8px;
+}

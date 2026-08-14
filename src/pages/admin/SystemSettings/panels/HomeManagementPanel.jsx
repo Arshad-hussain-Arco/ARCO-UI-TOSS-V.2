@@ -5,6 +5,7 @@ import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { HomeCard } from '@components/home/HomeCard';
 import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
+import { RichEditor } from '@components/home/RichEditor/RichEditor';
 import DOMPurify from 'dompurify';
 
 /**
@@ -48,9 +49,8 @@ function HomeManagementPanelComponent() {
   const [contentText, setContentText] = useState('');
   const [contentWidth, setContentWidth] = useState('100%'); // '50%' | '100%'
 
-  // HTML Tab State
-  const [htmlFile, setHtmlFile] = useState(null);
-  const [htmlPreviewUrl, setHtmlPreviewUrl] = useState(null);
+  // Rich Text Tab State — images/video/etc. are inserted from within the
+  // editor itself, so there is no separate banner file/preview state here.
   const [htmlContent, setHtmlContent] = useState('');
   const [htmlWidth, setHtmlWidth] = useState('100%'); // '50%' | '100%'
 
@@ -60,7 +60,6 @@ function HomeManagementPanelComponent() {
   // File input refs
   const personFileInputRef = useRef(null);
   const contentFileInputRef = useRef(null);
-  const htmlFileInputRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -97,8 +96,6 @@ function HomeManagementPanelComponent() {
     setContentText('');
     setContentWidth('100%'); // Default is 100% for Content Card
 
-    setHtmlFile(null);
-    setHtmlPreviewUrl(null);
     setHtmlContent('');
     setHtmlWidth('100%');
 
@@ -121,8 +118,6 @@ function HomeManagementPanelComponent() {
     setContentText('');
     setContentWidth('100%');
 
-    setHtmlFile(null);
-    setHtmlPreviewUrl(null);
     setHtmlContent('');
     setHtmlWidth('100%');
 
@@ -147,7 +142,6 @@ function HomeManagementPanelComponent() {
       setActiveTab('html');
       setHtmlContent(card.html_content || '');
       setHtmlWidth(widthVal);
-      setHtmlPreviewUrl(photoUrl);
     }
 
     setIsModalOpen(true);
@@ -196,16 +190,6 @@ function HomeManagementPanelComponent() {
     toast.success(`Image selected: ${file.name}`);
   };
 
-  const processHtmlFile = (file) => {
-    if (!file) return;
-    setIsUploading(true);
-    setHtmlFile(file);
-    const url = URL.createObjectURL(file);
-    setHtmlPreviewUrl(url);
-    setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
-  };
-
   const handleSaveCard = async () => {
     // Validation
     if (activeTab === 'text') {
@@ -249,7 +233,6 @@ function HomeManagementPanelComponent() {
         payload.append('card_type', 'html_code');
         payload.append('html_content', htmlContent.trim());
         payload.append('display_width', htmlWidth);
-        if (htmlFile) payload.append('photo', htmlFile);
       }
 
       if (editId) {
@@ -684,7 +667,7 @@ function HomeManagementPanelComponent() {
                 }}
               >
                 <Code size={16} />
-                HTML Code
+                Rich Text Editor
               </button>
             </div>
 
@@ -839,39 +822,16 @@ function HomeManagementPanelComponent() {
                     {/* Card Display Width */}
                     {renderWidthSelector(htmlWidth, setHtmlWidth)}
 
-                    {/* Upload Image */}
-                    {renderUploadZone(
-                      htmlFileInputRef,
-                      htmlFile,
-                      htmlPreviewUrl,
-                      processHtmlFile,
-                      "Upload Image (Optional Banner)",
-                      "Supports PNG, JPG, JPEG, WEBP"
-                    )}
-
-                    {/* HTML Content */}
+                    {/* Rich Text Content — images/video/etc. are inserted
+                        from within the editor itself; there is no separate
+                        banner upload for this card type. */}
                     <div className="ss-modal-form-group">
-                      <label className="ss-modal-label">HTML Code <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                      <textarea
-                        rows={10}
-                        className="ss-input"
-                        style={{
-                          fontFamily: 'monospace, "Courier New", Courier',
-                          fontSize: '12px',
-                          lineHeight: '1.5',
-                          padding: '12px',
-                          height: '220px',
-                          resize: 'vertical',
-                          whiteSpace: 'pre',
-                          overflow: 'auto',
-                          background: 'var(--bg-tertiary)',
-                          border: '1px solid var(--border-primary)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                        }}
+                      <label className="ss-modal-label">Rich Text Editor <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                      <RichEditor
+                        key={editId ?? 'new'}
                         value={htmlContent}
-                        onChange={(e) => setHtmlContent(e.target.value)}
-                        placeholder="<!-- Enter custom HTML elements directly -->&#10;<div style='padding: 10px;'>...</div>"
+                        onChange={setHtmlContent}
+                        placeholder="Start writing your homepage card content..."
                       />
                     </div>
                   </div>
@@ -907,7 +867,7 @@ function HomeManagementPanelComponent() {
                       card={{
                         card_type: activeTab === 'text' ? (activeSubtab === 'article' ? 'person_card' : 'content_card') : 'html_code',
                         display_width: activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth,
-                        photo: activeTab === 'text' ? (activeSubtab === 'article' ? personPreviewUrl : contentPreviewUrl) : htmlPreviewUrl,
+                        photo: activeTab === 'text' ? (activeSubtab === 'article' ? personPreviewUrl : contentPreviewUrl) : null,
                         person_name: personName,
                         designation: personDesignation,
                         bio: personBio,
