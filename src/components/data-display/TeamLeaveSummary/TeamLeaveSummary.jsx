@@ -91,12 +91,26 @@ function TeamLeaveSummary() {
   const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [summaryView, setSummaryView] = useState('department');
+  const [summaryDepartment, setSummaryDepartment] = useState('all');
+  const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
+  const [summaryLeaveType, setSummaryLeaveType] = useState('all');
+  const [teamSortState, setTeamSortState] = useState({});
+  const [teamSearchQueries, setTeamSearchQueries] = useState({});
+  const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
+  const [expandedEmployees, setExpandedEmployees] = useState(new Set());
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+
   useEffect(() => {
     const fetchSummary = async () => {
       if (!user?.emp_id) return;
       try {
-        setLoading(true);
-        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id));
+        if (departmentData.length === 0) setLoading(true);
+        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id), {
+          params: summaryTimePeriod ? { month: summaryTimePeriod } : {}
+        });
         const payload = res.data?.data || res.data;
         const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
 
@@ -151,19 +165,7 @@ function TeamLeaveSummary() {
       }
     };
     fetchSummary();
-  }, [user?.emp_id]);
-
-  const [summaryView, setSummaryView] = useState('department');
-  const [summaryDepartment, setSummaryDepartment] = useState('all');
-  const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
-  const [summaryLeaveType, setSummaryLeaveType] = useState('all');
-  const [teamSortState, setTeamSortState] = useState({});
-  const [teamSearchQueries, setTeamSearchQueries] = useState({});
-  const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
-  const [expandedEmployees, setExpandedEmployees] = useState(new Set()); // New state for tracking expanded employee rows
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
-  const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+  }, [user?.emp_id, summaryTimePeriod]);
 
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
@@ -227,9 +229,21 @@ function TeamLeaveSummary() {
     }
   };
   const filteredDepartments = useMemo(() => {
-    if (summaryDepartment === 'all') return departmentData;
-    return departmentData.filter((d) => String(d.id) === String(summaryDepartment));
-  }, [summaryDepartment, departmentData]);
+    let depts = departmentData;
+    
+    if (summaryDepartment !== 'all') {
+      depts = depts.filter((d) => String(d.id) === String(summaryDepartment));
+    }
+
+    if (summaryTimePeriod) {
+      depts = depts.map(dept => {
+        const activeConsultants = (dept.consultants || []).filter(c => calcTotal(c) > 0);
+        return { ...dept, consultants: activeConsultants };
+      }).filter(dept => dept.consultants.length > 0);
+    }
+
+    return depts;
+  }, [summaryDepartment, departmentData, summaryTimePeriod]);
   const getSortedConsultants = (deptId, consultants) => {
     let filtered = consultants;
     const q = (teamSearchQueries[deptId] || '').trim().toLowerCase();
@@ -475,7 +489,12 @@ function TeamLeaveSummary() {
     ═══════════════════════════════════════════════════════════ */}
           {summaryView === 'department' && (
             <div className="team-summary-departments">
-              {filteredDepartments.map((department) => {
+              {filteredDepartments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px', fontSize: '13px' }}>
+                  No team leave data available for the selected filters.
+                </div>
+              ) : (
+                filteredDepartments.map((department) => {
                 const isExpanded = expandedDepts.has(department.id);
                 const stats = getDeptStats(department);
                 const sorted = getSortedConsultants(department.id, department.consultants);
@@ -679,7 +698,8 @@ function TeamLeaveSummary() {
                     )}
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
 
@@ -719,8 +739,8 @@ function TeamLeaveSummary() {
               {/* ── Department Accordion List ── */}
               <div className="tsa-dept-list">
                 {sortedAnalyticsDepts.length === 0 ? (
-                  <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '15px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
-                    No departments have utilized this specific leave type.
+                  <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
+                    No team leave data available for the selected filters.
                   </div>
                 ) : (
                   sortedAnalyticsDepts.map(({ dept, stats }) => {

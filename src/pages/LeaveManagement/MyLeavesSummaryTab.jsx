@@ -185,9 +185,9 @@ export function MyLeavesSummaryTab({
       {/* Filters Toolbar */}
       <div className="leave-filters-section" style={{ marginBottom: '16px', background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
         
-        {/* Top row: Status Tabs & Export */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>
+        {/* Filters Toolbar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px' }}>
             <button className="leave-filter-chip" data-active={filterStatus === 'all'} onClick={() => setFilterStatus('all')}>
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
@@ -204,52 +204,53 @@ export function MyLeavesSummaryTab({
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Date Filters */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ width: '130px' }}>
+                <Select 
+                  value={selectedMonth} 
+                  onChange={setSelectedMonth} 
+                  options={MONTHS} 
+                  placeholder="Select Month"
+                  width="130px"
+                />
+              </div>
+              <div style={{ width: '100px' }}>
+                <Select
+                  value={selectedYear}
+                  onChange={onYearChange}
+                  options={YEARS}
+                  placeholder="Select Year"
+                  width="100px"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
+                <DatePicker
+                  value={fromDate ? new Date(fromDate) : null}
+                  onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                  placeholder="Start Date"
+                  width="110px"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
+                <DatePicker
+                  value={toDate ? new Date(toDate) : null}
+                  onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                  placeholder="End Date"
+                  width="110px"
+                />
+              </div>
+            </div>
+
+            {/* Export Button */}
             <ExportButton
               excel
               pdf
               onExcelExport={handleExportCSV}
               onPdfExport={handleExportPDF}
-            />
-          </div>
-        </div>
-
-        {/* Bottom row: Date Filters */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ width: '150px' }}>
-            <Select 
-              value={selectedMonth} 
-              onChange={setSelectedMonth} 
-              options={MONTHS} 
-              placeholder="Select Month"
-              width="150px"
-            />
-          </div>
-          <div style={{ width: '130px' }}>
-            <Select
-              value={selectedYear}
-              onChange={onYearChange}
-              options={YEARS}
-              placeholder="Select Year"
-              width="130px"
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
-            <DatePicker
-              value={fromDate ? new Date(fromDate) : null}
-              onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
-              placeholder="Start Date"
-              width="130px"
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
-            <DatePicker
-              value={toDate ? new Date(toDate) : null}
-              onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
-              placeholder="End Date"
-              width="130px"
             />
           </div>
         </div>
