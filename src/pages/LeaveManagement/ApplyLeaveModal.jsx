@@ -357,13 +357,23 @@ function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = n
   if (!startDate || !lt) return [];
   const e = end ?? startDate;
   const rows = [];
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+  const crossesBoundary = !isClaim && e.getFullYear() > startDate.getFullYear();
+  const entirelyFutureYear = !isClaim && !crossesBoundary && startDate.getFullYear() > today0.getFullYear();
+  const nyBizDaysForCy = crossesBoundary
+    ? eachDay(startDate, e).filter(
+        (d) => d.getFullYear() > startDate.getFullYear() && !isRealWeekend(d, dayMap) && !isRealHoliday(d, dayMap),
+      ).length
+    : 0;
+  const cyCharged = entirelyFutureYear ? 0 : crossesBoundary ? Math.max(0, charged - nyBizDaysForCy) : charged;
   if (isClaim) {
     // Comp-off / Weekend Work is a claim (credits balance) rather than a
     // debit, so any date is claimable — no balance check applies.
     rows.push({ key: 'balance', label: 'Claim \u2014 any date can be selected', status: 'info' });
   } else if (lt.isUnlimited) {
     rows.push({ key: 'balance', label: 'Unlimited \u2014 no balance deducted', status: 'info' });
-  } else if (charged <= lt.balance) {
+  } else if (cyCharged <= lt.balance) {
     rows.push({ key: 'balance', label: 'Sufficient balance available', status: 'ok' });
   } else if (lt.isFlexible) {
     // Flexible leave types are allowed to exceed their balance as long as
@@ -371,8 +381,74 @@ function getValidations(startDate, end, lt, charged, isClaim = false, dayMap = n
     // needsFlexJustification/flexJustification) — so this is a warning to
     // surface in the panel, not a hard submit-blocking error.
     rows.push({ key: 'balance', label: 'Exceeds available balance — justification required', status: 'warn' });
+  } else if (lt.allowNegative && cyCharged - lt.balance <= lt.maxNegativeDays) {
+    // Generic negative-balance ("advance leave") policy — balance may go
+    // negative up to maxNegativeDays; not a submit-blocking error.
+    rows.push({
+      key: 'balance',
+      label: `Exceeds balance — ${(cyCharged - lt.balance).toFixed(1)} day(s) borrowed against next year (max ${lt.maxNegativeDays})`,
+      status: 'warn',
+    });
+  } else if (lt.allowNegative) {
+    const remainingAdvance = Math.max(0, lt.maxNegativeDays + Math.min(0, lt.balance));
+    const alreadyBorrowed = Math.max(0, -lt.balance);
+    rows.push({
+      key: 'balance',
+      label: alreadyBorrowed > 0
+        ? `Exceeds remaining advance of ${remainingAdvance.toFixed(1)} day(s) (${alreadyBorrowed.toFixed(1)} of ${lt.maxNegativeDays} already borrowed)`
+        : `Exceeds max advance of ${lt.maxNegativeDays} day(s)`,
+      status: 'error',
+    });
   } else {
     rows.push({ key: 'balance', label: 'Insufficient leave balance', status: 'error' });
+  }
+  // Year-spanning validation, only if this leave type's policy allows it
+  // (computed server-side — see leaves.services._is_year_spanning_allowed).
+  // Not applicable to Claims, which don't carry balance across years at
+  // all. crossesBoundary/entirelyFutureYear/nyBizDaysForCy are computed up
+  // top, shared with the current-year balance check above.
+  if (!isClaim) {
+    if ((crossesBoundary || entirelyFutureYear) && !lt.yearSpanningAllowed) {
+      rows.push({
+        key: 'yearSpanning',
+        label: crossesBoundary
+          ? `${lt.label} does not allow requests spanning into next year`
+          : `${lt.label} does not allow requests made entirely within a future year`,
+        status: 'error',
+      });
+    } else if ((crossesBoundary || entirelyFutureYear) && lt.nextYearAvailable != null) {
+      // Preview against next year's REAL expected availability (raw
+      // entitlement minus this year's still-outstanding advance-leave
+      // debt — see leaves.services._future_year_check_kwargs). The
+      // next-year portion can never itself borrow, regardless of
+      // allowNegative — mirrors the backend exactly.
+      const nyCharged = entirelyFutureYear ? charged : nyBizDaysForCy;
+      // lt.nextYearAvailable is a static snapshot (this year's EXISTING
+      // outstanding advance debt only) — it doesn't know about the
+      // additional debt THIS request's own current-year portion would
+      // create. Discount it further by that additional amount, mirroring
+      // the backend's _check_balance_year_spanning projected_cy_debt fix,
+      // so the preview simulates the post-approval state, not just the
+      // current one. Only applies to crossesBoundary — an entirely-future-
+      // year request has no current-year portion of its own.
+      const existingDebt = Math.max(0, -lt.balance);
+      const newDebt = Math.max(0, -(lt.balance - cyCharged));
+      const additionalDebtCreated = crossesBoundary ? Math.max(0, newDebt - existingDebt) : 0;
+      const effectiveNextYearAvailable = lt.nextYearAvailable - additionalDebtCreated;
+      if (nyCharged > effectiveNextYearAvailable) {
+        rows.push({
+          key: 'yearSpanning',
+          label: `Next year's available balance is ${effectiveNextYearAvailable.toFixed(1)}d (after this year's outstanding advance) — requesting ${nyCharged.toFixed(1)}d`,
+          status: 'error',
+        });
+      } else if (crossesBoundary) {
+        rows.push({
+          key: 'yearSpanning',
+          label: `${nyCharged.toFixed(1)}d next year, within the ${effectiveNextYearAvailable.toFixed(1)}d expected available`,
+          status: 'info',
+        });
+      }
+    }
   }
   // Rule 3 — full-range check against the employee's own pending/approved
   // requests (calendarDayMap own_request). Boundary gating
@@ -453,7 +529,29 @@ function buildLeaveTypeItem(entry, balances) {
     requiresAttachment: false,
     maxConsecutive: entry.max_consecutive ?? Infinity,
     carryForward: !!entry.is_carry_forward_allowed,
-    advanceLeave: false,
+    // Generic negative-balance ("advance leave") policy — Limited+Actual
+    // types only (see hr_admin.LeavePolicyCreateSerializer.validate() on
+    // the backend). Lets balance go negative up to maxNegativeDays instead
+    // of hard-rejecting once entitlement is exhausted.
+    allowNegative: !isUnlimited && !entry.is_flexible && !!entry.allow_negative,
+    maxNegativeDays: Number(entry.max_negative_days ?? 0),
+    // Computed server-side (leaves.services._is_year_spanning_allowed) —
+    // whether this type may span into, or be requested entirely within,
+    // next year. Default true (matches the policy field's default) if the
+    // backend hasn't sent it for some reason, so an older API response
+    // doesn't spuriously block every year-spanning request.
+    yearSpanningAllowed: entry.year_spanning_allowed ?? true,
+    // Preview of next year's real availability before it has actually
+    // begun (raw next-year entitlement minus this year's still-
+    // outstanding advance-leave debt). null when not year-spanning-
+    // eligible or unlimited — see EligibleLeaveTypesView.
+    nextYearAvailable: entry.next_year_available != null ? Number(entry.next_year_available) : null,
+    // Actual (any mode) and Nominal leave types may be self-logged after
+    // the fact — mirrors the backend exemption in
+    // leaves.services.LeaveApplyService.apply's is_backdatable_category
+    // check. Category-driven, not mode-driven. Not applicable to Claims,
+    // which have their own always-past date picker.
+    allowPastDates: entry.category === 'ACTUAL' || entry.category === 'NOMINAL',
     minNoticeDays,
     noticePeriod:
       minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,
@@ -1589,7 +1687,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     onDayHover={setHoverDate}
                     onPrev={prevMonth}
                     onNext={nextMonth}
-                    dateMode="future"
+                    dateMode={effectiveLeaveType?.allowPastDates ? 'any' : 'future'}
                     calendarDayMap={calendarDayMap}
                     restrictToWorkingDays
                     newLeaveTypeCode={effectiveLeaveType?.code || fixedCode}

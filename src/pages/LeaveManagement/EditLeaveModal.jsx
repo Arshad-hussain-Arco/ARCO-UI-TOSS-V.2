@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { useAuth } from '@hooks/useAuth';
 import leaveService from '@services/leaveService';
+// Aliased — this file has its own string-keyed isNonWorkingDay(d) below
+// (checks calendarDayMap[dateStr]), while the shared one takes a Date
+// object and dayMap directly; same name would silently shadow one or the
+// other depending on declaration order.
+import { InlineCalendar, dateStr, isNonWorkingDay as isNonWorkingDayCal, isOverlapBlocked } from '@components/leave/InlineCalendar';
+import './EditLeaveModal.css';
+
+// 'YYYY-MM-DD' string -> local-midnight Date, the shape InlineCalendar
+// works in (never via `new Date('YYYY-MM-DD')`, which parses as UTC
+// midnight and rolls back a day in any positive-UTC-offset timezone).
+function parseIsoDate(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const { user } = useAuth();
@@ -29,10 +44,12 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const [modReason, setModReason] = useState('');
   const [flexJustification, setFlexJustification] = useState('');
 
-  // Flexible-entitlement lookup for the leave type being modified — needed to
-  // proactively require a justification if this edit pushes the request
-  // beyond the available balance, same as ApplyLeaveModal.
-  const [flexEntry, setFlexEntry] = useState(null);
+  // Policy + balance lookup for the leave type being modified — needed to
+  // preview the balance impact of this edit (same fields ApplyLeaveModal's
+  // buildLeaveTypeItem reads: isUnlimited/isFlexible gate whether exceeding
+  // balance is even possible, allowNegative/maxNegativeDays gate whether
+  // exceeding it borrows against next year or is a hard rejection).
+  const [typeInfo, setTypeInfo] = useState(null);
   useEffect(() => {
     const empIdForLookup = leave.emp_id || user?.emp_id;
     if (!empIdForLookup) return;
@@ -42,22 +59,91 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
     ]).then(([types, balanceData]) => {
       const arr = Array.isArray(types) ? types : types?.results || [];
       const match = arr.find((t) => t.code === leave.leave_type);
-      if (!match || !match.is_flexible) {
-        setFlexEntry(null);
-        return;
-      }
       const bal = balanceData?.balances?.[leave.leave_type];
-      setFlexEntry({
-        entitledDays: match.entitled_days != null ? Number(match.entitled_days) : null,
+      const isClaim = match?.category === 'CLAIM';
+      const isUnlimited = !!(match?.is_unlimited || bal?.is_unlimited);
+      setTypeInfo({
+        isClaim,
+        isUnlimited,
+        isFlexible: !isUnlimited && !!match?.is_flexible,
+        allowNegative: !isUnlimited && !match?.is_flexible && !!match?.allow_negative,
+        maxNegativeDays: Number(match?.max_negative_days ?? 0),
+        // Computed server-side (leaves.services._is_year_spanning_allowed).
+        // Default true if missing so an older API response doesn't
+        // spuriously block a year-spanning modification.
+        yearSpanningAllowed: match?.year_spanning_allowed ?? true,
+        // Preview of next year's real availability before it has actually
+        // begun (raw next-year entitlement minus this year's still-
+        // outstanding advance-leave debt) — see EligibleLeaveTypesView.
+        nextYearAvailable: match?.next_year_available != null ? Number(match.next_year_available) : null,
+        entitledDays: match?.entitled_days != null ? Number(match.entitled_days) : null,
         available: bal?.available != null ? Number(bal.available) : null,
+        // Actual (any mode) and Nominal leave types may be self-logged/
+        // edited into the past — mirrors the backend exemption in
+        // leaves.services.LeaveApplyService.apply's is_backdatable_category
+        // check. Category-driven, not mode-driven.
+        allowPastDates: match?.category === 'ACTUAL' || match?.category === 'NOMINAL',
       });
     });
   }, [leave.emp_id, leave.leave_type, user?.emp_id]);
+  // Back-compat alias — the flex-justification logic below only ever cared
+  // about the Flexible case.
+  const flexEntry = typeInfo?.isFlexible ? typeInfo : null;
+
+  // The leave being edited is still PENDING (not yet approved) vs already
+  // APPROVED — determines whether this edit applies immediately or creates
+  // a modification request awaiting manager approval (surfaced in the
+  // banner below and the submit button's label/behavior).
+  const isPending = (leave.status_code || leave.status || '').toString().toUpperCase() === 'PENDING';
 
   // A manager/HR user modifying a report's leave (rather than their own)
   // goes through the on-behalf endpoint, which auto-approves the change
   // instead of creating a modification request awaiting approval.
   const isOnBehalf = leave.emp_id != null && user?.emp_id != null && leave.emp_id !== user.emp_id;
+
+  // Calendar navigation + range-selection state — same InlineCalendar
+  // ApplyLeaveModal uses, so editing a leave gets real weekend/holiday
+  // highlighting and click-to-select instead of bare date inputs. Starts on
+  // the month of the leave's current start date rather than today, so the
+  // calendar opens already showing the dates being edited.
+  const initialCalDate = parseIsoDate(leave.start_date) || new Date();
+  const [calYear, setCalYear] = useState(initialCalDate.getFullYear());
+  const [calMonth, setCalMonth] = useState(initialCalDate.getMonth());
+  const [hoverDate, setHoverDate] = useState(null);
+  const startDateObj = parseIsoDate(newStart);
+  const endDateObj = parseIsoDate(newEnd);
+  function prevMonth() {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((y) => y - 1);
+    } else setCalMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((y) => y + 1);
+    } else setCalMonth((m) => m + 1);
+  }
+  function handleDayClick(d) {
+    // Rule 1 (Actual/Nominal Leave): the from/to boundary must be a working
+    // day — Claims aren't edited through this modal, so no isClaim carve-out
+    // is needed here (unlike ApplyLeaveModal's handleDayClick). Checked
+    // against sanitizedDayMap (below) so this leave's own current dates
+    // don't read as "blocked by itself".
+    if (isNonWorkingDayCal(d, sanitizedDayMap) || isOverlapBlocked(d, sanitizedDayMap, leave.leave_type)) return;
+    const clicked = dateStr(d);
+    if (!startDateObj || endDateObj) {
+      setNewStart(clicked);
+      setNewEnd('');
+    } else if (d < startDateObj) {
+      setNewStart(clicked);
+      setNewEnd('');
+    } else if (clicked === newStart) {
+      setNewEnd('');
+    } else {
+      setNewEnd(clicked);
+    }
+  }
 
   useEffect(() => {
     if (newStart && (!newEnd || newEnd < newStart)) {
@@ -127,15 +213,73 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // in advance client-side, so just always ask for it on OW modifications.
   const isOW = leave.leave_type === 'OW';
 
-  // Rough day count for the newly requested range (inclusive), halved for a
-  // same-day half-day duration — good enough to compare against available
-  // balance; the backend remains the source of truth for exact billing.
+  // Real weekend/holiday/own-request markers, same source ApplyLeaveModal
+  // uses (leaveService.getCalendar) — covers the union of the visible
+  // calendar month and the selected range, so both the grid display and
+  // newDays below (which needs the backend's actual business-day exclusions
+  // — weekends + company holidays, see leaves/utils.py
+  // working_days_in_range) have data for whatever's on screen.
+  const [calendarDayMap, setCalendarDayMap] = useState({});
+  useEffect(() => {
+    const empIdForLookup = leave.emp_id || user?.emp_id;
+    if (!empIdForLookup) {
+      setCalendarDayMap({});
+      return;
+    }
+    let active = true;
+    const monthStart = new Date(calYear, calMonth, 1);
+    const monthEnd = new Date(calYear, calMonth + 1, 0);
+    const rangeStart = startDateObj && startDateObj < monthStart ? startDateObj : monthStart;
+    const rangeEndBound = endDateObj && endDateObj > monthEnd ? endDateObj : monthEnd;
+    leaveService
+      .getCalendar(empIdForLookup, { start: dateStr(rangeStart), end: dateStr(rangeEndBound) })
+      .then((data) => {
+        if (!active) return;
+        const map = {};
+        (data?.calendar || []).forEach((day) => { map[day.date] = day; });
+        setCalendarDayMap(map);
+      })
+      .catch(() => { if (active) setCalendarDayMap({}); });
+    return () => { active = false; };
+  }, [leave.emp_id, user?.emp_id, calYear, calMonth, newStart, newEnd]);
+  // The calendar endpoint has no "exclude this leave" filter, so this
+  // leave's own current dates come back as an own_request too — strip
+  // those before checking/rendering overlap, or every one of its own days
+  // would look "blocked by itself" (own_request.category 'LEAVE' always
+  // blocks — see isOverlapBlockedForOwn).
+  const sanitizedDayMap = (() => {
+    const out = {};
+    for (const [date, info] of Object.entries(calendarDayMap)) {
+      out[date] = info?.own_request?.leave_id === leave.id
+        ? { ...info, own_request: null }
+        : info;
+    }
+    return out;
+  })();
+  const isNonWorkingDay = (d) => {
+    const info = calendarDayMap[d];
+    return !!(info?.is_weekend || info?.is_org_holiday);
+  };
+
+  // Day count for the newly requested range — excludes weekends/company
+  // holidays (matching the backend's business-day count) and halves for a
+  // same-day or boundary half-day duration.
   const newDays = (() => {
     if (!newStart || !newEnd) return 0;
-    if (newStart === newEnd) return newDuration !== 'FULL_DAY' ? 0.5 : 1;
-    return rangeDays.reduce((sum, d) => sum + ((dailyConfigs[d] || 'full') === 'full' ? 1 : 0.5), 0);
+    if (newStart === newEnd) {
+      if (isNonWorkingDay(newStart)) return 0;
+      return newDuration !== 'FULL_DAY' ? 0.5 : 1;
+    }
+    return rangeDays.reduce((sum, d) => {
+      if (isNonWorkingDay(d)) return sum;
+      return sum + ((dailyConfigs[d] || 'full') === 'full' ? 1 : 0.5);
+    }, 0);
   })();
-  const originalDays = Number(leave.total_days ?? leave.no_of_days ?? 0);
+  // business_days/in_days are the actual field names the leave API returns
+  // (see LeaveSerializer) — total_days/no_of_days never exist on the raw
+  // leave object, which silently zeroed this out and broke the "release
+  // this leave's own days before checking the new total" balance math.
+  const originalDays = Number(leave.business_days ?? leave.in_days ?? 0);
   // Incremental days this edit adds beyond what's already booked — comparing
   // the delta (not the raw new total) against available balance, since the
   // original days are already reflected as "used" in that balance.
@@ -143,9 +287,123 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const needsFlexJustification =
     !!flexEntry && flexEntry.available != null && incrementalDays > flexEntry.available;
 
+  // Balance-impact preview — mirrors the backend's actual check
+  // (LeaveApplyService._check_balance / _create_mod_request's pre-check):
+  // this leave's OWN original days are already counted as used/pending in
+  // `available`, so releasing them back first (available + originalDays)
+  // before comparing against the new day count is what makes this an
+  // accurate preview of a same-leave edit, not a fresh second request.
+  const effectiveAvailable =
+    typeInfo && typeInfo.available != null ? typeInfo.available + originalDays : null;
+
+  // Year-spanning shape computed up front — the balance check below must
+  // only ever compare the CURRENT-year portion of newDays against this
+  // year's available/cap, mirroring leaves.services._check_balance_year_spanning's
+  // cy_days/ny_days split. Using the full cross-year newDays there would
+  // check the wrong year's cap against the current year's balance.
+  const startYear = newStart ? Number(newStart.slice(0, 4)) : null;
+  const endYear = newEnd ? Number(newEnd.slice(0, 4)) : null;
+  const crossesBoundary = !!(startYear && endYear) && endYear > startYear;
+  const today = new Date();
+  const entirelyFutureYear = !!startYear && !crossesBoundary && startYear > today.getFullYear();
+  const nyBizDaysForCy = crossesBoundary
+    ? rangeDays.filter((d) => Number(d.slice(0, 4)) > startYear && !isNonWorkingDay(d)).length
+    : 0;
+  const cyNewDays = entirelyFutureYear ? 0 : crossesBoundary ? Math.max(0, newDays - nyBizDaysForCy) : newDays;
+
+  const balanceStatus = (() => {
+    if (!typeInfo || typeInfo.isClaim) return null; // no balance concept for Claim types
+    if (effectiveAvailable == null) return null; // still loading
+    if (typeInfo.isUnlimited) {
+      return { status: 'info', label: 'Unlimited — no balance deducted' };
+    }
+    if (cyNewDays <= effectiveAvailable) {
+      return {
+        status: 'ok',
+        label: `Sufficient balance — ${(effectiveAvailable - cyNewDays).toFixed(1)} day(s) will remain`,
+      };
+    }
+    if (typeInfo.isFlexible) {
+      return { status: 'warn', label: 'Exceeds available balance — justification required' };
+    }
+    if (typeInfo.allowNegative) {
+      const projectedDebt = cyNewDays - effectiveAvailable;
+      if (projectedDebt <= typeInfo.maxNegativeDays) {
+        return {
+          status: 'warn',
+          label: `Exceeds balance — ${projectedDebt.toFixed(1)} day(s) borrowed against next year (max ${typeInfo.maxNegativeDays})`,
+        };
+      }
+      const remainingAdvance = Math.max(0, typeInfo.maxNegativeDays + Math.min(0, effectiveAvailable));
+      const alreadyBorrowed = Math.max(0, -effectiveAvailable);
+      return {
+        status: 'error',
+        label: alreadyBorrowed > 0
+          ? `Exceeds remaining advance of ${remainingAdvance.toFixed(1)} day(s) (${alreadyBorrowed.toFixed(1)} of ${typeInfo.maxNegativeDays} already borrowed)`
+          : `Exceeds max advance of ${typeInfo.maxNegativeDays} day(s)`,
+      };
+    }
+    return { status: 'error', label: 'Insufficient leave balance' };
+  })();
+  const hasBalanceError = balanceStatus?.status === 'error';
+
+  // Year-spanning: crossing into next year, or landing entirely within a
+  // future year, only if this leave type's policy allows it (computed
+  // server-side — see leaves.services._is_year_spanning_allowed).
+  const yearSpanningStatus = (() => {
+    if (!typeInfo || typeInfo.isClaim || !newStart || !newEnd) return null;
+    if (!crossesBoundary && !entirelyFutureYear) return null;
+    if (!typeInfo.yearSpanningAllowed) {
+      return {
+        status: 'error',
+        label: crossesBoundary
+          ? `${leave.leave_type} does not allow requests spanning into next year`
+          : `${leave.leave_type} does not allow requests made entirely within a future year`,
+      };
+    }
+    if (typeInfo.nextYearAvailable == null) return null;
+    // Preview against next year's REAL expected availability (raw
+    // entitlement minus this year's still-outstanding advance-leave debt)
+    // — the next-year portion can never itself borrow, regardless of
+    // allowNegative. Mirrors the backend's _future_year_check_kwargs.
+    const nyCharged = entirelyFutureYear ? newDays : nyBizDaysForCy;
+    // typeInfo.nextYearAvailable is a static snapshot (this year's EXISTING
+    // outstanding advance debt only) — it doesn't know about the additional
+    // debt THIS edit's own current-year portion would create. Discount it
+    // further, mirroring the backend's _check_balance_year_spanning
+    // projected_cy_debt fix, so the preview simulates the post-approval
+    // state. Only applies to crossesBoundary.
+    const existingDebt = Math.max(0, -effectiveAvailable);
+    const newDebt = Math.max(0, -(effectiveAvailable - cyNewDays));
+    const additionalDebtCreated = crossesBoundary ? Math.max(0, newDebt - existingDebt) : 0;
+    const effectiveNextYearAvailable = typeInfo.nextYearAvailable - additionalDebtCreated;
+    if (nyCharged > effectiveNextYearAvailable) {
+      return {
+        status: 'error',
+        label: `Next year's available balance is ${effectiveNextYearAvailable.toFixed(1)}d (after this year's outstanding advance) — requesting ${nyCharged.toFixed(1)}d`,
+      };
+    }
+    if (crossesBoundary) {
+      return {
+        status: 'info',
+        label: `${nyCharged.toFixed(1)}d next year, within the ${effectiveNextYearAvailable.toFixed(1)}d expected available`,
+      };
+    }
+    return null;
+  })();
+  const hasYearSpanningError = yearSpanningStatus?.status === 'error';
+
   const handleSubmit = async () => {
     if (!newStart || !newEnd) {
       toast.error('Start and end dates are required');
+      return;
+    }
+    if (hasBalanceError) {
+      toast.error(balanceStatus.label);
+      return;
+    }
+    if (hasYearSpanningError) {
+      toast.error(yearSpanningStatus.label);
       return;
     }
     if (isOW && !newReason.trim()) {
@@ -250,26 +508,37 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
 
         <div className="al-body" style={{ padding: '20px' }}>
 
-          <div className="al-form-row">
-            <div className="al-form-group">
-              <label className="al-label">Start Date *</label>
-              <input
-                type="date"
-                className="al-input"
-                value={newStart}
-                onChange={(e) => setNewStart(e.target.value)}
-              />
-            </div>
-            <div className="al-form-group">
-              <label className="al-label">End Date *</label>
-              <input
-                type="date"
-                className="al-input"
-                value={newEnd}
-                onChange={(e) => setNewEnd(e.target.value)}
-                min={newStart}
-              />
-            </div>
+          {/* Workflow banner — direct edit (still PENDING) vs a modification
+              request awaiting manager approval (already APPROVED), and the
+              on-behalf auto-approve exception to that. */}
+          <div className="el-workflow-banner">
+            <Info size={14} className="el-workflow-banner-icon" />
+            <span>
+              {isOnBehalf
+                ? 'Editing on behalf of your report — this change is applied and approved immediately.'
+                : isPending
+                  ? 'This request is still pending — your change will be applied immediately, no re-approval needed.'
+                  : 'This request is already approved — your change will be submitted as a modification request awaiting manager approval.'}
+            </span>
+          </div>
+
+          <div className="al-form-group">
+            <label className="al-label">Dates *</label>
+            <InlineCalendar
+              year={calYear}
+              month={calMonth}
+              startDate={startDateObj}
+              endDate={endDateObj}
+              hoverDate={hoverDate}
+              onDayClick={handleDayClick}
+              onDayHover={setHoverDate}
+              onPrev={prevMonth}
+              onNext={nextMonth}
+              dateMode={typeInfo?.allowPastDates ? 'any' : 'future'}
+              calendarDayMap={sanitizedDayMap}
+              restrictToWorkingDays
+              newLeaveTypeCode={leave.leave_type}
+            />
           </div>
 
           {!isMultiDay ? (
@@ -298,10 +567,16 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                   const isMiddleDay = !isStartDay && !isEndDay;
                   const currentVal = dailyConfigs[d] || 'full';
 
+                  const nonWorking = isNonWorkingDay(d);
                   return (
                     <div key={d} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
                       <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
                         {d}
+                        {nonWorking && (
+                          <span className="el-nonworking-tag">
+                            {calendarDayMap[d]?.is_org_holiday ? 'holiday — not counted' : 'weekend — not counted'}
+                          </span>
+                        )}
                       </span>
                       <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
                         {[
@@ -341,6 +616,34 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Balance impact — live preview of this edit's effect, same
+              statuses ApplyLeaveModal's validation checklist uses. Not
+              shown for Claim types (isOW/claims have no balance to check
+              here) or while the policy/balance lookup is still loading. */}
+          {newStart && newEnd && balanceStatus && (
+            <div className={`el-balance-panel v-${balanceStatus.status}`}>
+              {balanceStatus.status === 'error' && <AlertCircle size={14} className="el-balance-panel-icon" />}
+              {balanceStatus.status === 'warn' && <AlertTriangle size={14} className="el-balance-panel-icon" />}
+              {balanceStatus.status === 'ok' && <CheckCircle2 size={14} className="el-balance-panel-icon" />}
+              {balanceStatus.status === 'info' && <Info size={14} className="el-balance-panel-icon" />}
+              <span>
+                {balanceStatus.label}
+                {!typeInfo.isUnlimited && effectiveAvailable != null && (
+                  <> — requesting {newDays.toFixed(1)}d of {effectiveAvailable.toFixed(1)}d available</>
+                )}
+              </span>
+            </div>
+          )}
+
+          {yearSpanningStatus && (
+            <div className={`el-balance-panel v-${yearSpanningStatus.status}`}>
+              {yearSpanningStatus.status === 'error'
+                ? <AlertCircle size={14} className="el-balance-panel-icon" />
+                : <Info size={14} className="el-balance-panel-icon" />}
+              <span>{yearSpanningStatus.label}</span>
             </div>
           )}
 
@@ -414,10 +717,17 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
             </button>
             <button
               className="al-btn al-btn-primary"
-              disabled={isSubmitting || (needsFlexJustification && !flexJustification.trim())}
+              disabled={isSubmitting || hasBalanceError || hasYearSpanningError || (needsFlexJustification && !flexJustification.trim())}
+              title={hasBalanceError ? balanceStatus.label : hasYearSpanningError ? yearSpanningStatus.label : undefined}
               onClick={handleSubmit}
             >
-              {isSubmitting ? 'Submitting...' : isOnBehalf ? 'Modify & Approve' : 'Modify Request'}
+              {isSubmitting
+                ? 'Submitting...'
+                : isOnBehalf
+                  ? 'Modify & Approve'
+                  : isPending
+                    ? 'Save Changes'
+                    : 'Submit for Approval'}
             </button>
           </div>
         </div>
