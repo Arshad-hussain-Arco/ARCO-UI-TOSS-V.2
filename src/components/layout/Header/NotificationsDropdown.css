@@ -138,8 +138,8 @@
   padding: 0 10px;
   border-radius: 7px;
   border: 1px solid var(--border-secondary);
-  background: var(--surface-secondary);
-  color: var(--text-secondary);
+  background: #006633;
+  color: #ffffff;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -148,9 +148,9 @@
 }
 
 .nd-mark-btn:hover {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
-  color: var(--surface-primary);
+  background:  #006633;
+  border-color:  #006633;
+  color:  #ffffff;
 }
 
 /* Close button */

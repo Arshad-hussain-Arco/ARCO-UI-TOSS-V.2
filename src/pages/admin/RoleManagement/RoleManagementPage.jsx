@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Fragment } from 'react';
 import {
   Plus,
   Search,
@@ -16,6 +16,7 @@ import {
   Lock,
   Loader2,
   Save,
+  UserCog,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
@@ -577,19 +578,20 @@ export function RoleManagementPage() {
 
         <div className="rm-table-wrapper">
           <table className="rm-roles-table">
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '35%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: '20%' }}>Role Name</th>
-                <th style={{ width: '35%' }}>Description</th>
-                <th style={{ width: '15%' }} className="text-center">
-                  Permission Count
-                </th>
-                <th style={{ width: '10%' }} className="text-center">
-                  Admin
-                </th>
-                <th style={{ width: '20%' }} className="text-right">
-                  Actions
-                </th>
+                <th>Role Name</th>
+                <th>Description</th>
+                <th className="text-center">Permission Count</th>
+                <th className="text-center">Admin</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -617,48 +619,65 @@ export function RoleManagementPage() {
                   const pCount = countPermissions(role.permissions);
 
                   return (
-                    <tr key={role.id} className="rm-role-row-container">
-                      <td colSpan={5} style={{ padding: 0, border: 'none' }}>
-                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                          <tbody>
-                            <tr className={`rm-row-tr ${isExpanded ? 'expanded' : ''}`}>
-                              <td style={{ width: '20%' }}>
+                    <Fragment key={role.id}>
+                      <tr className={`rm-row-tr ${isExpanded ? 'expanded' : ''}`}>
+                              <td>
                                 <div className="rm-cell-role-name">
                                   <div className="rm-role-badge-icon">
-                                    <Shield size={14} />
+                                    <UserCog size={14} />
                                   </div>
                                   <span className="rm-role-name">{role.name}</span>
                                 </div>
                               </td>
 
-                              <td style={{ width: '35%' }}>
+                              <td>
                                 <span className="rm-role-desc" title={role.description}>
                                   {role.description}
                                 </span>
                               </td>
 
-                              <td style={{ width: '15%' }} className="text-center">
+                              <td className="text-center">
                                 <span className="rm-perm-badge">{pCount} Permissions</span>
                               </td>
 
-                              <td style={{ width: '10%' }} className="text-center">
+                              <td className="text-center">
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                   <label 
                                     className="rm-switch-btn" 
                                     style={{ 
                                       margin: 0, 
-                                      opacity: isExpanded ? 1 : 0.6, 
-                                      cursor: isExpanded ? 'pointer' : 'default',
+                                      opacity: 1, 
+                                      cursor: 'pointer',
                                       transform: 'scale(0.85)'
                                     }}
                                   >
                                     <input 
                                       type="checkbox" 
                                       checked={role.isAdmin}
-                                      disabled={!isExpanded}
-                                      onChange={(e) => {
-                                        setDirtyRoles((prev) => new Set(prev).add(role.id));
-                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: e.target.checked } : r));
+                                      onChange={async (e) => {
+                                        const newIsAdmin = e.target.checked;
+                                        // Optimistic update
+                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: newIsAdmin } : r));
+                                        
+                                        if (isExpanded) {
+                                          setDirtyRoles((prev) => new Set(prev).add(role.id));
+                                        } else {
+                                          // Auto-save when toggled directly from the unexpanded row
+                                          try {
+                                            await roleService.updateRole(role.id, {
+                                              name: role.name,
+                                              isAdmin: newIsAdmin,
+                                              description: role.description === '-' ? '' : role.description,
+                                              permissions: role.permissions,
+                                            });
+                                            toast.success('Admin status updated successfully.');
+                                          } catch (err) {
+                                            console.error(err);
+                                            toast.error('Failed to update admin status.');
+                                            // Revert optimistic update on failure
+                                            setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !newIsAdmin } : r));
+                                          }
+                                        }
                                       }}
                                     />
                                     <span className="rm-switch-slider" />
@@ -675,7 +694,7 @@ export function RoleManagementPage() {
                                 </div>
                               </td>
 
-                              <td style={{ width: '20%' }} className="text-right">
+                              <td className="text-right">
                                 <div className="rm-action-btns">
                                   <button
                                     type="button"
@@ -704,12 +723,11 @@ export function RoleManagementPage() {
                                 </div>
                               </td>
                             </tr>
-                          </tbody>
-                        </table>
-
-                        {/* Inline Accordion Expandable Permissions Matrix Panel */}
-                        {isExpanded && (
-                          <div className="rm-accordion-panel">
+                      {/* Inline Accordion Expandable Permissions Matrix Panel */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={5} style={{ padding: 0, border: 'none' }}>
+                            <div className="rm-accordion-panel">
                             <div className="rm-accordion-header">
                               <div className="rm-acc-title-wrap">
                                 <h3>Functions & Permission Matrix — {role.name}</h3>
@@ -822,9 +840,10 @@ export function RoleManagementPage() {
                               })}
                             </div>
                           </div>
-                        )}
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                      )}
+                    </Fragment>
                   );
                 })
               )}
