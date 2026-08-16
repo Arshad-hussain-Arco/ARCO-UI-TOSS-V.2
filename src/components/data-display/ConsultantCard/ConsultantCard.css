@@ -108,7 +108,7 @@
 
 /* Designation */
 .consultant-designation {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary, #666666);
   margin: 0;
   line-height: 1.2;
@@ -155,7 +155,8 @@
 
 .consultant-id-copy-absolute {
   position: absolute;
-  top: -23px; /* Sits perfectly above the grey break line without overlapping it */
+  top: -23px;
+  /* Sits perfectly above the grey break line without overlapping it */
   right: 0;
   z-index: 2;
   background-color: var(--bg-tertiary, #f4f4f4);
@@ -226,7 +227,7 @@
 }
 
 .consultant-footer-btn-edit:hover {
-    background-color: #fff1f2;
+  background-color: #fff1f2;
   color: #111111;
 }
 
@@ -234,11 +235,12 @@
   background-color: #fff1f2;
   color: #e11d48;
 }
+
 .consultant-footer-btn-password:hover {
-   background-color: #fff1f2;
+  background-color: #fff1f2;
   color: #111111;
 }
- 
+
 
 .consultant-footer-btn-icon {
   width: 12px;
