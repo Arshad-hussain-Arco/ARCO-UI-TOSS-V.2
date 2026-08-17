@@ -121,7 +121,7 @@ export function ChangePasswordModal({ isOpen, onClose }) {
   const footer = (
     <>
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         onClick={handleClose}
         disabled={isSubmitting}

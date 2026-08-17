@@ -24,6 +24,7 @@ import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
 import { useAuth } from '@hooks/useAuth';
+import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
@@ -200,6 +201,7 @@ const mapRole = (r) => {
 };
 
 export function RoleManagementPage() {
+  useDocumentTitle('Roles & Permissions - Admin Panel');
   const toast = useToast();
   const { refreshUser } = useAuth();
   const [roles, setRoles] = useState([]);
