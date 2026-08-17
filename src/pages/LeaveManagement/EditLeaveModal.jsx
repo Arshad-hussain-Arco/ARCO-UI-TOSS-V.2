@@ -145,13 +145,9 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
     }
   }
 
-  useEffect(() => {
-    if (newStart && (!newEnd || newEnd < newStart)) {
-      setNewEnd(newStart);
-    }
-  }, [newStart]);
 
-  const isMultiDay = !!(newStart && newEnd && newStart !== newEnd);
+  const effectiveEnd = newEnd || newStart;
+  const isMultiDay = !!(newStart && effectiveEnd && newStart !== effectiveEnd);
 
   // Every date (as 'YYYY-MM-DD') from newStart to newEnd, inclusive.
   //
@@ -166,9 +162,9 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // dailyConfigs[newStart]/[newEnd] never matched what the user actually
   // clicked, silently discarding their half-day pick as 'full' on submit.
   const rangeDays = (() => {
-    if (!newStart || !newEnd) return [];
+    if (!newStart || !effectiveEnd) return [];
     const [sy, sm, sd] = newStart.split('-').map(Number);
-    const [ey, em, ed] = newEnd.split('-').map(Number);
+    const [ey, em, ed] = effectiveEnd.split('-').map(Number);
     const out = [];
     const cur = new Date(Date.UTC(sy, sm - 1, sd));
     const fin = new Date(Date.UTC(ey, em - 1, ed));
@@ -220,6 +216,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // — weekends + company holidays, see leaves/utils.py
   // working_days_in_range) have data for whatever's on screen.
   const [calendarDayMap, setCalendarDayMap] = useState({});
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
   useEffect(() => {
     const empIdForLookup = leave.emp_id || user?.emp_id;
     if (!empIdForLookup) {
@@ -229,8 +226,10 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
     let active = true;
     const monthStart = new Date(calYear, calMonth, 1);
     const monthEnd = new Date(calYear, calMonth + 1, 0);
+    const effectiveEndObj = parseIsoDate(effectiveEnd);
     const rangeStart = startDateObj && startDateObj < monthStart ? startDateObj : monthStart;
-    const rangeEndBound = endDateObj && endDateObj > monthEnd ? endDateObj : monthEnd;
+    const rangeEndBound = effectiveEndObj && effectiveEndObj > monthEnd ? effectiveEndObj : monthEnd;
+    setIsCalendarLoading(true);
     leaveService
       .getCalendar(empIdForLookup, { start: dateStr(rangeStart), end: dateStr(rangeEndBound) })
       .then((data) => {
@@ -238,10 +237,16 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         const map = {};
         (data?.calendar || []).forEach((day) => { map[day.date] = day; });
         setCalendarDayMap(map);
+        setIsCalendarLoading(false);
       })
-      .catch(() => { if (active) setCalendarDayMap({}); });
+      .catch(() => { 
+        if (active) {
+          setCalendarDayMap({}); 
+          setIsCalendarLoading(false);
+        }
+      });
     return () => { active = false; };
-  }, [leave.emp_id, user?.emp_id, calYear, calMonth, newStart, newEnd]);
+  }, [leave.emp_id, user?.emp_id, calYear, calMonth, newStart, effectiveEnd]);
   // The calendar endpoint has no "exclude this leave" filter, so this
   // leave's own current dates come back as an own_request too — strip
   // those before checking/rendering overlap, or every one of its own days
@@ -265,8 +270,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // holidays (matching the backend's business-day count) and halves for a
   // same-day or boundary half-day duration.
   const newDays = (() => {
-    if (!newStart || !newEnd) return 0;
-    if (newStart === newEnd) {
+    if (!newStart || !effectiveEnd) return 0;
+    if (newStart === effectiveEnd) {
       if (isNonWorkingDay(newStart)) return 0;
       return newDuration !== 'FULL_DAY' ? 0.5 : 1;
     }
@@ -302,7 +307,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // cy_days/ny_days split. Using the full cross-year newDays there would
   // check the wrong year's cap against the current year's balance.
   const startYear = newStart ? Number(newStart.slice(0, 4)) : null;
-  const endYear = newEnd ? Number(newEnd.slice(0, 4)) : null;
+  const endYear = effectiveEnd ? Number(effectiveEnd.slice(0, 4)) : null;
   const crossesBoundary = !!(startYear && endYear) && endYear > startYear;
   const today = new Date();
   const entirelyFutureYear = !!startYear && !crossesBoundary && startYear > today.getFullYear();
@@ -351,7 +356,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   // future year, only if this leave type's policy allows it (computed
   // server-side — see leaves.services._is_year_spanning_allowed).
   const yearSpanningStatus = (() => {
-    if (!typeInfo || typeInfo.isClaim || !newStart || !newEnd) return null;
+    if (!typeInfo || typeInfo.isClaim || !newStart || !effectiveEnd) return null;
     if (!crossesBoundary && !entirelyFutureYear) return null;
     if (!typeInfo.yearSpanningAllowed) {
       return {
@@ -394,7 +399,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
   const hasYearSpanningError = yearSpanningStatus?.status === 'error';
 
   const handleSubmit = async () => {
-    if (!newStart || !newEnd) {
+    if (!newStart || !effectiveEnd) {
       toast.error('Start and end dates are required');
       return;
     }
@@ -434,7 +439,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
       const durationFields = isMultiDay
         ? {
             new_from_date_duration: (dailyConfigs[newStart] || 'full') === 'afternoon' ? 'SECOND_HALF' : 'FULL_DAY',
-            new_to_date_duration: (dailyConfigs[newEnd] || 'full') === 'morning' ? 'FIRST_HALF' : 'FULL_DAY',
+            new_to_date_duration: (dailyConfigs[effectiveEnd] || 'full') === 'morning' ? 'FIRST_HALF' : 'FULL_DAY',
           }
         : { new_duration: newDuration };
 
@@ -442,7 +447,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         res = await leaveService.editLeaveOnBehalf(leave.id, {
           manager_id: user?.emp_id,
           new_start: newStart,
-          new_end: newEnd,
+          new_end: effectiveEnd,
           new_reason: newReason,
           ...durationFields,
           ...justificationField,
@@ -451,7 +456,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         res = await leaveService.modifyOwLeave(leave.id, {
           emp_id: user?.emp_id || user?.empId || 1,
           new_start: newStart,
-          new_end: newEnd,
+          new_end: effectiveEnd,
           new_reason: newReason,
           ...durationFields,
           mod_reason: modReason,
@@ -466,7 +471,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         res = await leaveService.modifyLeave(leave.id, {
           emp_id: user?.emp_id || user?.empId || 1,
           new_start_date: newStart,
-          new_end_date: newEnd,
+          new_end_date: effectiveEnd,
           new_reason: newReason,
           ...durationFields,
           modification_reason: modReason,
@@ -528,7 +533,7 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
               year={calYear}
               month={calMonth}
               startDate={startDateObj}
-              endDate={endDateObj}
+              endDate={effectiveEnd ? parseIsoDate(effectiveEnd) : null}
               hoverDate={hoverDate}
               onDayClick={handleDayClick}
               onDayHover={setHoverDate}
@@ -538,30 +543,46 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
               calendarDayMap={sanitizedDayMap}
               restrictToWorkingDays
               newLeaveTypeCode={leave.leave_type}
+              isLoading={isCalendarLoading}
             />
           </div>
 
-          {!isMultiDay ? (
-            <div className="al-form-group" style={{ marginTop: '10px' }}>
-              <label className="al-label">Duration</label>
-              <select
-                className="al-input"
-                value={newDuration}
-                onChange={(e) => setNewDuration(e.target.value)}
-              >
-                <option value="FULL_DAY">Full Day</option>
-                <option value="FIRST_HALF">First Half</option>
-                <option value="SECOND_HALF">Second Half</option>
-              </select>
-            </div>
-          ) : (
-            <div className="al-form-group" style={{ marginTop: '10px' }}>
-              <span className="al-label">Duration Selection</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '10px', backgroundColor: 'var(--bg-secondary)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Customize leave hours for each day in the range:
+          <div className="al-form-group" style={{ marginTop: '10px' }}>
+            <span className="al-label">Duration Selection</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-primary)', borderRadius: '6px', padding: '10px', backgroundColor: 'var(--bg-secondary)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Customize leave hours for each day in the range:
+              </div>
+              {!isMultiDay ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                    {newStart}
+                    {isNonWorkingDay(newStart) && (
+                      <span className="el-nonworking-tag">
+                        {calendarDayMap[newStart]?.is_org_holiday ? 'holiday — not counted' : 'weekend — not counted'}
+                      </span>
+                    )}
+                  </span>
+                  <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
+                    {[
+                      ['FULL_DAY', 'Full Day'],
+                      ['FIRST_HALF', '1st Half'],
+                      ['SECOND_HALF', '2nd Half'],
+                    ].map(([val, lbl]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        className="al-duration-chip"
+                        data-active={newDuration === val}
+                        onClick={() => setNewDuration(val)}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {rangeDays.map((d, index) => {
+              ) : (
+                rangeDays.map((d, index) => {
                   const isStartDay = index === 0;
                   const isEndDay = index === rangeDays.length - 1;
                   const isMiddleDay = !isStartDay && !isEndDay;
@@ -604,7 +625,9 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                               data-active={currentVal === val}
                               disabled={isDisabled}
                               onClick={() => {
-                                if (!isDisabled) setDailyConfigs((prev) => ({ ...prev, [d]: val }));
+                                if (!isDisabled) {
+                                  setDailyConfigs((prev) => ({ ...prev, [d]: val }));
+                                }
                               }}
                             >
                               {lbl}
@@ -614,10 +637,10 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                })
+              )}
             </div>
-          )}
+          </div>
 
           {/* Balance impact — live preview of this edit's effect, same
               statuses ApplyLeaveModal's validation checklist uses. Not

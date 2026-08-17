@@ -331,3 +331,30 @@
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
+.dp-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+  backdrop-filter: blur(1px);
+}
+
+.dp-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--c-primary-light);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: dp-spin 0.8s linear infinite;
+}
+
+@keyframes dp-spin {
+  to { transform: rotate(360deg); }
+}

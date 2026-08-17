@@ -297,3 +297,34 @@
   border-top: 1px solid var(--border-primary);
   background: var(--surface-primary);
 }
+.al-cal-wrap.is-loading {
+  overflow: hidden;
+}
+
+.al-cal-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 12px;
+  backdrop-filter: blur(1px);
+}
+
+.al-cal-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--c-primary-light);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: al-spin 0.8s linear infinite;
+}
+
+@keyframes al-spin {
+  to { transform: rotate(360deg); }
+}

@@ -65,3 +65,34 @@
   font-style: italic;
   color: var(--text-tertiary);
 }
+
+/* Duration chips */
+.al-duration-chips {
+  display: flex;
+  gap: 4px;
+  animation: al-slide-down 0.12s ease;
+}
+.al-duration-chip {
+  padding: 5px 11px;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-primary);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: var(--font-family);
+  white-space: nowrap;
+}
+.al-duration-chip:hover {
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.al-duration-chip[data-active='true'] {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  font-weight: 600;
+}
