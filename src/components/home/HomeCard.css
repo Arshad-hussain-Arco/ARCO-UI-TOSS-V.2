@@ -233,15 +233,23 @@
   margin: 16px 0;
 }
 
-.home-card-html-content video {
+.home-card-html-content video,
+.home-card-html-content .media-video {
+  width: 100%;
   max-width: 100%;
+  height: auto;
+  max-height: 360px;
+  object-fit: contain;
   border-radius: 6px;
   margin: 8px 0;
   display: block;
 }
 
-.home-card-html-content .rte-media-wrap {
+.home-card-html-content .rte-media-wrap,
+.home-card-html-content .media-block {
   max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .home-card-html-content .rte-align-left { float: left; margin-right: 16px; }

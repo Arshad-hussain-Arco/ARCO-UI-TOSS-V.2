@@ -8,7 +8,7 @@ import DOMPurify from 'dompurify';
  */
 export const RTE_SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
-    'p', 'br', 'span', 'div',
+    'p', 'br', 'span', 'div', 'button',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'sup', 'sub',
     'ul', 'ol', 'li',
@@ -21,7 +21,8 @@ export const RTE_SANITIZE_CONFIG = {
     'href', 'target', 'rel', 'src', 'alt', 'title', 'style', 'class',
     'colspan', 'rowspan', 'controls', 'type', 'poster', 'download',
     'data-filename', 'data-filesize', 'data-mime', 'data-checked',
-    'contenteditable', 'width', 'height',
+    'data-media-type', 'data-src', 'data-pdf-src', 'data-pdf-name',
+    'preload', 'playsinline', 'contenteditable', 'width', 'height',
   ],
   ALLOWED_URI_REGEXP: /^(?:(?:https?|data|blob|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i,
   // DOMPurify's own default data-URI allowlist (audio/video/img/source/
@@ -31,7 +32,7 @@ export const RTE_SANITIZE_CONFIG = {
   // tag/attribute itself is allowed above. Verified directly against the
   // installed dompurify build; see the matching note in HomeCard.jsx.
   ADD_DATA_URI_TAGS: ['embed', 'a'],
-  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'form', 'input', 'button', 'textarea', 'select'],
+  FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'form', 'input', 'textarea', 'select'],
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus'],
 };
 

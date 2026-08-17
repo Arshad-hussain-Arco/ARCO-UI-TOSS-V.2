@@ -1,6 +1,6 @@
 import { readFileAsDataUrl, assertWithinSizeLimit, escapeAttr, formatFileSize } from './mediaUtils';
 
-const MAX_ATTACHMENT_MB = 15;
+const MAX_ATTACHMENT_MB = 40;
 
 const ACCEPTED_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip'];
 
@@ -22,31 +22,36 @@ export function isSupportedAttachment(file) {
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_ATTACHMENT_MB);
-  const url = await readFileAsDataUrl(file);
+  let url;
+  if (typeof URL !== 'undefined' && URL.createObjectURL) {
+    url = URL.createObjectURL(file);
+  } else {
+    url = await readFileAsDataUrl(file);
+  }
   return { url, filename: file.name, filesize: file.size, mime: file.type };
 }
 
 /**
- * Renders as a downloadable "attachment card" — a labeled block with
- * filename/size/extension badge. Filename/size are duplicated into
- * data-* attributes (in addition to the visible text) so the card can be
- * re-parsed/re-rendered consistently after being saved and reloaded as an
- * HTML string.
+ * Clean single-row horizontal document attachment card markup.
  */
 export function buildAttachmentMarkup({ url, filename, filesize, mime }) {
   const ext = getExtension(filename);
   const label = EXTENSION_LABELS[ext] || ext.toUpperCase() || 'FILE';
   const sizeLabel = formatFileSize(filesize);
+  const filenameAttr = filename ? ` data-filename="${escapeAttr(filename)}"` : '';
+  const filesizeAttr = filesize ? ` data-filesize="${escapeAttr(filesize)}"` : '';
+
   return (
-    `<div class="rte-attachment-card" contenteditable="false" ` +
-    `data-filename="${escapeAttr(filename)}" data-filesize="${escapeAttr(filesize)}" data-mime="${escapeAttr(mime)}">` +
-    `<a href="${escapeAttr(url)}" download="${escapeAttr(filename)}" class="rte-attachment-link">` +
-    `<span class="rte-attachment-badge">${escapeAttr(label)}</span>` +
-    `<span class="rte-attachment-meta">` +
-    `<span class="rte-attachment-name">${escapeAttr(filename)}</span>` +
-    `<span class="rte-attachment-size">${escapeAttr(sizeLabel)}</span>` +
-    `</span>` +
-    `</a>` +
+    `<div class="rte-media-card rte-attachment-card" data-media-type="attachment" data-src="${escapeAttr(url)}"${filenameAttr}${filesizeAttr} contenteditable="false">` +
+    `<div class="rte-media-card-icon"><span class="rte-attachment-badge">${escapeAttr(label)}</span></div>` +
+    `<div class="rte-media-card-info">` +
+    `<span class="rte-media-card-name" title="${escapeAttr(filename || 'Document')}">${escapeAttr(filename || 'Document')}</span>` +
+    (sizeLabel ? `<span class="rte-media-card-size">${escapeAttr(sizeLabel)}</span>` : '') +
+    `</div>` +
+    `<div class="rte-media-card-actions">` +
+    `<a href="${escapeAttr(url)}" download="${escapeAttr(filename || 'document')}" class="rte-btn-sm rte-btn-secondary" style="text-decoration: none;">Download</a>` +
+    `<button type="button" class="rte-btn-sm rte-btn-danger rte-media-remove-btn" title="Remove attachment">Remove ×</button>` +
+    `</div>` +
     `</div>`
   );
 }

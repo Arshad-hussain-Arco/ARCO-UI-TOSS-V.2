@@ -18,6 +18,7 @@ export function useFullscreenManager() {
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
         exit();
       }
     };

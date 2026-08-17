@@ -5,6 +5,7 @@ import { createHistoryManager } from './HistoryManager';
 import { sanitizeEditorHtml } from './sanitize';
 import {
   restoreSelection, saveSelection, getSavedSelection, insertBlockAtSelection, cleanupPendingStyleSpan,
+  ensureActiveSelectionAndFocus,
 } from './SelectionManager';
 import { insertHtmlAtSelection } from './ClipboardManager';
 import { useFullscreenManager } from './FullscreenManager';
@@ -12,6 +13,12 @@ import { Toolbar } from './Toolbar';
 import { EditableArea } from './EditableArea';
 import { Preview } from './Preview';
 import './RichEditor.css';
+
+import { formatFileSize } from './mediaUtils';
+import * as ImageHandler from './ImageHandler';
+import * as VideoHandler from './VideoHandler';
+import * as PdfHandler from './PdfHandler';
+import * as AttachmentHandler from './AttachmentHandler';
 
 function debounce(fn, wait) {
   let timer;
@@ -33,20 +40,20 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const editableRef = useRef(null);
   const lastEmittedRef = useRef(value);
   const tableSelectionRef = useRef({ table: null, anchor: null, cells: new Set() });
-  // Set-with-collapsed-caret style (font size/color/highlight) parks its
-  // pending span here until the user types into it or moves away — see
-  // SelectionManager.applyPendingCaretStyle. The currently-selected media
-  // wrapper (image/video, for the alignment buttons) lives here too, kept
-  // in sync by EditableArea's own selection handling.
   const pendingStyleSpanRef = useRef(null);
   const selectedMediaRef = useRef(null);
+
+  // Permanently mounted file input refs (Root level to guarantee 100% upload reliability across mode switches)
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
+  const attachmentInputRef = useRef(null);
+
   const { isFullscreen, toggle: toggleFullscreen, exit: exitFullscreen } = useFullscreenManager();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [, forceRerender] = useState(0);
 
-  // Toggles the placeholder visibility class. The editable area always
-  // has at least a seeded <p><br></p> shell (see the effects below), so
-  // CSS :empty never matches — "empty" here means no real text content.
+  // Toggles the placeholder visibility class.
   const updateEmptyState = (el) => {
     el.classList.toggle('rte-empty', el.textContent.trim().length === 0);
   };
@@ -58,12 +65,9 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     const html = sanitizeEditorHtml(el.innerHTML);
     lastEmittedRef.current = html;
     onChange?.(html);
-    forceRerender((n) => n + 1); // refresh toolbar active-state indicators
+    forceRerender((n) => n + 1);
   };
 
-  // Keep a ref to the latest closure so the debounced function (created
-  // once, below) always calls the current `onChange` rather than whichever
-  // one was in scope on mount.
   const flushOutwardNowRef = useRef(flushOutwardNow);
   flushOutwardNowRef.current = flushOutwardNow;
 
@@ -77,11 +81,6 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     []
   );
 
-  // Mount: seed the editable area and history with the initial value. An
-  // empty value seeds a real <p><br></p> shell rather than '' — typing
-  // into a truly empty contenteditable lands text as a bare text node
-  // directly under the root in most browsers, which every block-level
-  // command (lists/headings/alignment/indent/quote) can't operate on.
   useEffect(() => {
     if (editableRef.current) {
       editableRef.current.innerHTML = value?.trim() ? value : '<p><br></p>';
@@ -89,15 +88,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       history.reset(value || '');
       updateEmptyState(editableRef.current);
     }
-    // Intentionally run only on mount — RichEditor is remounted via a
-    // `key` prop by the parent whenever switching between cards/Add-Edit,
-    // so this never needs to react to `value` changing mid-session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Genuine external value change (rare given the `key` remount pattern,
-  // but guards against it anyway) — only overwrite the DOM when the
-  // incoming value differs from what this component itself last emitted.
   useEffect(() => {
     if (value !== lastEmittedRef.current && editableRef.current) {
       editableRef.current.innerHTML = value?.trim() ? value : '<p><br></p>';
@@ -105,22 +97,14 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       history.reset(value || '');
       updateEmptyState(editableRef.current);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Cleans up a leftover pending-caret-style span the moment the caret
-  // moves away from it without the user having typed anything real into
-  // it (see applyPendingCaretStyle) — e.g. they set a font size, then
-  // just clicked elsewhere instead of continuing to type.
   useEffect(() => {
     const handler = () => cleanupPendingStyleSpan(pendingStyleSpanRef);
     document.addEventListener('selectionchange', handler);
     return () => document.removeEventListener('selectionchange', handler);
   }, []);
 
-  /** Runs a command against the current/saved selection, wrapped in a
-   * before+after history checkpoint (programmatic DOM mutations never
-   * fire a native `input` event, so checkpoints must be explicit here). */
   const runCommand = (commandFn) => {
     const el = editableRef.current;
     if (!el) return;
@@ -138,9 +122,6 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     flushOutwardNow();
   };
 
-  /** Inserts an HTML fragment at the current/saved selection as one atomic,
-   * checkpointed operation — used for pasted text/HTML, which should flow
-   * inline with the surrounding content rather than split it. */
   const insertContentHtml = (html) => {
     const el = editableRef.current;
     if (!el) return;
@@ -155,17 +136,19 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     flushOutwardNow();
   };
 
-  /** Inserts block-level media (image/video/PDF/attachment) at the caret,
-   * splitting the containing paragraph around it instead of embedding a
-   * block element as an inline sibling of the surrounding text (which
-   * renders as a jarring break mid-line — see insertBlockAtSelection). */
+  useEffect(() => {
+    if (isFullscreen && editableRef.current) {
+      setTimeout(() => {
+        ensureActiveSelectionAndFocus(editableRef.current);
+      }, 50);
+    }
+  }, [isFullscreen]);
+
   const insertMediaHtml = (html) => {
     const el = editableRef.current;
     if (!el) return;
 
-    if (document.activeElement !== el) {
-      restoreSelection(el, getSavedSelection());
-    }
+    ensureActiveSelectionAndFocus(el);
 
     history.checkpointNow();
     insertBlockAtSelection(html, el);
@@ -173,17 +156,61 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     flushOutwardNow();
   };
 
-  // Deliberately not memoized: runCommand/insertContentHtml/flushOutwardNow
-  // close over `onChange` and must stay fresh every render, and the refs/
-  // hooks below are cheap to re-read. A stale-but-memoized value here would
-  // risk calling an outdated onChange if the parent ever passes a
-  // non-stable callback.
+  const getMediaInputRef = (type) => {
+    switch (type) {
+      case 'image': return imageInputRef;
+      case 'video': return videoInputRef;
+      case 'pdf': return pdfInputRef;
+      case 'attachment': return attachmentInputRef;
+      default: return null;
+    }
+  };
+
+  const triggerMediaAction = (type) => {
+    ensureActiveSelectionAndFocus(editableRef.current);
+    saveSelection(editableRef.current);
+
+    // FIRST CLICK (minimized): Maximize editor ONLY, then terminate immediately.
+    if (!isFullscreen) {
+      toggleFullscreen();
+      return; // CRITICAL: Stop execution here. No file input click. No auto-continuation.
+    }
+
+    // SECOND CLICK (maximized): Trigger file picker directly from user click gesture.
+    const ref = getMediaInputRef(type);
+    if (ref?.current) {
+      ref.current.value = '';
+      ref.current.click();
+    }
+  };
+
+  const MAX_FILE_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+
+  const handleRootFileSelected = async (e, handler, buildMarkup) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast?.error?.(`"${file.name}" (${formatFileSize(file.size)}) exceeds the 40 MB size limit.`);
+      return;
+    }
+
+    try {
+      const ingested = await handler.ingestFile(file);
+      insertMediaHtml(buildMarkup(ingested, file));
+    } catch (err) {
+      toast?.error?.(err.message || 'Failed to insert file.');
+    }
+  };
+
   const contextValue = {
     editableRef,
     history,
     runCommand,
     insertContentHtml,
     insertMediaHtml,
+    triggerMediaAction,
     flushOutwardNow,
     scheduleOutwardSync,
     saveSelection: () => saveSelection(editableRef.current),
@@ -198,6 +225,36 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   return (
     <RichEditorContext.Provider value={contextValue}>
       <div className={`rte-root ${isFullscreen ? 'rte-fullscreen' : ''}`}>
+        {/* Permanently mounted hidden file inputs at root level for 100% upload stability */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => handleRootFileSelected(e, ImageHandler, (ing, file) => ImageHandler.buildImageMarkup({ url: ing.url, alt: file.name }))}
+        />
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/mp4,video/webm"
+          style={{ display: 'none' }}
+          onChange={(e) => handleRootFileSelected(e, VideoHandler, (ing) => VideoHandler.buildVideoMarkup({ url: ing.url, filename: ing.filename, filesize: ing.filesize, mime: ing.mime }))}
+        />
+        <input
+          ref={pdfInputRef}
+          type="file"
+          accept="application/pdf"
+          style={{ display: 'none' }}
+          onChange={(e) => handleRootFileSelected(e, PdfHandler, (ing) => PdfHandler.buildPdfMarkup(ing))}
+        />
+        <input
+          ref={attachmentInputRef}
+          type="file"
+          accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+          style={{ display: 'none' }}
+          onChange={(e) => handleRootFileSelected(e, AttachmentHandler, (ing) => AttachmentHandler.buildAttachmentMarkup(ing))}
+        />
+
         <Toolbar />
         <EditableArea placeholder={placeholder} />
         <div className="rte-preview-toggle-row">

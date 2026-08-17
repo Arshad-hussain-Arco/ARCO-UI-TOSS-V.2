@@ -14,6 +14,7 @@ import {
   applyFontColor, applyHighlight, toggleList, toggleChecklist, indent, outdent,
   toggleBlockquote, insertHorizontalRule, applyLink, removeLink, getActiveLink,
 } from './commands';
+import { formatFileSize } from './mediaUtils';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -37,29 +38,22 @@ const HEADING_QUICK_ACTIONS = [
   { label: 'H4', tag: 'h4', title: 'Heading 4' },
 ];
 
-function ToolbarButton({ icon: Icon, label, onAction, active = false, className = '' }) {
+function ToolbarButton({ icon: Icon, text, label, onAction, active = false, className = '' }) {
   const { saveSelection } = useRichEditorContext();
   return (
     <button
       type="button"
-      className={`rte-tb-btn ${active ? 'rte-tb-btn-active' : ''} ${className}`}
+      className={`rte-tb-btn ${text ? 'rte-tb-btn-labeled' : ''} ${active ? 'rte-tb-btn-active' : ''} ${className}`}
       title={label}
       aria-label={label}
-      // Save the current editing selection before the button can steal
-      // focus. Buttons that apply their command immediately (Bold, Align,
-      // ...) don't strictly need this since preventDefault keeps the live
-      // selection intact — but buttons that open a popover for a SECOND,
-      // later click (Insert Table's grid picker, Table operations menu)
-      // do: by the time that second click fires, the live selection may
-      // already be gone, so runCommand/withTableAndCell fall back to
-      // whatever was captured here.
       onMouseDown={(e) => {
         e.preventDefault();
         saveSelection();
       }}
       onClick={onAction}
     >
-      <Icon size={15} />
+      <Icon size={14} />
+      {text && <span className="rte-tb-btn-text-label">{text}</span>}
     </button>
   );
 }
@@ -92,7 +86,7 @@ function ToolbarDivider() {
 
 export function Toolbar() {
   const {
-    runCommand, insertMediaHtml, saveSelection, toast,
+    runCommand, insertMediaHtml, triggerMediaAction, saveSelection, toast,
     tableSelectionRef, isFullscreen, toggleFullscreen, history, flushOutwardNow, editableRef,
     pendingStyleSpanRef, selectedMediaRef,
   } = useRichEditorContext();
@@ -105,10 +99,6 @@ export function Toolbar() {
   const popoverRef = useRef(null);
   useOnClickOutside(popoverRef, () => setOpenPopover(null), !!openPopover);
 
-  const imageInputRef = useRef(null);
-  const videoInputRef = useRef(null);
-  const pdfInputRef = useRef(null);
-  const attachmentInputRef = useRef(null);
   const fontColorInputRef = useRef(null);
   const highlightColorInputRef = useRef(null);
   const cellBgInputRef = useRef(null);
@@ -135,18 +125,6 @@ export function Toolbar() {
   const handleRemoveLink = () => {
     runCommand((range) => removeLink(range));
     setOpenPopover(null);
-  };
-
-  const handleFileSelected = async (e, handler, buildMarkup) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    try {
-      const ingested = await handler.ingestFile(file);
-      insertMediaHtml(buildMarkup(ingested, file));
-    } catch (err) {
-      toast?.error?.(err.message || 'Failed to insert file.');
-    }
   };
 
   const withTableAndCell = (action) => {
@@ -329,17 +307,10 @@ export function Toolbar() {
       <ToolbarDivider />
 
       {/* Media */}
-      <ToolbarButton icon={ImageIcon} label="Insert image" onAction={() => imageInputRef.current?.click()} />
-      <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleFileSelected(e, ImageHandler, (ing, file) => ImageHandler.buildImageMarkup({ url: ing.url, alt: file.name }))} />
-
-      <ToolbarButton icon={Film} label="Insert video (mp4/webm)" onAction={() => videoInputRef.current?.click()} />
-      <input ref={videoInputRef} type="file" accept="video/mp4,video/webm" style={{ display: 'none' }} onChange={(e) => handleFileSelected(e, VideoHandler, (ing) => VideoHandler.buildVideoMarkup({ url: ing.url, mime: ing.mime }))} />
-
-      <ToolbarButton icon={FileText} label="Insert PDF" onAction={() => pdfInputRef.current?.click()} />
-      <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleFileSelected(e, PdfHandler, (ing) => PdfHandler.buildPdfMarkup(ing))} />
-
-      <ToolbarButton icon={Paperclip} label="Insert attachment (doc/xls/ppt/zip)" onAction={() => attachmentInputRef.current?.click()} />
-      <input ref={attachmentInputRef} type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={(e) => handleFileSelected(e, AttachmentHandler, (ing) => AttachmentHandler.buildAttachmentMarkup(ing))} />
+      <ToolbarButton icon={ImageIcon} text="Image" label="Insert image" onAction={() => triggerMediaAction('image')} />
+      <ToolbarButton icon={Film} text="Video" label="Insert video (mp4/webm)" onAction={() => triggerMediaAction('video')} />
+      <ToolbarButton icon={FileText} text="PDF" label="Insert PDF" onAction={() => triggerMediaAction('pdf')} />
+      <ToolbarButton icon={Paperclip} text="File" label="Insert attachment (doc/xls/ppt/zip)" onAction={() => triggerMediaAction('attachment')} />
 
       {/* Image alignment — acts on whichever image/video is currently
           selected in the editor (click one to select it; resize handles

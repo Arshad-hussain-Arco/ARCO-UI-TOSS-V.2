@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRichEditorContext } from './RichEditorContext';
 import { cleanPastedHtml, plainTextToHtml } from './ClipboardManager';
 import * as ImageHandler from './ImageHandler';
@@ -7,6 +7,7 @@ import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
 import { buildGrid, findCellPosition, findAncestorTable, findAncestorCell } from './TableHandler';
 import { indent, outdent } from './commands';
+import { MediaViewerModal } from '@components/media/MediaViewerModal';
 
 const HANDLE_POSITIONS = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
@@ -94,6 +95,9 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
     selectedMediaRef,
   } = useRichEditorContext();
 
+  const [activeMediaModal, setActiveMediaModal] = useState({ isOpen: false, src: '', fileName: '', mediaType: 'pdf' });
+  const objectUrlsRef = useRef([]);
+
   useEffect(() => {
     // Chrome/Edge/Firefox still honor this for contenteditable Enter
     // behavior — keeps paragraph continuation predictable (<p> not <div>).
@@ -102,6 +106,18 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
     } catch {
       /* no-op — cosmetic only */
     }
+
+    return () => {
+      // Clean up all object URLs created during the editor session
+      objectUrlsRef.current.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          /* ignore */
+        }
+      });
+      objectUrlsRef.current = [];
+    };
   }, []);
 
   const insertFileAsMarkup = async (file) => {
@@ -241,6 +257,36 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
   };
 
   const handleMouseDown = (e) => {
+    const removeBtn = e.target.closest?.('.rte-media-remove-btn');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetBlock = removeBtn.closest('.rte-media-card, .rte-video-block, .rte-media-wrap, .rte-media-block, .rte-pdf-wrap, .rte-attachment-card, .media-pdf-card');
+      if (targetBlock) {
+        const src = targetBlock.dataset.src || targetBlock.querySelector('img, video, iframe, embed')?.getAttribute('src');
+        if (src && src.startsWith('blob:')) {
+          try { URL.revokeObjectURL(src); } catch {}
+        }
+        history.checkpointNow();
+        targetBlock.remove();
+        history.checkpointNow();
+        flushOutwardNow();
+      }
+      return;
+    }
+
+    const pdfBtn = e.target.closest?.('.rte-pdf-view-trigger, .media-pdf-view-btn');
+    if (pdfBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pdfSrc = pdfBtn.dataset.pdfSrc || pdfBtn.closest('.rte-media-card, .rte-pdf-card, .rte-pdf-wrap')?.dataset.src;
+      const pdfName = pdfBtn.dataset.pdfName || pdfBtn.closest('.rte-media-card, .rte-pdf-card, .rte-pdf-wrap')?.dataset.filename || 'Document.pdf';
+      if (pdfSrc) {
+        setActiveMediaModal({ isOpen: true, src: pdfSrc, fileName: pdfName, mediaType: 'pdf' });
+      }
+      return;
+    }
+
     const wrapper = e.target.closest?.('.rte-media-wrap');
     const root = editableRef.current;
     if (!root) return;
@@ -328,30 +374,40 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
   };
 
   return (
-    <div
-      ref={editableRef}
-      className="rte-editable"
-      contentEditable
-      suppressContentEditableWarning
-      tabIndex={0}
-      role="textbox"
-      aria-multiline="true"
-      aria-label="Rich text content editor"
-      data-placeholder={placeholder}
-      onInput={handleInput}
-      onBeforeInput={handleBeforeInput}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onMouseDown={handleMouseDown}
-      // Table cell drag-to-select is a mouse-only convenience — the same
-      // cells remain reachable/selectable via Tab and the toolbar's table
-      // menu, so no keyboard equivalent is required here.
-      // eslint-disable-next-line jsx-a11y/mouse-events-have-key-events
-      onMouseOver={handleMouseOver}
-    />
+    <>
+      <div
+        ref={editableRef}
+        className="rte-editable"
+        contentEditable
+        suppressContentEditableWarning
+        tabIndex={0}
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Rich text content editor"
+        data-placeholder={placeholder}
+        onInput={handleInput}
+        onBeforeInput={handleBeforeInput}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onMouseDown={handleMouseDown}
+        // Table cell drag-to-select is a mouse-only convenience — the same
+        // cells remain reachable/selectable via Tab and the toolbar's table
+        // menu, so no keyboard equivalent is required here.
+        // eslint-disable-next-line jsx-a11y/mouse-events-have-key-events
+        onMouseOver={handleMouseOver}
+      />
+      <MediaViewerModal
+        isOpen={activeMediaModal.isOpen}
+        onClose={() => setActiveMediaModal((prev) => ({ ...prev, isOpen: false }))}
+        src={activeMediaModal.src}
+        fileName={activeMediaModal.fileName}
+        mediaType={activeMediaModal.mediaType}
+      />
+    </>
   );
 }
 
 export default EditableArea;
+

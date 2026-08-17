@@ -29,6 +29,60 @@ export function restoreSelection(editableEl, range = savedRange) {
   savedRange = range;
 }
 
+export function ensureActiveSelectionAndFocus(editableEl) {
+  if (!editableEl) return;
+  editableEl.focus();
+  const sel = window.getSelection();
+
+  // 1. Check if active selection is already inside editableEl
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    if (editableEl.contains(range.commonAncestorContainer)) {
+      savedRange = range.cloneRange();
+      return;
+    }
+  }
+
+  // 2. If we have a saved range inside editableEl, restore it
+  if (savedRange && editableEl.contains(savedRange.commonAncestorContainer)) {
+    try {
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+      return;
+    } catch {}
+  }
+
+  // 3. Fallback: Create a valid caret range at the end of the document inside editableEl
+  try {
+    const range = document.createRange();
+    let targetNode = editableEl.lastChild;
+
+    if (!targetNode) {
+      targetNode = document.createElement('p');
+      targetNode.innerHTML = '<br>';
+      editableEl.appendChild(targetNode);
+    }
+
+    if (targetNode.nodeType === Node.TEXT_NODE) {
+      range.setStart(targetNode, targetNode.length);
+    } else if (targetNode.lastChild) {
+      const child = targetNode.lastChild;
+      if (child.nodeType === Node.TEXT_NODE) {
+        range.setStart(child, child.length);
+      } else {
+        range.selectNodeContents(targetNode);
+      }
+    } else {
+      range.selectNodeContents(targetNode);
+    }
+    range.collapse(false);
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    savedRange = range.cloneRange();
+  } catch {}
+}
+
 export function isSelectionCollapsed(range = savedRange) {
   return !range || range.collapsed;
 }
@@ -342,14 +396,14 @@ export function insertBlockAtSelection(html, editableEl) {
   const insertedNodes = Array.from(fragment.childNodes);
   if (insertedNodes.length === 0) return;
 
+  let lastInserted;
+
   if (!block || block === editableEl) {
-    // Caret sits directly in the editable root (e.g. a freshly-emptied
-    // editor) — nothing to split, just insert in place.
+    // Caret sits directly in the editable root — insert in place
+    lastInserted = insertedNodes[insertedNodes.length - 1];
     range.insertNode(fragment);
   } else {
-    // Move everything from the caret to the end of the current block into
-    // a same-tag clone, insert the new nodes between the (now truncated)
-    // original block and that clone.
+    // Move everything from caret to end of block into a clone, insert new nodes
     const afterRange = document.createRange();
     afterRange.setStart(range.startContainer, range.startOffset);
     afterRange.setEndAfter(block.lastChild ?? block);
@@ -373,14 +427,42 @@ export function insertBlockAtSelection(html, editableEl) {
     if (!block.textContent.trim() && block.querySelectorAll('img, video, embed, table, hr').length === 0) {
       block.remove();
     }
+
+    lastInserted = anchor;
   }
 
-  const lastInserted = insertedNodes[insertedNodes.length - 1];
-  const newRange = document.createRange();
-  newRange.setStartAfter(lastInserted);
-  newRange.collapse(true);
+  // Guarantee an editable paragraph (<p><br></p>) exists immediately after lastInserted
+  let targetParagraph = lastInserted.nextSibling;
+  const isEditableParagraph = targetParagraph &&
+    targetParagraph.nodeType === Node.ELEMENT_NODE &&
+    (targetParagraph.tagName === 'P' || targetParagraph.tagName === 'DIV');
+
+  if (!isEditableParagraph) {
+    targetParagraph = document.createElement('p');
+    targetParagraph.innerHTML = '<br>';
+    if (lastInserted.parentNode) {
+      lastInserted.parentNode.insertBefore(targetParagraph, lastInserted.nextSibling);
+    } else {
+      editableEl.appendChild(targetParagraph);
+    }
+  }
+
+  // Place caret directly INSIDE targetParagraph so user can type immediately
+  const caretRange = document.createRange();
+  if (targetParagraph.firstChild) {
+    caretRange.setStart(targetParagraph.firstChild, 0);
+  } else {
+    caretRange.setStart(targetParagraph, 0);
+  }
+  caretRange.collapse(true);
+
   sel.removeAllRanges();
-  sel.addRange(newRange);
+  sel.addRange(caretRange);
+
+  // Focus editable element immediately
+  if (editableEl) {
+    editableEl.focus();
+  }
 }
 
 /**

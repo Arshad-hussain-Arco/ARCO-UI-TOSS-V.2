@@ -1,5 +1,5 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle, Video, RefreshCw, Trash2, Film } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -7,6 +7,18 @@ import { HomeCard } from '@components/home/HomeCard';
 import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
 import { RichEditor } from '@components/home/RichEditor/RichEditor';
 import DOMPurify from 'dompurify';
+
+const MAX_ARTICLE_MEDIA_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm'];
+const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm'];
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /**
  * Helper to strip HTML tags for clean plain text display in cards.
@@ -41,6 +53,7 @@ function HomeManagementPanelComponent() {
   const [personBio, setPersonBio] = useState('');
   const [personFile, setPersonFile] = useState(null);
   const [personPreviewUrl, setPersonPreviewUrl] = useState(null);
+  const [personMediaType, setPersonMediaType] = useState(null); // 'image' | 'video' | null
   const [personWidth, setPersonWidth] = useState('100%'); // '50%' | '100%'
 
   // Content Subtab State
@@ -88,7 +101,11 @@ function HomeManagementPanelComponent() {
     setPersonDesignation('');
     setPersonBio('');
     setPersonFile(null);
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+    }
     setPersonPreviewUrl(null);
+    setPersonMediaType(null);
     setPersonWidth('50%'); // Default is 50% for Person Card
 
     setContentFile(null);
@@ -110,7 +127,11 @@ function HomeManagementPanelComponent() {
     setPersonDesignation('');
     setPersonBio('');
     setPersonFile(null);
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+    }
     setPersonPreviewUrl(null);
+    setPersonMediaType(null);
     setPersonWidth('50%');
 
     setContentFile(null);
@@ -121,7 +142,7 @@ function HomeManagementPanelComponent() {
     setHtmlContent('');
     setHtmlWidth('100%');
 
-    const photoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+    const photoUrl = card.photo ? (card.photo.startsWith('data:') || card.photo.startsWith('http:') ? card.photo : `data:image/jpeg;base64,${card.photo}`) : null;
     const widthVal = card.display_width || '100%';
 
     if (card.card_type === 'person_card') {
@@ -132,6 +153,8 @@ function HomeManagementPanelComponent() {
       setPersonBio(card.bio || '');
       setPersonWidth(widthVal);
       setPersonPreviewUrl(photoUrl);
+      const isVideo = card.media_type === 'video' || (photoUrl && photoUrl.startsWith('data:video/'));
+      setPersonMediaType(isVideo ? 'video' : 'image');
     } else if (card.card_type === 'content_card') {
       setActiveTab('text');
       setActiveSubtab('content');
@@ -172,12 +195,47 @@ function HomeManagementPanelComponent() {
 
   const processPersonFile = (file) => {
     if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isImageMime = ALLOWED_IMAGE_MIME.includes(file.type);
+    const isVideoMime = ALLOWED_VIDEO_MIME.includes(file.type);
+    const isValidExt = ALLOWED_EXTENSIONS.includes(ext);
+
+    const isVideo = isVideoMime || ext === 'mp4' || ext === 'webm';
+    const isImage = isImageMime || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+
+    // 1. Validate file format
+    if (!isValidExt || (!isImage && !isVideo)) {
+      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, WEBP, MP4, or WEBM.');
+      // Do NOT clear existing valid media
+      return;
+    }
+
+    // 2. Validate file size (40 MB limit)
+    if (file.size > MAX_ARTICLE_MEDIA_SIZE_BYTES) {
+      const sizeMb = formatFileSize(file.size);
+      const mediaLabel = isVideo ? 'Video' : 'Image';
+      toast.error(`${mediaLabel} too large — ${sizeMb} selected. Maximum allowed size is 40 MB.`);
+      // Do NOT clear existing valid media
+      return;
+    }
+
+    // 3. Valid file: revoke previous object URL if any
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(personPreviewUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+
     setIsUploading(true);
     setPersonFile(file);
     const url = URL.createObjectURL(file);
     setPersonPreviewUrl(url);
+    setPersonMediaType(isVideo ? 'video' : 'image');
     setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
+    toast.success(`${isVideo ? 'Video' : 'Image'} selected: ${file.name}`);
   };
 
   const processContentFile = (file) => {
@@ -222,7 +280,10 @@ function HomeManagementPanelComponent() {
           payload.append('designation', personDesignation.trim());
           payload.append('bio', personBio.trim());
           payload.append('display_width', personWidth);
-          if (personFile) payload.append('photo', personFile);
+          if (personFile) {
+            payload.append('photo', personFile);
+            if (personMediaType) payload.append('media_type', personMediaType);
+          }
         } else {
           payload.append('card_type', 'content_card');
           payload.append('text_content', contentText.trim());
@@ -261,6 +322,194 @@ function HomeManagementPanelComponent() {
       )
       : !htmlContent.trim()
   );
+
+  const renderArticleMediaZone = () => {
+    return (
+      <div className="ss-modal-form-group">
+        <label className="ss-modal-label" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Article Media</span>
+          <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-tertiary)' }}>
+            Upload an image or video to display with this article.
+          </span>
+        </label>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onDragOver={handleDragOver}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const droppedFile = e.dataTransfer.files?.[0];
+            if (droppedFile) {
+              processPersonFile(droppedFile);
+            }
+          }}
+          style={{
+            border: personPreviewUrl ? '1px solid var(--border-primary)' : '2px dashed var(--border-primary)',
+            borderRadius: '8px',
+            padding: personPreviewUrl ? '0' : '24px 16px',
+            textAlign: 'center',
+            background: 'var(--bg-secondary)',
+            cursor: isUploading ? 'wait' : (personPreviewUrl ? 'default' : 'pointer'),
+            transition: 'all 0.15s ease',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+          onClick={(e) => {
+            if (!personPreviewUrl && !isUploading) {
+              e.stopPropagation();
+              personFileInputRef.current?.click();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (!personPreviewUrl && (e.key === 'Enter' || e.key === ' ') && !isUploading) {
+              e.preventDefault();
+              e.stopPropagation();
+              personFileInputRef.current?.click();
+            }
+          }}
+        >
+          <input
+            type="file"
+            ref={personFileInputRef}
+            accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.webm"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const selected = e.target.files?.[0];
+              if (selected) processPersonFile(selected);
+              e.target.value = '';
+            }}
+          />
+
+          {isUploading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '24px 0' }}>
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--c-primary)' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Processing media...
+              </span>
+            </div>
+          ) : personPreviewUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {/* Media Preview Box */}
+              <div style={{ background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '240px', overflow: 'hidden' }}>
+                {personMediaType === 'video' || (personPreviewUrl && personPreviewUrl.startsWith('data:video/')) ? (
+                  <video
+                    controls
+                    preload="metadata"
+                    playsInline
+                    src={personPreviewUrl}
+                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                  />
+                ) : (
+                  <img
+                    src={personPreviewUrl}
+                    alt="Article media preview"
+                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                  />
+                )}
+              </div>
+
+              {/* Metadata & Actions Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: 'var(--surface-primary)',
+                borderTop: '1px solid var(--border-primary)',
+                gap: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  {personMediaType === 'video' ? (
+                    <Video size={16} style={{ color: 'var(--c-primary)', flexShrink: 0 }} />
+                  ) : (
+                    <ImageIcon size={16} style={{ color: 'var(--c-primary)', flexShrink: 0 }} />
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {personFile ? personFile.name : 'Article Media'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                      {personMediaType === 'video' ? 'Video' : 'Image'} {personFile ? `• ${formatFileSize(personFile.size)}` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      personFileInputRef.current?.click();
+                    }}
+                  >
+                    <RefreshCw size={12} />
+                    <span>Replace</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--c-danger, #dc2626)',
+                      background: 'rgba(220, 38, 38, 0.08)',
+                      border: '1px solid rgba(220, 38, 38, 0.2)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+                        try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+                      }
+                      setPersonFile(null);
+                      setPersonPreviewUrl(null);
+                      setPersonMediaType(null);
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>Remove</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Drag & drop media here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                Supports PNG, JPG, JPEG, WEBP, MP4, WEBM
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Maximum file size: 40 MB
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderUploadZone = (inputRef, file, previewUrl, onSelect, label, helperText) => {
     return (
@@ -740,15 +989,8 @@ function HomeManagementPanelComponent() {
                         {/* Card Display Width */}
                         {renderWidthSelector(personWidth, setPersonWidth)}
 
-                        {/* Upload Person Image */}
-                        {renderUploadZone(
-                          personFileInputRef,
-                          personFile,
-                          personPreviewUrl,
-                          processPersonFile,
-                          "Upload Article Image",
-                          "Supports PNG, JPG, JPEG, WEBP"
-                        )}
+                        {/* Article Media Upload */}
+                        {renderArticleMediaZone()}
 
                         {/* Person Name */}
                         <div className="ss-modal-form-group">
