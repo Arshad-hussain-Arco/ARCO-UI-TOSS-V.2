@@ -947,7 +947,7 @@
   align-items: center;
   gap: 7px;
   padding: 5px 8px;
-  background: var(--surface-primary);
+  background:   var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 5px;
   font-size: 11px;
