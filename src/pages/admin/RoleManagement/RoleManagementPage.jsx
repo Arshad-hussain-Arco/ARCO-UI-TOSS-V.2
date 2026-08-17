@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Fragment } from 'react';
 import {
   Plus,
   Search,
@@ -589,19 +589,20 @@ export function RoleManagementPage() {
 
         <div className="rm-table-wrapper">
           <table className="rm-roles-table">
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '35%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: '20%' }}>Role Name</th>
-                <th style={{ width: '35%' }}>Description</th>
-                <th style={{ width: '15%' }} className="text-center">
-                  Permission Count
-                </th>
-                <th style={{ width: '10%' }} className="text-center">
-                  Admin
-                </th>
-                <th style={{ width: '20%' }} className="text-right">
-                  Actions
-                </th>
+                <th>Role Name</th>
+                <th>Description</th>
+                <th className="text-center">Permission Count</th>
+                <th className="text-center">Admin</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -678,41 +679,28 @@ export function RoleManagementPage() {
                                 <div className="rm-action-btns">
                                   <button
                                     type="button"
-                                    className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
-                                    {...activatable(() => handleToggleConfigure(role.id), {
-                                      label: `Configure permissions for ${role.name}`,
-                                      isExpanded,
+                                    className="rm-btn-sm-close"
+                                    disabled={isSaving}
+                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                    {...activatable(() => handleCancelClick(role.id), {
+                                      label: 'Cancel permission changes',
                                     })}
                                   >
-                                    {/* <Edit size={13} /> */}
-                                    <span>Configure</span>
-                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                    Cancel
                                   </button>
-
                                   <button
                                     type="button"
-                                    className="action-icon-btn delete"
-                                    title="Delete Role"
-                                    {...activatable(() => handleDeleteRole(role.id), {
-                                      label: `Delete ${role.name}`,
+                                    className="rm-btn-primary"
+                                    disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
+                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
+                                    {...activatable(() => handleUpdateRole(role), {
+                                      label: 'Save permission changes',
                                     })}
                                   >
-                                    <Trash size={13} />
-                                    {/* <span>Delete</span> */}
+                                    {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                                    <span style={{ marginLeft: '4px' }}>Save Changes</span>
                                   </button>
                                 </div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-
-                        {/* Inline Accordion Expandable Permissions Matrix Panel */}
-                        {isExpanded && (
-                          <div className="rm-accordion-panel">
-                            <div className="rm-accordion-header">
-                              <div className="rm-acc-title-wrap">
-                                <h3>Functions & Permission Matrix — {role.name}</h3>
-                                <p>Click any toggle button to switch between Allow and Deny.</p>
                               </div>
                               <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>Global Permissions:</span>

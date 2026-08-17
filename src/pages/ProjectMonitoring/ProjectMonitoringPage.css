@@ -2315,7 +2315,7 @@
 /* ── Floating Hover Tooltip ──────────────────────────────────────────────── */
 .pm-progress-tooltip {
   position: fixed;
-  z-index: 9999;
+  z-index: 10050;
   background: var(--text-primary);
   color: var(--surface-primary);
   padding: 8px 12px;

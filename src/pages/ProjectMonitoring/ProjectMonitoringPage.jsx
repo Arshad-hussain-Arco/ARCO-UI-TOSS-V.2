@@ -367,7 +367,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.woId || p.id}</span>
                       </td>
-                      <td style={{ maxWidth: 220 }}>
+                      <td className="pm-col-summary" style={{ maxWidth: 220 }}>
                         <ProjectSummary summary={p.summary} />
                       </td>
                       <td>
@@ -389,7 +389,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
                       </td>
-                      <td style={{ maxWidth: 220 }}>
+                      <td className="pm-col-summary" style={{ maxWidth: 220 }}>
                         <ProjectSummary summary={p.summary} />
                       </td>
                       <td>

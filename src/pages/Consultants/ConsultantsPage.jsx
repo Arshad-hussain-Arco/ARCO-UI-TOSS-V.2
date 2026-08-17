@@ -580,7 +580,7 @@ export function ConsultantsPage() {
             />
           )}
           {activeTab === 'teams' && (
-            <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} />
+            <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} employeesData={employeesData} />
           )}
         </div>
       </div>
