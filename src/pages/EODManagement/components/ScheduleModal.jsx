@@ -20,6 +20,26 @@ const QUARTERS = [
   { label: 'Q4', months: 10, range: 'Oct – Dec' },
 ];
 
+// Which month within a quarter the job should run in. `offset` is added to
+// each quarter's anchor month (Jan/Apr/Jul/Oct) to get the actual cron month.
+const QUARTER_POSITIONS = [
+  { value: 'first', label: 'First Month', offset: 0 },
+  { value: 'mid', label: 'Middle Month', offset: 1 },
+  { value: 'last', label: 'Last Month', offset: 2 },
+];
+
+const MONTH_SHORT_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/** Resolves the actual cron month numbers for the selected quarters + position. */
+function getQuarterMonths(selectedQuarters, quarterPosition) {
+  const offset = QUARTER_POSITIONS.find((p) => p.value === quarterPosition)?.offset ?? 0;
+  return (selectedQuarters || [1, 4, 7, 10])
+    .map((anchor) => anchor + offset)
+    .sort((a, b) => a - b);
+}
+
 const MONTHS = [
   { value: 1, label: 'January', days: 31 },
   { value: 2, label: 'February', days: 29 },
@@ -36,6 +56,90 @@ const MONTHS = [
 ];
 
 
+const DAY_OF_WEEK_MAP = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+/** Actual number of days in a given month (1-12), accounting for leap years. */
+function daysInMonth(month, year = new Date().getFullYear()) {
+  return new Date(year, month, 0).getDate();
+}
+
+/**
+ * Resolves the 'L' (last day of month) sentinel to a concrete day number.
+ * Standard cron has no "last day" token, so this must be a real digit.
+ * For a single target month, that's just that month's day count.
+ * For multiple months (Quarterly), a single day-of-month field has to be
+ * valid across all of them, so we use the smallest day count among the
+ * selected months (e.g. Jan/Apr/Jul/Oct -> 30, since April only has 30 days).
+ */
+function resolveDayOfMonth(selectedDayOfMonth, months) {
+  if (selectedDayOfMonth !== 'L') {
+    return selectedDayOfMonth || 1;
+  }
+  const monthList = Array.isArray(months) ? months : [months];
+  return Math.min(...monthList.map((m) => daysInMonth(m)));
+}
+
+/**
+ * Builds a standard 5-field cron expression: "minute hour day_of_month month day_of_week"
+ * from the modal's recurrence form state. Only numeric values, *, ranges, and
+ * comma lists are used since the backend validator requires standard cron syntax.
+ */
+function buildCronExpression(form) {
+  const [hh, mm] = (form.time || '00:00').split(':');
+  const minute = parseInt(mm, 10);
+  const hour = parseInt(hh, 10);
+  const safeMinute = Number.isNaN(minute) ? 0 : minute;
+  const safeHour = Number.isNaN(hour) ? 0 : hour;
+
+  switch (form.recurrence) {
+    case 'Daily':
+      return `${safeMinute} ${safeHour} * * *`;
+
+    case 'Weekly': {
+      const days = (form.selectedDays || [])
+        .map((d) => DAY_OF_WEEK_MAP[d])
+        .filter((d) => d !== undefined)
+        .sort((a, b) => a - b);
+      const dow = days.length ? days.join(',') : '*';
+      return `${safeMinute} ${safeHour} * * ${dow}`;
+    }
+
+    case 'Monthly': {
+      const currentMonth = new Date().getMonth() + 1;
+      const dom = resolveDayOfMonth(form.selectedDayOfMonth, currentMonth);
+      return `${safeMinute} ${safeHour} ${dom} * *`;
+    }
+
+    case 'Quarterly': {
+      const months = getQuarterMonths(form.selectedQuarters, form.quarterPosition);
+      const dom = resolveDayOfMonth(form.selectedDayOfMonth, months);
+      return `${safeMinute} ${safeHour} ${dom} ${months.join(',')} *`;
+    }
+
+    case 'Annually': {
+      const month = form.selectedMonth || 1;
+      const dom = resolveDayOfMonth(form.selectedDayOfMonth, month);
+      return `${safeMinute} ${safeHour} ${dom} ${month} *`;
+    }
+
+    case 'Custom / One-time': {
+      const d = form.selectedDate ? new Date(form.selectedDate) : new Date();
+      return `${safeMinute} ${safeHour} ${d.getDate()} ${d.getMonth() + 1} *`;
+    }
+
+    default:
+      return `${safeMinute} ${safeHour} * * *`;
+  }
+}
+
 export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave }) {
   const initialDate = schedule?.selectedDate ? new Date(schedule.selectedDate) : new Date();
 
@@ -51,6 +155,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
     selectedQuarters: Array.isArray(schedule?.selectedQuarters)
       ? schedule.selectedQuarters
       : [1, 4, 7, 10], // default: all quarters
+    quarterPosition: schedule?.quarterPosition || 'first',
     time: schedule?.time || '22:00',
     recurrence: schedule?.recurrence || 'Daily',
   });
@@ -70,6 +175,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
         selectedQuarters: Array.isArray(schedule.selectedQuarters)
           ? schedule.selectedQuarters
           : [1, 4, 7, 10],
+        quarterPosition: schedule.quarterPosition || 'first',
         time: schedule.time || '22:00',
         recurrence: schedule.recurrence || 'Daily',
       });
@@ -156,6 +262,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
         ...form,
         selectedDate: annualDate,
         dayOfWeek: (form.selectedDays || []).join(', '),
+        cronExpression: buildCronExpression(form),
       });
     } finally {
       setIsSaving(false);
@@ -421,6 +528,48 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
                   })}
                 </div>
                 {errors.selectedQuarters && <span className="eod-field-error">{errors.selectedQuarters}</span>}
+              </div>
+
+              {/* Position within quarter: which month the job actually runs in */}
+              <div className="eod-modal-field">
+                <label className="eod-modal-label">
+                  Run In <span className="req">*</span>
+                </label>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  {QUARTER_POSITIONS.map(({ value, label }) => {
+                    const isSelected = (form.quarterPosition || 'first') === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setForm({ ...form, quarterPosition: value })}
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          border: isSelected
+                            ? '1px solid var(--c-primary, #005a36)'
+                            : '1px solid var(--border-color)',
+                          background: isSelected
+                            ? 'var(--c-primary, #005a36)'
+                            : 'var(--bg-secondary)',
+                          color: isSelected ? 'var(--surface-primary)' : 'var(--text-primary)',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, display: 'block' }}>
+                  Runs in {getQuarterMonths(form.selectedQuarters, form.quarterPosition)
+                    .map((m) => MONTH_SHORT_NAMES[m - 1])
+                    .join(', ')}
+                </span>
               </div>
 
               {/* Day of month + time */}
