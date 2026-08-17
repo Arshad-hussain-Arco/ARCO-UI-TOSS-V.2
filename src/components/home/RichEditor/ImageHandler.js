@@ -1,16 +1,10 @@
-import { readFileAsDataUrl, assertWithinSizeLimit, escapeAttr } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, uploadMediaFile } from './mediaUtils';
 
 const MAX_IMAGE_MB = 40;
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_IMAGE_MB);
-  let url;
-  if (typeof URL !== 'undefined' && URL.createObjectURL) {
-    url = URL.createObjectURL(file);
-  } else {
-    url = await readFileAsDataUrl(file);
-  }
-  return { url, filename: file.name, filesize: file.size, mime: file.type };
+  return uploadMediaFile(file);
 }
 
 export function isImageFile(file) {

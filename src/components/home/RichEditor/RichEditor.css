@@ -434,7 +434,12 @@
 
 .rte-align-left { float: left; margin-right: 16px; }
 .rte-align-right { float: right; margin-left: 16px; }
-.rte-align-center { display: block; margin-left: auto; margin-right: auto; float: none; }
+/* width: fit-content keeps the wrapper shrunk to the image/video's actual
+   size instead of stretching to 100% (the default for a block box with no
+   explicit width) — without it, resize handles (positioned against the
+   wrapper's edges) land at the far edge of the editor instead of on the
+   media itself. */
+.rte-align-center { display: block; width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto; float: none; }
 
 .rte-img-remove-btn {
   position: absolute;
@@ -493,13 +498,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   padding: 10px 14px;
   background: var(--surface-primary, #ffffff);
   border: 1px solid var(--border-primary, #e2e8f0);
   border-radius: 8px;
   margin: 12px 0;
-  max-width: 720px;
+  max-width: 100%;
   box-sizing: border-box;
   text-align: left;
 }
@@ -510,6 +516,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* PDF/attachment cards' pictorial file-type icon (fileTypeIcons.js) —
+   colored per format (red PDF, blue Word, green Excel, orange PowerPoint,
+   gray Zip), no letters baked into the icon itself. */
+.rte-filetype-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .rte-media-card-info {
@@ -529,6 +544,18 @@
   text-overflow: ellipsis;
 }
 
+/* Filename doubles as a View trigger for PDFs and previewable Office
+   attachments (xlsx/docx/pptx) — same click target as the View button. */
+.rte-media-card-name.rte-pdf-view-trigger,
+.rte-media-card-name.rte-office-view-trigger {
+  cursor: pointer;
+}
+
+.rte-media-card-name.rte-pdf-view-trigger:hover,
+.rte-media-card-name.rte-office-view-trigger:hover {
+  text-decoration: underline;
+}
+
 .rte-media-card-size {
   font-size: 11px;
   color: var(--text-tertiary, #64748b);
@@ -538,9 +565,9 @@
 .rte-media-card-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  flex: 0 0 auto;
-  white-space: nowrap;
+  flex: 0 1 auto;
 }
 
 .rte-btn-sm {
@@ -658,6 +685,38 @@
 
 .rte-video-actions {
   flex: 0 0 auto;
+}
+
+/* Upload-in-flight placeholder — shown while ingestFile()'s network upload
+   is pending, swapped for the real markup (or removed on failure) once it
+   settles. See mediaUtils.js's buildUploadingPlaceholder(). */
+.rte-media-uploading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 16px auto;
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-secondary, #f8fafc);
+  color: var(--text-secondary, #475569);
+  font-size: 13px;
+}
+
+.rte-spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid var(--border-primary, #e2e8f0);
+  border-top-color: var(--c-brand, #2563eb);
+  border-radius: 50%;
+  animation: rte-spin 0.7s linear infinite;
+}
+
+@keyframes rte-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Tables inside the editable surface */

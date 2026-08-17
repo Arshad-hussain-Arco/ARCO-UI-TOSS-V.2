@@ -2,17 +2,23 @@ import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Image as ImageIcon } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
+import { stripEditorControls, rebuildPublicMediaActions } from './RichEditor/mediaUtils';
 import './HomeCard.css';
 
 /**
  * DOMPurify configuration extending default allowlist for media cards.
  */
 const HOME_CARD_SANITIZE_CONFIG = {
-  ADD_TAGS: ['embed', 'video', 'source', 'button'],
+  // svg/path/rect/circle (fileTypeIcons.js's inline file-type icons) are
+  // already in DOMPurify's default allowlist, but listed explicitly here
+  // too so this stays correct if that default ever changes.
+  ADD_TAGS: ['embed', 'video', 'source', 'button', 'svg', 'path', 'rect', 'circle'],
   ADD_ATTR: [
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',
     'data-mime', 'data-pdf-src', 'data-pdf-name',
+    'data-office-src', 'data-office-name',
+    'viewBox', 'aria-hidden', 'focusable', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
   ],
   ADD_DATA_URI_TAGS: ['embed', 'a', 'video', 'source'],
 };
@@ -69,6 +75,18 @@ export function HomeCard({ card, className = '', style = {} }) {
       if (pdfSrc) {
         setActiveMediaModal({ isOpen: true, src: pdfSrc, fileName: pdfName, mediaType: 'pdf' });
       }
+      return;
+    }
+
+    const officeBtn = e.target.closest('.rte-office-view-trigger');
+    if (officeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const officeSrc = officeBtn.dataset.officeSrc || officeBtn.closest('.rte-media-card, .rte-attachment-card')?.dataset.src;
+      const officeName = officeBtn.dataset.officeName || officeBtn.closest('.rte-media-card, .rte-attachment-card')?.dataset.filename || 'Document';
+      if (officeSrc) {
+        setActiveMediaModal({ isOpen: true, src: officeSrc, fileName: officeName, mediaType: 'office' });
+      }
     }
   };
 
@@ -78,7 +96,7 @@ export function HomeCard({ card, className = '', style = {} }) {
         <div
           className="home-card-html-content"
           onClick={handleContentClick}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rawHtml || '', HOME_CARD_SANITIZE_CONFIG) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rebuildPublicMediaActions(stripEditorControls(rawHtml || '')), HOME_CARD_SANITIZE_CONFIG) }}
         />
       );
     }

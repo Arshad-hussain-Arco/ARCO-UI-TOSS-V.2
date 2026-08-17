@@ -424,7 +424,16 @@ export function insertBlockAtSelection(html, editableEl) {
       block.parentNode.insertBefore(afterBlock, anchor.nextSibling);
     }
 
-    if (!block.textContent.trim() && block.querySelectorAll('img, video, embed, table, hr').length === 0) {
+    // Only drop the now-empty original block if something existed before it.
+    // When the media is inserted at the very start of the editor (block was
+    // the sole leading <p><br></p>), removing it here would leave the media
+    // block — contenteditable="false" — as the editor's first child with no
+    // text node above it, so the caret could never be placed there again.
+    if (
+      !block.textContent.trim() &&
+      block.querySelectorAll('img, video, embed, table, hr').length === 0 &&
+      block.previousSibling
+    ) {
       block.remove();
     }
 

@@ -16,13 +16,21 @@ export const RTE_SANITIZE_CONFIG = {
     'blockquote', 'hr',
     'table', 'thead', 'tbody', 'tr', 'td', 'th',
     'figure', 'figcaption',
+    // Inline file-type icons (fileTypeIcons.js) baked into PDF/attachment
+    // card markup — pictorial only, built from these three primitives.
+    'svg', 'path', 'rect', 'circle',
   ],
   ALLOWED_ATTR: [
     'href', 'target', 'rel', 'src', 'alt', 'title', 'style', 'class',
     'colspan', 'rowspan', 'controls', 'type', 'poster', 'download',
     'data-filename', 'data-filesize', 'data-mime', 'data-checked',
     'data-media-type', 'data-src', 'data-pdf-src', 'data-pdf-name',
+    'data-media-id', 'data-office-src', 'data-office-name',
     'preload', 'playsinline', 'contenteditable', 'width', 'height',
+    // SVG icon attributes
+    'viewBox', 'xmlns', 'aria-hidden', 'focusable', 'd', 'fill', 'stroke',
+    'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'x', 'y', 'rx', 'ry',
+    'cx', 'cy', 'r',
   ],
   ALLOWED_URI_REGEXP: /^(?:(?:https?|data|blob|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i,
   // DOMPurify's own default data-URI allowlist (audio/video/img/source/

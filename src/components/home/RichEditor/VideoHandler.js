@@ -1,17 +1,12 @@
-import { readFileAsDataUrl, assertWithinSizeLimit, escapeAttr, formatFileSize } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
 
 const MAX_VIDEO_MB = 40;
 const ACCEPTED_MIME = ['video/mp4', 'video/webm', 'video/ogg'];
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_VIDEO_MB);
-  let url;
-  if (typeof URL !== 'undefined' && URL.createObjectURL) {
-    url = URL.createObjectURL(file);
-  } else {
-    url = await readFileAsDataUrl(file);
-  }
-  return { url, filename: file.name, filesize: file.size, mime: file.type || 'video/mp4' };
+  const result = await uploadMediaFile(file);
+  return { ...result, mime: result.mime || 'video/mp4' };
 }
 
 export function isSupportedVideoFile(file) {

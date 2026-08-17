@@ -14,7 +14,7 @@ import { EditableArea } from './EditableArea';
 import { Preview } from './Preview';
 import './RichEditor.css';
 
-import { formatFileSize } from './mediaUtils';
+import { formatFileSize, buildUploadingPlaceholder, fileKindLabel } from './mediaUtils';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -196,10 +196,23 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       return;
     }
 
+    const { id: placeholderId, html: placeholderHtml } = buildUploadingPlaceholder(fileKindLabel(file));
+    insertMediaHtml(placeholderHtml);
+
     try {
       const ingested = await handler.ingestFile(file);
-      insertMediaHtml(buildMarkup(ingested, file));
+      const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
+      const finalHtml = buildMarkup(ingested, file);
+      if (placeholder) {
+        placeholder.outerHTML = finalHtml;
+      } else {
+        insertMediaHtml(finalHtml);
+      }
+      history.checkpointNow();
+      flushOutwardNow();
     } catch (err) {
+      editableRef.current?.querySelector(`#${placeholderId}`)?.remove();
+      flushOutwardNow();
       toast?.error?.(err.message || 'Failed to insert file.');
     }
   };

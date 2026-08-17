@@ -1,4 +1,5 @@
 import { sanitizeEditorHtml } from './sanitize';
+import { stripEditorControls, rebuildPublicMediaActions } from './mediaUtils';
 
 /**
  * Read-only panel rendering the sanitized generated HTML exactly as the
@@ -13,7 +14,7 @@ export function Preview({ html }) {
       <div className="rte-preview-label">Generated HTML preview</div>
       <div
         className="home-card-html-content rte-preview-content"
-        dangerouslySetInnerHTML={{ __html: sanitizeEditorHtml(html || '') }}
+        dangerouslySetInnerHTML={{ __html: rebuildPublicMediaActions(stripEditorControls(sanitizeEditorHtml(html || ''))) }}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
 import { buildGrid, findCellPosition, findAncestorTable, findAncestorCell } from './TableHandler';
+import { buildUploadingPlaceholder, fileKindLabel, deleteMediaFile } from './mediaUtils';
 import { indent, outdent } from './commands';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
 
@@ -121,25 +122,96 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
   }, []);
 
   const insertFileAsMarkup = async (file) => {
+    let handler;
+    let buildMarkup;
+    if (ImageHandler.isImageFile(file)) {
+      handler = ImageHandler;
+      buildMarkup = (ing) => ImageHandler.buildImageMarkup({ url: ing.url, alt: file.name });
+    } else if (VideoHandler.isSupportedVideoFile(file)) {
+      handler = VideoHandler;
+      buildMarkup = (ing) => VideoHandler.buildVideoMarkup({ url: ing.url, mime: ing.mime });
+    } else if (PdfHandler.isPdfFile(file)) {
+      handler = PdfHandler;
+      buildMarkup = (ing) => PdfHandler.buildPdfMarkup(ing);
+    } else if (AttachmentHandler.isSupportedAttachment(file)) {
+      handler = AttachmentHandler;
+      buildMarkup = (ing) => AttachmentHandler.buildAttachmentMarkup(ing);
+    } else {
+      toast?.error?.(`Unsupported file type: ${file.name}`);
+      return;
+    }
+
+    const { id: placeholderId, html: placeholderHtml } = buildUploadingPlaceholder(fileKindLabel(file));
+    insertMediaHtml(placeholderHtml);
+
     try {
-      if (ImageHandler.isImageFile(file)) {
-        const ingested = await ImageHandler.ingestFile(file);
-        insertMediaHtml(ImageHandler.buildImageMarkup({ url: ingested.url, alt: file.name }));
-      } else if (VideoHandler.isSupportedVideoFile(file)) {
-        const ingested = await VideoHandler.ingestFile(file);
-        insertMediaHtml(VideoHandler.buildVideoMarkup({ url: ingested.url, mime: ingested.mime }));
-      } else if (PdfHandler.isPdfFile(file)) {
-        const ingested = await PdfHandler.ingestFile(file);
-        insertMediaHtml(PdfHandler.buildPdfMarkup(ingested));
-      } else if (AttachmentHandler.isSupportedAttachment(file)) {
-        const ingested = await AttachmentHandler.ingestFile(file);
-        insertMediaHtml(AttachmentHandler.buildAttachmentMarkup(ingested));
+      const ingested = await handler.ingestFile(file);
+      const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
+      const finalHtml = buildMarkup(ingested);
+      if (placeholder) {
+        placeholder.outerHTML = finalHtml;
       } else {
-        toast?.error?.(`Unsupported file type: ${file.name}`);
+        insertMediaHtml(finalHtml);
       }
+      flushOutwardNow();
     } catch (err) {
+      editableRef.current?.querySelector(`#${placeholderId}`)?.remove();
+      flushOutwardNow();
       toast?.error?.(err.message || 'Failed to insert file.');
     }
+  };
+
+  // Config for the "Replace" button on PDF/attachment cards (Image/Video
+  // don't have one — the media itself is already visible in-editor, unlike
+  // a PDF/attachment card which only shows a filename).
+  const MEDIA_REPLACE_CONFIG = {
+    pdf: { accept: 'application/pdf', handler: PdfHandler, buildMarkup: (ing) => PdfHandler.buildPdfMarkup(ing) },
+    attachment: {
+      accept: '.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip',
+      handler: AttachmentHandler,
+      buildMarkup: (ing) => AttachmentHandler.buildAttachmentMarkup(ing),
+    },
+  };
+
+  const replaceMediaBlock = (targetBlock, mediaType) => {
+    const config = MEDIA_REPLACE_CONFIG[mediaType];
+    if (!config) return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = config.accept;
+    input.style.display = 'none';
+    input.addEventListener('cancel', () => input.remove());
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+
+      const oldMediaId = targetBlock.dataset.mediaId;
+      const { id: placeholderId, html: placeholderHtml } = buildUploadingPlaceholder(fileKindLabel(file));
+      targetBlock.outerHTML = placeholderHtml;
+
+      try {
+        const ingested = await config.handler.ingestFile(file);
+        const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
+        const finalHtml = config.buildMarkup(ingested);
+        if (placeholder) {
+          placeholder.outerHTML = finalHtml;
+        } else {
+          insertMediaHtml(finalHtml);
+        }
+        history.checkpointNow();
+        flushOutwardNow();
+        // Best-effort — the old file is now unreferenced either way.
+        if (oldMediaId) deleteMediaFile(oldMediaId);
+      } catch (err) {
+        editableRef.current?.querySelector(`#${placeholderId}`)?.remove();
+        flushOutwardNow();
+        toast?.error?.(err.message || 'Failed to replace file.');
+      }
+    });
+    document.body.appendChild(input);
+    input.click();
   };
 
   const handleInput = () => {
@@ -267,10 +339,25 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
         if (src && src.startsWith('blob:')) {
           try { URL.revokeObjectURL(src); } catch {}
         }
+        const mediaId = targetBlock.dataset.mediaId;
         history.checkpointNow();
         targetBlock.remove();
         history.checkpointNow();
         flushOutwardNow();
+        // Best-effort backend cleanup — doesn't block the DOM removal above.
+        if (mediaId) deleteMediaFile(mediaId);
+      }
+      return;
+    }
+
+    const replaceBtn = e.target.closest?.('.rte-media-replace-btn');
+    if (replaceBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetBlock = replaceBtn.closest('.rte-media-card, .rte-pdf-wrap, .rte-attachment-card');
+      const mediaType = replaceBtn.dataset.mediaType;
+      if (targetBlock && mediaType) {
+        replaceMediaBlock(targetBlock, mediaType);
       }
       return;
     }
@@ -283,6 +370,18 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
       const pdfName = pdfBtn.dataset.pdfName || pdfBtn.closest('.rte-media-card, .rte-pdf-card, .rte-pdf-wrap')?.dataset.filename || 'Document.pdf';
       if (pdfSrc) {
         setActiveMediaModal({ isOpen: true, src: pdfSrc, fileName: pdfName, mediaType: 'pdf' });
+      }
+      return;
+    }
+
+    const officeBtn = e.target.closest?.('.rte-office-view-trigger');
+    if (officeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const officeSrc = officeBtn.dataset.officeSrc || officeBtn.closest('.rte-media-card, .rte-attachment-card')?.dataset.src;
+      const officeName = officeBtn.dataset.officeName || officeBtn.closest('.rte-media-card, .rte-attachment-card')?.dataset.filename || 'Document';
+      if (officeSrc) {
+        setActiveMediaModal({ isOpen: true, src: officeSrc, fileName: officeName, mediaType: 'office' });
       }
       return;
     }
