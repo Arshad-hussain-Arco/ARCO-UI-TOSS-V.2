@@ -8,6 +8,7 @@ import {
   ShieldAlert,
   Edit,
   Trash,
+  Trash2,
   ChevronDown,
   ChevronUp,
   X,
@@ -300,7 +301,7 @@ export function RoleManagementPage() {
   const handleToggleModuleModal = (allModuleCodes, toggleCodes, isViewAllowed) => {
     const removeCodes = allModuleCodes.map(c => c.code);
     const addCodes = toggleCodes.map(c => c.code);
-    
+
     if (isViewAllowed) {
       // Turning OFF: remove ALL codes for this module
       setNewRoleCodes(prev => prev.filter(c => !removeCodes.includes(c)));
@@ -385,6 +386,8 @@ export function RoleManagementPage() {
       setIsSaving(false);
     }
   };
+
+
 
   // Toggle Inline Accordion for Row
   const handleToggleConfigure = (id) => {
@@ -509,52 +512,7 @@ export function RoleManagementPage() {
   return (
     <div className="rm-container">
       {/* ── Top Header & KPI Summary Bar ────────────────────────────────────────── */}
-      <div className="rm-header">
 
-
-        {/* 4 Compact Stat Cards */}
-        <div className="rm-kpi-grid">
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon blue">
-              <Users size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.total_users}</div>
-              <div className="rm-kpi-lbl">Total Users</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon green">
-              <ShieldCheck size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.admin_roles}</div>
-              <div className="rm-kpi-lbl">Admin Roles</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon purple">
-              <Lock size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.assigned_roles}</div>
-              <div className="rm-kpi-lbl">Assigned Roles</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon amber">
-              <ShieldAlert size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.unassigned_roles}</div>
-              <div className="rm-kpi-lbl">Unassigned Roles</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── Main Section (Search & Existing Roles List Table) ────────────────── */}
       <div className="rm-main-section">
@@ -675,33 +633,43 @@ export function RoleManagementPage() {
                                 </div>
                               </td>
 
-                              <td style={{ width: '20%' }} className="text-right">
-                                <div className="rm-action-btns">
+                              <td className="text-center">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                   <button
                                     type="button"
-                                    className="rm-btn-sm-close"
-                                    disabled={isSaving}
-                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
-                                    {...activatable(() => handleCancelClick(role.id), {
-                                      label: 'Cancel permission changes',
+                                    className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
+                                    {...activatable(() => handleToggleConfigure(role.id), {
+                                      label: `Configure permissions for ${role.name}`,
+                                      isExpanded,
                                     })}
                                   >
-                                    Cancel
+                                    {/* <Edit size={13} /> */}
+                                    <span>Configure</span>
+                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                                   </button>
+
                                   <button
                                     type="button"
-                                    className="rm-btn-primary"
-                                    disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
-                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
-                                    {...activatable(() => handleUpdateRole(role), {
-                                      label: 'Save permission changes',
+                                    className="action-icon-btn delete"
+                                    title="Delete Role"
+                                    {...activatable(() => handleDeleteRole(role.id), {
+                                      label: `Delete ${role.name}`,
                                     })}
                                   >
-                                    {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-                                    <span style={{ marginLeft: '4px' }}>Save Changes</span>
+                                    <Trash size={13} />
+                                    {/* <span>Delete</span> */}
                                   </button>
                                 </div>
-                              </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Inline Accordion Permissions Matrix */}
+                        {isExpanded && (
+                          <div className="rm-expanded-content" style={{ padding: '16px 20px', background: 'var(--surface-primary)', borderTop: '1px solid var(--border-primary)' }}>
+                            <div className="rm-acc-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Configure Permissions</h4>
                               <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>Global Permissions:</span>
                                 <button type="button" className="rm-btn-allow-all" onClick={() => handleAllowAllInline(role.id)}>Allow All</button>
@@ -752,11 +720,11 @@ export function RoleManagementPage() {
                               {PERMISSION_CATALOG.map(({ module, codes }) => {
                                 const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                                 const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
-                                
-                                const isViewAllowed = viewCodeObj 
+
+                                const isViewAllowed = viewCodeObj
                                   ? role.permissions.includes(viewCodeObj.code)
                                   : codes.every(c => role.permissions.includes(c.code));
-                                  
+
                                 const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
                                 return (
@@ -779,8 +747,8 @@ export function RoleManagementPage() {
                                         nonViewCodes.map(({ code, label }) => {
                                           const isAllow = role.permissions.includes(code);
                                           return (
-                                            <div 
-                                              className="rm-perm-box" 
+                                            <div
+                                              className="rm-perm-box"
                                               key={code}
                                               style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                             >
@@ -1035,11 +1003,11 @@ export function RoleManagementPage() {
                     {PERMISSION_CATALOG.map(({ module, codes }) => {
                       const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                       const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
-                      
-                      const isViewAllowed = viewCodeObj 
+
+                      const isViewAllowed = viewCodeObj
                         ? newRoleCodes.includes(viewCodeObj.code)
                         : codes.every(c => newRoleCodes.includes(c.code));
-                        
+
                       const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
                       return (
@@ -1062,8 +1030,8 @@ export function RoleManagementPage() {
                               nonViewCodes.map(({ code, label }) => {
                                 const isAllow = newRoleCodes.includes(code);
                                 return (
-                                  <div 
-                                    className="rm-perm-box" 
+                                  <div
+                                    className="rm-perm-box"
                                     key={code}
                                     style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                   >

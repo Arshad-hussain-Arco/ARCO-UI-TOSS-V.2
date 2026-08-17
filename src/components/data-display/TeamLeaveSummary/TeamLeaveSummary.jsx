@@ -61,8 +61,18 @@ function calcRemaining(c) {
   return c.leaveQuota - c.annualLeaveUsed - c.sickLeaveUsed;
 }
 function calcUtilization(c) {
-  return c.leaveQuota > 0
-    ? Math.round(((c.annualLeaveUsed + c.sickLeaveUsed) / c.leaveQuota) * 100)
+  if (!c.leaveTypes || c.leaveTypes.length === 0) return 0;
+
+  const totalQuota = c.leaveTypes
+    .filter(leave => !leave.is_unlimited)
+    .reduce((sum, leave) => sum + (Number(leave.entitled) || 0), 0);
+
+  const totalBooked = c.leaveTypes
+    .filter(leave => !leave.is_unlimited)
+    .reduce((sum, leave) => sum + (Number(leave.booked) || 0), 0);
+
+  return totalQuota > 0
+    ? Number(((totalBooked / totalQuota) * 100).toFixed(2))
     : 0;
 }
 function getDeptStats(dept) {
