@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, Plus, Loader2 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
+import { formToCronList } from '@utils/cronUtils';
 
 const WEEKDAYS = [
   { label: 'Mon', full: 'Monday' },
@@ -56,95 +57,12 @@ const MONTHS = [
 ];
 
 
-const DAY_OF_WEEK_MAP = {
-  Sunday: 0,
-  Monday: 1,
-  Tuesday: 2,
-  Wednesday: 3,
-  Thursday: 4,
-  Friday: 5,
-  Saturday: 6,
-};
-
-/** Actual number of days in a given month (1-12), accounting for leap years. */
-function daysInMonth(month, year = new Date().getFullYear()) {
-  return new Date(year, month, 0).getDate();
-}
-
-/**
- * Resolves the 'L' (last day of month) sentinel to a concrete day number.
- * Standard cron has no "last day" token, so this must be a real digit.
- * For a single target month, that's just that month's day count.
- * For multiple months (Quarterly), a single day-of-month field has to be
- * valid across all of them, so we use the smallest day count among the
- * selected months (e.g. Jan/Apr/Jul/Oct -> 30, since April only has 30 days).
- */
-function resolveDayOfMonth(selectedDayOfMonth, months) {
-  if (selectedDayOfMonth !== 'L') {
-    return selectedDayOfMonth || 1;
-  }
-  const monthList = Array.isArray(months) ? months : [months];
-  return Math.min(...monthList.map((m) => daysInMonth(m)));
-}
-
-/**
- * Builds a standard 5-field cron expression: "minute hour day_of_month month day_of_week"
- * from the modal's recurrence form state. Only numeric values, *, ranges, and
- * comma lists are used since the backend validator requires standard cron syntax.
- */
-function buildCronExpression(form) {
-  const [hh, mm] = (form.time || '00:00').split(':');
-  const minute = parseInt(mm, 10);
-  const hour = parseInt(hh, 10);
-  const safeMinute = Number.isNaN(minute) ? 0 : minute;
-  const safeHour = Number.isNaN(hour) ? 0 : hour;
-
-  switch (form.recurrence) {
-    case 'Daily':
-      return `${safeMinute} ${safeHour} * * *`;
-
-    case 'Weekly': {
-      const days = (form.selectedDays || [])
-        .map((d) => DAY_OF_WEEK_MAP[d])
-        .filter((d) => d !== undefined)
-        .sort((a, b) => a - b);
-      const dow = days.length ? days.join(',') : '*';
-      return `${safeMinute} ${safeHour} * * ${dow}`;
-    }
-
-    case 'Monthly': {
-      const currentMonth = new Date().getMonth() + 1;
-      const dom = resolveDayOfMonth(form.selectedDayOfMonth, currentMonth);
-      return `${safeMinute} ${safeHour} ${dom} * *`;
-    }
-
-    case 'Quarterly': {
-      const months = getQuarterMonths(form.selectedQuarters, form.quarterPosition);
-      const dom = resolveDayOfMonth(form.selectedDayOfMonth, months);
-      return `${safeMinute} ${safeHour} ${dom} ${months.join(',')} *`;
-    }
-
-    case 'Annually': {
-      const month = form.selectedMonth || 1;
-      const dom = resolveDayOfMonth(form.selectedDayOfMonth, month);
-      return `${safeMinute} ${safeHour} ${dom} ${month} *`;
-    }
-
-    case 'Custom / One-time': {
-      const d = form.selectedDate ? new Date(form.selectedDate) : new Date();
-      return `${safeMinute} ${safeHour} ${d.getDate()} ${d.getMonth() + 1} *`;
-    }
-
-    default:
-      return `${safeMinute} ${safeHour} * * *`;
-  }
-}
-
 export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave }) {
   const initialDate = schedule?.selectedDate ? new Date(schedule.selectedDate) : new Date();
 
   const [form, setForm] = useState({
     id: schedule?.id || '',
+    groupId: schedule?.scheduleGroupId || null,
     envId: schedule?.envId || environments[0]?.id || '',
     selectedDate: schedule?.selectedDate || new Date(),
     selectedMonth: schedule?.selectedMonth || (initialDate.getMonth() + 1),
@@ -165,6 +83,7 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
       const initDate = schedule.selectedDate ? new Date(schedule.selectedDate) : new Date();
       setForm({
         id: schedule.id || '',
+        groupId: schedule.scheduleGroupId || null,
         envId: schedule.envId || environments[0]?.id || '',
         selectedDate: schedule.selectedDate || new Date(),
         selectedMonth: schedule.selectedMonth || (initDate.getMonth() + 1),
@@ -258,11 +177,13 @@ export function ScheduleModal({ isOpen, schedule, environments, onClose, onSave 
 
     setIsSaving(true);
     try {
+      const cronExpressions = formToCronList(form);
       await onSave({
         ...form,
         selectedDate: annualDate,
         dayOfWeek: (form.selectedDays || []).join(', '),
-        cronExpression: buildCronExpression(form),
+        cronExpression: cronExpressions[0],
+        cronExpressions,
       });
     } finally {
       setIsSaving(false);

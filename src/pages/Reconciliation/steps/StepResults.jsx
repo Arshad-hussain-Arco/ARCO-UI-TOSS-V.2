@@ -561,7 +561,7 @@ const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
 // Export folds into RECONCILIATION_VIEW — no separate permission tier,
 // so this is always on unless a future caller explicitly overrides it.
-export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, canExport = true }) {
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, onFetchFullResults, canExport = true }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');
@@ -616,7 +616,16 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         const XLSX = await import('xlsx');
         const wb = XLSX.utils.book_new();
 
-        const raw = results.rawResults;
+        // results.rawResults only holds the currently displayed page — fetch
+        // the full, unpaginated reconciliation result so the export contains
+        // every record, not just the current page.
+        let raw = results.rawResults;
+        let activeMappings = results.activeMappings;
+        if (onFetchFullResults) {
+          const full = await onFetchFullResults();
+          raw = full.resultData;
+          activeMappings = full.activeMappings ?? activeMappings;
+        }
         if (!raw) {
           toast.error('No raw results available for export.');
           return;
@@ -863,7 +872,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         toast.error('Failed to export report.');
       }
     },
-    [results, file1Name, file2Name, toast],
+    [results, file1Name, file2Name, toast, onFetchFullResults],
   );
 
   return (

@@ -41,17 +41,28 @@ function getQuarterMonths(selectedQuarters, quarterPosition) {
     .sort((a, b) => a - b);
 }
 
-/** Actual number of days in a given month (1-12), accounting for leap years. */
-function daysInMonth(month, year = new Date().getFullYear()) {
-  return new Date(year, month, 0).getDate();
+/**
+ * Actual number of days in a given month (1-12).
+ * cron_expression has no year field, so a resolved day-of-month is baked in
+ * permanently once saved. February is therefore always treated as 28 days
+ * (never 29): baking in 29 would cause the job to silently never fire in the
+ * 3 out of 4 years that aren't leap years, whereas baking in 28 only costs a
+ * one-day-early run on Feb 28 during actual leap years — the safer failure
+ * mode. Do NOT pass `new Date().getFullYear()` here.
+ */
+function daysInMonth(month) {
+  const NON_LEAP_YEAR = 2001;
+  return new Date(NON_LEAP_YEAR, month, 0).getDate();
 }
 
 /**
  * Resolves the 'L' (last day of month) sentinel to a concrete day number,
  * since standard cron day-of-month fields only accept digits/ranges/lists.
- * For multiple target months (Quarterly), a single field must be valid across
- * all of them, so the smallest day-count among the selected months is used
- * (e.g. Jan/Apr/Jul/Oct -> 30, since April only has 30 days).
+ * For multiple target months (Quarterly) sharing a single cron row, a single
+ * field must be valid across all of them, so the smallest day-count among the
+ * selected months is used (e.g. Feb+Aug -> 28). Use `formToCronList` instead
+ * of this when the selected months' day-counts differ, so each month gets its
+ * own correct last-day value across multiple cron rows.
  */
 function resolveDayOfMonth(selectedDayOfMonth, months) {
   if (selectedDayOfMonth !== 'L') {
@@ -59,6 +70,38 @@ function resolveDayOfMonth(selectedDayOfMonth, months) {
   }
   const monthList = Array.isArray(months) ? months : [months];
   return Math.min(...monthList.map((m) => daysInMonth(m)));
+}
+
+const QUARTER_ANCHORS = [1, 4, 7, 10];
+const OFFSET_TO_POSITION = { 0: 'first', 1: 'mid', 2: 'last' };
+const POSITION_LABEL = { first: 'First Month', mid: 'Middle Month', last: 'Last Month' };
+
+/**
+ * Checks whether monValues match a quarterly pattern shifted by a fixed
+ * offset (0, 1, or 2) from the quarter anchor months. A single-month case
+ * (offset 0 only) is kept ambiguous with Annually on purpose, matching
+ * prior behavior; offset 1/2 is only inferred when 2+ months are present
+ * to avoid misreading an intentional Annually schedule as Quarterly.
+ */
+function detectQuarterlyOffset(monValues) {
+  for (const offset of [0, 1, 2]) {
+    const anchors = monValues.map((m) => m - offset);
+    const matches = anchors.every((a) => QUARTER_ANCHORS.includes(a));
+    if (matches && (offset === 0 || monValues.length >= 2)) {
+      return { offset, anchors };
+    }
+  }
+  return null;
+}
+
+function quarterLabelsFor(anchors) {
+  return anchors.map((m) => {
+    if (m === 1) return 'Q1';
+    if (m === 4) return 'Q2';
+    if (m === 7) return 'Q3';
+    if (m === 10) return 'Q4';
+    return '';
+  }).join(', ');
 }
 
 /**
@@ -123,6 +166,42 @@ export function formToCron(form) {
 }
 
 /**
+ * Like `formToCron`, but returns an ARRAY of cron expression strings.
+ *
+ * Standard cron has exactly one day_of_month field per row, so it cannot
+ * express "the last day" independently per month when a Quarterly schedule
+ * spans months whose true last day differs (e.g. Feb=28, Aug=31) — one
+ * shared field forces a Math.min() compromise that's wrong for every month
+ * except the shortest one. When that mismatch happens, this emits ONE cron
+ * row per distinct day-count group (months with the same day-count still
+ * share a row) instead of merging everything into a single, partially-wrong
+ * row. For every other case (including Quarterly with matching day-counts,
+ * e.g. all-31-day months) it returns a single-item array wrapping
+ * `formToCron`'s result, so callers can treat both cases with one shape.
+ */
+export function formToCronList(form) {
+  if (form.recurrence === 'Quarterly' && form.selectedDayOfMonth === 'L') {
+    const [hStr, mStr] = (form.time || '22:00').split(':');
+    const min = parseInt(mStr || '0', 10);
+    const hour = parseInt(hStr || '22', 10);
+    const months = getQuarterMonths(form.selectedQuarters, form.quarterPosition);
+
+    const monthsByDayCount = new Map();
+    months.forEach((month) => {
+      const days = daysInMonth(month);
+      if (!monthsByDayCount.has(days)) monthsByDayCount.set(days, []);
+      monthsByDayCount.get(days).push(month);
+    });
+
+    return Array.from(monthsByDayCount.entries())
+      .sort(([daysA], [daysB]) => daysA - daysB)
+      .map(([days, monthsInGroup]) => `${min} ${hour} ${days} ${monthsInGroup.join(',')} *`);
+  }
+
+  return [formToCron(form)];
+}
+
+/**
  * Parses cron expression string back into human readable format for UI components.
  */
 export function cronToHuman(cronStr, defaultTime = '22:00') {
@@ -168,28 +247,6 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
     };
   }
 
-  const QUARTER_ANCHORS = [1, 4, 7, 10];
-  const OFFSET_TO_POSITION = { 0: 'first', 1: 'mid', 2: 'last' };
-  const POSITION_LABEL = { first: 'First Month', mid: 'Middle Month', last: 'Last Month' };
-
-  /**
-   * Checks whether monValues match a quarterly pattern shifted by a fixed
-   * offset (0, 1, or 2) from the quarter anchor months. A single-month case
-   * (offset 0 only) is kept ambiguous with Annually on purpose, matching
-   * prior behavior; offset 1/2 is only inferred when 2+ months are present
-   * to avoid misreading an intentional Annually schedule as Quarterly.
-   */
-  function detectQuarterlyOffset(monValues) {
-    for (const offset of [0, 1, 2]) {
-      const anchors = monValues.map((m) => m - offset);
-      const matches = anchors.every((a) => QUARTER_ANCHORS.includes(a));
-      if (matches && (offset === 0 || monValues.length >= 2)) {
-        return { offset, anchors };
-      }
-    }
-    return null;
-  }
-
   // Detect Quarterly: dom is set or 'L', month values align to a quarterly pattern, no DOW
   if (domStr !== '*' && dowStr === '*') {
     const monValues = monStr.split(',').map((n) => parseInt(n, 10));
@@ -197,13 +254,7 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
     if (quarterlyMatch) {
       const { offset, anchors } = quarterlyMatch;
       const quarterPosition = OFFSET_TO_POSITION[offset];
-      const quarterLabels = anchors.map((m) => {
-        if (m === 1)  return 'Q1';
-        if (m === 4)  return 'Q2';
-        if (m === 7)  return 'Q3';
-        if (m === 10) return 'Q4';
-        return '';
-      }).join(', ');
+      const quarterLabels = quarterLabelsFor(anchors);
       const domLabel = domStr === 'L' ? 'Last Day' : `day ${domStr}`;
       const positionLabel = offset === 0 ? '' : `, ${POSITION_LABEL[quarterPosition]}`;
       return {
@@ -265,5 +316,49 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
     dateGroup: 'Daily Runs',
     selectedDays: ['Monday'],
     cronExpression: cronStr,
+  };
+}
+
+/**
+ * Like `cronToHuman`, but for a GROUP of cron rows that together represent
+ * one logical schedule (produced by `formToCronList` when a Quarterly +
+ * Last-Day-of-Month schedule spans months of different lengths). Reconstructs
+ * a single form state spanning every month across all rows, rather than
+ * parsing one row in isolation and losing the others.
+ */
+export function cronGroupToHuman(cronStrArray, defaultTime = '22:00') {
+  if (!Array.isArray(cronStrArray) || cronStrArray.length === 0) {
+    return cronToHuman(null, defaultTime);
+  }
+  if (cronStrArray.length === 1) {
+    return cronToHuman(cronStrArray[0], defaultTime);
+  }
+
+  const rows = cronStrArray.map((c) => c.trim().split(/\s+/));
+  const [minStr, hourStr] = rows[0];
+  const min = String(minStr).padStart(2, '0');
+  const hour = String(hourStr).padStart(2, '0');
+  const time = `${hour}:${min}`;
+
+  const allMonths = rows
+    .flatMap(([, , , monStr]) => monStr.split(',').map((n) => parseInt(n, 10)))
+    .sort((a, b) => a - b);
+
+  const quarterlyMatch = detectQuarterlyOffset(allMonths) || { offset: 0, anchors: allMonths };
+  const { offset, anchors } = quarterlyMatch;
+  const quarterPosition = OFFSET_TO_POSITION[offset];
+  const quarterLabels = quarterLabelsFor(anchors);
+  const positionLabel = offset === 0 ? '' : `, ${POSITION_LABEL[quarterPosition]}`;
+
+  return {
+    recurrence: 'Quarterly',
+    time,
+    dateGroup: `Quarterly – ${quarterLabels} (Last Day${positionLabel})`,
+    selectedDays: ['Monday'],
+    selectedDayOfMonth: 'L',
+    selectedQuarters: anchors,
+    quarterPosition,
+    cronExpression: cronStrArray[0],
+    cronExpressions: cronStrArray,
   };
 }

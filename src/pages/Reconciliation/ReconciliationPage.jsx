@@ -228,16 +228,14 @@ export function ReconciliationPage() {
 
   const goToStep2 = useCallback(() => setStep(2), []);
   const goToStep3 = useCallback(() => setStep(3), []);
-  const runReconciliation = useCallback(async (page = 1) => {
-    setIsReconciling(true);
-    setReconcileError(null);
-    try {
-      const sourceFile = files[0];
-      const destinationFile = files[1];
 
-      const activeMappings = colMappings.filter((m) => !m.exclude && m.dst && m.dst !== '__skip__');
+  const buildReconcileParams = useCallback(() => {
+    const sourceFile = files[0];
+    const destinationFile = files[1];
+    const activeMappings = colMappings.filter((m) => !m.exclude && m.dst && m.dst !== '__skip__');
 
-      const resultData = await reconciliationService.reconcileFiles({
+    return {
+      params: {
         sourceFileId: sourceFile?.fileId ?? null,
         destinationFileId: destinationFile?.fileId ?? null,
         sourceFile: sourceFile?.fileObject ?? null,
@@ -262,6 +260,30 @@ export function ReconciliationPage() {
         }, {}),
         columnPathMap1: files[0]?.columnPathMap ?? null,
         columnPathMap2: files[1]?.columnPathMap ?? null,
+      },
+      activeMappings,
+    };
+  }, [colMappings, files, keyColumns]);
+
+  // Full, unpaginated reconciliation result — used only for export, so the
+  // downloaded report always contains every record, not just the current page.
+  const fetchFullResults = useCallback(async () => {
+    const { params, activeMappings } = buildReconcileParams();
+    const resultData = await reconciliationService.reconcileFiles({
+      ...params,
+      exportAll: true,
+    });
+    return { resultData, activeMappings };
+  }, [buildReconcileParams]);
+
+  const runReconciliation = useCallback(async (page = 1) => {
+    setIsReconciling(true);
+    setReconcileError(null);
+    try {
+      const { params, activeMappings } = buildReconcileParams();
+
+      const resultData = await reconciliationService.reconcileFiles({
+        ...params,
         page,
         pageSize: 50,
       });
@@ -317,7 +339,7 @@ export function ReconciliationPage() {
       setReconcileError(message);
       toast.error(message);
     }
-  }, [colMappings, files, keyColumns, toast]);
+  }, [buildReconcileParams, keyColumns, toast]);
 
   const reset = useCallback(() => {
     setStep(1);
@@ -372,6 +394,7 @@ export function ReconciliationPage() {
             file2Name={files[1]?.name || ''}
             onReset={reset}
             onPageChange={(page) => runReconciliation(page)}
+            onFetchFullResults={fetchFullResults}
           />
         ) : null;
       default:
@@ -380,6 +403,7 @@ export function ReconciliationPage() {
   }, [
     step,
     files,
+    fetchFullResults,
     keyColumns,
     colMappings,
     results,

@@ -3,7 +3,7 @@ import {
   Bell, BellOff, Check, CheckCheck, X,
   CalendarClock, CheckCircle2, XCircle, CalendarX,
   FileEdit, Undo2, Timer, Hourglass, RefreshCcw,
-  CalendarCheck, AlertCircle, Wifi, WifiOff,
+  CalendarCheck, AlertCircle, Wifi, WifiOff, PlayCircle,
 } from 'lucide-react';
 import { getNotifConfig } from '@hooks/useNotifications';
 import './NotificationsDropdown.css';
@@ -23,6 +23,9 @@ const TYPE_MAP = {
   OW_EXCESS_REQUESTED:     { Icon: Timer,          hue: 'amber'  },
   OW_EXCESS_APPROVED:      { Icon: Hourglass,      hue: 'emerald' },
   OW_EXCESS_REJECTED:      { Icon: XCircle,        hue: 'red'    },
+  EOD_JOB_STARTED:         { Icon: PlayCircle,     hue: 'emerald' },
+  EOD_JOB_COMPLETED:       { Icon: CheckCircle2,   hue: 'emerald' },
+  EOD_JOB_FAILED:          { Icon: AlertCircle,    hue: 'red'    },
 };
 
 const HUES = {

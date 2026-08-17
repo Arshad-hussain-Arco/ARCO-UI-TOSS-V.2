@@ -239,12 +239,18 @@ const endpoints = {
     findLog: '/eod-jobs/find-log/',
     allJobs: (id) => `/eod-jobs/${id}/all-jobs/`,
     copyReplace: (id) => `/eod-jobs/${id}/copy-replace/`,
+    notifications: '/eod-jobs/notifications/',
+    markNotificationRead: (id) => `/eod-jobs/notifications/${id}/mark-read/`,
+    markAllNotificationsRead: '/eod-jobs/notifications/mark-all-read/',
   },
   eodSchedules: {
     list: '/eod-schedules/eod-schedules/',
     create: '/eod-schedules/eod-schedules/create/',
+    bulkCreate: '/eod-schedules/eod-schedules/bulk-create/',
     update: (id) => `/eod-schedules/eod-schedules/${id}/update/`,
     delete: (id) => `/eod-schedules/eod-schedules/${id}/delete/`,
+    groupUpdate: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/update/`,
+    groupDelete: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/delete/`,
   },
 };
 
