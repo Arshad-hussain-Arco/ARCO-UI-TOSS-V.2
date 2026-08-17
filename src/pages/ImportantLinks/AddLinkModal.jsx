@@ -117,7 +117,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
         sharedFolder: editLink.sharedFolder || '',
         comments: editLink.comments || '',
         pinToHeader: editLink.pinToHeader || false,
-        files: [],
+        files: editLink.files || [],
       };
     }
     return {
@@ -207,8 +207,8 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
   }
  
   function handleFileChange(e) {
-    if (e.target.files) {
-      set('files', [...state.files, ...Array.from(e.target.files)]);
+    if (e.target.files && e.target.files.length > 0) {
+      set('files', [e.target.files[0]]);
       e.target.value = '';
     }
   }
@@ -354,7 +354,9 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                set('files', [...state.files, ...Array.from(e.dataTransfer.files)]);
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  set('files', [e.dataTransfer.files[0]]);
+                }
               }}
             >
               <Upload className="il-upload-zone-icon" aria-hidden="true" />
@@ -381,7 +383,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                   <div key={i} className="il-upload-file-row">
                     <FileText className="il-upload-file-icon" aria-hidden="true" />
                     <span className="il-upload-file-name">{f.name}</span>
-                    <span className="il-upload-file-size">{(f.size / 1024).toFixed(0)} KB</span>
+                    <span className="il-upload-file-size">{f.size ? (f.size / 1024).toFixed(0) + ' KB' : ''}</span>
                     <button
                       type="button"
                       className="il-upload-file-remove"

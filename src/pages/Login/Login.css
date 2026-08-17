@@ -1,174 +1,155 @@
-/* ═══════════════════════════════════════════════════════════════
-   LOGIN PAGE — Right-aligned panel layout
-   Left = full background image, Right = all content stacked
-   ═══════════════════════════════════════════════════════════════ */
-
 .login-page {
-  /* Force light theme variables */
-  --c-primary: #006633;
-  --c-primary-dark: #004d26;
-  --c-primary-light: #e6f4ed;
-  --c-primary-hover: #005028;
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
-  --bg-hover: #f9fafb;
-  --bg-active: #f3f4f6;
-  --bg-overlay: rgba(0, 0, 0, 0.5);
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
-  --text-inverse: #ffffff;
-  --text-muted: #6b7280;
-  --border-primary: #e5e7eb;
-  --border-secondary: #d1d5db;
-  --border-tertiary: #f3f4f6;
-  --border-focus: #006633;
-  --surface-primary: #ffffff;
-  --surface-secondary: #f9fafb;
-  --surface-elevated: #ffffff;
-  --surface-tertiary: #f3f4f6;
-  --c-success: #10b981;
-  --c-success-light: #d1fae5;
-  --c-info: #2563eb;
-  --c-info-light: #dbeafe;
-  --c-warning: #f97316;
-  --c-warning-light: #fef3c7;
-  --c-danger: #dc2626;
-  --c-danger-light: #fee2e2;
-  --brand-primary: var(--c-primary);
-  --brand-secondary: var(--c-primary-dark);
-
   width: 100vw;
   height: 100vh;
   min-height: 100vh;
   display: flex;
-  align-items: stretch;
-  background-image: linear-gradient(rgba(27, 27, 27, 0), rgba(255, 255, 255, 0)),
-    url(../../assets/images/login-bg.svg);
-  background-position: center left;
-  background-repeat: no-repeat;
-  background-size: cover;
+  align-items: center;
+  justify-content: flex-start;
+  background: #f4f7f6;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(0, 102, 79, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(0, 102, 79, 0.03) 0%, transparent 55%),
+    radial-gradient(circle at 85% 15%, rgba(0, 102, 79, 0.06) 0%, transparent 35%);
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
 }
 
-/* ── Right Panel ─────────────────────────────────────────────── */
-/* Pushed to the right, contains logo + brand + form + version  */
-.login-right-panel {
+/* Left Brand Column (60% width) - Desktop default */
+.login-left-brand {
   position: absolute;
-  right: 0;
+  left: 0;
   top: 0;
-  width: 38%;
-  min-width: 340px;
-  max-width: 480px;
+  width: 60%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  /* right-align all children    */
   justify-content: center;
-  padding: 32px 48px;
+  padding-left: 80px;
+  /* Perfectly aligned to axis */
   box-sizing: border-box;
-  z-index: 20;
-  gap: 0;
+  z-index: 10;
 }
 
-/* ── Logo ────────────────────────────────────────────────────── */
+/* SNB Logo top-left - perfectly aligned to 80px left axis */
 .login-logo-fixed {
   position: absolute;
-  top: 36px;
-  right: 48px;
+  top: 60px;
+  left: 80px;
+  width: 54px;
+  height: 54px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  z-index: 30;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(to bottom right, #006633, #004d26);
+  box-shadow: 0 4px 12px rgba(0, 102, 51, 0.25);
+  z-index: 100;
+  box-sizing: border-box;
+  padding: 8px;
 }
 
 .login-logo-img {
-  height: 48px;
-  width: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
-/* ── Brand accent (TOSS ——) ──────────────────────────────────── */
+/* Brand Accent */
 .brand-accent {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  width: 100%;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .brand-accent-text {
-  font-size: 18px;
-  font-weight: 700;
-  color: #008052;
+  font-size: 14px;
+  font-weight: 600;
+  color: #00664F;
   text-transform: uppercase;
   letter-spacing: 0.35em;
   margin: 0;
 }
 
+.brand-accent-line {
+  width: 40px;
+  height: 1px;
+  background-color: #00664F;
+  opacity: 0.6;
+}
 
-
-/* ── Brand Title Reveal ──────────────────────────────────────── */
+/* Massive title reveal lines */
 .brand-title-reveal-wrapper {
   overflow: hidden;
   height: auto;
   line-height: 1.1;
-  margin-bottom: 6px;
-  width: 100%;
+  margin-bottom: 8px;
 }
 
 .brand-title-reveal-line {
-  font-size: clamp(24px, 3vw, 44px);
-  font-weight: 500;
-  color: #008052;
+  font-size: 6vw;
+  font-weight: 200;
+  color: #111827;
   margin: 0;
   white-space: nowrap;
-  letter-spacing: 0.02em;
-  display: block;
+  letter-spacing: -0.02em;
 }
 
-/* ── Login Card ──────────────────────────────────────────────── */
+/* Right Side (Login Card Container) - Desktop default */
+.login-right-form {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 80px;
+  box-sizing: border-box;
+  z-index: 20;
+}
+
+/* Glassmorphism Parallax Frame */
 .login-card-parallax-container {
   width: 100%;
+  max-width: 440px;
   perspective: 1500px;
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
+  justify-content: center;
 }
 
 .login-card {
   width: 100%;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.45);
+  /* High transparency white */
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 20px;
-  padding: 28px 28px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px;
+  padding: 48px 40px;
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 30px 60px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform-style: preserve-3d;
   box-sizing: border-box;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .login-form-title {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 20px 0;
+  color: #111827;
+  margin: 0 0 32px 0;
   letter-spacing: -0.01em;
 }
 
-/* ── Form ────────────────────────────────────────────────────── */
+/* Form Groups and Inputs */
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
 .login-form-group {
@@ -182,56 +163,56 @@
 
 .login-input-icon {
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-tertiary);
+  color: #9ca3af;
   pointer-events: none;
   z-index: 2;
 }
 
 .login-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .login-input {
   width: 100%;
-  height: 46px;
-  padding: 18px 14px 6px 42px;
-  border-radius: 10px;
-  background-color: var(--surface-primary);
-  border: 1px solid var(--border-secondary);
-  font-size: 13px;
-  color: var(--text-primary);
+  height: 52px;
+  padding: 22px 16px 6px 48px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  color: #111827;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
 
 .login-input:focus {
   outline: none;
-  border-color: var(--border-focus);
+  border-color: #10b981;
   box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.08);
 }
 
 .login-input-password {
-  padding-right: 44px;
+  padding-right: 48px;
 }
 
 .login-input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px var(--surface-primary) inset !important;
-  -webkit-text-fill-color: var(--text-primary) !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color:  #111827 !important;
 }
 
-/* Floating Label */
+/* Floating Label Animation */
 .login-form-label {
   position: absolute;
-  left: 42px;
+  left: 48px;
   top: 50%;
   transform: translateY(-50%);
   transform-origin: left top;
-  font-size: 13px;
-  color: var(--text-tertiary);
+  font-size: 14px;
+  color: #9ca3af;
   pointer-events: none;
   transition: all 0.2s ease;
   margin: 0;
@@ -240,22 +221,22 @@
 .login-input:focus~.login-form-label,
 .login-input:not(:placeholder-shown)~.login-form-label,
 .login-input:-webkit-autofill~.login-form-label {
-  transform: translateY(-13px) scale(0.82);
-  color: var(--text-secondary);
+  transform: translateY(-14px) scale(0.85);
+  color: #6b7280;
   font-weight: 500;
 }
 
 .login-input:focus~.login-form-label {
-  color: var(--c-primary);
+  color: #00664F;
 }
 
-/* Password toggle */
+/* Visibility Password Toggle */
 .login-password-toggle {
   position: absolute;
-  right: 14px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-tertiary);
+  color: #9ca3af;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -268,25 +249,24 @@
 }
 
 .login-password-toggle:hover {
-  color: var(--text-secondary);
+  color: #6b7280;
 }
 
-/* Error */
+/* Controls */
 .login-error {
-  margin: -4px 0 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--c-danger);
+  margin: -8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #ef4444;
 }
 
-/* Submit button */
 .login-button {
   width: 100%;
-  height: 42px;
-  border-radius: 10px;
-  background-color: var(--c-primary);
-  color: var(--text-inverse);
-  font-size: 13px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: #006633;
+  color: #ffffff;
+  font-size: 14px;
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -295,7 +275,7 @@
 }
 
 .login-button:hover {
-  background-color: var(--c-primary-hover);
+  background-color: #00523b;
   box-shadow: 0 6px 16px rgba(0, 102, 51, 0.25);
 }
 
@@ -308,67 +288,66 @@
   cursor: not-allowed;
 }
 
-/* ── Version text ────────────────────────────────────────────── */
-.login-version {
-  position: absolute;
-  bottom: 14px;
-  right: 20px;
-  font-size: 15px;
-  color: var(--surface-primary);
-  text-align: right;
-  letter-spacing: 0.02em;
-  margin: 0;
-  z-index: 30;
-}
-
-/* ══ Responsive ══════════════════════════════════════════════════ */
+/* ── Media Queries for Responsive Stack ───────────────────────────────────── */
 @media (max-width: 1024px) {
   .login-page {
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     overflow-y: auto;
+    padding: 40px 24px;
   }
 
-  .login-right-panel {
+  /* Left Brand Column */
+  .login-left-brand {
     position: static;
     width: 100%;
-    min-width: unset;
-    max-width: 100%;
     height: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 32px 24px;
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px 24px 0 0;
-    gap: 0;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 24px;
   }
 
+  /* SNB Logo moves dynamically above card, centered */
   .login-logo-fixed {
-    justify-content: center;
+    position: static;
+    margin-bottom: 24px;
+    width: 64px;
+    height: 64px;
   }
 
+  /* HIDE massive text titles on mobile to save space */
+  .brand-title-reveal-wrapper {
+    display: none;
+  }
+
+  /* Keep TOSS Accent visible and clean above card */
   .brand-accent {
+    margin-bottom: 0;
     justify-content: center;
   }
 
-  .login-card-parallax-container {
-    justify-content: center;
+  /* Right Side container */
+  .login-right-form {
+    position: static;
     width: 100%;
+    height: auto;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* 90% width scaling for mobile/tablet */
+  .login-card-parallax-container {
+    width: 90%;
     max-width: 400px;
   }
 
   .login-card {
-    padding: 24px 20px;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: none;
-    box-shadow: none;
-  }
-
-  .login-version {
-    text-align: center;
+    padding: 32px 24px;
   }
 }
