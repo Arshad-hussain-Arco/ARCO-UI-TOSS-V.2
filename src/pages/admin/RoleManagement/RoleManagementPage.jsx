@@ -453,11 +453,11 @@ export function RoleManagementPage() {
         if (role.id === roleId) {
           const nextPerms = { ...role.permissions };
           nextPerms[moduleName] = { ...role.permissions[moduleName] };
-          
+
           MODULE_ACTIONS[moduleName].forEach((act) => {
             nextPerms[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
           });
-          
+
           return { ...role, permissions: nextPerms };
         }
         return role;
@@ -470,11 +470,11 @@ export function RoleManagementPage() {
     setNewRoleMatrix((prev) => {
       const next = { ...prev };
       next[moduleName] = { ...prev[moduleName] };
-      
+
       MODULE_ACTIONS[moduleName].forEach((act) => {
         next[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
       });
-      
+
       return next;
     });
   };
@@ -591,7 +591,7 @@ export function RoleManagementPage() {
                 <th>Description</th>
                 <th className="text-center">Permission Count</th>
                 <th className="text-center">Admin</th>
-                <th className="text-right">Actions</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -621,227 +621,227 @@ export function RoleManagementPage() {
                   return (
                     <Fragment key={role.id}>
                       <tr className={`rm-row-tr ${isExpanded ? 'expanded' : ''}`}>
-                              <td>
-                                <div className="rm-cell-role-name">
-                                  <div className="rm-role-badge-icon">
-                                    <UserCog size={14} />
-                                  </div>
-                                  <span className="rm-role-name">{role.name}</span>
-                                </div>
-                              </td>
+                        <td>
+                          <div className="rm-cell-role-name">
+                            <div className="rm-role-badge-icon">
+                              <UserCog size={14} />
+                            </div>
+                            <span className="rm-role-name">{role.name}</span>
+                          </div>
+                        </td>
 
-                              <td>
-                                <span className="rm-role-desc" title={role.description}>
-                                  {role.description}
-                                </span>
-                              </td>
+                        <td>
+                          <span className="rm-role-desc" title={role.description}>
+                            {role.description}
+                          </span>
+                        </td>
 
-                              <td className="text-center">
-                                <span className="rm-perm-badge">{pCount} Permissions</span>
-                              </td>
+                        <td className="text-center">
+                          <span className="rm-perm-badge">{pCount} Permissions</span>
+                        </td>
 
-                              <td className="text-center">
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                  <label 
-                                    className="rm-switch-btn" 
-                                    style={{ 
-                                      margin: 0, 
-                                      opacity: 1, 
-                                      cursor: 'pointer',
-                                      transform: 'scale(0.85)'
-                                    }}
-                                  >
-                                    <input 
-                                      type="checkbox" 
-                                      checked={role.isAdmin}
-                                      onChange={async (e) => {
-                                        const newIsAdmin = e.target.checked;
-                                        // Optimistic update
-                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: newIsAdmin } : r));
-                                        
-                                        if (isExpanded) {
-                                          setDirtyRoles((prev) => new Set(prev).add(role.id));
-                                        } else {
-                                          // Auto-save when toggled directly from the unexpanded row
-                                          try {
-                                            await roleService.updateRole(role.id, {
-                                              name: role.name,
-                                              isAdmin: newIsAdmin,
-                                              description: role.description === '-' ? '' : role.description,
-                                              permissions: role.permissions,
-                                            });
-                                            toast.success('Admin status updated successfully.');
-                                          } catch (err) {
-                                            console.error(err);
-                                            toast.error('Failed to update admin status.');
-                                            // Revert optimistic update on failure
-                                            setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !newIsAdmin } : r));
-                                          }
-                                        }
-                                      }}
-                                    />
-                                    <span className="rm-switch-slider" />
-                                  </label>
-                                  <span style={{ 
-                                    fontSize: '12px', 
-                                    fontWeight: '600', 
-                                    color: role.isAdmin ? '#10b981' : 'var(--text-secondary)',
-                                    minWidth: '24px',
-                                    textAlign: 'left'
-                                  }}>
-                                    {role.isAdmin ? 'Yes' : 'No'}
-                                  </span>
-                                </div>
-                              </td>
+                        <td className="text-center">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <label
+                              className="rm-switch-btn"
+                              style={{
+                                margin: 0,
+                                opacity: 1,
+                                cursor: 'pointer',
+                                transform: 'scale(0.85)'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={role.isAdmin}
+                                onChange={async (e) => {
+                                  const newIsAdmin = e.target.checked;
+                                  // Optimistic update
+                                  setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: newIsAdmin } : r));
 
-                              <td className="text-right">
-                                <div className="rm-action-btns">
-                                  <button
-                                    type="button"
-                                    className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
-                                    {...activatable(() => handleToggleConfigure(role.id), {
-                                      label: `Configure permissions for ${role.name}`,
-                                      isExpanded,
-                                    })}
-                                  >
-                                    {/* <Edit size={13} /> */}
-                                    <span>Configure</span>
-                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                  </button>
+                                  if (isExpanded) {
+                                    setDirtyRoles((prev) => new Set(prev).add(role.id));
+                                  } else {
+                                    // Auto-save when toggled directly from the unexpanded row
+                                    try {
+                                      await roleService.updateRole(role.id, {
+                                        name: role.name,
+                                        isAdmin: newIsAdmin,
+                                        description: role.description === '-' ? '' : role.description,
+                                        permissions: role.permissions,
+                                      });
+                                      toast.success('Admin status updated successfully.');
+                                    } catch (err) {
+                                      console.error(err);
+                                      toast.error('Failed to update admin status.');
+                                      // Revert optimistic update on failure
+                                      setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !newIsAdmin } : r));
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="rm-switch-slider" />
+                            </label>
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: role.isAdmin ? '#10b981' : 'var(--text-secondary)',
+                              minWidth: '24px',
+                              textAlign: 'left'
+                            }}>
+                              {role.isAdmin ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </td>
 
-                                  <button
-                                    type="button"
-                                    className="action-icon-btn delete"
-                                    title="Delete Role"
-                                    {...activatable(() => handleDeleteRole(role.id), {
-                                      label: `Delete ${role.name}`,
-                                    })}
-                                  >
-                                    <Trash size={13} />
-                                    {/* <span>Delete</span> */}
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                        <td className="text-center">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
+                              {...activatable(() => handleToggleConfigure(role.id), {
+                                label: `Configure permissions for ${role.name}`,
+                                isExpanded,
+                              })}
+                            >
+                              {/* <Edit size={13} /> */}
+                              <span>Configure</span>
+                              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="action-icon-btn delete"
+                              title="Delete Role"
+                              {...activatable(() => handleDeleteRole(role.id), {
+                                label: `Delete ${role.name}`,
+                              })}
+                            >
+                              <Trash size={13} />
+                              {/* <span>Delete</span> */}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                       {/* Inline Accordion Expandable Permissions Matrix Panel */}
                       {isExpanded && (
                         <tr>
                           <td colSpan={5} style={{ padding: 0, border: 'none' }}>
                             <div className="rm-accordion-panel">
-                            <div className="rm-accordion-header">
-                              <div className="rm-acc-title-wrap">
-                                <h3>Functions & Permission Matrix — {role.name}</h3>
-                                <p>Click any toggle button to switch between Allow and Deny.</p>
-                              </div>
-                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <input
-                                  type="text"
-                                  className="ef-input"
-                                  style={{ padding: '6px 12px', height: '32px', fontSize: '13px', width: '250px' }}
-                                  value={role.description === '-' ? '' : role.description}
-                                  onChange={(e) => handleInlineDescriptionChange(role.id, e.target.value)}
-                                  placeholder="Role Description"
-                                />
-                                <button
-                                  type="button"
-                                  className="rm-btn-sm-close"
-                                  disabled={isSaving}
-                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
-                                  {...activatable(() => handleCancelClick(role.id), {
-                                    label: 'Cancel permission changes',
-                                  })}
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rm-btn-primary"
-                                  disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
-                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
-                                  {...activatable(() => handleUpdateRole(role), {
-                                    label: 'Save permission changes',
-                                  })}
-                                >
-                                  {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-                                  <span style={{ marginLeft: '4px' }}>Save Changes</span>
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="rm-module-permissions-wrapper">
-                              <div className="rm-permissions-global-actions">
-                                <span className="rm-global-actions-label">Global Permissions:</span>
-                                <button
-                                  type="button"
-                                  className="rm-btn-global-allow"
-                                  onClick={() => handleSetAllInlinePermissions(role.id, 'Allow')}
-                                >
-                                  Allow All
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rm-btn-global-deny"
-                                  onClick={() => handleSetAllInlinePermissions(role.id, 'Deny')}
-                                >
-                                  Deny All
-                                </button>
-                              </div>
-                              {MODULES.map((mod) => {
-                                const isModuleActive = Object.values(role.permissions[mod] || {}).some(status => status === 'Allow');
-                                return (
-                                <div key={mod} className="rm-module-section-row">
-                                  <div className="rm-module-section-title-col">
-                                    <h4 className="rm-module-section-title">{mod}</h4>
-                                    <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
-                                      <input 
-                                        type="checkbox" 
-                                        checked={isModuleActive}
-                                        onChange={(e) => handleToggleInlineModule(role.id, mod, e.target.checked)}
-                                      />
-                                      <span className="rm-switch-slider" />
-                                    </label>
-                                  </div>
-                                  <div className="rm-permission-cards-col">
-                                    {MODULE_ACTIONS[mod].map((act) => {
-                                      const status = role.permissions[mod]?.[act.key] || 'Deny';
-                                      const isAllow = status === 'Allow';
-
-                                      return (
-                                        <div key={act.key} className="rm-permission-card">
-                                          <span className="rm-permission-card-title">{act.label}</span>
-                                          <div className="rm-permission-toggle-group">
-                                            <button
-                                              type="button"
-                                              className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
-                                              {...activatable(
-                                                () => handleToggleInlinePermission(role.id, mod, act.key),
-                                                { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
-                                              )}
-                                            >
-                                              Allow
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
-                                              {...activatable(
-                                                () => handleToggleInlinePermission(role.id, mod, act.key),
-                                                { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
-                                              )}
-                                            >
-                                              Deny
-                                            </button>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                              <div className="rm-accordion-header">
+                                <div className="rm-acc-title-wrap">
+                                  <h3>Functions & Permission Matrix — {role.name}</h3>
+                                  <p>Click any toggle button to switch between Allow and Deny.</p>
                                 </div>
-                                );
-                              })}
+                                <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <input
+                                    type="text"
+                                    className="ef-input"
+                                    style={{ padding: '6px 12px', height: '32px', fontSize: '13px', width: '250px' }}
+                                    value={role.description === '-' ? '' : role.description}
+                                    onChange={(e) => handleInlineDescriptionChange(role.id, e.target.value)}
+                                    placeholder="Role Description"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="rm-btn-sm-close"
+                                    disabled={isSaving}
+                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                    {...activatable(() => handleCancelClick(role.id), {
+                                      label: 'Cancel permission changes',
+                                    })}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rm-btn-primary"
+                                    disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
+                                    style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
+                                    {...activatable(() => handleUpdateRole(role), {
+                                      label: 'Save permission changes',
+                                    })}
+                                  >
+                                    {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                                    <span style={{ marginLeft: '4px' }}>Save Changes</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="rm-module-permissions-wrapper">
+                                <div className="rm-permissions-global-actions">
+                                  <span className="rm-global-actions-label">Global Permissions:</span>
+                                  <button
+                                    type="button"
+                                    className="rm-btn-global-allow"
+                                    onClick={() => handleSetAllInlinePermissions(role.id, 'Allow')}
+                                  >
+                                    Allow All
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rm-btn-global-deny"
+                                    onClick={() => handleSetAllInlinePermissions(role.id, 'Deny')}
+                                  >
+                                    Deny All
+                                  </button>
+                                </div>
+                                {MODULES.map((mod) => {
+                                  const isModuleActive = Object.values(role.permissions[mod] || {}).some(status => status === 'Allow');
+                                  return (
+                                    <div key={mod} className="rm-module-section-row">
+                                      <div className="rm-module-section-title-col">
+                                        <h4 className="rm-module-section-title">{mod}</h4>
+                                        <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={isModuleActive}
+                                            onChange={(e) => handleToggleInlineModule(role.id, mod, e.target.checked)}
+                                          />
+                                          <span className="rm-switch-slider" />
+                                        </label>
+                                      </div>
+                                      <div className="rm-permission-cards-col">
+                                        {MODULE_ACTIONS[mod].map((act) => {
+                                          const status = role.permissions[mod]?.[act.key] || 'Deny';
+                                          const isAllow = status === 'Allow';
+
+                                          return (
+                                            <div key={act.key} className="rm-permission-card">
+                                              <span className="rm-permission-card-title">{act.label}</span>
+                                              <div className="rm-permission-toggle-group">
+                                                <button
+                                                  type="button"
+                                                  className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
+                                                  {...activatable(
+                                                    () => handleToggleInlinePermission(role.id, mod, act.key),
+                                                    { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
+                                                  )}
+                                                >
+                                                  Allow
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
+                                                  {...activatable(
+                                                    () => handleToggleInlinePermission(role.id, mod, act.key),
+                                                    { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
+                                                  )}
+                                                >
+                                                  Deny
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
                       )}
                     </Fragment>
                   );
@@ -1056,53 +1056,53 @@ export function RoleManagementPage() {
                     {MODULES.map((mod) => {
                       const isModuleActive = Object.values(newRoleMatrix[mod] || {}).some(status => status === 'Allow');
                       return (
-                      <div key={mod} className="rm-module-section-row">
-                        <div className="rm-module-section-title-col">
-                          <h4 className="rm-module-section-title">{mod}</h4>
-                          <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={isModuleActive}
-                              onChange={(e) => handleToggleModalModule(mod, e.target.checked)}
-                            />
-                            <span className="rm-switch-slider" />
-                          </label>
-                        </div>
-                        <div className="rm-permission-cards-col">
-                          {MODULE_ACTIONS[mod].map((act) => {
-                            const status = newRoleMatrix[mod]?.[act.key] || 'Deny';
-                            const isAllow = status === 'Allow';
+                        <div key={mod} className="rm-module-section-row">
+                          <div className="rm-module-section-title-col">
+                            <h4 className="rm-module-section-title">{mod}</h4>
+                            <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+                              <input
+                                type="checkbox"
+                                checked={isModuleActive}
+                                onChange={(e) => handleToggleModalModule(mod, e.target.checked)}
+                              />
+                              <span className="rm-switch-slider" />
+                            </label>
+                          </div>
+                          <div className="rm-permission-cards-col">
+                            {MODULE_ACTIONS[mod].map((act) => {
+                              const status = newRoleMatrix[mod]?.[act.key] || 'Deny';
+                              const isAllow = status === 'Allow';
 
-                            return (
-                              <div key={act.key} className="rm-permission-card">
-                                <span className="rm-permission-card-title">{act.label}</span>
-                                <div className="rm-permission-toggle-group">
-                                  <button
-                                    type="button"
-                                    className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
-                                    {...activatable(
-                                      () => handleToggleModalPermission(mod, act.key),
-                                      { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
-                                    )}
-                                  >
-                                    Allow
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
-                                    {...activatable(
-                                      () => handleToggleModalPermission(mod, act.key),
-                                      { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
-                                    )}
-                                  >
-                                    Deny
-                                  </button>
+                              return (
+                                <div key={act.key} className="rm-permission-card">
+                                  <span className="rm-permission-card-title">{act.label}</span>
+                                  <div className="rm-permission-toggle-group">
+                                    <button
+                                      type="button"
+                                      className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
+                                      {...activatable(
+                                        () => handleToggleModalPermission(mod, act.key),
+                                        { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
+                                      )}
+                                    >
+                                      Allow
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
+                                      {...activatable(
+                                        () => handleToggleModalPermission(mod, act.key),
+                                        { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
+                                      )}
+                                    >
+                                      Deny
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
                       );
                     })}
                   </div>

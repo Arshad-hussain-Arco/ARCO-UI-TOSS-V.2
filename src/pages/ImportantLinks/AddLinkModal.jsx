@@ -1,15 +1,15 @@
-        import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Check, ChevronDown, FileText, Pin, Plus, RotateCcw, Upload, X } from 'lucide-react';
- 
+
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
 import { createId } from '@utils/id';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
- 
+
 import './ImportantLinksPage.css';
- 
+
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt';
- 
+
 /** Maps tag → CSS modifier class */
 const TAG_CLASS_MAP = {
   internal: 'il-badge-internal',
@@ -17,7 +17,7 @@ const TAG_CLASS_MAP = {
   critical: 'il-badge-critical',
   docs: 'il-badge-docs',
 };
- 
+
 /**
  * In-modal custom group dropdown — matches the app's Select component appearance.
  */
@@ -25,10 +25,10 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   useOnClickOutside(wrapRef, () => setOpen(false), open);
- 
+
   const selectedLabel =
     value === '__new__' ? '+ Create New Group' : (groups.find((g) => g === value) ?? '');
- 
+
   return (
     <div className="il-modal-group-dropdown" ref={wrapRef}>
       <button
@@ -47,7 +47,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
         </span>
         <ChevronDown size={13} strokeWidth={2} className="il-modal-group-trigger-chevron" style={{ pointerEvents: 'none' }} />
       </button>
- 
+
       {open && (
         <div className="il-modal-group-panel" role="listbox" aria-label="Select group">
           <div className="il-modal-group-viewport">
@@ -71,9 +71,9 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
               </button>
             ))}
           </div>
- 
+
           <div className="il-modal-group-divider" style={{ margin: '0' }} />
-         
+
           <div style={{ padding: '4px' }}>
             <button
               type="button"
@@ -92,7 +92,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
     </div>
   );
 }
- 
+
 /**
  * Add / Edit Link Modal — matches the application's existing modal design language.
  *
@@ -105,7 +105,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
  */
 function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, onUpdate, onClose, isSaving = false }) {
   const isEditMode = !!editLink;
- 
+
   const getInitialState = useCallback(() => {
     if (editLink) {
       return {
@@ -132,31 +132,31 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       files: [],
     };
   }, [editLink, existingGroups]);
- 
+
   const [state, setState] = useState(getInitialState);
   const [errors, setErrors] = useState({});
   const fileInputRef = useRef(null);
- 
+
   // Sync state when editLink changes
   useEffect(() => {
     setState(getInitialState());
     setErrors({});
   }, [editLink, getInitialState]);
- 
+
   const set = (key, val) => setState((prev) => ({ ...prev, [key]: val }));
- 
+
   const handleReset = useCallback(() => {
     setState(getInitialState());
     setErrors({});
   }, [getInitialState]);
- 
+
   function validate() {
     const errs = {};
- 
+
     if (!state.linkName.trim()) {
       errs.linkName = 'Link name is required.';
     }
- 
+
     if (!state.url.trim()) {
       errs.url = 'URL is required.';
     } else {
@@ -166,24 +166,24 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
         errs.url = 'Please enter a valid URL.';
       }
     }
- 
+
     return errs;
   }
- 
+
   function handleSubmit() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
- 
+
     const finalGroup =
       state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup?.trim() || '';
     let finalUrl = state.url.trim();
     if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
       finalUrl = `https://${finalUrl}`;
     }
- 
+
     const payload = {
       id: editLink?.id ?? createId('link'),
       label: state.linkName.trim(),
@@ -193,33 +193,33 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       pinToHeader: state.pinToHeader,
       files: state.files,
     };
- 
+
     if (finalGroup) {
       payload.group = finalGroup;
       payload.isNewGroup = state.groupMode === 'new';
     }
- 
+
     if (isEditMode) {
       onUpdate(payload);
     } else {
       onAdd(payload);
     }
   }
- 
+
   function handleFileChange(e) {
     if (e.target.files && e.target.files.length > 0) {
       set('files', [e.target.files[0]]);
       e.target.value = '';
     }
   }
- 
+
   function removeFile(idx) {
     set(
       'files',
       state.files.filter((_, i) => i !== idx),
     );
   }
- 
+
   return (
     <div className="il-overlay" {...dismissBackdrop(onClose)}>
       <div className="il-modal" role="dialog" aria-modal="true" aria-labelledby="il-modal-title">
@@ -237,10 +237,10 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             <X size={15} />
           </button>
         </div>
- 
+
         {/* ── Body ────────────────────────────────────────────────── */}
         <div className="il-modal-body">
- 
+
           {/* Link Name */}
           <div className="il-form-group">
             <span className="il-label il-label-required">Link Name</span>
@@ -256,7 +256,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             />
             {errors.linkName && <span className="il-error-msg">{errors.linkName}</span>}
           </div>
- 
+
           {/* URL */}
           <div className="il-form-group">
             <span className="il-label il-label-required">URL</span>
@@ -272,7 +272,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             />
             {errors.url && <span className="il-error-msg">{errors.url}</span>}
           </div>
- 
+
           {/* Shared Folder */}
           <div className="il-form-group">
             <span className="il-label">
@@ -287,14 +287,14 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               onChange={(e) => set('sharedFolder', e.target.value)}
             />
           </div>
- 
+
           {/* Group */}
           <div className="il-form-group">
             <span className="il-label">
               Group
               <span className="il-label-optional">(optional)</span>
             </span>
- 
+
             <GroupDropdown
               groups={existingGroups}
               value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
@@ -311,7 +311,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               }}
             />
           </div>
- 
+
           {/* New Group Name */}
           {state.groupMode === 'new' && (
             <div className="il-new-group-row">
@@ -331,73 +331,92 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               />
             </div>
           )}
- 
+
           {/* Upload File */}
           <div className="il-form-group">
             <span className="il-label">
               Upload File
               <span className="il-label-optional">(optional)</span>
             </span>
- 
-            <div
-              className="il-upload-zone"
-              role="button"
-              tabIndex={0}
-              aria-label="Choose files to upload"
-              onClick={() => fileInputRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  fileInputRef.current?.click();
-                }
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                  set('files', [e.dataTransfer.files[0]]);
-                }
-              }}
-            >
-              <Upload className="il-upload-zone-icon" aria-hidden="true" />
-              <div className="il-upload-zone-text-wrap">
-                <p className="il-upload-zone-text">
-                  <strong>Click to upload</strong> or drag &amp; drop
-                </p>
-                <p className="il-upload-zone-hint">PDF, Word, Excel, Images, ZIP — max 10 MB</p>
+
+            {state.files.length > 0 ? (
+              <div className="il-upload-file-list" style={{ marginTop: 0 }}>
+                {state.files.map((f, i) => (
+                  <div key={i} className="il-upload-file-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', overflow: 'hidden' }}>
+                      <FileText className="il-upload-file-icon" aria-hidden="true" style={{ marginTop: '2px' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="il-upload-file-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                          {f.size && <span className="il-upload-file-size" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{(f.size / 1024).toFixed(0)} KB</span>}
+                        </div>
+                        <span className="il-upload-zone-hint" style={{ margin: 0, textAlign: 'left', fontSize: '11px', lineHeight: '1.2' }}>PDF, Word, Excel, Images, ZIP — max 10 MB</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          fileInputRef.current?.click();
+                        }}
+                        style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}
+                      >
+                        Replace
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(i)}
+                        style={{ padding: '4px 8px', fontSize: '12px', height: 'auto', color: 'var(--c-danger)' }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
- 
+            ) : (
+              <div
+                className="il-upload-zone"
+                role="button"
+                tabIndex={0}
+                aria-label="Choose files to upload"
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    set('files', [e.dataTransfer.files[0]]);
+                  }
+                }}
+              >
+                <Upload className="il-upload-zone-icon" aria-hidden="true" />
+                <div className="il-upload-zone-text-wrap">
+                  <p className="il-upload-zone-text">
+                    <strong>Click to upload</strong> or drag &amp; drop
+                  </p>
+                  <p className="il-upload-zone-hint">PDF, Word, Excel, Images, ZIP — max 10 MB</p>
+                </div>
+              </div>
+            )}
+
             <input
               ref={fileInputRef}
               type="file"
-              multiple
               accept={ACCEPTED_TYPES}
               style={{ display: 'none' }}
               onChange={handleFileChange}
             />
- 
-            {state.files.length > 0 && (
-              <div className="il-upload-file-list">
-                {state.files.map((f, i) => (
-                  <div key={i} className="il-upload-file-row">
-                    <FileText className="il-upload-file-icon" aria-hidden="true" />
-                    <span className="il-upload-file-name">{f.name}</span>
-                    <span className="il-upload-file-size">{f.size ? (f.size / 1024).toFixed(0) + ' KB' : ''}</span>
-                    <button
-                      type="button"
-                      className="il-upload-file-remove"
-                      aria-label={`Remove ${f.name}`}
-                      onClick={() => removeFile(i)}
-                    >
-                      <X size={11} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
- 
+
           {/* Comments */}
           <div className="il-form-group">
             <span className="il-label">
@@ -411,10 +430,10 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               onChange={(e) => set('comments', e.target.value)}
             />
           </div>
- 
+
 
         </div>
- 
+
         {/* ── Footer ──────────────────────────────────────────────── */}
         <div className="il-modal-footer">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>
@@ -436,8 +455,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     </div>
   );
 }
- 
+
 export { AddLinkModalComponent as AddLinkModal };
 export default AddLinkModalComponent;
- 
- 
+

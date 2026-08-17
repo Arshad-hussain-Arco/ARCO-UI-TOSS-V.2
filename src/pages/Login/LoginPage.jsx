@@ -154,7 +154,6 @@ export function LoginPage() {
 
         <div className="brand-accent">
           <span className="brand-accent-text">TOSS</span>
-          <div className="brand-accent-line" />
         </div>
 
         <div className="brand-title-reveal-wrapper">
@@ -242,7 +241,7 @@ export function LoginPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Version Info */}
       <div style={{ position: 'absolute', bottom: '16px', right: '24px', fontSize: '11px', color: 'var(--text-tertiary, #999999)', zIndex: 10 }}>
         Version 2.0.0

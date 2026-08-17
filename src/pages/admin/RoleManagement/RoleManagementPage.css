@@ -307,12 +307,6 @@
 }
 
 /* Action Buttons */
-.rm-action-btns {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
 
 .rm-btn-action {
   display: inline-flex;
