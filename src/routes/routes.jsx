@@ -169,7 +169,11 @@ export const routes = [
               {
                 path: ROUTES.CONSULTANTS,
                 element: (
-                  <RequirePermission code="EMPLOYEE_VIEW">
+                  // Consultants, Inactive Consultants, and Teams are
+                  // independent tabs within this page — any one permission
+                  // is enough to reach it, the page itself filters which
+                  // tabs are actually visible.
+                  <RequirePermission codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}>
                     <ConsultantsPage />
                   </RequirePermission>
                 ),
@@ -177,7 +181,7 @@ export const routes = [
               {
                 path: ROUTES.CONSULTANT_DETAIL,
                 element: (
-                  <RequirePermission code="EMPLOYEE_VIEW">
+                  <RequirePermission codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}>
                     <ConsultantsPage />
                   </RequirePermission>
                 ),

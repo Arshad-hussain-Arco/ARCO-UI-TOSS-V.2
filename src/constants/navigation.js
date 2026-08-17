@@ -79,7 +79,10 @@ export const SIDEBAR_NAVIGATION = [
     label: 'Consultants',
     icon: Users,
     to: ROUTES.CONSULTANTS,
-    permission: 'EMPLOYEE_VIEW',
+    // Consultants, Inactive Consultants, and Teams are independent tabs on
+    // this page — visible if the user has any one permission (the page
+    // itself filters which tabs are actually shown).
+    permissions: ['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW'],
   },
   // No `permission` — open to every authenticated user. Team Requests / Leave
   // Configuration inside this screen are gated by manager hierarchy instead.

@@ -86,8 +86,10 @@ function LinkItem({ link, onEdit, onDelete }) {
  * @param {{ id: string, label: string, url: string, description?: string, tag?: string }[]} props.links
  * @param {(link: Object) => void} props.onEditLink   Called when user clicks the edit icon on a link.
  * @param {(link: Object) => void} props.onDeleteLink Called when user clicks the delete icon on a link.
+ * @param {() => void} [props.onRenameGroup]  Called when user clicks the rename-group icon.
+ * @param {() => void} [props.onDeleteGroup]  Called when user clicks the delete-group icon.
  */
-function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, canEdit, canDelete, onEditLink, onDeleteLink }) {
+function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, canEdit, canDelete, onEditLink, onDeleteLink, onRenameGroup, onDeleteGroup }) {
   return (
     <article className="il-group-card" aria-labelledby={`group-heading-${id}`}>
 
@@ -103,6 +105,28 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
           <span className="il-group-card-count" aria-label={`${links.length} links`} style={{ flexShrink: 0 }}>
             {links.length}
           </span>
+          {onRenameGroup && (
+            <button
+              type="button"
+              className="action-icon-btn edit"
+              title="Rename group"
+              aria-label={`Rename ${title}`}
+              onClick={onRenameGroup}
+            >
+              <Edit size={12} />
+            </button>
+          )}
+          {onDeleteGroup && (
+            <button
+              type="button"
+              className="action-icon-btn delete"
+              title="Delete group"
+              aria-label={`Delete ${title}`}
+              onClick={onDeleteGroup}
+            >
+              <Trash size={12} />
+            </button>
+          )}
         </div>
         {onTogglePinGroup && (
           <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: '8px', flexShrink: 0 }}>

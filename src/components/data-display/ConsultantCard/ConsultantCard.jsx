@@ -133,20 +133,24 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
           )
         ) : (
           <>
-            <button
-              onClick={() => onEdit && onEdit(consultant)}
-              className="consultant-footer-btn consultant-footer-btn-edit"
-              title="Edit Consultant"
-            >
-              <Edit className="consultant-footer-btn-icon" />
-            </button>
-            <button
-              onClick={() => onChangePassword && onChangePassword(consultant)}
-              className="consultant-footer-btn consultant-footer-btn-password"
-              title="Change Password"
-            >
-              <Lock className="consultant-footer-btn-icon" />
-            </button>
+            {onEdit && (
+              <button
+                onClick={() => onEdit(consultant)}
+                className="consultant-footer-btn consultant-footer-btn-edit"
+                title="Edit Consultant"
+              >
+                <Edit className="consultant-footer-btn-icon" />
+              </button>
+            )}
+            {onChangePassword && (
+              <button
+                onClick={() => onChangePassword(consultant)}
+                className="consultant-footer-btn consultant-footer-btn-password"
+                title="Change Password"
+              >
+                <Lock className="consultant-footer-btn-icon" />
+              </button>
+            )}
             {onDelete && (
               <button
                 onClick={() => onDelete(consultant)}

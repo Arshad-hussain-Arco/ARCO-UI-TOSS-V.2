@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   X,
   Upload,
@@ -34,10 +34,10 @@ import { ConsultantProfileModal } from './ConsultantProfileModal';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import './ConsultantsPage.css';
 
-const pageTabs = [
-  { id: 'consultants', label: 'Consultants' },
-  { id: 'inactive', label: 'Inactive Consultants' },
-  { id: 'teams', label: 'Teams' },
+const ALL_PAGE_TABS = [
+  { id: 'consultants', label: 'Consultants', permission: 'EMPLOYEE_VIEW' },
+  { id: 'inactive', label: 'Inactive Consultants', permission: 'EMPLOYEE_VIEW_INACTIVE' },
+  { id: 'teams', label: 'Teams', permission: 'TEAMS_VIEW' },
 ];
 
 const emptyForm = {
@@ -106,6 +106,9 @@ export function ConsultantsPage() {
   const toast = useToast();
   const { hasPermission } = useAuth();
   const canActivateDeactivate = hasPermission('EMPLOYEE_ACTIVATE_DEACTIVATE');
+  // Edit and Reset Password both ride on EMPLOYEE_EDIT — no separate code.
+  const canEdit = hasPermission('EMPLOYEE_EDIT');
+  const canCreate = hasPermission('EMPLOYEE_CREATE');
 
   const [activeFilteredCount, setActiveFilteredCount] = useState(null);
   const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
@@ -156,7 +159,22 @@ export function ConsultantsPage() {
     ? inactiveData.length
     : inactiveData?.results?.length || 0;
 
-  const [activeTab, setActiveTab] = useState('consultants');
+  const pageTabs = useMemo(
+    () => ALL_PAGE_TABS.filter((t) => hasPermission(t.permission)),
+    [hasPermission],
+  );
+  const [activeTab, setActiveTab] = useState(() => pageTabs[0]?.id ?? null);
+
+  // Covers the case where permissions load in after first render, or the
+  // active tab is no longer visible (e.g. permission revoked mid-session).
+  useEffect(() => {
+    if (!activeTab && pageTabs.length) {
+      setActiveTab(pageTabs[0].id);
+    } else if (activeTab && !pageTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(pageTabs[0]?.id ?? null);
+    }
+  }, [pageTabs, activeTab]);
+
   const [drawerMode, setDrawerMode] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formTab, setFormTab] = useState('consultant-info');
@@ -536,9 +554,9 @@ export function ConsultantsPage() {
         <div className="consultants-content">
           {activeTab === 'consultants' && (
             <ActiveConsultants
-              onAdd={handleAdd}
-              onEdit={handleEdit}
-              onPassword={handlePw}
+              onAdd={canCreate ? handleAdd : undefined}
+              onEdit={canEdit ? handleEdit : undefined}
+              onPassword={canEdit ? handlePw : undefined}
               onDelete={canActivateDeactivate ? handleDelete : undefined}
               onProfileView={setViewProfileId}
               onFilteredCountChange={setActiveFilteredCount}
@@ -552,8 +570,8 @@ export function ConsultantsPage() {
           )}
           {activeTab === 'inactive' && (
             <InactiveConsultants
-              onEdit={handleEdit}
-              onPassword={handlePw}
+              onEdit={canEdit ? handleEdit : undefined}
+              onPassword={canEdit ? handlePw : undefined}
               onDelete={handleDelete}
               onProfileView={setViewProfileId}
               onFilteredCountChange={setInactiveFilteredCount}

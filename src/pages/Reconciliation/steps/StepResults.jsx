@@ -559,7 +559,9 @@ function DuplicateTable({ rows, mappings, isSource }) {
 
 const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
-export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, canExport }) {
+// Export folds into RECONCILIATION_VIEW — no separate permission tier,
+// so this is always on unless a future caller explicitly overrides it.
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, canExport = true }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');

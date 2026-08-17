@@ -73,7 +73,7 @@ export const linkService = {
   deleteLink: async (id) => {
     const res = await httpClient.delete(endpoints.importantLinks.links.delete(id));
     return res.data;
-  }
+  },
 };
 
 export default linkService;

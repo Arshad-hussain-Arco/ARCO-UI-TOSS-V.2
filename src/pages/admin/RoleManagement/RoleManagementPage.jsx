@@ -96,13 +96,13 @@ const PERMISSION_CATALOG = [
     module: 'Consultants',
     codes: [
       { code: 'EMPLOYEE_VIEW', label: 'View' },
+      { code: 'EMPLOYEE_VIEW_INACTIVE', label: 'View Inactive Consultants' },
       { code: 'EMPLOYEE_CREATE', label: 'Create' },
       // Resetting another employee's password rides on this same code —
       // no separate "Reset Password" permission.
       { code: 'EMPLOYEE_EDIT', label: 'Edit (incl. Reset Password)' },
       // Not a real delete — the action soft-toggles ACTIVE/INACTIVE status.
       { code: 'EMPLOYEE_ACTIVATE_DEACTIVATE', label: 'Activate / Deactivate' },
-      { code: 'EMPLOYEE_EXPORT', label: 'Export' },
     ],
   },
   {
@@ -136,12 +136,10 @@ const PERMISSION_CATALOG = [
   {
     // Upload + Run Reconciliation are two halves of one stateless
     // workflow (CREATE) — no DB persistence exists to "edit".
+    // Upload/Run and Export fold into View — anyone let onto this screen
+    // can use the whole stateless workflow by default.
     module: 'Reconciliation',
-    codes: [
-      { code: 'RECONCILIATION_VIEW', label: 'View' },
-      { code: 'RECONCILIATION_CREATE', label: 'Upload / Run' },
-      { code: 'RECONCILIATION_EXPORT', label: 'Export' },
-    ],
+    codes: [{ code: 'RECONCILIATION_VIEW', label: 'View (incl. Upload/Run/Export)' }],
   },
   {
     module: 'Important Links',
@@ -150,7 +148,6 @@ const PERMISSION_CATALOG = [
       { code: 'IMPORTANT_LINKS_CREATE', label: 'Create' },
       { code: 'IMPORTANT_LINKS_EDIT', label: 'Edit' },
       { code: 'IMPORTANT_LINKS_DELETE', label: 'Delete' },
-      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
     ],
   },
   {
@@ -159,6 +156,8 @@ const PERMISSION_CATALOG = [
       { code: 'IMPORTANT_LINKS_GROUP_CREATE', label: 'Create' },
       { code: 'IMPORTANT_LINKS_GROUP_EDIT', label: 'Rename' },
       { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
+      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
+      { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
     ],
   },
   {
