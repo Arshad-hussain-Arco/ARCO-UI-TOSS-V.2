@@ -79,8 +79,11 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
 
       {/* Right group: navigation + actions */}
       <div className="header-right-group">
+        {/* No artificial cap here — the real limit is enforced (and
+            configurable) at pin-time in ImportantLinksPage/backend; this
+            just renders whatever's actually pinned. */}
         <nav className="header-pinned-links" aria-label="Pinned links" ref={groupDropdownRef}>
-          {pinnedLinks.slice(0, 5).map((group) => {
+          {pinnedLinks.map((group) => {
             const isOpen = activeGroupDropdown === group.groupId;
             return (
               <div key={group.groupId} className="header-pinned-dropdown-wrapper">

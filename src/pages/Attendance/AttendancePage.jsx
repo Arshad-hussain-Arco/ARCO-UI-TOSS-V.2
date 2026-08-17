@@ -231,7 +231,8 @@ function InlineLegend() {
 export function AttendancePage() {
   useDocumentTitle('Attendance');
 
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canExport = hasPermission('ATTENDANCE_EXPORT');
 
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
@@ -853,12 +854,14 @@ export function AttendancePage() {
         )}
 
         {/* Export */}
-        <ExportButton
-          excel
-          pdf
-          onExcelExport={handleExportCSV}
-          onPdfExport={handleExportPDF}
-        />
+        {canExport && (
+          <ExportButton
+            excel
+            pdf
+            onExcelExport={handleExportCSV}
+            onPdfExport={handleExportPDF}
+          />
+        )}
       </div>
 
       {/* ── KPI Cards — On Duty tab only ── */}

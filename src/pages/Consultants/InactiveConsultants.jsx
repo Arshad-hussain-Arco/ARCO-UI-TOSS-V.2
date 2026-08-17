@@ -8,6 +8,7 @@ import {
   X
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
@@ -26,6 +27,8 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
 
   const { data: consultants, isLoading, error, refetch } = useAsync(fetchInactive);
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canActivateDeactivate = hasPermission('EMPLOYEE_ACTIVATE_DEACTIVATE');
 
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
@@ -212,7 +215,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
               consultant={c}
               isInactive={true}
               isActivating={activatingId === (c.emp_id || c.id)}
-              onActivate={handleActivate}
+              onActivate={canActivateDeactivate ? handleActivate : undefined}
               onAvatarClick={() => onProfileView && onProfileView(c.id)}
             />
           ))}

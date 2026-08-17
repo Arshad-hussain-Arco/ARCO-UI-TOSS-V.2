@@ -13,6 +13,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { useAuth } from '@hooks/useAuth';
 import { eodService } from '@services/eodService';
 import { ScheduleModal } from './ScheduleModal';
 
@@ -60,6 +61,11 @@ function formatDateGroup(dateVal) {
 }
 
 export function SchedulesSection() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('EOD_SCHEDULE_CREATE');
+  const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
+  const canDelete = hasPermission('EOD_SCHEDULE_DELETE');
+
   const [scheduleList, setScheduleList] = useState([]);
   const [environments, setEnvironments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -222,13 +228,15 @@ export function SchedulesSection() {
           >
             <RefreshCw size={11} /> Refresh
           </button>
-          <button
-            type="button"
-            className="eod-add-btn primary-green"
-            onClick={handleOpenAdd}
-          >
-            <Plus size={13} /> Add Schedule
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              className="eod-add-btn primary-green"
+              onClick={handleOpenAdd}
+            >
+              <Plus size={13} /> Add Schedule
+            </button>
+          )}
         </div>
       </div>
 
@@ -239,13 +247,15 @@ export function SchedulesSection() {
           title="No records found"
           description="No automated End-of-Day batch execution schedules available."
           action={
-            <button
-              type="button"
-              className="eod-add-btn primary-green"
-              onClick={handleOpenAdd}
-            >
-              <Plus size={13} /> Add Schedule
-            </button>
+            canCreate && (
+              <button
+                type="button"
+                className="eod-add-btn primary-green"
+                onClick={handleOpenAdd}
+              >
+                <Plus size={13} /> Add Schedule
+              </button>
+            )
           }
         />
       ) : (
@@ -266,13 +276,15 @@ export function SchedulesSection() {
                   <div className="eod-schedule-empty">
                     <Clock size={18} className="eod-empty-clock" />
                     <span>No scheduled runs for {day}.</span>
-                    <button
-                      type="button"
-                      className="eod-empty-add-btn"
-                      onClick={handleOpenAdd}
-                    >
-                      <Plus size={11} /> Add Schedule
-                    </button>
+                    {canCreate && (
+                      <button
+                        type="button"
+                        className="eod-empty-add-btn"
+                        onClick={handleOpenAdd}
+                      >
+                        <Plus size={11} /> Add Schedule
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="eod-timeline-list">
@@ -313,25 +325,29 @@ export function SchedulesSection() {
 
 
                           <div className="eod-sch-actions-col">
-                            <button
-                              type="button"
-                              className="eod-icon-btn"
-                              onClick={(e) => handleOpenEdit(sch, e)}
-                              title="Edit Schedule"
-                            >
-                              <Edit size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              className="eod-icon-btn danger"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmSchedule(sch);
-                              }}
-                              title="Delete Schedule"
-                            >
-                              <Trash size={12} />
-                            </button>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                className="eod-icon-btn"
+                                onClick={(e) => handleOpenEdit(sch, e)}
+                                title="Edit Schedule"
+                              >
+                                <Edit size={12} />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                className="eod-icon-btn danger"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmSchedule(sch);
+                                }}
+                                title="Delete Schedule"
+                              >
+                                <Trash size={12} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

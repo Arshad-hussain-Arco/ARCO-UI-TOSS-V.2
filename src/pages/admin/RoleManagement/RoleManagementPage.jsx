@@ -16,182 +16,191 @@ import {
   Lock,
   Loader2,
   Save,
+  Ban,
   UserCog,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
+import { useAuth } from '@hooks/useAuth';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
 
-// Application Modules List and their specific actions
-const MODULE_ACTIONS = {
-  'Home': [
-    { key: 'read', label: 'Read' },
-  ],
-  'Dashboard': [
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Project Monitoring': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Environment Dashboard': [
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Murex Runtime Trends': [
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'EOD Management': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Consultants': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Leave Management': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Attendance': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Capacity Planning': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Reconciliation': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Important Links': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'upload', label: 'Upload' },
-    { key: 'export', label: 'Export' },
-    { key: 'pin', label: 'Pin to Header' },
-  ],
-  'Documents': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'upload', label: 'Upload' },
-  ],
-  'Admin Panel': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Teams': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-  ],
-  'Reports': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-    { key: 'export', label: 'Export' },
-  ],
-  'Settings': [
-    { key: 'add', label: 'Add' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'delete', label: 'Delete' },
-    { key: 'read', label: 'Read' },
-  ],
-};
+// Permission catalog — mirrors the codes seeded by
+// ARCO-API-TOSS-V.2/rbac/management/commands/seed_permissions.py. Every
+// role's `permissions` is a flat list of these codes (never the old nested
+// module/Allow-Deny matrix). Admin Panel access (Roles & Permissions, Leave
+// Policy Management, System Settings) is a separate `isAdmin` flag and has
+// no codes of its own here.
+const PERMISSION_CATALOG = [
+  {
+    module: 'Project Monitoring',
+    codes: [
+      { code: 'PROJECT_MONITORING_VIEW', label: 'View' },
+      { code: 'PROJECT_MONITORING_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Environment Dashboard',
+    codes: [
+      { code: 'ENVIRONMENT_DASHBOARD_VIEW', label: 'View' },
+      { code: 'ENVIRONMENT_DASHBOARD_CREATE', label: 'Create' },
+      { code: 'ENVIRONMENT_DASHBOARD_EDIT', label: 'Edit' },
+      { code: 'ENVIRONMENT_DASHBOARD_DELETE', label: 'Delete' },
+      { code: 'ENVIRONMENT_DASHBOARD_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    module: 'Murex Runtime Trends',
+    codes: [
+      { code: 'MUREX_RUNTIME_VIEW', label: 'View' },
+      // Script Management tab (category CRUD) — a mutable sub-feature of
+      // this otherwise read-only screen, gated separately.
+      { code: 'MUREX_SCRIPT_CATEGORY_CREATE', label: 'Create Category' },
+      { code: 'MUREX_SCRIPT_CATEGORY_EDIT', label: 'Edit Category' },
+      { code: 'MUREX_SCRIPT_CATEGORY_DELETE', label: 'Delete Category' },
+    ],
+  },
+  {
+    module: 'EOD Management — Overview',
+    codes: [{ code: 'EOD_OVERVIEW_VIEW', label: 'View' }],
+  },
+  {
+    module: 'EOD Management — Configuration',
+    codes: [
+      { code: 'EOD_CONFIG_VIEW', label: 'View' },
+      { code: 'EOD_CONFIG_CREATE', label: 'Create' },
+      { code: 'EOD_CONFIG_EDIT', label: 'Edit' },
+      { code: 'EOD_CONFIG_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'EOD Management — Schedules',
+    codes: [
+      { code: 'EOD_SCHEDULE_VIEW', label: 'View' },
+      { code: 'EOD_SCHEDULE_CREATE', label: 'Create' },
+      { code: 'EOD_SCHEDULE_EDIT', label: 'Edit' },
+      { code: 'EOD_SCHEDULE_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'EOD Management — Control',
+    codes: [
+      { code: 'EOD_CONTROL_VIEW', label: 'View' },
+      // Start/Stop/Pause/Resume/Run-All are one merged code, not split
+      // further, per explicit direction.
+      { code: 'EOD_CONTROL_EXECUTE', label: 'Execute' },
+      { code: 'EOD_CONTROL_VIEW_LOGS', label: 'View Logs' },
+    ],
+  },
+  {
+    // Sidebar label is "Consultants" — matched here so admins can find it.
+    module: 'Consultants',
+    codes: [
+      { code: 'EMPLOYEE_VIEW', label: 'View' },
+      { code: 'EMPLOYEE_VIEW_INACTIVE', label: 'View Inactive Consultants' },
+      { code: 'EMPLOYEE_CREATE', label: 'Create' },
+      // Resetting another employee's password rides on this same code —
+      // no separate "Reset Password" permission.
+      { code: 'EMPLOYEE_EDIT', label: 'Edit (incl. Reset Password)' },
+      // Not a real delete — the action soft-toggles ACTIVE/INACTIVE status.
+      { code: 'EMPLOYEE_ACTIVATE_DEACTIVATE', label: 'Activate / Deactivate' },
+    ],
+  },
+  {
+    module: 'Consultants — Teams',
+    codes: [
+      { code: 'TEAMS_VIEW', label: 'View' },
+      { code: 'TEAMS_CREATE', label: 'Create' },
+      { code: 'TEAMS_EDIT', label: 'Edit' },
+      { code: 'TEAMS_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    // 4 sub-tabs are read-only views over the same team-calendar/quota
+    // data — no edit action exists on this screen.
+    module: 'Attendance',
+    codes: [
+      { code: 'ATTENDANCE_VIEW', label: 'View' },
+      { code: 'ATTENDANCE_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    // Summary/Team views are two display modes over one dataset — no
+    // create/edit action exists on this screen. CR/WO column mapping
+    // lives under Admin Panel > System Settings instead (is_admin).
+    module: 'Capacity Planning',
+    codes: [
+      { code: 'CAPACITY_PLANNING_VIEW', label: 'View' },
+      { code: 'CAPACITY_PLANNING_EXPORT', label: 'Export' },
+    ],
+  },
+  {
+    // Upload + Run Reconciliation are two halves of one stateless
+    // workflow (CREATE) — no DB persistence exists to "edit".
+    // Upload/Run and Export fold into View — anyone let onto this screen
+    // can use the whole stateless workflow by default.
+    module: 'Reconciliation',
+    codes: [{ code: 'RECONCILIATION_VIEW', label: 'View (incl. Upload/Run/Export)' }],
+  },
+  {
+    module: 'Important Links',
+    codes: [
+      { code: 'IMPORTANT_LINKS_VIEW', label: 'View' },
+      { code: 'IMPORTANT_LINKS_CREATE', label: 'Create' },
+      { code: 'IMPORTANT_LINKS_EDIT', label: 'Edit' },
+      { code: 'IMPORTANT_LINKS_DELETE', label: 'Delete' },
+    ],
+  },
+  {
+    module: 'Important Links — Groups',
+    codes: [
+      { code: 'IMPORTANT_LINKS_GROUP_CREATE', label: 'Create' },
+      { code: 'IMPORTANT_LINKS_GROUP_EDIT', label: 'Rename' },
+      { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
+      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
+      { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
+    ],
+  },
+  {
+    module: 'Documents',
+    codes: [
+      { code: 'DOCUMENTS_VIEW', label: 'View (tree only)' },
+      { code: 'DOCUMENTS_CREATE', label: 'Create' },
+      { code: 'DOCUMENTS_EDIT', label: 'Edit' },
+      { code: 'DOCUMENTS_DELETE', label: 'Delete' },
+      { code: 'DOCUMENTS_DOWNLOAD', label: 'Download / View Content' },
+    ],
+  },
+];
 
-const MODULES = Object.keys(MODULE_ACTIONS);
+// Count assigned permission codes
+const countPermissions = (codes) => (Array.isArray(codes) ? codes.length : 0);
 
-// Default Deny matrix helper
-const createEmptyMatrix = () => {
-  const matrix = {};
-  MODULES.forEach((mod) => {
-    matrix[mod] = {};
-    MODULE_ACTIONS[mod].forEach((act) => {
-      matrix[mod][act.key] = 'Deny';
-    });
-  });
-  return matrix;
-};
-
-// Count active "Allow" permissions
-const countPermissions = (matrix) => {
-  if (!matrix) return 0;
-  let count = 0;
-  Object.values(matrix).forEach((mod) => {
-    Object.values(mod).forEach((val) => {
-      if (val === 'Allow') count++;
-    });
-  });
-  return count;
-};
-
-// Map backend role structure to frontend structure
+// Map backend role structure (flat permission-code list) to frontend structure
 const mapRole = (r) => {
-  let perms = createEmptyMatrix();
-  try {
-    let parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
-
-    // If backend returned a list (because the serializer forced it to), unwrap the first element
-    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
-      parsed = parsed[0];
+  let codes = r.permissions;
+  if (typeof codes === 'string') {
+    try {
+      codes = JSON.parse(codes);
+    } catch (e) {
+      console.error('Failed to parse permissions', e);
+      codes = [];
     }
-
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      // Merge parsed with the empty matrix to ensure all fields exist
-      Object.keys(perms).forEach((mod) => {
-        if (parsed[mod]) {
-          perms[mod] = { ...perms[mod], ...parsed[mod] };
-        }
-      });
-    }
-  } catch (e) {
-    console.error("Failed to parse permissions", e);
   }
   return {
     id: r.id,
     name: r.role_name,
     description: r.description || '-',
     isAdmin: r.isadmin === 1 || r.isadmin === true,
-    permissions: perms,
+    permissions: Array.isArray(codes) ? codes : [],
   };
 };
 
 export function RoleManagementPage() {
   const toast = useToast();
+  const { refreshUser } = useAuth();
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,7 +247,7 @@ export function RoleManagementPage() {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
   const [newRoleIsAdmin, setNewRoleIsAdmin] = useState(false);
-  const [newRoleMatrix, setNewRoleMatrix] = useState(createEmptyMatrix);
+  const [newRoleCodes, setNewRoleCodes] = useState(() => []);
   const [nameError, setNameError] = useState(false);
 
   // Filtered Roles
@@ -255,7 +264,7 @@ export function RoleManagementPage() {
     setNewRoleName('');
     setNewRoleDesc('');
     setNewRoleIsAdmin(false);
-    setNewRoleMatrix(createEmptyMatrix());
+    setNewRoleCodes([]);
     setNameError(false);
     setIsAddModalOpen(true);
   };
@@ -268,23 +277,37 @@ export function RoleManagementPage() {
     setNewRoleName('');
     setNewRoleDesc('');
     setNewRoleIsAdmin(false);
-    setNewRoleMatrix(createEmptyMatrix());
+    setNewRoleCodes([]);
     setNameError(false);
   };
 
-  // Toggle Modal Permission Matrix Cell
-  const handleToggleModalPermission = (moduleName, actionKey) => {
-    setNewRoleMatrix((prev) => {
-      const current = prev[moduleName][actionKey];
-      const next = current === 'Allow' ? 'Deny' : 'Allow';
-      return {
-        ...prev,
-        [moduleName]: {
-          ...prev[moduleName],
-          [actionKey]: next,
-        },
-      };
-    });
+  // Toggle a permission code in the "Add Role" modal
+  const handleToggleModalPermission = (code) => {
+    setNewRoleCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleAllowAllModal = () => {
+    const allCodes = PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code));
+    setNewRoleCodes(allCodes);
+  };
+
+  const handleDenyAllModal = () => {
+    setNewRoleCodes([]);
+  };
+
+  const handleToggleModuleModal = (allModuleCodes, toggleCodes, isViewAllowed) => {
+    const removeCodes = allModuleCodes.map(c => c.code);
+    const addCodes = toggleCodes.map(c => c.code);
+    
+    if (isViewAllowed) {
+      // Turning OFF: remove ALL codes for this module
+      setNewRoleCodes(prev => prev.filter(c => !removeCodes.includes(c)));
+    } else {
+      // Turning ON: add just the toggleCodes (View)
+      setNewRoleCodes(prev => [...new Set([...prev, ...addCodes])]);
+    }
   };
 
   // Create Role Submit
@@ -301,7 +324,7 @@ export function RoleManagementPage() {
         name: newRoleName.trim(),
         description: newRoleDesc,
         isAdmin: newRoleIsAdmin,
-        permissions: newRoleMatrix,
+        permissions: newRoleCodes,
       };
       await roleService.createRole(payload);
       toast.success('Role permissions added successfully.');
@@ -345,6 +368,10 @@ export function RoleManagementPage() {
         permissions: role.permissions,
       });
       toast.success('Role permissions updated successfully.');
+
+      // Sync the active user's permissions if they just updated their own role
+      refreshUser();
+
       setDirtyRoles((prev) => {
         const next = new Set(prev);
         next.delete(role.id);
@@ -387,23 +414,18 @@ export function RoleManagementPage() {
     setDirtyRoles(new Set()); // Reset dirty state
   };
 
-  // Toggle Permission Cell in Inline Accordion
-  const handleToggleInlinePermission = (roleId, moduleName, actionKey) => {
+  // Toggle a permission code for a role in the inline accordion
+  const handleToggleInlinePermission = (roleId, code) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
       prev.map((role) => {
         if (role.id === roleId) {
-          const currentVal = role.permissions[moduleName]?.[actionKey] || 'Deny';
-          const nextVal = currentVal === 'Allow' ? 'Deny' : 'Allow';
+          const has = role.permissions.includes(code);
           return {
             ...role,
-            permissions: {
-              ...role.permissions,
-              [moduleName]: {
-                ...role.permissions[moduleName],
-                [actionKey]: nextVal,
-              },
-            },
+            permissions: has
+              ? role.permissions.filter((c) => c !== code)
+              : [...role.permissions, code],
           };
         }
         return role;
@@ -411,72 +433,61 @@ export function RoleManagementPage() {
     );
   };
 
-  // Set all permissions for Inline Configure
-  const handleSetAllInlinePermissions = (roleId, status) => {
+  const handleAllowAllInline = (roleId) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
-      prev.map((role) => {
-        if (role.id === roleId) {
-          const nextPerms = { ...role.permissions };
-          MODULES.forEach((mod) => {
-            nextPerms[mod] = { ...role.permissions[mod] };
-            MODULE_ACTIONS[mod].forEach((act) => {
-              nextPerms[mod][act.key] = status;
-            });
-          });
-          return { ...role, permissions: nextPerms };
+      prev.map((r) => {
+        if (r.id === roleId) {
+          return {
+            ...r,
+            permissions: PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code)),
+          };
         }
-        return role;
+        return r;
       })
     );
   };
 
-  // Set all permissions for Add Modal
-  const handleSetAllModalPermissions = (status) => {
-    setNewRoleMatrix((prev) => {
-      const next = { ...prev };
-      MODULES.forEach((mod) => {
-        next[mod] = { ...prev[mod] };
-        MODULE_ACTIONS[mod].forEach((act) => {
-          next[mod][act.key] = status;
-        });
-      });
-      return next;
-    });
-  };
-
-  // Toggle entire module in Inline Accordion
-  const handleToggleInlineModule = (roleId, moduleName, isActive) => {
+  const handleDenyAllInline = (roleId) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
     setRoles((prev) =>
-      prev.map((role) => {
-        if (role.id === roleId) {
-          const nextPerms = { ...role.permissions };
-          nextPerms[moduleName] = { ...role.permissions[moduleName] };
-
-          MODULE_ACTIONS[moduleName].forEach((act) => {
-            nextPerms[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
-          });
-
-          return { ...role, permissions: nextPerms };
+      prev.map((r) => {
+        if (r.id === roleId) {
+          return {
+            ...r,
+            permissions: [],
+          };
         }
-        return role;
+        return r;
       })
     );
   };
 
-  // Toggle entire module in Add Modal
-  const handleToggleModalModule = (moduleName, isActive) => {
-    setNewRoleMatrix((prev) => {
-      const next = { ...prev };
-      next[moduleName] = { ...prev[moduleName] };
+  const handleToggleModuleInline = (roleId, allModuleCodes, toggleCodes, isViewAllowed) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    const removeCodes = allModuleCodes.map(c => c.code);
+    const addCodes = toggleCodes.map(c => c.code);
 
-      MODULE_ACTIONS[moduleName].forEach((act) => {
-        next[moduleName][act.key] = isActive ? 'Allow' : 'Deny';
-      });
-
-      return next;
-    });
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.id === roleId) {
+          if (isViewAllowed) {
+            // Turning OFF: remove ALL codes for this module
+            return {
+              ...r,
+              permissions: r.permissions.filter(c => !removeCodes.includes(c)),
+            };
+          } else {
+            // Turning ON: add just the toggleCodes (View)
+            return {
+              ...r,
+              permissions: [...new Set([...r.permissions, ...addCodes])],
+            };
+          }
+        }
+        return r;
+      })
+    );
   };
 
   // Update Role Description Inline
@@ -608,7 +619,7 @@ export function RoleManagementPage() {
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
                     <div className="rm-empty-state">
-                      <Shield size={32} />
+                      <UserCog size={32} />
                       <p>No matching roles found.</p>
                     </div>
                   </td>
@@ -619,129 +630,53 @@ export function RoleManagementPage() {
                   const pCount = countPermissions(role.permissions);
 
                   return (
-                    <Fragment key={role.id}>
-                      <tr className={`rm-row-tr ${isExpanded ? 'expanded' : ''}`}>
-                        <td>
-                          <div className="rm-cell-role-name">
-                            <div className="rm-role-badge-icon">
-                              <UserCog size={14} />
-                            </div>
-                            <span className="rm-role-name">{role.name}</span>
-                          </div>
-                        </td>
-
-                        <td>
-                          <span className="rm-role-desc" title={role.description}>
-                            {role.description}
-                          </span>
-                        </td>
-
-                        <td className="text-center">
-                          <span className="rm-perm-badge">{pCount} Permissions</span>
-                        </td>
-
-                        <td className="text-center">
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <label
-                              className="rm-switch-btn"
-                              style={{
-                                margin: 0,
-                                opacity: 1,
-                                cursor: 'pointer',
-                                transform: 'scale(0.85)'
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={role.isAdmin}
-                                onChange={async (e) => {
-                                  const newIsAdmin = e.target.checked;
-                                  // Optimistic update
-                                  setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: newIsAdmin } : r));
-
-                                  if (isExpanded) {
-                                    setDirtyRoles((prev) => new Set(prev).add(role.id));
-                                  } else {
-                                    // Auto-save when toggled directly from the unexpanded row
-                                    try {
-                                      await roleService.updateRole(role.id, {
-                                        name: role.name,
-                                        isAdmin: newIsAdmin,
-                                        description: role.description === '-' ? '' : role.description,
-                                        permissions: role.permissions,
-                                      });
-                                      toast.success('Admin status updated successfully.');
-                                    } catch (err) {
-                                      console.error(err);
-                                      toast.error('Failed to update admin status.');
-                                      // Revert optimistic update on failure
-                                      setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !newIsAdmin } : r));
-                                    }
-                                  }
-                                }}
-                              />
-                              <span className="rm-switch-slider" />
-                            </label>
-                            <span style={{
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              color: role.isAdmin ? '#10b981' : 'var(--text-secondary)',
-                              minWidth: '24px',
-                              textAlign: 'left'
-                            }}>
-                              {role.isAdmin ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="text-center">
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
-                              {...activatable(() => handleToggleConfigure(role.id), {
-                                label: `Configure permissions for ${role.name}`,
-                                isExpanded,
-                              })}
-                            >
-                              {/* <Edit size={13} /> */}
-                              <span>Configure</span>
-                              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                            </button>
-
-                            <button
-                              type="button"
-                              className="action-icon-btn delete"
-                              title="Delete Role"
-                              {...activatable(() => handleDeleteRole(role.id), {
-                                label: `Delete ${role.name}`,
-                              })}
-                            >
-                              <Trash size={13} />
-                              {/* <span>Delete</span> */}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {/* Inline Accordion Expandable Permissions Matrix Panel */}
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={5} style={{ padding: 0, border: 'none' }}>
-                            <div className="rm-accordion-panel">
-                              <div className="rm-accordion-header">
-                                <div className="rm-acc-title-wrap">
-                                  <h3>Functions & Permission Matrix — {role.name}</h3>
-                                  <p>Click any toggle button to switch between Allow and Deny.</p>
+                    <tr key={role.id} className="rm-role-row-container">
+                      <td colSpan={5} style={{ padding: 0, border: 'none' }}>
+                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            <tr className={`rm-row-tr ${isExpanded ? 'expanded' : ''}`}>
+                              <td style={{ width: '20%' }}>
+                                <div className="rm-cell-role-name">
+                                  <div className="rm-role-badge-icon">
+                                    <UserCog size={14} />
+                                  </div>
+                                  <span className="rm-role-name">{role.name}</span>
                                 </div>
-                                <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                  <input
-                                    type="text"
-                                    className="ef-input"
-                                    style={{ padding: '6px 12px', height: '32px', fontSize: '13px', width: '250px' }}
-                                    value={role.description === '-' ? '' : role.description}
-                                    onChange={(e) => handleInlineDescriptionChange(role.id, e.target.value)}
-                                    placeholder="Role Description"
-                                  />
+                              </td>
+
+                              <td style={{ width: '35%' }}>
+                                <span className="rm-role-desc" title={role.description}>
+                                  {role.description}
+                                </span>
+                              </td>
+
+                              <td style={{ width: '15%' }} className="text-center">
+                                <span className="rm-perm-badge">{pCount} Permissions</span>
+                              </td>
+
+                              <td style={{ width: '10%' }} className="text-center">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                  <label className="rm-switch-btn" htmlFor={`admin-toggle-${role.id}`}>
+                                    <span className="sr-only">Toggle Admin</span>
+                                    <input
+                                      id={`admin-toggle-${role.id}`}
+                                      type="checkbox"
+                                      checked={role.isAdmin}
+                                      onChange={() => {
+                                        setDirtyRoles((prev) => new Set(prev).add(role.id));
+                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !r.isAdmin } : r));
+                                      }}
+                                    />
+                                    <span className="rm-switch-slider"></span>
+                                  </label>
+                                  <span className={`rm-admin-pill ${role.isAdmin ? 'yes' : 'no'}`} style={{ minWidth: '32px' }}>
+                                    {role.isAdmin ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td style={{ width: '20%' }} className="text-right">
+                                <div className="rm-action-btns">
                                   <button
                                     type="button"
                                     className="rm-btn-sm-close"
@@ -767,83 +702,132 @@ export function RoleManagementPage() {
                                   </button>
                                 </div>
                               </div>
+                              <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>Global Permissions:</span>
+                                <button type="button" className="rm-btn-allow-all" onClick={() => handleAllowAllInline(role.id)}>Allow All</button>
+                                <button type="button" className="rm-btn-deny-all" onClick={() => handleDenyAllInline(role.id)}>Deny All</button>
+                                <div style={{ width: '1px', height: '20px', background: 'var(--border-primary)', margin: '0 4px' }}></div>
+                                <input
+                                  type="text"
+                                  className="ef-input"
+                                  style={{ padding: '6px 12px', height: '32px', fontSize: '13px', width: '250px' }}
+                                  value={role.description === '-' ? '' : role.description}
+                                  onChange={(e) => handleInlineDescriptionChange(role.id, e.target.value)}
+                                  placeholder="Role Description"
+                                />
+                                <button
+                                  type="button"
+                                  className="rm-btn-sm-close"
+                                  disabled={isSaving}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center' }}
+                                  {...activatable(() => handleCancelClick(role.id), {
+                                    label: 'Cancel permission changes',
+                                  })}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rm-btn-primary"
+                                  disabled={isSaving || pCount === 0 || !dirtyRoles.has(role.id)}
+                                  style={{ padding: '6px 12px', fontSize: '13px', height: '32px', display: 'flex', alignItems: 'center', opacity: pCount === 0 || !dirtyRoles.has(role.id) ? 0.5 : 1, cursor: pCount === 0 || !dirtyRoles.has(role.id) ? 'not-allowed' : 'pointer' }}
+                                  {...activatable(() => handleUpdateRole(role), {
+                                    label: 'Save permission changes',
+                                  })}
+                                >
+                                  {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+                                  <span style={{ marginLeft: '4px' }}>Save Changes</span>
+                                </button>
+                              </div>
+                            </div>
 
-                              <div className="rm-module-permissions-wrapper">
-                                <div className="rm-permissions-global-actions">
-                                  <span className="rm-global-actions-label">Global Permissions:</span>
-                                  <button
-                                    type="button"
-                                    className="rm-btn-global-allow"
-                                    onClick={() => handleSetAllInlinePermissions(role.id, 'Allow')}
-                                  >
-                                    Allow All
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="rm-btn-global-deny"
-                                    onClick={() => handleSetAllInlinePermissions(role.id, 'Deny')}
-                                  >
-                                    Deny All
-                                  </button>
-                                </div>
-                                {MODULES.map((mod) => {
-                                  const isModuleActive = Object.values(role.permissions[mod] || {}).some(status => status === 'Allow');
-                                  return (
-                                    <div key={mod} className="rm-module-section-row">
-                                      <div className="rm-module-section-title-col">
-                                        <h4 className="rm-module-section-title">{mod}</h4>
-                                        <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
-                                          <input
-                                            type="checkbox"
-                                            checked={isModuleActive}
-                                            onChange={(e) => handleToggleInlineModule(role.id, mod, e.target.checked)}
-                                          />
-                                          <span className="rm-switch-slider" />
-                                        </label>
-                                      </div>
-                                      <div className="rm-permission-cards-col">
-                                        {MODULE_ACTIONS[mod].map((act) => {
-                                          const status = role.permissions[mod]?.[act.key] || 'Deny';
-                                          const isAllow = status === 'Allow';
+                            <div className="rm-permissions-list" style={{ marginTop: '12px' }}>
+                              <div className="rm-list-header-row" style={{ display: 'flex', borderBottom: '1px solid var(--border-primary)', padding: '8px 12px' }}>
+                                <div style={{ width: '160px', fontWeight: 600, fontSize: '10px', }}>Module / Page</div>
+                                <div style={{ flex: 1, fontWeight: 600, fontSize: '10px', }}>Available Permissions Configuration</div>
+                              </div>
+                              <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Module Target Scope
+                              </div>
+                              {PERMISSION_CATALOG.map(({ module, codes }) => {
+                                const viewCodeObj = codes.find(c => c.label.startsWith('View'));
+                                const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
+                                
+                                const isViewAllowed = viewCodeObj 
+                                  ? role.permissions.includes(viewCodeObj.code)
+                                  : codes.every(c => role.permissions.includes(c.code));
+                                  
+                                const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
+                                return (
+                                  <div className="rm-module-row" key={module}>
+                                    <div className="rm-module-sidebar">
+                                      <span className="rm-mod-name">{module}</span>
+                                      <label className="rm-switch-btn" htmlFor={`inline-module-toggle-${role.id}-${module}`}>
+                                        <span className="sr-only">Toggle Module</span>
+                                        <input
+                                          id={`inline-module-toggle-${role.id}-${module}`}
+                                          type="checkbox"
+                                          checked={isViewAllowed}
+                                          onChange={() => handleToggleModuleInline(role.id, codes, toggleCodes, isViewAllowed)}
+                                        />
+                                        <span className="rm-switch-slider"></span>
+                                      </label>
+                                    </div>
+                                    <div className="rm-module-permissions">
+                                      {nonViewCodes.length > 0 ? (
+                                        nonViewCodes.map(({ code, label }) => {
+                                          const isAllow = role.permissions.includes(code);
                                           return (
-                                            <div key={act.key} className="rm-permission-card">
-                                              <span className="rm-permission-card-title">{act.label}</span>
-                                              <div className="rm-permission-toggle-group">
+                                            <div 
+                                              className="rm-perm-box" 
+                                              key={code}
+                                              style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                            >
+                                              <span className="rm-perm-label" title={label}>
+                                                {label}
+                                              </span>
+                                              <div className="rm-perm-toggle-group">
                                                 <button
                                                   type="button"
-                                                  className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
+                                                  className={`rm-perm-btn allow ${isAllow ? 'active' : ''}`}
                                                   {...activatable(
-                                                    () => handleToggleInlinePermission(role.id, mod, act.key),
-                                                    { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
+                                                    () => { if (!isAllow) handleToggleInlinePermission(role.id, code); },
+                                                    { label: `Allow ${label} for ${module} in ${role.name}` }
                                                   )}
                                                 >
+                                                  <Check size={10} />
                                                   Allow
                                                 </button>
                                                 <button
                                                   type="button"
-                                                  className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
+                                                  className={`rm-perm-btn deny ${!isAllow ? 'active' : ''}`}
                                                   {...activatable(
-                                                    () => handleToggleInlinePermission(role.id, mod, act.key),
-                                                    { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
+                                                    () => { if (isAllow) handleToggleInlinePermission(role.id, code); },
+                                                    { label: `Deny ${label} for ${module} in ${role.name}` }
                                                   )}
                                                 >
+                                                  <Ban size={10} />
                                                   Deny
                                                 </button>
                                               </div>
                                             </div>
                                           );
-                                        })}
-                                      </div>
+                                        })
+                                      ) : (
+                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                          View-only module
+                                        </span>
+                                      )}
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })
               )}
@@ -1033,74 +1017,91 @@ export function RoleManagementPage() {
 
                 {/* Modal Permissions Matrix Section */}
                 <div className="rm-modal-matrix-section">
-                  <div className="rm-matrix-heading-row">
-                    <h4 className="rm-matrix-heading">Configure Module Permissions</h4>
-                    <div className="rm-permissions-global-actions">
-                      <button
-                        type="button"
-                        className="rm-btn-global-allow"
-                        onClick={() => handleSetAllModalPermissions('Allow')}
-                      >
-                        Allow All
-                      </button>
-                      <button
-                        type="button"
-                        className="rm-btn-global-deny"
-                        onClick={() => handleSetAllModalPermissions('Deny')}
-                      >
-                        Deny All
-                      </button>
+                  <div className="rm-matrix-header-action" style={{ padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
+                    <h4 className="rm-matrix-heading" style={{ fontSize: '11px' }}>Configure All Pages / Modules Permissions</h4>
+                    <div className="rm-master-toggles">
+                      <button type="button" className="rm-btn-allow-all" onClick={handleAllowAllModal}>Allow All</button>
+                      <button type="button" className="rm-btn-deny-all" onClick={handleDenyAllModal}>Deny All</button>
                     </div>
                   </div>
-                  <div className="rm-module-permissions-wrapper">
-                    {MODULES.map((mod) => {
-                      const isModuleActive = Object.values(newRoleMatrix[mod] || {}).some(status => status === 'Allow');
+                  <div className="rm-permissions-list">
+                    <div className="rm-list-header-row" style={{ display: 'flex', borderBottom: '1px solid var(--border-primary)', padding: '8px 12px' }}>
+                      <div style={{ width: '160px', fontWeight: 600, fontSize: '10px', }}>Module / Page</div>
+                      <div style={{ flex: 1, fontWeight: 600, fontSize: '10px', }}>Available Permissions Configuration</div>
+                    </div>
+                    <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Module Target Scope
+                    </div>
+                    {PERMISSION_CATALOG.map(({ module, codes }) => {
+                      const viewCodeObj = codes.find(c => c.label.startsWith('View'));
+                      const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
+                      
+                      const isViewAllowed = viewCodeObj 
+                        ? newRoleCodes.includes(viewCodeObj.code)
+                        : codes.every(c => newRoleCodes.includes(c.code));
+                        
+                      const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
+
                       return (
-                        <div key={mod} className="rm-module-section-row">
-                          <div className="rm-module-section-title-col">
-                            <h4 className="rm-module-section-title">{mod}</h4>
-                            <label className="rm-switch-btn" style={{ marginLeft: 'auto', transform: 'scale(0.85)', transformOrigin: 'right center' }}>
+                        <div className="rm-module-row" key={module}>
+                          <div className="rm-module-sidebar">
+                            <span className="rm-mod-name">{module}</span>
+                            <label className="rm-switch-btn" htmlFor={`module-toggle-${module}`}>
+                              <span className="sr-only">Toggle Module</span>
                               <input
+                                id={`module-toggle-${module}`}
                                 type="checkbox"
-                                checked={isModuleActive}
-                                onChange={(e) => handleToggleModalModule(mod, e.target.checked)}
+                                checked={isViewAllowed}
+                                onChange={() => handleToggleModuleModal(codes, toggleCodes, isViewAllowed)}
                               />
-                              <span className="rm-switch-slider" />
+                              <span className="rm-switch-slider"></span>
                             </label>
                           </div>
-                          <div className="rm-permission-cards-col">
-                            {MODULE_ACTIONS[mod].map((act) => {
-                              const status = newRoleMatrix[mod]?.[act.key] || 'Deny';
-                              const isAllow = status === 'Allow';
-
-                              return (
-                                <div key={act.key} className="rm-permission-card">
-                                  <span className="rm-permission-card-title">{act.label}</span>
-                                  <div className="rm-permission-toggle-group">
-                                    <button
-                                      type="button"
-                                      className={`rm-perm-btn allow-btn ${isAllow ? 'active' : ''}`}
-                                      {...activatable(
-                                        () => handleToggleModalPermission(mod, act.key),
-                                        { label: `Allow ${act.label} for ${mod}`, isPressed: isAllow }
-                                      )}
-                                    >
-                                      Allow
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={`rm-perm-btn deny-btn ${!isAllow ? 'active' : ''}`}
-                                      {...activatable(
-                                        () => handleToggleModalPermission(mod, act.key),
-                                        { label: `Deny ${act.label} for ${mod}`, isPressed: !isAllow }
-                                      )}
-                                    >
-                                      Deny
-                                    </button>
+                          <div className="rm-module-permissions">
+                            {nonViewCodes.length > 0 ? (
+                              nonViewCodes.map(({ code, label }) => {
+                                const isAllow = newRoleCodes.includes(code);
+                                return (
+                                  <div 
+                                    className="rm-perm-box" 
+                                    key={code}
+                                    style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                  >
+                                    <span className="rm-perm-label" title={label}>
+                                      {label}
+                                    </span>
+                                    <div className="rm-perm-toggle-group">
+                                      <button
+                                        type="button"
+                                        className={`rm-perm-btn allow ${isAllow ? 'active' : ''}`}
+                                        {...activatable(
+                                          () => { if (!isAllow) handleToggleModalPermission(code); },
+                                          { label: `Allow ${label} permission for ${module}` }
+                                        )}
+                                      >
+                                        <Check size={10} />
+                                        Allow
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`rm-perm-btn deny ${!isAllow ? 'active' : ''}`}
+                                        {...activatable(
+                                          () => { if (isAllow) handleToggleModalPermission(code); },
+                                          { label: `Deny ${label} permission for ${module}` }
+                                        )}
+                                      >
+                                        <Ban size={10} />
+                                        Deny
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })
+                            ) : (
+                              <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                View-only module
+                              </span>
+                            )}
                           </div>
                         </div>
                       );

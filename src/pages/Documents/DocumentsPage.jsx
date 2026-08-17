@@ -16,6 +16,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import toast from 'react-hot-toast';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { documentService } from '@services/documentService';
@@ -29,6 +30,11 @@ import './DocumentsPage.css';
 /** Document library: folder tree, file table, inline viewer & CRUD management. */
 export function DocumentsPage() {
   useDocumentTitle('Documents');
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('DOCUMENTS_CREATE');
+  const canEdit = hasPermission('DOCUMENTS_EDIT');
+  const canDelete = hasPermission('DOCUMENTS_DELETE');
+  const canDownload = hasPermission('DOCUMENTS_DOWNLOAD');
 
   const fetchDocuments = useCallback(() => documentService.getDocuments(), []);
   const { data, isLoading, error, refetch } = useAsync(fetchDocuments);
@@ -173,8 +179,8 @@ export function DocumentsPage() {
       selectedFile={selectedFile}
       onSelectFile={handleSelectFile}
       searchQuery={debouncedSearchQuery}
-      onEditDocument={handleEditDocument}
-      onDeleteDocument={handleDeleteDocument}
+      onEditDocument={canEdit ? handleEditDocument : undefined}
+      onDeleteDocument={canDelete ? handleDeleteDocument : undefined}
     />
   ), [
     folderTreeState,
@@ -182,7 +188,9 @@ export function DocumentsPage() {
     expandedFolders,
     selectedFolder,
     selectedFile,
-    debouncedSearchQuery
+    debouncedSearchQuery,
+    canEdit,
+    canDelete,
   ]);
 
   if (error) {
@@ -232,8 +240,18 @@ export function DocumentsPage() {
             </div>
           )}
           {selectedFile ? (
-            /* Integrated Document Viewer (Fetches live file content by ID) */
-            <DocumentViewer selectedFile={selectedFile} pdfZoom={pdfZoom} />
+            canDownload ? (
+              /* Integrated Document Viewer (Fetches live file content by ID) */
+              <DocumentViewer selectedFile={selectedFile} pdfZoom={pdfZoom} />
+            ) : (
+              <div className="doc-empty-state-panel">
+                <h2 className="doc-empty-state-title">You don't have permission to view file content</h2>
+                <p className="doc-empty-state-text">
+                  You can browse the folder/file tree, but viewing or downloading file content requires
+                  additional permission.
+                </p>
+              </div>
+            )
           ) : (
             /* Empty State Panel */
             <div className="doc-empty-state-panel">
@@ -261,24 +279,26 @@ export function DocumentsPage() {
         <div className="doc-right-sidebar">
           {/* Sticky Actions & Search Block */}
           <div className="doc-sidebar-sticky-header">
-            <div className="doc-sidebar-actions-row">
-              <button
-                className="doc-sidebar-btn primary"
-                onClick={() => setShowAddFolderModal(true)}
-                title="Create a new folder node"
-              >
-                <FolderPlus size={15} />
-                <span>+ Folder</span>
-              </button>
-              <button
-                className="doc-sidebar-btn secondary"
-                onClick={() => setShowUploadFileModal(true)}
-                title="Upload document file"
-              >
-                <Upload size={15} />
-                <span>Upload File</span>
-              </button>
-            </div>
+            {canCreate && (
+              <div className="doc-sidebar-actions-row">
+                <button
+                  className="doc-sidebar-btn primary"
+                  onClick={() => setShowAddFolderModal(true)}
+                  title="Create a new folder node"
+                >
+                  <FolderPlus size={15} />
+                  <span>+ Folder</span>
+                </button>
+                <button
+                  className="doc-sidebar-btn secondary"
+                  onClick={() => setShowUploadFileModal(true)}
+                  title="Upload document file"
+                >
+                  <Upload size={15} />
+                  <span>Upload File</span>
+                </button>
+              </div>
+            )}
             <div className="doc-sidebar-search-row">
               <Search size={14} className="doc-search-icon-sidebar" />
               <input

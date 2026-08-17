@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Check, ChevronDown, Code, Loader2, MessageCircle, Plus, Search, Server, Shield, X } from 'lucide-react';
 
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
@@ -12,12 +12,16 @@ import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
+import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { createId } from '@utils/id';
 
 import { AddLinkModal } from './AddLinkModal';
 import { GroupCard } from './GroupSection';
 import './ImportantLinksPage.css';
+
+/** Max number of groups that can be pinned to the header. */
+const MAX_PINNED_GROUPS = 4;
 
 /** Canonical icon mapping for server-supplied categories */
 const CATEGORY_ICONS = {
@@ -109,6 +113,13 @@ export function ImportantLinksPage() {
   useDocumentTitle('Important Links');
 
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('IMPORTANT_LINKS_CREATE');
+  const canEdit = hasPermission('IMPORTANT_LINKS_EDIT');
+  const canDelete = hasPermission('IMPORTANT_LINKS_DELETE');
+  const canPinHeader = hasPermission('IMPORTANT_LINKS_PIN_HEADER');
+  const canGroupEdit = hasPermission('IMPORTANT_LINKS_GROUP_EDIT');
+  const canGroupDelete = hasPermission('IMPORTANT_LINKS_GROUP_DELETE');
   const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
@@ -124,6 +135,11 @@ export function ImportantLinksPage() {
   const [editLink, setEditLink] = useState(null); // { ...link, group: 'Group Title' }
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const [renameGroupTarget, setRenameGroupTarget] = useState(null); // { id, title }
+  const [renameGroupValue, setRenameGroupValue] = useState('');
+  const [isSavingGroup, setIsSavingGroup] = useState(false);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState(null); // { id, title }
 
   // ── Merged categories (server + local overrides + locally added) ──
   const mergedCategories = useMemo(() => {
@@ -183,8 +199,8 @@ export function ImportantLinksPage() {
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
-          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
+          toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
           return;
         }
       }
@@ -235,8 +251,8 @@ export function ImportantLinksPage() {
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
       if (pinToHeader) {
         const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= 4) {
-          toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+        if (!isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
+          toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
           return;
         }
       }
@@ -315,8 +331,8 @@ export function ImportantLinksPage() {
     const category = mergedCategories.find(c => c.id === groupId);
     if (!category) return;
 
-    if (!currentPinnedStatus && pinnedLinks.length >= 4 && !pinnedLinks.some(p => p.groupId === groupId)) {
-      toast.error('Only 4 groups can be pinned to the header. Please unpin an existing group first to pin this new group.');
+    if (!currentPinnedStatus && pinnedLinks.length >= MAX_PINNED_GROUPS && !pinnedLinks.some(p => p.groupId === groupId)) {
+      toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
       return;
     }
 
@@ -364,7 +380,49 @@ export function ImportantLinksPage() {
     [mergedCategories],
   );
 
+  // ── Rename Group ────────────────────────────────────────────────
+  const handleRenameGroupClick = useCallback((category) => {
+    setRenameGroupTarget({ id: category.id, title: category.title });
+    setRenameGroupValue(category.title);
+  }, []);
 
+  const executeRenameGroup = async () => {
+    if (!renameGroupTarget || !renameGroupValue.trim()) return;
+    setIsSavingGroup(true);
+    try {
+      await linkService.updateGroup(renameGroupTarget.id, renameGroupValue.trim());
+      await refetch();
+      toast.success('Group renamed successfully');
+      setRenameGroupTarget(null);
+    } catch (err) {
+      console.error('Failed to rename group:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to rename group');
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
+
+  // ── Delete Group ────────────────────────────────────────────────
+  const handleDeleteGroupClick = useCallback((category) => {
+    setDeleteGroupTarget({ id: category.id, title: category.title });
+  }, []);
+
+  const executeDeleteGroup = async () => {
+    if (!deleteGroupTarget) return;
+    setIsSavingGroup(true);
+    try {
+      await linkService.deleteGroup(deleteGroupTarget.id);
+      await refetch();
+      window.dispatchEvent(new Event('pinned-links:refresh'));
+      toast.success('Group deleted successfully');
+      setDeleteGroupTarget(null);
+    } catch (err) {
+      console.error('Failed to delete group:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete group');
+    } finally {
+      setIsSavingGroup(false);
+    }
+  };
 
   return (
     <div className="il-page">
@@ -398,15 +456,17 @@ export function ImportantLinksPage() {
 
         <span className="il-toolbar-spacer" aria-hidden="true" />
 
-        <Button
-          id="il-add-link-btn"
-          variant="primary"
-          size="sm"
-          leadingIcon={Plus}
-          onClick={() => { setEditLink(null); setShowModal(true); }}
-        >
-          Add Link
-        </Button>
+        {canCreate && (
+          <Button
+            id="il-add-link-btn"
+            variant="primary"
+            size="sm"
+            leadingIcon={Plus}
+            onClick={() => { setEditLink(null); setShowModal(true); }}
+          >
+            Add Link
+          </Button>
+        )}
       </div>
 
       {/* ── Main Content ─────────────────────────────────────────── */}
@@ -439,9 +499,13 @@ export function ImportantLinksPage() {
                 icon={CATEGORY_ICONS[category.iconKey] ?? null}
                 links={category.links}
                 isPinned={isPinned}
-                onTogglePinGroup={(status) => handleTogglePinGroup(category.id, status)}
+                onTogglePinGroup={canPinHeader ? (status) => handleTogglePinGroup(category.id, status) : undefined}
+                canEdit={canEdit}
+                canDelete={canDelete}
                 onEditLink={handleEditLink}
                 onDeleteLink={handleDeleteLink}
+                onRenameGroup={canGroupEdit ? () => handleRenameGroupClick(category) : undefined}
+                onDeleteGroup={canGroupDelete ? () => handleDeleteGroupClick(category) : undefined}
               />
             );
           })}
@@ -491,6 +555,86 @@ export function ImportantLinksPage() {
       >
         <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the link <strong>{deleteTarget?.label}</strong>?
+        </div>
+      </AdminModal>
+
+      {/* Rename Group Modal */}
+      <AdminModal
+        isOpen={!!renameGroupTarget}
+        onClose={() => setRenameGroupTarget(null)}
+        title="Rename Group"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'var(--font-family)' }}
+              onClick={() => setRenameGroupTarget(null)}
+              disabled={isSavingGroup}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-primary)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={executeRenameGroup}
+              disabled={isSavingGroup || !renameGroupValue.trim()}
+            >
+              {isSavingGroup ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0' }}>
+          <label htmlFor="il-rename-group-input" style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: 'var(--text-secondary)' }}>
+            Group name
+          </label>
+          <input
+            id="il-rename-group-input"
+            type="text"
+            className="il-search-input"
+            style={{ width: '100%' }}
+            value={renameGroupValue}
+            onChange={(e) => setRenameGroupValue(e.target.value)}
+            autoFocus
+          />
+        </div>
+      </AdminModal>
+
+      {/* Confirm Delete Group Modal */}
+      <AdminModal
+        isOpen={!!deleteGroupTarget}
+        onClose={() => setDeleteGroupTarget(null)}
+        title="Delete Group"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'var(--font-family)' }}
+              onClick={() => setDeleteGroupTarget(null)}
+              disabled={isSavingGroup}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-danger)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={executeDeleteGroup}
+              disabled={isSavingGroup}
+            >
+              {isSavingGroup ? <><Loader2 size={16} className="spin-animation" /> Deleting...</> : 'Delete'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
+          Are you sure you want to delete the group <strong>{deleteGroupTarget?.title}</strong>?
+          Its links will not be deleted — they'll move to "Other Links".
         </div>
       </AdminModal>
     </div>

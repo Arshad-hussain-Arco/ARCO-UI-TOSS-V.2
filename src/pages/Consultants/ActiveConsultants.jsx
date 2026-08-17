@@ -199,10 +199,12 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
                 setSelectedDesignation('All Designations');
               }}
             />
-            <button className="consultants-add-button" onClick={onAdd}>
-              <Plus className="consultants-add-icon" />
-              <span className="consultants-add-label">Add Consultant</span>
-            </button>
+            {onAdd && (
+              <button className="consultants-add-button" onClick={onAdd}>
+                <Plus className="consultants-add-icon" />
+                <span className="consultants-add-label">Add Consultant</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -212,9 +214,9 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
             <ConsultantCard
               key={c.id}
               consultant={c}
-              onEdit={() => onEdit && onEdit(c)}
-              onChangePassword={() => onPassword && onPassword(c)}
-              onDelete={() => onDelete && onDelete(c)}
+              onEdit={onEdit ? () => onEdit(c) : undefined}
+              onChangePassword={onPassword ? () => onPassword(c) : undefined}
+              onDelete={onDelete ? () => onDelete(c) : undefined}
               onAvatarClick={() => onProfileView && onProfileView(c.id)}
             />
           ))}

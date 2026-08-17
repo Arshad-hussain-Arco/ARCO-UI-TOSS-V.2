@@ -21,7 +21,7 @@ const TAG_CLASS_MAP = {
 /**
  * In-modal custom group dropdown — matches the app's Select component appearance.
  */
-function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError }) {
+function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCreateGroup }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   useOnClickOutside(wrapRef, () => setOpen(false), open);
@@ -299,6 +299,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               groups={existingGroups}
               value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
               hasError={false}
+              canCreateGroup={canCreateGroup}
               onSelect={(g) => {
                 set('selectedGroup', g);
                 set('groupMode', 'existing');

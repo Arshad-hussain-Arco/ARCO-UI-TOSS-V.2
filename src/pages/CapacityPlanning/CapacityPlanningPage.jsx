@@ -23,6 +23,7 @@ import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
@@ -54,6 +55,8 @@ const DAYS_OF_WEEK = [
 
 export function CapacityPlanningPage() {
   useDocumentTitle('Capacity Planning');
+  const { hasPermission } = useAuth();
+  const canExport = hasPermission('CAPACITY_PLANNING_EXPORT');
 
   // Load viewMode from localStorage or default to 'summary'
   const [viewMode, setViewMode] = useState(() => {
@@ -472,12 +475,14 @@ export function CapacityPlanningPage() {
                   width="team"
                 />
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                  <ExportButton
-                    excel
-                    pdf
-                    onExcelExport={handleExportExcel}
-                    onPdfExport={handleExportPDF}
-                  />
+                  {canExport && (
+                    <ExportButton
+                      excel
+                      pdf
+                      onExcelExport={handleExportExcel}
+                      onPdfExport={handleExportPDF}
+                    />
+                  )}
                 </div>
               </>
             ) : (
@@ -509,12 +514,14 @@ export function CapacityPlanningPage() {
                       Compact View
                     </button>
                   </div>
-                  <ExportButton
-                    excel
-                    pdf
-                    onExcelExport={handleExportExcel}
-                    onPdfExport={handleExportPDF}
-                  />
+                  {canExport && (
+                    <ExportButton
+                      excel
+                      pdf
+                      onExcelExport={handleExportExcel}
+                      onPdfExport={handleExportPDF}
+                    />
+                  )}
                 </div>
               </>
             )}

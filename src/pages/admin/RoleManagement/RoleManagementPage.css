@@ -223,7 +223,7 @@
 }
 
 .rm-row-tr:hover {
-  background: var(--bg-hover);
+  background:  var(--surface-secondary)
 }
 
 .rm-row-tr.expanded {
@@ -497,9 +497,17 @@
   border-right: 1px solid var(--border-primary);
 }
 
-.rm-perm-btn.allow-btn.active {
-  background: #ecfdf5;
-  color: #10b981;
+.rm-mod-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+/* Wraps one badge per permission code within a module row */
+.rm-code-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .rm-perm-btn.deny-btn.active {
@@ -512,37 +520,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-}
-
-.rm-permissions-global-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.rm-module-permissions-wrapper > .rm-permissions-global-actions {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-primary);
-  background: var(--surface-primary);
-  margin-bottom: 0;
-}
-
-.rm-global-actions-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.rm-btn-global-allow {
-  padding: 4px 12px;
-  border: 1px solid #10b981;
-  color: #10b981;
+  justify-content: center;
+  min-width: 64px;
+  padding: 0 8px;
+  height: 24px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  user-select: none;
+  white-space: nowrap;
 }
 .rm-btn-global-allow:hover {
   background: #d1fae5;
@@ -587,8 +576,7 @@
   }
 }
 
-.rm-modal-card {
-  /* width: 660px; */
+.rm-modal-card { 
   max-width: 95vw;
   max-height: 85vh;
   background: var(--surface-primary);
@@ -787,7 +775,7 @@
 }
 
 .rm-switch-btn input:checked+.rm-switch-slider {
-  background-color: var(--c-primary);
+  background-color: #006633
 }
 
 .rm-switch-btn input:checked+.rm-switch-slider:before {
@@ -802,11 +790,186 @@
   margin-top: 4px;
 }
 
+.rm-matrix-header-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .rm-matrix-heading {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.rm-master-toggles {
+  display: flex;
+  gap: 12px;
+}
+
+.rm-btn-allow-all {
+  border: 1px solid #10b981;
+  color: #10b981;
+  background: transparent;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rm-btn-allow-all:hover {
+  background: #d1fae5;
+}
+
+.rm-btn-deny-all {
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rm-btn-deny-all:hover {
+  background: #fee2e2;
+}
+
+.rm-permissions-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  background: var(--surface-primary);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.rm-module-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-primary);
+  transition: background-color 0.2s ease;
+}
+
+.rm-module-row:hover {
+  background-color: var(--bg-hover);
+}
+
+.rm-module-row:last-child {
+  border-bottom: none;
+}
+
+.rm-module-sidebar {
+  width: 160px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-right: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.rm-mod-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 10px;
+}
+
+.rm-module-permissions {
+  flex: 1;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rm-perm-box {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 4px;
+  gap: 4px;
+  min-width: 90px;
+  flex-grow: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rm-perm-box:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.rm-perm-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 2px 0 2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rm-perm-toggle-group {
+  display: flex;
+  background: var(--surface-secondary);
+  border-radius: 3px;
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  width: 100%;
+}
+
+.rm-perm-btn {
+  border: none;
+  background: transparent;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 4px 6px;
+  flex: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.rm-perm-btn.allow {
+  border-right: 1px solid var(--border-primary);
+}
+
+.rm-perm-btn.allow.active {
+  background: var(--c-success-light, #d1fae5);
+  color: var(--c-success, #065f46);
+}
+
+.rm-perm-btn.allow:hover:not(.active) {
+  background: var(--bg-hover);
+}
+
+.rm-perm-btn.deny.active {
+  background: var(--c-danger-light, #fee2e2);
+  color: var(--c-danger, #991b1b);
+}
+
+.rm-perm-btn.deny:hover:not(.active) {
+  background: var(--bg-hover);
 }
 
 /* Sticky Footer at Modal Bottom */

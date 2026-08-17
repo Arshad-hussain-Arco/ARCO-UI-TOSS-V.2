@@ -29,6 +29,7 @@ import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
 import { parseISO, getISOWeek, getDay } from 'date-fns';
@@ -775,6 +776,10 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
 export function MurexRuntimeTrendsPage() {
   useDocumentTitle('Murex Runtime Trends');
   const themeColor = useChartThemeColor();
+  const { hasPermission } = useAuth();
+  const canCreateCategory = hasPermission('MUREX_SCRIPT_CATEGORY_CREATE');
+  const canEditCategory = hasPermission('MUREX_SCRIPT_CATEGORY_EDIT');
+  const canDeleteCategory = hasPermission('MUREX_SCRIPT_CATEGORY_DELETE');
 
   const [timeRange, setTimeRange] = useState('7d'); // Default selected timeframe: 7d
 
@@ -1526,10 +1531,11 @@ export function MurexRuntimeTrendsPage() {
                     className="murex-category-item-wrapper"
                     style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}
                     onDragOver={(e) => {
-                      if (category.id !== null) e.preventDefault();
+                      if (category.id !== null && canEditCategory) e.preventDefault();
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      if (!canEditCategory) return;
                       const scriptName = e.dataTransfer.getData('text/plain');
                       if (scriptName && category.id !== null) {
                         handleAssignScriptDirectly(scriptName, category);
@@ -1546,23 +1552,27 @@ export function MurexRuntimeTrendsPage() {
                         {managementScripts.filter((s) => s.category === category.name).length}
                       </span>
                     </button>
-                    {category.id !== null && (
+                    {category.id !== null && (canEditCategory || canDeleteCategory) && (
                       <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
-                        <button
-                          className="murex-icon-btn"
-                          title="Edit Category"
-                          onClick={(e) => handleEditCategory(category, e)}
-                        >
-                          <Edit size={12} />
-                        </button>
-                        <button
-                          className="murex-icon-btn error"
-                          title="Delete Category"
-                          onClick={(e) => handleDeleteCategory(category, e)}
-                          style={{ color: 'var(--error-color)' }}
-                        >
-                          <Trash size={12} />
-                        </button>
+                        {canEditCategory && (
+                          <button
+                            className="murex-icon-btn"
+                            title="Edit Category"
+                            onClick={(e) => handleEditCategory(category, e)}
+                          >
+                            <Edit size={12} />
+                          </button>
+                        )}
+                        {canDeleteCategory && (
+                          <button
+                            className="murex-icon-btn error"
+                            title="Delete Category"
+                            onClick={(e) => handleDeleteCategory(category, e)}
+                            style={{ color: 'var(--error-color)' }}
+                          >
+                            <Trash size={12} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1575,14 +1585,16 @@ export function MurexRuntimeTrendsPage() {
                 )}
               </div>
 
-              <button
-                className="murex-add-category-btn"
-                onClick={handleAddCategory}
-                style={{ backgroundColor: '#006633', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
-              >
-                <Plus size={14} />
-                <span>Add Category</span>
-              </button>
+              {canCreateCategory && (
+                <button
+                  className="murex-add-category-btn"
+                  onClick={handleAddCategory}
+                  style={{ backgroundColor: '#006633', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  <Plus size={14} />
+                  <span>Add Category</span>
+                </button>
+              )}
             </div>
 
             {/* Main Script Table */}

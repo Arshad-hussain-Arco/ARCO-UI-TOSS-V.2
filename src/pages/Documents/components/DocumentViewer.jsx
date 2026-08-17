@@ -52,8 +52,12 @@ export function DocumentViewer({ selectedFile, pdfZoom = 100 }) {
         }
       } catch (err) {
         console.error('Failed to load document content:', err);
-        const errMsg = err.response?.data?.message || err.message || 'Failed to fetch file content';
-        setFetchError(errMsg);
+        if (err.response?.status === 403) {
+          setFetchError({ isPermissionDenied: true });
+        } else {
+          const errMsg = err.response?.data?.message || err.message || 'Failed to fetch file content';
+          setFetchError({ message: errMsg });
+        }
       } finally {
         setIsLoadingContent(false);
       }
@@ -102,11 +106,20 @@ export function DocumentViewer({ selectedFile, pdfZoom = 100 }) {
     }
 
     if (fetchError) {
+      if (fetchError.isPermissionDenied) {
+        return (
+          <div className="doc-preview-error">
+            <AlertCircle size={40} className="doc-error-icon" />
+            <h3>You don't have permission to view this file</h3>
+            <p>Viewing/downloading file content requires the Download permission for Documents.</p>
+          </div>
+        );
+      }
       return (
         <div className="doc-preview-error">
           <AlertCircle size={40} className="doc-error-icon" />
           <h3>Could not load document preview</h3>
-          <p>{fetchError}</p>
+          <p>{fetchError.message}</p>
           <button
             className="doc-modal-btn primary"
             onClick={() => {
@@ -120,7 +133,13 @@ export function DocumentViewer({ selectedFile, pdfZoom = 100 }) {
                   const url = URL.createObjectURL(blob);
                   setObjectUrl(url);
                 })
-                .catch((e) => setFetchError(e.message))
+                .catch((e) => {
+                  if (e.response?.status === 403) {
+                    setFetchError({ isPermissionDenied: true });
+                  } else {
+                    setFetchError({ message: e.message });
+                  }
+                })
                 .finally(() => setIsLoadingContent(false));
             }}
           >

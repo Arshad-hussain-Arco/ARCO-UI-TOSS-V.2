@@ -29,31 +29,35 @@ function LinkItem({ link, onEdit, onDelete }) {
       </div>
 
       <div className="il-link-item-actions">
-        <button
-          type="button"
-          className="action-icon-btn edit"
-          title="Edit link"
-          aria-label={`Edit ${link.label}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(link);
-          }}
-        >
-          <Edit size={12} />
-        </button>
+        {onEdit && (
+          <button
+            type="button"
+            className="action-icon-btn edit"
+            title="Edit link"
+            aria-label={`Edit ${link.label}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(link);
+            }}
+          >
+            <Edit size={12} />
+          </button>
+        )}
 
-        <button
-          type="button"
-          className="action-icon-btn delete"
-          title="Delete link"
-          aria-label={`Delete ${link.label}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(link);
-          }}
-        >
-          <Trash size={12} />
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            className="action-icon-btn delete"
+            title="Delete link"
+            aria-label={`Delete ${link.label}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(link);
+            }}
+          >
+            <Trash size={12} />
+          </button>
+        )}
 
         <a
           href={link.url}
@@ -82,8 +86,10 @@ function LinkItem({ link, onEdit, onDelete }) {
  * @param {{ id: string, label: string, url: string, description?: string, tag?: string }[]} props.links
  * @param {(link: Object) => void} props.onEditLink   Called when user clicks the edit icon on a link.
  * @param {(link: Object) => void} props.onDeleteLink Called when user clicks the delete icon on a link.
+ * @param {() => void} [props.onRenameGroup]  Called when user clicks the rename-group icon.
+ * @param {() => void} [props.onDeleteGroup]  Called when user clicks the delete-group icon.
  */
-function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, onEditLink, onDeleteLink }) {
+function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, canEdit, canDelete, onEditLink, onDeleteLink, onRenameGroup, onDeleteGroup }) {
   return (
     <article className="il-group-card" aria-labelledby={`group-heading-${id}`}>
 
@@ -99,19 +105,43 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
           <span className="il-group-card-count" aria-label={`${links.length} links`} style={{ flexShrink: 0 }}>
             {links.length}
           </span>
+          {onRenameGroup && (
+            <button
+              type="button"
+              className="action-icon-btn edit"
+              title="Rename group"
+              aria-label={`Rename ${title}`}
+              onClick={onRenameGroup}
+            >
+              <Edit size={12} />
+            </button>
+          )}
+          {onDeleteGroup && (
+            <button
+              type="button"
+              className="action-icon-btn delete"
+              title="Delete group"
+              aria-label={`Delete ${title}`}
+              onClick={onDeleteGroup}
+            >
+              <Trash size={12} />
+            </button>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: '8px', flexShrink: 0 }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pin to header</span>
-          <label className="il-toggle" aria-label="Pin to header" style={{ margin: 0 }}>
-            <input
-              type="checkbox"
-              checked={isPinned}
-              onChange={(e) => onTogglePinGroup(isPinned)}
-            />
-            <span className="il-toggle-track" />
-            <span className="il-toggle-thumb" />
-          </label>
-        </div>
+        {onTogglePinGroup && (
+          <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: '8px', flexShrink: 0 }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Pin to header</span>
+            <label className="il-toggle" aria-label="Pin to header" style={{ margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={isPinned}
+                onChange={(e) => onTogglePinGroup(isPinned)}
+              />
+              <span className="il-toggle-track" />
+              <span className="il-toggle-thumb" />
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Card Body — scrollable */}
@@ -123,8 +153,8 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
             <LinkItem
               key={link.id}
               link={link}
-              onEdit={onEditLink}
-              onDelete={onDeleteLink}
+              onEdit={canEdit ? onEditLink : undefined}
+              onDelete={canDelete ? onDeleteLink : undefined}
             />
           ))
         )}
