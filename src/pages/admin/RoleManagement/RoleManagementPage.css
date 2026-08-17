@@ -223,7 +223,7 @@
 }
 
 .rm-row-tr:hover {
-  background: var(--bg-hover);
+  background:  var(--surface-secondary)
 }
 
 .rm-row-tr.expanded {
@@ -712,7 +712,7 @@
 }
 
 .rm-switch-btn input:checked+.rm-switch-slider {
-  background-color: var(--c-primary);
+  background-color: #006633
 }
 
 .rm-switch-btn input:checked+.rm-switch-slider:before {
