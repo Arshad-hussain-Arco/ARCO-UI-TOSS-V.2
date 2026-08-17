@@ -30,6 +30,7 @@ export function DatePicker({
   mode = 'single',
   value,
   onChange,
+  onMonthChange,
   minDate,
   maxDate,
   // Optional predicate — (date) => boolean — for disabling individual
@@ -44,6 +45,7 @@ export function DatePicker({
   className = '',
   width = 'auto',
   showClear = true,
+  isLoading = false,
   ...props
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -84,16 +86,28 @@ export function DatePicker({
   };
 
   const navigateMonth = (direction) => {
-    setCurrentMonth((prev) => addMonths(prev, direction));
+    setCurrentMonth((prev) => {
+      const next = addMonths(prev, direction);
+      if (onMonthChange) onMonthChange(next);
+      return next;
+    });
   };
 
   const selectMonth = (monthIdx) => {
-    setCurrentMonth((prev) => dateFnsSetMonth(prev, monthIdx));
+    setCurrentMonth((prev) => {
+      const next = dateFnsSetMonth(prev, monthIdx);
+      if (onMonthChange) onMonthChange(next);
+      return next;
+    });
     setView('calendar');
   };
 
   const selectYear = (yearNum) => {
-    setCurrentMonth((prev) => dateFnsSetYear(prev, yearNum));
+    setCurrentMonth((prev) => {
+      const next = dateFnsSetYear(prev, yearNum);
+      if (onMonthChange) onMonthChange(next);
+      return next;
+    });
     setView('calendar');
   };
 
@@ -204,43 +218,53 @@ export function DatePicker({
           )}
 
           {view === 'calendar' && (
-            <DayPicker
-              mode={mode}
-              month={currentMonth}
-              onMonthChange={setCurrentMonth}
-              selected={value}
-              onSelect={handleSelect}
-              disabled={(() => {
-                const matchers = [];
-                if (minDate || maxDate) matchers.push({ before: minDate, after: maxDate });
-                if (isDateDisabled) matchers.push(isDateDisabled);
-                return matchers.length ? matchers : false;
-              })()}
-              showOutsideDays
-              className="dp-calendar"
-              classNames={{
-                root: 'dp-root',
-                months: 'dp-months',
-                month: 'dp-month',
-                month_caption: 'dp-caption-hidden', // Hide rdp caption
-                nav: 'dp-nav-hidden', // Hide rdp nav
-                month_grid: 'dp-table',
-                weekdays: 'dp-head-row',
-                weekday: 'dp-head-cell',
-                week: 'dp-row',
-                day: 'dp-cell',
-                day_button: 'dp-day',
-                range_start: 'dp-day-range-start',
-                range_end: 'dp-day-range-end',
-                selected: 'dp-day-selected',
-                today: 'dp-day-today',
-                outside: 'dp-day-outside',
-                disabled: 'dp-day-disabled',
-                hidden: 'dp-day-hidden',
-                range_middle: 'dp-day-range-middle'
-              }}
-              {...props}
-            />
+            <div style={{ position: 'relative' }}>
+              <DayPicker
+                mode={mode}
+                month={currentMonth}
+                onMonthChange={(m) => {
+                  setCurrentMonth(m);
+                  if (onMonthChange) onMonthChange(m);
+                }}
+                selected={value}
+                onSelect={handleSelect}
+                disabled={(() => {
+                  const matchers = [];
+                  if (minDate || maxDate) matchers.push({ before: minDate, after: maxDate });
+                  if (isDateDisabled) matchers.push(isDateDisabled);
+                  return matchers.length ? matchers : false;
+                })()}
+                showOutsideDays
+                className="dp-calendar"
+                classNames={{
+                  root: 'dp-root',
+                  months: 'dp-months',
+                  month: 'dp-month',
+                  month_caption: 'dp-caption-hidden', // Hide rdp caption
+                  nav: 'dp-nav-hidden', // Hide rdp nav
+                  month_grid: 'dp-table',
+                  weekdays: 'dp-head-row',
+                  weekday: 'dp-head-cell',
+                  week: 'dp-row',
+                  day: 'dp-cell',
+                  day_button: 'dp-day',
+                  range_start: 'dp-day-range-start',
+                  range_end: 'dp-day-range-end',
+                  selected: 'dp-day-selected',
+                  today: 'dp-day-today',
+                  outside: 'dp-day-outside',
+                  disabled: 'dp-day-disabled',
+                  hidden: 'dp-day-hidden',
+                  range_middle: 'dp-day-range-middle'
+                }}
+                {...props}
+              />
+              {isLoading && (
+                <div className="dp-loading-overlay">
+                  <div className="dp-spinner" />
+                </div>
+              )}
+            </div>
           )}
         </Popover.Content>
       </Popover.Portal>

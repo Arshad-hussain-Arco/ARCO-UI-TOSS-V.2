@@ -143,6 +143,7 @@ function TeamLeaveSummary() {
             id: emp.emp_id,
             name: emp.emp_name || 'Unknown Employee',
             designation: emp.designation,
+            photo: emp.photo || emp.avatar || null,
             balances: b, // keep balances for backwards compatibility if needed
             leaveTypes: Array.isArray(emp.leave_types) ? emp.leave_types : [],
             leaveQuota: emp.summary?.total_entitled || (b.AL?.entitled || 0) + (b.SL?.entitled || 0),
@@ -875,9 +876,17 @@ function TeamLeaveSummary() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                               <div
                                                 className="tsa-avatar"
-                                                style={{ backgroundColor: avatarColor }}
+                                                style={{ backgroundColor: emp.photo ? 'transparent' : avatarColor }}
                                               >
-                                                {initials}
+                                                {emp.photo ? (
+                                                  <img
+                                                    src={emp.photo.startsWith('data:') ? emp.photo : `data:image/jpeg;base64,${emp.photo}`}
+                                                    alt={emp.name}
+                                                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                                  />
+                                                ) : (
+                                                  initials
+                                                )}
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span style={{ fontWeight: 500, fontSize: '13px', color: 'var(--text-primary)' }}>{emp.name}</span>
