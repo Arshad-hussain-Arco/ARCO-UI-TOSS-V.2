@@ -105,16 +105,21 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     return () => document.removeEventListener('selectionchange', handler);
   }, []);
 
-  const runCommand = (commandFn) => {
+  const runCommand = (commandFn, options = {}) => {
     const el = editableRef.current;
     if (!el) return;
 
-    if (document.activeElement !== el) {
-      restoreSelection(el, getSavedSelection());
+    if (document.activeElement !== el && !options.skipFocus) {
+      restoreSelection(el, getSavedSelection(), options);
+    } else if (getSavedSelection()) {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        restoreSelection(el, getSavedSelection(), { skipFocus: true });
+      }
     }
 
     const sel = window.getSelection();
-    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const range = (sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null) || getSavedSelection();
 
     history.checkpointNow();
     commandFn(range, el);
