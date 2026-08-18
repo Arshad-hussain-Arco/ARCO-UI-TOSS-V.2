@@ -158,7 +158,7 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.employee_id, user?.emp_id, user?.id]);
 
   useEffect(() => {
     fetchLiveDashboardData();

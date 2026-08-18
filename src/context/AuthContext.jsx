@@ -93,9 +93,6 @@ export function AuthProvider({ children }) {
         persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
       }
 
-      if (info.theme) {
-        setTheme(info.theme);
-      }
 
       if (includePhoto && persistedUser.emp_id) {
         try {
