@@ -20,7 +20,7 @@
 
 .dc-pa-modal {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   width: 320px;
   max-width: 90vw;
@@ -141,4 +141,10 @@
 .dc-pa-modal-reject:not(:disabled):hover {
   opacity: 0.9;
   transform: translateY(-1px);
+}
+
+
+[data-theme="dark"] .dc-pa-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

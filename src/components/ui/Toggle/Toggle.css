@@ -34,7 +34,7 @@
 }
 
 .ui-toggle-input:checked + .ui-toggle-track {
-  background: var(--c-primary);
+  background: #006633;
 }
 
 .ui-toggle-input:focus-visible + .ui-toggle-track {

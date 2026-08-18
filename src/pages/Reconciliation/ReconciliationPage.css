@@ -922,18 +922,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
-  padding: 0 4px;
-  height: 16px;
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 700;
-  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--bg-secondary);
   color: var(--text-secondary);
 }
 
-.rrs-tab--active .rrs-tab-badge {
-  background: var(--c-primary-light);
+.rrs-tab--active .rrs-tab-badge,
+.rrs-sub-tab--active .rrs-tab-badge {
+  background-color: #e6f4ed;
   color: var(--c-primary);
 }
 
@@ -995,13 +994,14 @@
 
 .rrs-th {
   padding: 6px 10px;
-  text-align: left;
+  text-align:  center;
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-weight: 700;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+   border-right: 2px solid var(--border-primary);
   border-bottom: 2px solid var(--border-primary);
   white-space: nowrap;
   position: sticky;
@@ -1031,6 +1031,9 @@
   left: 0;
   z-index: 5;
   background: var(--surface-primary);
+  width: 130px;
+  min-width: 130px;
+  border-right: 1px solid var(--border-primary);
 }
 
 .rrs-th-diff {
@@ -1062,17 +1065,24 @@
 .rrs-td-key {
   font-family: monospace;
   font-weight: 700;
-  color: var(--c-primary);
   white-space: nowrap;
   position: sticky;
   left: 0;
   z-index: 1;
   background: var(--surface-primary);
-  width: 130px;
-  min-width: 130px;
   max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
+  
+  width: 130px;
+  min-width: 130px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-right: 1px solid var(--border-primary);
+  color: var(--text-primary);
 }
 
 .rrs-tr:hover .rrs-td-key {
@@ -1134,7 +1144,7 @@
 
 .rrs-modal {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   width: 100%;
   max-width: 400px;
@@ -1614,4 +1624,10 @@
   background: var(--surface-primary);
   border-left: 1px solid var(--border-primary);
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.03);
+}
+
+
+[data-theme="dark"] .rrs-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

@@ -1,7 +1,7 @@
 /* c:\Users\MohammadRiyazShaik\Desktop\Arco-Github\ARCO-UI-TOSS-V.2\src\pages\Home\HomePage.css */
 
 .home-dashboard-container {
-  padding: 32px 40px;
+  padding: 16px;
   min-height: calc(100vh - 64px);
   background: var(--bg-primary);
   animation: fadeIn 0.4s ease-out;
@@ -75,7 +75,11 @@
 
 .home-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, 1fr), not bare 1fr — a plain 1fr track has an implicit
+     min-width: auto, so a wide card (a media-card action row, a fixed-width
+     video block) refuses to shrink to the column and forces the whole page
+     into horizontal scroll instead of wrapping/clipping inside the card. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   align-items: stretch;
 }
@@ -83,6 +87,7 @@
 .home-card-grid-item {
   display: flex;
   height: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {

@@ -27,16 +27,7 @@ export function HomeCardLayoutSelector({ value = '100%', onChange }) {
             }
           }}
         >
-          <div className="layout-option-preview vertical-preview">
-            <div className="mini-card mini-card-vertical">
-              <div className="mini-media-box" />
-              <div className="mini-text-lines">
-                <div className="mini-line mini-heading" />
-                <div className="mini-line mini-subhead" />
-                <div className="mini-line mini-desc" />
-              </div>
-            </div>
-          </div>
+
           <div className="layout-option-meta">
             <div className="layout-option-title">
               <span>Half Width (50%)</span>
@@ -61,16 +52,7 @@ export function HomeCardLayoutSelector({ value = '100%', onChange }) {
             }
           }}
         >
-          <div className="layout-option-preview horizontal-preview">
-            <div className="mini-card mini-card-horizontal">
-              <div className="mini-media-box" />
-              <div className="mini-text-lines">
-                <div className="mini-line mini-heading" />
-                <div className="mini-line mini-subhead" />
-                <div className="mini-line mini-desc" />
-              </div>
-            </div>
-          </div>
+
           <div className="layout-option-meta">
             <div className="layout-option-title">
               <span>Full Width (100%)</span>

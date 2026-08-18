@@ -775,7 +775,7 @@
 }
 .eod-modal {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 12px;
   width: 100%;
   max-width: 520px;
@@ -786,6 +786,8 @@
   overflow: hidden;
 }
 .eod-confirm-modal {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
   max-width: 380px;
 }
 
@@ -1900,4 +1902,15 @@
   .eod-live-banner-step {
     display: none;
   }
+}
+
+
+[data-theme="dark"] .eod-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .eod-confirm-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

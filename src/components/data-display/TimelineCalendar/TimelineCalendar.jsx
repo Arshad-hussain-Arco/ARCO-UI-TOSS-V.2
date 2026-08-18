@@ -86,24 +86,30 @@ export function TimelineCalendar({
   return (
     <div className="tl-container">
       {/* Timeline Controls Header */}
-      <div className="tl-header">
-        <div className="tl-month-info">
-          <CalendarIcon size={16} className="tl-info-icon" />
-          <span className="tl-month-title">{monthLabel}</span>
+      <div className="tl-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ flex: 1 }}></div>
+
+        <div className="tl-nav-group" style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, justifyContent: 'center' }}>
+          <button className="tl-btn-nav" onClick={onPrevMonth} title="Previous Month" type="button">
+            <ChevronLeft size={16} />
+          </button>
+          
+          <div className="tl-month-info" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140, justifyContent: 'center' }}>
+            <CalendarIcon size={16} className="tl-info-icon" />
+            <span className="tl-month-title">{monthLabel}</span>
+          </div>
+
+          <button className="tl-btn-nav" onClick={onNextMonth} title="Next Month" type="button">
+            <ChevronRight size={16} />
+          </button>
         </div>
 
-        <div className="tl-nav-group">
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           {onToday && (
             <button className="tl-btn-today" onClick={onToday} type="button">
               Today
             </button>
           )}
-          <button className="tl-btn-nav" onClick={onPrevMonth} title="Previous Month" type="button">
-            <ChevronLeft size={16} />
-          </button>
-          <button className="tl-btn-nav" onClick={onNextMonth} title="Next Month" type="button">
-            <ChevronRight size={16} />
-          </button>
         </div>
       </div>
 

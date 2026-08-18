@@ -509,6 +509,7 @@
 
 /* Modal shell */
 .il-modal {
+  border: 1px solid var(--border-secondary);
   background: var(--surface-primary);
   border-radius: 10px;
   box-shadow: var(--shadow-lg);
@@ -1030,6 +1031,8 @@
   }
 
   .il-modal {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
     max-height: 95vh;
   }
 }
@@ -1046,4 +1049,9 @@
 }
 .tv-btn.cancel:hover {
   background-color: var(--bg-hover);
+}
+
+[data-theme="dark"] .il-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }
