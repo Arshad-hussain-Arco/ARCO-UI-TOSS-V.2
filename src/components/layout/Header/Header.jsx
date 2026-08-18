@@ -43,10 +43,21 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
     wsStatus,
     markRead,
     markAllRead,
+    refreshNotifications,
   } = useNotifications(empId);
 
   const closeNavMenu = useCallback(() => setIsNavMenuOpen(false), []);
   const closeNotif   = useCallback(() => setIsNotifOpen(false), []);
+
+  // EOD notifications have no live push (see useNotifications.js) — refetch
+  // right before opening the bell so they're current without polling on a
+  // timer. Only refresh on the open transition, not every toggle.
+  const toggleNotif = useCallback(() => {
+    setIsNotifOpen((open) => {
+      if (!open) refreshNotifications();
+      return !open;
+    });
+  }, [refreshNotifications]);
 
   useOnClickOutside(navMenuRef, closeNavMenu, isNavMenuOpen);
 
@@ -170,7 +181,7 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
           aria-haspopup="dialog"
           aria-expanded={isNotifOpen}
-          onClick={() => setIsNotifOpen((o) => !o)}
+          onClick={toggleNotif}
         >
           <Bell className="header-icon" aria-hidden="true" />
           {unreadCount > 0 && (

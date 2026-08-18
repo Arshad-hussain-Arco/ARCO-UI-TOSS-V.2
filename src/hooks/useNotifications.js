@@ -69,13 +69,19 @@ const tagSource = (source) => (item) => ({ ...item, id: nsId(source, item.id), s
 /**
  * useNotifications(empId)
  *
- * Connects to both the Leaves and EOD notification WebSocket channels on
- * mount and merges their results into a single list.
+ * Connects to the Leaves notification WebSocket on mount for live push.
+ * EOD notifications have no push channel (the backend has no message broker
+ * to carry a cross-process push — see eod_jobs/consumers.py), so instead of
+ * polling on a timer, they're refetched at the two moments that actually
+ * matter to the user: once on mount (login) via refreshNotifications(), and
+ * again whenever they open the bell dropdown — Header.jsx calls
+ * refreshNotifications() right before setting isNotifOpen to true. No
+ * interval, no requests while nobody's looking.
  * - Initial unread dump populates the list.
- * - Real-time pushes are prepended.
+ * - Real-time Leaves pushes are prepended immediately; EOD updates appear
+ *   next time the bell is opened (or on the next page load).
  * - mark_read / mark_all_read go over the Leaves socket (REST fallback when
- *   disconnected); EOD notifications only support REST mark-read (the EOD
- *   consumer is push-only), so those always go over REST.
+ *   disconnected); EOD notifications only support REST mark-read.
  *
  * @param {number|string|null} empId
  */
@@ -85,12 +91,9 @@ export function useNotifications(empId) {
   const [wsStatus, setWsStatus]           = useState('disconnected');
 
   const leaveWsRef        = useRef(null);
-  const eodWsRef          = useRef(null);
   const reconnectTimer    = useRef(null);
-  const eodReconnectTimer = useRef(null);
   const isMountedRef      = useRef(true);
-  const connectRef        = useRef(null);    // stable refs so onclose can call them
-  const eodConnectRef     = useRef(null);
+  const connectRef        = useRef(null);    // stable ref so onclose can call it
 
   // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -174,52 +177,16 @@ export function useNotifications(empId) {
 
   useEffect(() => { connectRef.current = connect; }, [connect]);
 
-  // ── WebSocket: EOD ────────────────────────────────────────────────────────
-  // Push-only channel (no mark_read/mark_all_read support server-side) — see
-  // eod_jobs/consumers.py::EodNotificationConsumer.
-
-  const eodConnect = useCallback(() => {
+  /**
+   * refreshNotifications — re-fetches ALL notifications from both back-ends.
+   * Used for: the initial load, right before the bell dropdown opens (EOD
+   * has no push channel — see Header.jsx), and manually after on-behalf
+   * leave submissions where the backend notifies the *employee's* WS channel
+   * (not the manager's), so the manager's dropdown won't auto-update via
+   * WebSocket alone.
+   */
+  const refreshNotifications = useCallback(() => {
     if (!empId || !isMountedRef.current) return;
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-    if (!token) return;
-
-    const url = `${WS_BASE}/ws/eod-notifications/${empId}/?token=${token}`;
-    const ws  = new WebSocket(url);
-    eodWsRef.current = ws;
-
-    ws.onmessage = (evt) => {
-      if (!isMountedRef.current) return;
-      try {
-        const data = JSON.parse(evt.data);
-        if (data.id !== undefined) {
-          upsert(tagSource('eod')(data));
-        }
-      } catch {
-        /* ignore malformed frames */
-      }
-    };
-
-    ws.onclose = (evt) => {
-      if (!isMountedRef.current) return;
-      eodWsRef.current = null;
-      if (evt.code === 4001) return;                          // bad token — don't retry
-      eodReconnectTimer.current = setTimeout(() => eodConnectRef.current?.(), 5000);
-    };
-
-    ws.onerror = () => { /* handled in onclose */ };
-  }, [empId, upsert]);
-
-  useEffect(() => { eodConnectRef.current = eodConnect; }, [eodConnect]);
-
-  // ── Mount / unmount ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    if (!empId) return;
-
-    // 1. Fetch ALL notifications (read + unread) from both back-ends so the
-    //    list is always populated on refresh, even if all are read (WS only
-    //    sends unread pushes).
     Promise.allSettled([
       restFetch(`/leaves/me/notifications/?emp_id=${empId}`),
       restFetch('/eod-jobs/notifications/'),
@@ -232,32 +199,47 @@ export function useNotifications(empId) {
       const eodData = eodResult.status === 'fulfilled' ? eodResult.value : [];
       const eodList = (Array.isArray(eodData) ? eodData : []).map(tagSource('eod'));
 
-      const merged = [...leaveList, ...eodList].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setNotifications(merged);
-      setUnreadCount(calcUnread(merged));
-    });
+      const list = [...leaveList, ...eodList].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    // 2. Connect both WebSockets — each server pushes its own unread items,
-    //    merged into the REST list via upsert().
+      // Merge: preserve optimistic is_read updates for items already in state
+      setNotifications(prev => {
+        const prevMap = new Map(prev.map(n => [n.id, n]));
+        const merged = list.map(n => {
+          const existing = prevMap.get(n.id);
+          // Keep local is_read:true if we already marked it read in this session
+          return existing?.is_read && !n.is_read ? existing : { ...existing, ...n };
+        });
+        setUnreadCount(calcUnread(merged));
+        return merged;
+      });
+    });
+  }, [empId]);
+
+  // ── Mount / unmount ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (!empId) return;
+
+    // 1. Initial fetch (on login) — populates the list from both back-ends.
+    refreshNotifications();
+
+    // 2. Connect the Leaves WebSocket for live push. EOD has no push channel
+    //    — its notifications are refetched again when the bell opens (see
+    //    Header.jsx, which calls refreshNotifications() before showing the
+    //    dropdown) rather than on a timer.
     connect();
-    eodConnect();
 
     return () => {
       isMountedRef.current = false;
       clearTimeout(reconnectTimer.current);
-      clearTimeout(eodReconnectTimer.current);
       if (leaveWsRef.current) {
         leaveWsRef.current.onclose = null; // prevent auto-reconnect on deliberate unmount
         leaveWsRef.current.close();
         leaveWsRef.current = null;
       }
-      if (eodWsRef.current) {
-        eodWsRef.current.onclose = null;
-        eodWsRef.current.close();
-        eodWsRef.current = null;
-      }
     };
-  }, [empId, connect, eodConnect]);
+  }, [empId, connect, refreshNotifications]);
 
   // Keep unreadCount synced whenever notifications list changes externally
   useEffect(() => {
@@ -317,42 +299,6 @@ export function useNotifications(empId) {
     return restFetch(`/leaves/me/leaves/${leaveId}/remind/`, {
       method: 'POST',
       body: { emp_id: empId },
-    });
-  }, [empId]);
-
-  /**
-   * refreshNotifications — re-fetches ALL notifications from both back-ends.
-   * Call this after on-behalf leave submissions where the backend sends a
-   * notification to the *employee's* WS channel (not the manager's), so the
-   * manager's dropdown won't auto-update via WebSocket alone.
-   */
-  const refreshNotifications = useCallback(() => {
-    if (!empId || !isMountedRef.current) return;
-    Promise.allSettled([
-      restFetch(`/leaves/me/notifications/?emp_id=${empId}`),
-      restFetch('/eod-jobs/notifications/'),
-    ]).then(([leaveResult, eodResult]) => {
-      if (!isMountedRef.current) return;
-
-      const leaveData = leaveResult.status === 'fulfilled' ? leaveResult.value : [];
-      const leaveList = (Array.isArray(leaveData) ? leaveData : (leaveData.results ?? [])).map(tagSource('leave'));
-
-      const eodData = eodResult.status === 'fulfilled' ? eodResult.value : [];
-      const eodList = (Array.isArray(eodData) ? eodData : []).map(tagSource('eod'));
-
-      const list = [...leaveList, ...eodList].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-      // Merge: preserve optimistic is_read updates for items already in state
-      setNotifications(prev => {
-        const prevMap = new Map(prev.map(n => [n.id, n]));
-        const merged = list.map(n => {
-          const existing = prevMap.get(n.id);
-          // Keep local is_read:true if we already marked it read in this session
-          return existing?.is_read && !n.is_read ? existing : { ...existing, ...n };
-        });
-        setUnreadCount(calcUnread(merged));
-        return merged;
-      });
     });
   }, [empId]);
 
