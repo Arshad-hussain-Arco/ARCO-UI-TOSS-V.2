@@ -91,6 +91,10 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
   const countsMatch = sel1.length > 0 && sel1.length === sel2.length;
 
   const handleNext = useCallback(() => {
+    if (processingFiles?.[0] || processingFiles?.[1]) {
+      toast.warning('⚠️ Please wait for files to finish processing before proceeding.');
+      return;
+    }
     if (sel1.length === 0 && sel2.length === 0) {
       toast.warning('⚠️ Please select an equal number of key columns in both Source and Destination files before proceeding.');
       return;
@@ -100,7 +104,7 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
       return;
     }
     onNext();
-  }, [sel1.length, sel2.length, countsMatch, onNext, toast]);
+  }, [sel1.length, sel2.length, countsMatch, processingFiles, onNext, toast]);
 
   // Live count-mismatch inline hint (shown while selecting, not blocking)
   const showCountHint = sel1.length > 0 && sel2.length > 0 && sel1.length !== sel2.length;
@@ -168,7 +172,6 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
             type="button"
             className="rwiz-btn rwiz-btn-primary"
             onClick={handleNext}
-            disabled={processingFiles?.[0] || processingFiles?.[1]}
           >
             Next →
           </button>

@@ -144,7 +144,7 @@ function MatchedTable({ rows, mappings, file1Name, file2Name }) {
   if (!rows.length) return <div className="rrs-empty">No matched records.</div>;
   const cols = mappings.map((m) => m.src);
   return (
-    <div className="rrs-table-scroll">
+    <div className="rrs-table-scroll" style={rows.length === 1 ? { height: 'auto', minHeight: 0 } : undefined}>
       <table className="rrs-table">
         <thead>
           <tr>
@@ -231,23 +231,39 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             style={{
               display: 'flex',
               background: 'var(--surface-primary)',
-              borderBottom: '1px solid var(--border-tertiary)',
             }}
           >
             <div
               style={{
                 width: '130px',
                 minWidth: '130px',
-                padding: '6px 10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
+                position: 'relative',
                 borderRight: '1px solid var(--border-primary)',
-                color: 'var(--text-primary)',
+                background: 'var(--surface-primary)',
               }}
             >
-              KEY
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: 'calc(100% + 30px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  color: 'var(--text-secondary)',
+                  background: 'var(--surface-primary)',
+                  borderRight: '1px solid var(--border-primary)',
+                  borderBottom: '1px solid var(--border-primary)',
+                  zIndex: 10,
+                }}
+              >
+                KEY
+              </div>
             </div>
             <div
               style={{
@@ -259,6 +275,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                 gap: '8px',
                 fontSize: '13px',
                 color: 'var(--text-primary)',
+                borderBottom: '1px solid var(--border-tertiary)',
               }}
             >
               <Database size={12} style={{ color: 'var(--text-secondary)' }} />
@@ -273,8 +290,9 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             style={{
               border: 'none',
               borderRadius: 0,
-              flex: 1,
-              minHeight: '150px',
+              flex: rows.length === 1 ? 'none' : 1,
+              height: rows.length === 1 ? 'auto' : 'auto',
+              minHeight: rows.length === 1 ? 0 : '150px',
               overflowX: 'auto',
               overflowY: 'auto',
               width: '100%',
@@ -385,8 +403,9 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
             style={{
               border: 'none',
               borderRadius: 0,
-              flex: 1,
-              minHeight: '150px',
+              flex: rows.length === 1 ? 'none' : 1,
+              height: rows.length === 1 ? 'auto' : 'auto',
+              minHeight: rows.length === 1 ? 0 : '150px',
               overflowX: 'auto',
               overflowY: 'auto',
               width: '100%',
@@ -472,7 +491,7 @@ function MissingTable({ rows, mappings, isSource }) {
     : Object.keys(dataObj).filter((k) => !k.startsWith('_') && k !== 'key');
 
   return (
-    <div className="rrs-table-scroll">
+    <div className="rrs-table-scroll" style={rows.length === 1 ? { height: 'auto', minHeight: 0 } : undefined}>
       <table className="rrs-table">
         <thead>
           <tr>
@@ -517,7 +536,7 @@ function DuplicateTable({ rows, mappings, isSource }) {
     );
 
   return (
-    <div className="rrs-table-scroll">
+    <div className="rrs-table-scroll" style={rows.length === 1 ? { height: 'auto', minHeight: 0 } : undefined}>
       <table className="rrs-table">
         <thead>
           <tr>

@@ -580,7 +580,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-primary)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: ' #006633', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeRenameGroup}
               disabled={isSavingGroup || !renameGroupValue.trim()}
             >
