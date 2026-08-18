@@ -169,6 +169,11 @@
   gap: 8px;
 }
 
+.rte-popover-right {
+  left: auto;
+  right: 0;
+}
+
 .rte-popover-input {
   height: 32px;
   padding: 0 10px;

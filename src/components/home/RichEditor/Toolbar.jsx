@@ -326,7 +326,7 @@ export function Toolbar() {
       <div className="rte-tb-popover-wrap" ref={openPopover === 'table-insert' ? popoverRef : null}>
         <ToolbarButton icon={TableIcon} label="Insert table" onAction={() => setOpenPopover((p) => (p === 'table-insert' ? null : 'table-insert'))} />
         {openPopover === 'table-insert' && (
-          <div className="rte-popover rte-table-grid-popover">
+          <div className="rte-popover rte-table-grid-popover rte-popover-right">
             <div className="rte-table-grid" onMouseLeave={() => setGridHover({ rows: 0, cols: 0 })}>
               {Array.from({ length: 8 }).map((_, r) => (
                 <div key={r} className="rte-table-grid-row">
@@ -353,7 +353,7 @@ export function Toolbar() {
       <div className="rte-tb-popover-wrap" ref={openPopover === 'table-ops' ? popoverRef : null}>
         <ToolbarButton icon={ChevronDown} label="Table operations" onAction={() => setOpenPopover((p) => (p === 'table-ops' ? null : 'table-ops'))} />
         {openPopover === 'table-ops' && (
-          <div className="rte-popover rte-table-ops-popover">
+          <div className="rte-popover rte-table-ops-popover rte-popover-right">
             <button type="button" className="rte-menu-item" onClick={() => { withTableAndCell((t, c) => insertRowAfter(t, getRowIndex(t, c))); setOpenPopover(null); }}>
               <Rows size={14} /> Add row below
             </button>

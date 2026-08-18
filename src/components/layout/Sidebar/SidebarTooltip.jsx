@@ -15,11 +15,26 @@ import { createPortal } from 'react-dom';
 export function SidebarTooltip({ item, top, onMouseEnter, onMouseLeave, onNavigate }) {
   const hasSubmenu = Boolean(item.children);
 
+  // If the menu item is in the bottom half of the screen on a smaller laptop, expand upwards.
+  // On large screens, default to the downward "margin-top" style alignment.
+  const isLaptopScreen = typeof window !== 'undefined' && window.innerHeight < 900;
+  const isNearBottom = typeof window !== 'undefined' && top > window.innerHeight * 0.6;
+
+  let transformValue = 'translateY(-50%) scale(1)';
+  if (hasSubmenu) {
+    transformValue = (isLaptopScreen && isNearBottom)
+      ? 'translateY(calc(-100% + 24px)) scale(1)' // Expands upwards on laptops
+      : 'translateY(-24px) scale(1)';             // Expands downwards on large screens
+  }
+
   const tooltipElement = (
     <div
       className="sidebar-tooltip"
       data-has-submenu={hasSubmenu}
-      style={{ top: `${top}px`, transform: 'translateY(-50%) scale(1)' }}
+      style={{
+        top: `${top}px`,
+        transform: transformValue,
+      }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       role={hasSubmenu ? 'menu' : 'tooltip'}
