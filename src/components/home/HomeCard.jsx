@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
-import { stripEditorControls, rebuildPublicMediaActions } from './RichEditor/mediaUtils';
+import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad } from './RichEditor/mediaUtils';
 import './HomeCard.css';
 
 /**
@@ -17,7 +17,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',
     'data-mime', 'data-pdf-src', 'data-pdf-name',
-    'data-office-src', 'data-office-name',
+    'data-office-src', 'data-office-name', 'data-video-src', 'aria-label',
     'viewBox', 'aria-hidden', 'focusable', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
   ],
   ADD_DATA_URI_TAGS: ['embed', 'a', 'video', 'source'],
@@ -29,6 +29,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
  */
 export function HomeCard({ card, className = '', style = {} }) {
   const [imageError, setImageError] = useState(false);
+  const [videoRequested, setVideoRequested] = useState(false);
   const [activeMediaModal, setActiveMediaModal] = useState({ isOpen: false, src: '', fileName: '', mediaType: 'pdf' });
 
   if (!card) return null;
@@ -66,6 +67,31 @@ export function HomeCard({ card, className = '', style = {} }) {
   const rawText = card.bio || card.text_content || null;
 
   const handleContentClick = (e) => {
+    const playBtn = e.target.closest('.rte-video-play-trigger');
+    if (playBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrapper = playBtn.closest('.rte-video-lazy-wrap');
+      const video = wrapper?.querySelector('video');
+      if (video) {
+        video.querySelectorAll('source[data-video-src]').forEach((source) => {
+          source.src = source.getAttribute('data-video-src');
+          source.removeAttribute('data-video-src');
+        });
+        const videoSrc = video.getAttribute('data-video-src');
+        if (videoSrc) {
+          video.src = videoSrc;
+          video.removeAttribute('data-video-src');
+        }
+        video.setAttribute('preload', 'auto');
+        video.load();
+        video.play().catch(() => {});
+      }
+      playBtn.remove();
+      wrapper?.classList.add('rte-video-playing');
+      return;
+    }
+
     const pdfBtn = e.target.closest('.rte-pdf-view-trigger, .media-pdf-view-btn');
     if (pdfBtn) {
       e.preventDefault();
@@ -96,7 +122,7 @@ export function HomeCard({ card, className = '', style = {} }) {
         <div
           className="home-card-html-content"
           onClick={handleContentClick}
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rebuildPublicMediaActions(stripEditorControls(rawHtml || '')), HOME_CARD_SANITIZE_CONFIG) }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(rawHtml || ''))), HOME_CARD_SANITIZE_CONFIG) }}
         />
       );
     }
@@ -128,14 +154,29 @@ export function HomeCard({ card, className = '', style = {} }) {
           <div className="home-card-media-wrapper">
             {!imageError ? (
               isVideo ? (
-                <video
-                  src={photoUrl}
-                  controls
-                  preload="metadata"
-                  playsInline
-                  className="home-card-video"
-                  style={{ width: '100%', height: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: '6px' }}
-                />
+                videoRequested ? (
+                  <video
+                    src={photoUrl}
+                    controls
+                    autoPlay
+                    preload="auto"
+                    playsInline
+                    className="home-card-video"
+                    style={{ width: '100%', height: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: '6px' }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="home-card-video-placeholder"
+                    onClick={() => setVideoRequested(true)}
+                    aria-label="Play video"
+                  >
+                    <span className="home-card-video-play-icon">
+                      <Play size={22} fill="currentColor" />
+                    </span>
+                    <span className="home-card-video-placeholder-label">Click to play</span>
+                  </button>
+                )
               ) : (
                 <img
                   src={photoUrl}

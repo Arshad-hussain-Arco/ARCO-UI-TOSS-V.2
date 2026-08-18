@@ -246,7 +246,8 @@ export function Toolbar() {
           ref={fontColorInputRef}
           type="color"
           className="rte-tb-color-input"
-          onChange={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef))}
+          onInput={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
+          onChange={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
         />
       </button>
       <button type="button" className="rte-tb-btn" title="Highlight color" onMouseDown={(e) => { e.preventDefault(); saveSelection(); }} onClick={() => highlightColorInputRef.current?.click()}>
@@ -255,7 +256,8 @@ export function Toolbar() {
           ref={highlightColorInputRef}
           type="color"
           className="rte-tb-color-input"
-          onChange={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef))}
+          onInput={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
+          onChange={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
         />
       </button>
       <ToolbarDivider />

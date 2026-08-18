@@ -20,9 +20,11 @@ export function getSavedSelection() {
   return savedRange;
 }
 
-export function restoreSelection(editableEl, range = savedRange) {
+export function restoreSelection(editableEl, range = savedRange, options = {}) {
   if (!range) return;
-  editableEl.focus();
+  if (!options.skipFocus) {
+    editableEl.focus();
+  }
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
@@ -179,12 +181,6 @@ export function applyInlineStyle(range, styleProps, editableEl) {
     range.setStart(newStart, 0);
   }
 
-  // A TreeWalker only visits DESCENDANTS of its root. Whenever the
-  // selection exactly spans one whole text node — select-all, triple-
-  // click, or dragging from the very start to the very end of a run —
-  // range.commonAncestorContainer resolves to that TEXT NODE itself
-  // (not its parent element), so a walker rooted there finds nothing and
-  // silently no-ops. Root the walk at the nearest element instead.
   const walkRoot = range.commonAncestorContainer.nodeType === Node.TEXT_NODE
     ? range.commonAncestorContainer.parentNode
     : range.commonAncestorContainer;
@@ -208,15 +204,51 @@ export function applyInlineStyle(range, styleProps, editableEl) {
     current = walker.nextNode();
   }
 
+  const modifiedElements = [];
+
   textNodes.forEach((textNode) => {
     if (!textNode.nodeValue) return;
-    const span = document.createElement('span');
-    Object.assign(span.style, styleProps);
-    textNode.parentNode.insertBefore(span, textNode);
-    span.appendChild(textNode);
+    const parent = textNode.parentNode;
+    if (
+      parent &&
+      parent.tagName === 'SPAN' &&
+      parent !== editableEl &&
+      editableEl.contains(parent) &&
+      parent.childNodes.length === 1
+    ) {
+      Object.assign(parent.style, styleProps);
+      if (!modifiedElements.includes(parent)) {
+        modifiedElements.push(parent);
+      }
+    } else {
+      const span = document.createElement('span');
+      Object.assign(span.style, styleProps);
+      textNode.parentNode.insertBefore(span, textNode);
+      span.appendChild(textNode);
+      if (!modifiedElements.includes(span)) {
+        modifiedElements.push(span);
+      }
+    }
   });
 
   mergeAdjacentSpans(editableEl);
+
+  if (modifiedElements.length > 0) {
+    const validElements = modifiedElements.filter((el) => el.isConnected);
+    if (validElements.length > 0) {
+      const first = validElements[0];
+      const last = validElements[validElements.length - 1];
+      try {
+        const newRange = document.createRange();
+        newRange.setStartBefore(first);
+        newRange.setEndAfter(last);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        savedRange = newRange.cloneRange();
+      } catch {}
+    }
+  }
 }
 
 /** Merges adjacent sibling <span> elements that share identical inline style. */
@@ -290,6 +322,7 @@ export function applyPendingCaretStyle(range, editableEl, styleProps, pendingSpa
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(caretRange);
+    savedRange = caretRange.cloneRange();
     return;
   }
 
@@ -307,6 +340,7 @@ export function applyPendingCaretStyle(range, editableEl, styleProps, pendingSpa
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(caretRange);
+  savedRange = caretRange.cloneRange();
 
   pendingSpanRef.current = span;
 }
