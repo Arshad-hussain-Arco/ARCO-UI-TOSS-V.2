@@ -42,7 +42,7 @@
 .consultant-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
   background: var(--bg-secondary, #fafafa);
@@ -272,7 +272,7 @@
 .consultant-avatar-skeleton {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 8px;
   background-color: var(--border-primary);
   animation: pulse-skeleton 1.5s ease-in-out infinite;
 }

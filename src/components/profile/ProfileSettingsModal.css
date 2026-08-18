@@ -198,7 +198,7 @@
 .eps-avatar-img {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
+  border-radius: 8px;
   object-fit: cover;
   border: 2px solid var(--surface-primary);
   box-shadow: var(--shadow-sm);
@@ -208,7 +208,7 @@
 .eps-avatar-initials {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
+  border-radius: 8px;
   background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark));
   color: var(--surface-primary);
   display: flex;
@@ -222,7 +222,7 @@
 .eps-avatar-overlay {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;

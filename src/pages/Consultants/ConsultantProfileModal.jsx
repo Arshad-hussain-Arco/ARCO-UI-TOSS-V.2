@@ -355,7 +355,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                         <span className="cp-leave-name">{leave.leave_type || 'Leave'}</span>
                         <div className="cp-leave-avail">
                           <span className="cp-leave-avail-num">{available}</span>
-                          <span className="cp-leave-avail-lbl">Avail</span>
+                          <span className="cp-leave-avail-lbl">Quota</span>
                         </div>
                       </div>
 
@@ -372,30 +372,19 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                         />
                       </div>
 
-                      <div className="cp-leave-stats">
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Total</span>
-                          <span className="cp-leave-stat-val">{total}</span>
-                        </div>
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Used</span>
-                          <span className="cp-leave-stat-val">{used}</span>
-                        </div>
-                        <div className="cp-leave-stat-col">
-                          <span className="cp-leave-stat-label">Pending</span>
-                          <span className="cp-leave-stat-val">{pending}</span>
-                        </div>
+                      <div className="cp-leave-substats">
+                        <span>Used: <strong>{used}</strong></span>
+                        <span>Pending: <strong>{pending}</strong></span>
+                      </div>
                         {/* outstanding_debt is the live borrowed-against-next-year
                             figure under the generic negative-balance model —
                             advance_taken is a legacy field no longer updated
                             by new leave requests. */}
                         {leave.outstanding_debt > 0 && (
-                          <div className="cp-leave-stat-col">
-                            <span className="cp-leave-stat-label">Advance</span>
-                            <span className="cp-leave-stat-val">{leave.outstanding_debt}</span>
+                          <div className="cp-leave-substats" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
+                            <span>Advance: <strong>{leave.outstanding_debt}</strong></span>
                           </div>
                         )}
-                      </div>
                     </div>
                   );
                 })}
