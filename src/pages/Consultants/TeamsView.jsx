@@ -29,11 +29,14 @@ function EmployeeCard({ consultant, onClick }) {
     toast.success('Username copied');
   };
 
+  const imgSrc = consultant.photo
+    ? (consultant.photo.startsWith('data:') ? consultant.photo : `data:image/jpeg;base64,${consultant.photo.replace(/\s+/g, '')}`)
+    : (consultant.avatar || MOCK_AVATAR(consultant.name));
+
   return (
     <div className="tv-emp-card" {...activatable(() => onClick(consultant.id))}>
       <div className="tv-emp-avatar">
-        <img src={consultant.avatar || MOCK_AVATAR(consultant.name)} alt={consultant.name} />
-        <span className={`tv-emp-status-dot ${statusClass}`} />
+        <img src={imgSrc} alt={consultant.name} />
       </div>
       <div className="tv-emp-info">
         <div className="tv-emp-name">{consultant.name}</div>
@@ -56,7 +59,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, canEdit, canDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, orgPhotosData, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
@@ -70,9 +73,21 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
           norm.userId = fullEmp.user_name || fullEmp.username || fullEmp.userId;
         }
       }
+      
+      if (orgPhotosData) {
+        const photoList = Array.isArray(orgPhotosData) ? orgPhotosData : (orgPhotosData.results || []);
+        const photoEmp = photoList.find(e => String(e.emp_id || e.id) === String(norm.id));
+        if (photoEmp) {
+          const rawPhoto = photoEmp.photo || photoEmp.photo_url_base64;
+          if (rawPhoto) {
+            norm.photo = rawPhoto;
+          }
+        }
+      }
+      
       return norm;
     });
-  }, [hc, employeesData]);
+  }, [hc, employeesData, orgPhotosData]);
 
   const filteredActiveMembers = useMemo(() => {
     if (!memberSearch.trim()) return activeMembers;
@@ -205,7 +220,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
+export function TeamsView({ onProfileView, onTeamChanged, employeesData, orgPhotosData }) {
   const { user, hasPermission } = useAuth();
   
   const canCreateTeam = hasPermission('TEAMS_CREATE');
@@ -508,20 +523,21 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
       <div className="tv-accordions-list">
         {filteredTeams.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
-            <TeamAccordion
-              team={team}
-              isExpanded={expandedTeamId === team.id}
-              onToggle={() => handleCardClick(team.id)}
-              onProfileView={onProfileView}
-              cache={teamMembersCache}
-              setCache={setTeamMembersCache}
-              headcountMap={headcountMap}
-              onEdit={openEditModal}
-              onDelete={setDeleteTarget}
-              employeesData={employeesData}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
+              <TeamAccordion
+                team={team}
+                isExpanded={expandedTeamId === team.id}
+                onToggle={() => handleCardClick(team.id)}
+                onProfileView={onProfileView}
+                cache={teamMembersCache}
+                setCache={setTeamMembersCache}
+                headcountMap={headcountMap}
+                onEdit={openEditModal}
+                onDelete={setDeleteTarget}
+                employeesData={employeesData}
+                orgPhotosData={orgPhotosData}
+                canEdit={canEdit}
+                canDelete={canDelete}
+              />
           </div>
         ))}
       </div>

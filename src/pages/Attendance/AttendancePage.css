@@ -1174,17 +1174,29 @@
   min-width: 0;
 }
 
+.attendance-card-ring-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+}
+
 .attendance-card-ring {
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto;
+  width: 90px;
+  height: 90px;
 }
 
 .attendance-ring-svg {
   width: 100%;
   height: 100%;
   transform: rotate(0deg);
+  overflow: visible;
+}
+
+.attendance-ring-progress {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.2));
 }
 
 .attendance-ring-text {
@@ -1193,18 +1205,25 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .attendance-ring-percentage {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1;
 }
 
 .attendance-ring-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-tertiary);
   margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .attendance-card-stats {
@@ -1868,4 +1887,14 @@
   .att-month-nav { flex-wrap: wrap; }
   .att-search-input { width: 160px; }
   .att-search-input:focus { width: 180px; }
+}
+
+/* Dark Mode Table Borders Fix */
+[data-theme='dark'] .att-th,
+[data-theme='dark'] .att-td,
+[data-theme='dark'] .att-th-consultant,
+[data-theme='dark'] .att-td-consultant,
+[data-theme='dark'] .att-th-summary,
+[data-theme='dark'] .att-td-summary {
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }

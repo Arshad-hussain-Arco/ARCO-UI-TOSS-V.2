@@ -192,6 +192,7 @@ const endpoints = {
     update: '/employees/update/',
     delete: '/employees/delete/',
     list: '/employees/full/',
+    orgPhotos: '/employees/org-photos/',
     inactive: '/employees/inactive/',
     activate: '/employees/activate/',
     roles: '/employees/roles/',

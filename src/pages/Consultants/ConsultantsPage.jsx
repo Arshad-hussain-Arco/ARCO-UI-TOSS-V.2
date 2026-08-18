@@ -112,8 +112,18 @@ export function ConsultantsPage() {
 
   const [activeFilteredCount, setActiveFilteredCount] = useState(null);
   const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
+  const [orgPhotosData, setOrgPhotosData] = useState([]);
 
-  const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const employees = await consultantService.getEmployeesList();
+      if (!employees) throw new Error('No employees data returned');
+      return employees;
+    } catch (err) {
+      toast.error('Failed to load employees list');
+      throw err;
+    }
+  }, [toast]);
 
   const {
     data: employeesData,
@@ -153,11 +163,62 @@ export function ConsultantsPage() {
     ? compLocationsData
     : compLocationsData?.results || [];
 
-  const fetchInactive = useCallback(() => consultantService.getInactiveConsultants(), []);
-  const { data: inactiveData } = useAsync(fetchInactive, { immediate: true });
-  const inactiveCount = Array.isArray(inactiveData)
-    ? inactiveData.length
-    : inactiveData?.results?.length || 0;
+  const fetchInactive = useCallback(async () => {
+    try {
+      const employees = await consultantService.getInactiveConsultants();
+      if (!employees) throw new Error('No inactive employees data returned');
+      return employees;
+    } catch (err) {
+      throw err;
+    }
+  }, []);
+  const { data: rawInactiveData, setData: setInactiveData, isLoading: isInactiveLoading, error: inactiveError, refetch: loadInactive } = useAsync(fetchInactive, { immediate: true });
+  const inactiveCount = Array.isArray(rawInactiveData)
+    ? rawInactiveData.length
+    : rawInactiveData?.results?.length || 0;
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPhotos = async () => {
+      try {
+        const photos = await consultantService.getOrgPhotos();
+        if (!isMounted) return;
+        
+        const photoList = Array.isArray(photos) ? photos : (photos?.results || []);
+        setOrgPhotosData(photoList);
+      } catch (err) {
+        console.error('Failed to fetch org photos', err);
+      }
+    };
+    fetchPhotos();
+    return () => { isMounted = false; };
+  }, []);
+
+  const mergedEmployeesData = useMemo(() => {
+    if (!employeesData) return employeesData;
+    const empList = Array.isArray(employeesData) ? employeesData : (employeesData.results || []);
+    const photoMap = {};
+    orgPhotosData.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    const merged = empList.map(e => ({
+      ...e,
+      photo: photoMap[e.emp_id || e.id] || e.photo,
+      photo_url_base64: photoMap[e.emp_id || e.id] || e.photo_url_base64
+    }));
+    return Array.isArray(employeesData) ? merged : { ...employeesData, results: merged };
+  }, [employeesData, orgPhotosData]);
+
+  const inactiveData = useMemo(() => {
+    if (!rawInactiveData) return rawInactiveData;
+    const empList = Array.isArray(rawInactiveData) ? rawInactiveData : (rawInactiveData.results || []);
+    const photoMap = {};
+    orgPhotosData.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    const merged = empList.map(e => ({
+      ...e,
+      photo: photoMap[e.emp_id || e.id] || e.photo,
+      photo_url_base64: photoMap[e.emp_id || e.id] || e.photo_url_base64
+    }));
+    return Array.isArray(rawInactiveData) ? merged : { ...rawInactiveData, results: merged };
+  }, [rawInactiveData, orgPhotosData]);
 
   const pageTabs = useMemo(
     () => ALL_PAGE_TABS.filter((t) => hasPermission(t.permission)),
@@ -560,7 +621,7 @@ export function ConsultantsPage() {
               onDelete={canActivateDeactivate ? handleDelete : undefined}
               onProfileView={setViewProfileId}
               onFilteredCountChange={setActiveFilteredCount}
-              employeesData={employeesData}
+              employeesData={mergedEmployeesData}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
               isLoading={isEmployeesLoading}
@@ -577,10 +638,19 @@ export function ConsultantsPage() {
               onFilteredCountChange={setInactiveFilteredCount}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
+              inactiveData={inactiveData}
+              isLoading={isInactiveLoading}
+              error={inactiveError}
+              refetch={loadInactive}
             />
           )}
           {activeTab === 'teams' && (
-            <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} employeesData={employeesData} />
+            <TeamsView 
+              onProfileView={setViewProfileId} 
+              onTeamChanged={loadRefData} 
+              employeesData={mergedEmployeesData} 
+              orgPhotosData={orgPhotosData} 
+            />
           )}
         </div>
       </div>

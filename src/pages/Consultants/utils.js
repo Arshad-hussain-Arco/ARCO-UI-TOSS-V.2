@@ -57,6 +57,7 @@ export const normalizeConsultant = (c, isActive = true) => {
     location: c.location || 'On Site',
     accountStatus: isActive ? 'active' : 'inactive',
     avatar: avatarUrl,
+    photo: c.photo || c.photo_url_base64 || '',
     roleId: c.role_id || (typeof c.role === 'object' ? c.role?.id : c.role) || '',
     teamId: c.team_id || (typeof c.team === 'object' ? c.team?.id : c.team) || '',
     team: c.team_name || c.team?.name || c.team || c.department || 'Unassigned',
