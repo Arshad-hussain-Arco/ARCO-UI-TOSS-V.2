@@ -205,7 +205,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
                 <button
                   type="button"
-                  className="action-icon-btn edit"
+                  className="action-icon-btn success"
                   onClick={() => openDrawer(req, 'approve')}
                   disabled={isLoading}
                   title="Approve"

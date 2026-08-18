@@ -9,6 +9,10 @@ export const consultantService = {
     const response = await httpClient.get(endpoints.consultants.list);
     return response.data;
   },
+  getOrgPhotos: async () => {
+    const response = await httpClient.get(endpoints.consultants.orgPhotos);
+    return response.data;
+  },
   getConsultantInfo: async (id) => {
     const response = await httpClient.get(endpoints.consultants.info(id));
     return response.data;

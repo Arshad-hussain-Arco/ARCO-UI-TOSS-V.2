@@ -348,7 +348,7 @@ export function AttendancePage() {
     const maxDate = new Date(Math.max(...dates.map(d => new Date(d).getTime())));
     const managerId = user?.emp_id || user?.id || 1;
     return attendanceService.getAttendance(managerId, format(minDate, 'yyyy-MM-dd'), format(maxDate, 'yyyy-MM-dd'));
-  }, [user, reportDates, fetchTimelineDates]);
+  }, [user?.emp_id, user?.id, reportDates, fetchTimelineDates]);
 
   const { data, isLoading, error, refetch } = useAsync(fetchAttendance);
 
@@ -1346,24 +1346,44 @@ export function AttendancePage() {
                       <div className="attendance-consultant-name">{consultant.name}</div>
                       <div className="attendance-consultant-team">{consultant.team}</div>
                     </div>
-                  </div>
-                  <div className="attendance-card-ring">
-                    <svg className="attendance-ring-svg" viewBox="0 0 120 120">
-                      <circle className="attendance-ring-bg" cx="60" cy="60" r="50" fill="none" stroke="var(--surface-tertiary)" strokeWidth="8" />
-                      <circle
-                        className="attendance-ring-progress"
-                        cx="60" cy="60" r="50" fill="none"
-                        stroke="var(--brand-primary)" strokeWidth="8"
-                        strokeDasharray={`${2 * Math.PI * 50}`}
-                        strokeDashoffset={`${2 * Math.PI * 50 * (1 - percentage / 100)}`}
-                        transform="rotate(-90 60 60)"
-                      />
-                    </svg>
-                    <div className="attendance-ring-text">
-                      <div className="attendance-ring-percentage">{percentage}%</div>
-                      <div className="attendance-ring-label">Present</div>
+                    <div className="attendance-card-badge" style={{
+                      backgroundColor: 'var(--surface-tertiary)',
+                      color: 'var(--status-success)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '4px 8px',
+                      borderRadius: '12px'
+                    }}>
+                      {percentage}%
                     </div>
                   </div>
+                  
+                  <div className="attendance-card-ring-wrapper">
+                    <div className="attendance-card-ring">
+                      <svg className="attendance-ring-svg" viewBox="0 0 100 100">
+                        <circle className="attendance-ring-bg" cx="50" cy="50" r="42" fill="none" stroke="var(--surface-tertiary)" strokeWidth="6" />
+                        <circle
+                          className="attendance-ring-progress"
+                          cx="50" cy="50" r="42" fill="none" stroke="url(#gradient-success)" strokeWidth="6"
+                          strokeDasharray={2 * Math.PI * 42}
+                          strokeDashoffset={2 * Math.PI * 42 * (1 - percentage / 100)}
+                          strokeLinecap="round"
+                          transform="rotate(-90 50 50)"
+                        />
+                        <defs>
+                          <linearGradient id="gradient-success" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="var(--status-success)" />
+                            <stop offset="100%" stopColor="#059669" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="attendance-ring-text">
+                        <div className="attendance-ring-percentage">{percentage}%</div>
+                        <div className="attendance-ring-label">Present</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="attendance-card-stats">
                     <div className="attendance-card-stat">
                       <div className="attendance-card-stat-value">{stats.presentDays}</div>
@@ -1378,7 +1398,7 @@ export function AttendancePage() {
                       <div className="attendance-card-stat-label">Total</div>
                     </div>
                   </div>
-                  <div className="attendance-card-sparkline">
+                  <div className="attendance-card-sparkline" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 500 }}>
                     <TrendingUp size={12} className="attendance-sparkline-icon" />
                     <span className="attendance-sparkline-text">
                       {MONTH_NAMES[Number(filterMonth)]} {filterYear}

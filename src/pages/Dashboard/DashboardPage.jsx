@@ -21,7 +21,6 @@ import { SystemHealthSection } from './sections/SystemHealthSection';
 import { RequestsTrendChart } from '@components/dashboard/charts/RequestsTrendChart';
 import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
-import { TeamHeadcountSection } from './sections/TeamHeadcountSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
 import { leaveService } from '@services/leaveService';
@@ -282,11 +281,19 @@ export function DashboardPage() {
       const endFmt = r.end_date ? format(new Date(r.end_date), 'MMM dd') : '';
       const dateStr = isSameDate ? startFmt : `${startFmt} - ${endFmt}`;
 
+      const employeeMatch = employees.find(e => String(e.id || e.emp_id) === String(r.emp_id));
+
+      let photoUrl = r.photo_url_base64 || r.photo || employeeMatch?.photo_url_base64 || employeeMatch?.photo || null;
+      if (photoUrl && !photoUrl.startsWith('data:image')) {
+        photoUrl = `data:image/jpeg;base64,${photoUrl}`;
+      }
+
       return {
         id: String(r.leave_id || r.id || Math.random()),
         name: r.emp_name || 'Unknown',
         date: dateStr,
-        type: r.leave_type || 'Leave'
+        type: r.leave_type || 'Leave',
+        photo_url_base64: photoUrl
       };
     });
 
@@ -336,7 +343,7 @@ export function DashboardPage() {
       alerts,
       quickStats,
     };
-  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords]);
+  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees]);
 
   // 6. Team Headcount
   const mappedTeams = useMemo(() => {
@@ -422,11 +429,6 @@ export function DashboardPage() {
                     </div>
                   )}
 
-                  {mappedTeams && mappedTeams.length > 0 && (
-                    <div className="dc-span-6">
-                      <TeamHeadcountSection teams={mappedTeams} />
-                    </div>
-                  )}
                 </div>
 
                 {mappedSummary.projectsByStatus.length > 0 && (
