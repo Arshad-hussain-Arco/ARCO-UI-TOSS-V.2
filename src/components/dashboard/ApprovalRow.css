@@ -50,7 +50,7 @@
   width: 90%;
   max-width: 480px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  border: 1px solid #E3E7E4; /* colors.border */
+  border: 1px solid var(--border-secondary); /* colors.border */
   overflow: hidden;
 }
 
@@ -147,4 +147,10 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+
+[data-theme="dark"] .approval-modal-content {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

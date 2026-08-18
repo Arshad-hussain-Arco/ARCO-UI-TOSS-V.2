@@ -767,6 +767,7 @@
 }
 
 .doc-modal-container {
+  background: var(--surface-primary);
   background-color: var(--surface-primary);
   border-radius: 8px;
   border: 1px solid var(--border-secondary);
@@ -958,4 +959,10 @@
 .doc-file-actions-group .action-icon-btn:hover,
 .doc-folder-actions .action-icon-btn:hover {
   background-color: var(--bg-secondary) !important;
+}
+
+
+[data-theme="dark"] .doc-modal-container {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

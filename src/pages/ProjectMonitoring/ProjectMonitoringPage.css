@@ -1809,6 +1809,8 @@
   }
 
   .pm-modal-panel {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
     width: 100%;
   }
 }
@@ -3047,6 +3049,8 @@
 /* Responsive modal adjustments */
 @media (max-width: 768px) {
   .pm-modal-panel {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
     width: 98vw;
     max-height: 95vh;
   }
@@ -3063,9 +3067,16 @@
 
 @media (max-width: 480px) {
   .pm-modal-panel {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
     width: 100vw;
     border-radius: 12px 12px 0 0;
     max-height: 95vh;
     align-self: flex-end;
   }
+}
+
+[data-theme="dark"] .pm-modal-panel {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

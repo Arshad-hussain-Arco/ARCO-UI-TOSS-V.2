@@ -834,6 +834,8 @@
 }
 
 .cp-modal-card {
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
   width: 90%;
   max-width: 1000px;
   background-color: var(--surface-primary);
@@ -1105,4 +1107,10 @@
 .cp-modal-card.accent-90 .cp-modal-table th {
   background-color: rgba(0, 104, 56, 0.08);
   color: var(--c-primary);
+}
+
+
+[data-theme="dark"] .cp-modal-card {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

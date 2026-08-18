@@ -366,7 +366,7 @@ export function TeamRequestsTab() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user?.emp_id, user?.id]);
 
   useEffect(() => {
     refetch();
