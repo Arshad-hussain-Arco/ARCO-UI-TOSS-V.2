@@ -1,11 +1,24 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle, Video, RefreshCw, Trash2, Film } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { HomeCard } from '@components/home/HomeCard';
 import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
+import { RichEditor } from '@components/home/RichEditor/RichEditor';
 import DOMPurify from 'dompurify';
+
+const MAX_ARTICLE_MEDIA_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm'];
+const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm'];
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /**
  * Helper to strip HTML tags for clean plain text display in cards.
@@ -30,27 +43,23 @@ function HomeManagementPanelComponent() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Tab State
+  // Tab State — 'text' tab now holds only the Article form (the separate
+  // Content sub-tab was removed: one form is enough, and having a visible
+  // sub-tab selector for it was just an extra click for no real choice).
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'html'
-  const [activeSubtab, setActiveSubtab] = useState('article'); // 'article' | 'content'
 
-  // Person Subtab State
+  // Article State — every field here is optional. A card can be
+  // text-only, media-only, or both; nothing is required to save.
   const [personName, setPersonName] = useState('');
   const [personDesignation, setPersonDesignation] = useState('');
   const [personBio, setPersonBio] = useState('');
   const [personFile, setPersonFile] = useState(null);
   const [personPreviewUrl, setPersonPreviewUrl] = useState(null);
+  const [personMediaType, setPersonMediaType] = useState(null); // 'image' | 'video' | null
   const [personWidth, setPersonWidth] = useState('100%'); // '50%' | '100%'
 
-  // Content Subtab State
-  const [contentFile, setContentFile] = useState(null);
-  const [contentPreviewUrl, setContentPreviewUrl] = useState(null);
-  const [contentText, setContentText] = useState('');
-  const [contentWidth, setContentWidth] = useState('100%'); // '50%' | '100%'
-
-  // HTML Tab State
-  const [htmlFile, setHtmlFile] = useState(null);
-  const [htmlPreviewUrl, setHtmlPreviewUrl] = useState(null);
+  // Rich Text Tab State — images/video/etc. are inserted from within the
+  // editor itself, so there is no separate banner file/preview state here.
   const [htmlContent, setHtmlContent] = useState('');
   const [htmlWidth, setHtmlWidth] = useState('100%'); // '50%' | '100%'
 
@@ -59,8 +68,6 @@ function HomeManagementPanelComponent() {
 
   // File input refs
   const personFileInputRef = useRef(null);
-  const contentFileInputRef = useRef(null);
-  const htmlFileInputRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -83,22 +90,18 @@ function HomeManagementPanelComponent() {
     setEditId(null);
     setIsUploading(false);
     setActiveTab('text');
-    setActiveSubtab('article');
 
     setPersonName('');
     setPersonDesignation('');
     setPersonBio('');
     setPersonFile(null);
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+    }
     setPersonPreviewUrl(null);
-    setPersonWidth('50%'); // Default is 50% for Person Card
+    setPersonMediaType(null);
+    setPersonWidth('50%');
 
-    setContentFile(null);
-    setContentPreviewUrl(null);
-    setContentText('');
-    setContentWidth('100%'); // Default is 100% for Content Card
-
-    setHtmlFile(null);
-    setHtmlPreviewUrl(null);
     setHtmlContent('');
     setHtmlWidth('100%');
 
@@ -113,41 +116,37 @@ function HomeManagementPanelComponent() {
     setPersonDesignation('');
     setPersonBio('');
     setPersonFile(null);
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+    }
     setPersonPreviewUrl(null);
+    setPersonMediaType(null);
     setPersonWidth('50%');
 
-    setContentFile(null);
-    setContentPreviewUrl(null);
-    setContentText('');
-    setContentWidth('100%');
-
-    setHtmlFile(null);
-    setHtmlPreviewUrl(null);
     setHtmlContent('');
     setHtmlWidth('100%');
 
-    const photoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+    const photoUrl = card.photo ? (card.photo.startsWith('data:') || card.photo.startsWith('http:') ? card.photo : `data:image/jpeg;base64,${card.photo}`) : null;
     const widthVal = card.display_width || '100%';
 
-    if (card.card_type === 'person_card') {
-      setActiveTab('text');
-      setActiveSubtab('article');
-      setPersonName(card.person_name || '');
-      setPersonDesignation(card.designation || '');
-      setPersonBio(card.bio || '');
-      setPersonWidth(widthVal);
-      setPersonPreviewUrl(photoUrl);
-    } else if (card.card_type === 'content_card') {
-      setActiveTab('text');
-      setActiveSubtab('content');
-      setContentText(card.text_content || '');
-      setContentWidth(widthVal);
-      setContentPreviewUrl(photoUrl);
-    } else {
+    if (card.card_type === 'html_code') {
       setActiveTab('html');
       setHtmlContent(card.html_content || '');
       setHtmlWidth(widthVal);
-      setHtmlPreviewUrl(photoUrl);
+    } else {
+      // person_card maps directly. The old content_card type (separate
+      // "Content" sub-tab, since removed) only ever had text_content +
+      // an optional photo — loads into the same Article form here with
+      // Title/Sub Head left blank; saving it back out now writes it as a
+      // person_card going forward.
+      setActiveTab('text');
+      setPersonName(card.person_name || '');
+      setPersonDesignation(card.designation || '');
+      setPersonBio(card.bio || card.text_content || '');
+      setPersonWidth(widthVal);
+      setPersonPreviewUrl(photoUrl);
+      const isVideo = card.media_type === 'video' || (photoUrl && photoUrl.startsWith('data:video/'));
+      setPersonMediaType(photoUrl ? (isVideo ? 'video' : 'image') : null);
     }
 
     setIsModalOpen(true);
@@ -178,47 +177,58 @@ function HomeManagementPanelComponent() {
 
   const processPersonFile = (file) => {
     if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isImageMime = ALLOWED_IMAGE_MIME.includes(file.type);
+    const isVideoMime = ALLOWED_VIDEO_MIME.includes(file.type);
+    const isValidExt = ALLOWED_EXTENSIONS.includes(ext);
+
+    const isVideo = isVideoMime || ext === 'mp4' || ext === 'webm';
+    const isImage = isImageMime || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+
+    // 1. Validate file format
+    if (!isValidExt || (!isImage && !isVideo)) {
+      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, WEBP, MP4, or WEBM.');
+      // Do NOT clear existing valid media
+      return;
+    }
+
+    // 2. Validate file size (40 MB limit)
+    if (file.size > MAX_ARTICLE_MEDIA_SIZE_BYTES) {
+      const sizeMb = formatFileSize(file.size);
+      const mediaLabel = isVideo ? 'Video' : 'Image';
+      toast.error(`${mediaLabel} too large — ${sizeMb} selected. Maximum allowed size is 40 MB.`);
+      // Do NOT clear existing valid media
+      return;
+    }
+
+    // 3. Valid file: revoke previous object URL if any
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(personPreviewUrl);
+      } catch {
+        /* ignore */
+      }
+    }
+
     setIsUploading(true);
     setPersonFile(file);
     const url = URL.createObjectURL(file);
     setPersonPreviewUrl(url);
+    setPersonMediaType(isVideo ? 'video' : 'image');
     setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
-  };
-
-  const processContentFile = (file) => {
-    if (!file) return;
-    setIsUploading(true);
-    setContentFile(file);
-    const url = URL.createObjectURL(file);
-    setContentPreviewUrl(url);
-    setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
-  };
-
-  const processHtmlFile = (file) => {
-    if (!file) return;
-    setIsUploading(true);
-    setHtmlFile(file);
-    const url = URL.createObjectURL(file);
-    setHtmlPreviewUrl(url);
-    setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
+    toast.success(`${isVideo ? 'Video' : 'Image'} selected: ${file.name}`);
   };
 
   const handleSaveCard = async () => {
-    // Validation
+    // Validation — Article fields are all optional (title/sub-head/
+    // description/media can be any combination, including none at all
+    // except needing *something* to actually show on the card). Rich Text
+    // still requires actual content since an empty editor renders nothing.
     if (activeTab === 'text') {
-      if (activeSubtab === 'article') {
-        if (!personName.trim() || !personDesignation.trim() || !personBio.trim()) {
-          toast.error('Title, Sub Head, and Description are required.');
-          return;
-        }
-      } else {
-        if (!contentText.trim()) {
-          toast.error('Text Content is required.');
-          return;
-        }
+      if (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile) {
+        toast.error('Add at least a title, description, or media to save this card.');
+        return;
       }
     } else {
       if (!htmlContent.trim()) {
@@ -232,24 +242,19 @@ function HomeManagementPanelComponent() {
       const payload = new FormData();
 
       if (activeTab === 'text') {
-        if (activeSubtab === 'article') {
-          payload.append('card_type', 'person_card');
-          payload.append('person_name', personName.trim());
-          payload.append('designation', personDesignation.trim());
-          payload.append('bio', personBio.trim());
-          payload.append('display_width', personWidth);
-          if (personFile) payload.append('photo', personFile);
-        } else {
-          payload.append('card_type', 'content_card');
-          payload.append('text_content', contentText.trim());
-          payload.append('display_width', contentWidth);
-          if (contentFile) payload.append('photo', contentFile);
+        payload.append('card_type', 'person_card');
+        payload.append('person_name', personName.trim());
+        payload.append('designation', personDesignation.trim());
+        payload.append('bio', personBio.trim());
+        payload.append('display_width', personWidth);
+        if (personFile) {
+          payload.append('photo', personFile);
+          if (personMediaType) payload.append('media_type', personMediaType);
         }
       } else {
         payload.append('card_type', 'html_code');
         payload.append('html_content', htmlContent.trim());
         payload.append('display_width', htmlWidth);
-        if (htmlFile) payload.append('photo', htmlFile);
       }
 
       if (editId) {
@@ -272,17 +277,20 @@ function HomeManagementPanelComponent() {
 
   const isSaveDisabled = isUploading || (
     activeTab === 'text'
-      ? (activeSubtab === 'article'
-        ? (!personName.trim() || !personDesignation.trim() || !personBio.trim())
-        : !contentText.trim()
-      )
+      ? (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile)
       : !htmlContent.trim()
   );
 
-  const renderUploadZone = (inputRef, file, previewUrl, onSelect, label, helperText) => {
+  const renderArticleMediaZone = () => {
     return (
       <div className="ss-modal-form-group">
-        <span className="ss-modal-label">{label}</span>
+        <label className="ss-modal-label" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Article Media</span>
+          <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-tertiary)' }}>
+            Upload an image or video to display with this article.
+          </span>
+        </label>
+
         <div
           role="button"
           tabIndex={0}
@@ -291,69 +299,168 @@ function HomeManagementPanelComponent() {
             e.preventDefault();
             e.stopPropagation();
             const droppedFile = e.dataTransfer.files?.[0];
-            if (droppedFile && droppedFile.type.startsWith('image/')) {
-              onSelect(droppedFile);
+            if (droppedFile) {
+              processPersonFile(droppedFile);
             }
           }}
           style={{
-            border: '2px dashed var(--border-primary)',
+            border: personPreviewUrl ? '1px solid var(--border-primary)' : '2px dashed var(--border-primary)',
             borderRadius: '8px',
-            padding: '24px 16px',
+            padding: personPreviewUrl ? '0' : '24px 16px',
             textAlign: 'center',
             background: 'var(--bg-secondary)',
-            cursor: isUploading ? 'wait' : 'pointer',
+            cursor: isUploading ? 'wait' : (personPreviewUrl ? 'default' : 'pointer'),
             transition: 'all 0.15s ease',
             position: 'relative',
+            overflow: 'hidden',
           }}
           onClick={(e) => {
-            e.stopPropagation();
-            if (!isUploading) inputRef.current?.click();
+            if (!personPreviewUrl && !isUploading) {
+              e.stopPropagation();
+              personFileInputRef.current?.click();
+            }
           }}
           onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
+            if (!personPreviewUrl && (e.key === 'Enter' || e.key === ' ') && !isUploading) {
               e.preventDefault();
               e.stopPropagation();
-              inputRef.current?.click();
+              personFileInputRef.current?.click();
             }
           }}
         >
           <input
             type="file"
-            ref={inputRef}
-            accept="image/*"
+            ref={personFileInputRef}
+            accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.webm"
             style={{ display: 'none' }}
             onChange={(e) => {
               const selected = e.target.files?.[0];
-              if (selected) onSelect(selected);
+              if (selected) processPersonFile(selected);
+              e.target.value = '';
             }}
           />
 
           {isUploading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '24px 0' }}>
               <Loader2 size={28} className="animate-spin" style={{ color: 'var(--c-primary)' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Uploading image...
+                Processing media...
               </span>
             </div>
-          ) : previewUrl ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-              <img
-                src={previewUrl}
-                alt="Thumbnail preview"
-                style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--c-primary)', fontWeight: 600 }}>
-                Click or drag to change image {file ? `(${file.name})` : ''}
-              </span>
+          ) : personPreviewUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {/* Media Preview Box */}
+              <div style={{ background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '240px', overflow: 'hidden' }}>
+                {personMediaType === 'video' || (personPreviewUrl && personPreviewUrl.startsWith('data:video/')) ? (
+                  <video
+                    controls
+                    preload="metadata"
+                    playsInline
+                    src={personPreviewUrl}
+                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                  />
+                ) : (
+                  <img
+                    src={personPreviewUrl}
+                    alt="Article media preview"
+                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                  />
+                )}
+              </div>
+
+              {/* Metadata & Actions Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                background: 'var(--surface-primary)',
+                borderTop: '1px solid var(--border-primary)',
+                gap: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  {personMediaType === 'video' ? (
+                    <Video size={16} style={{ color: 'var(--c-primary)', flexShrink: 0 }} />
+                  ) : (
+                    <ImageIcon size={16} style={{ color: 'var(--c-primary)', flexShrink: 0 }} />
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {personFile ? personFile.name : 'Article Media'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                      {personMediaType === 'video' ? 'Video' : 'Image'} {personFile ? `• ${formatFileSize(personFile.size)}` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      personFileInputRef.current?.click();
+                    }}
+                  >
+                    <RefreshCw size={12} />
+                    <span>Replace</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--c-danger, #dc2626)',
+                      background: 'rgba(220, 38, 38, 0.08)',
+                      border: '1px solid rgba(220, 38, 38, 0.2)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+                        try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+                      }
+                      setPersonFile(null);
+                      setPersonPreviewUrl(null);
+                      setPersonMediaType(null);
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>Remove</span>
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Drag & drop image here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
+                Drag & drop media here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                {helperText}
+                Supports PNG, JPG, JPEG, WEBP, MP4, WEBM
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Maximum file size: 40 MB
               </span>
             </div>
           )}
@@ -660,7 +767,7 @@ function HomeManagementPanelComponent() {
                 }}
               >
                 <FileText size={16} />
-                Text Details
+                Content
               </button>
               <button
                 type="button"
@@ -684,7 +791,7 @@ function HomeManagementPanelComponent() {
                 }}
               >
                 <Code size={16} />
-                HTML Code
+                Rich Text Editor
               </button>
             </div>
 
@@ -703,175 +810,65 @@ function HomeManagementPanelComponent() {
               {/* Left Column: Form Inputs */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {activeTab === 'text' ? (
-                  <>
-                    {/* Compact Segmented Subtabs */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        background: 'var(--bg-tertiary)',
-                        borderRadius: '6px',
-                        padding: '2px',
-                        gap: '2px',
-                      }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSubtab('article')}
-                          style={{
-                            padding: '5px 16px',
-                            border: 'none',
-                            background: activeSubtab === 'article' ? 'var(--surface-primary)' : 'transparent',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: activeSubtab === 'article' ? 600 : 500,
-                            color: activeSubtab === 'article' ? 'var(--c-primary)' : 'var(--text-secondary)',
-                            boxShadow: activeSubtab === 'article' ? 'var(--shadow-sm)' : 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.12s ease',
-                          }}
-                        >
-                          Article
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSubtab('content')}
-                          style={{
-                            padding: '5px 16px',
-                            border: 'none',
-                            background: activeSubtab === 'content' ? 'var(--surface-primary)' : 'transparent',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: activeSubtab === 'content' ? 600 : 500,
-                            color: activeSubtab === 'content' ? 'var(--c-primary)' : 'var(--text-secondary)',
-                            boxShadow: activeSubtab === 'content' ? 'var(--shadow-sm)' : 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.12s ease',
-                          }}
-                        >
-                          Content
-                        </button>
-                      </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Card Display Width */}
+                    {renderWidthSelector(personWidth, setPersonWidth)}
+
+                    {/* Article Media Upload */}
+                    {renderArticleMediaZone()}
+
+                    {/* Title — all fields below are optional */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Title</label>
+                      <input
+                        type="text"
+                        className="ss-input"
+                        value={personName}
+                        onChange={(e) => setPersonName(e.target.value)}
+                        placeholder="Enter Title..."
+                      />
                     </div>
 
-                    {activeSubtab === 'article' ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Card Display Width */}
-                        {renderWidthSelector(personWidth, setPersonWidth)}
+                    {/* Designation */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Sub Head</label>
+                      <input
+                        type="text"
+                        className="ss-input"
+                        value={personDesignation}
+                        onChange={(e) => setPersonDesignation(e.target.value)}
+                        placeholder="Enter Sub-head ..."
+                      />
+                    </div>
 
-                        {/* Upload Person Image */}
-                        {renderUploadZone(
-                          personFileInputRef,
-                          personFile,
-                          personPreviewUrl,
-                          processPersonFile,
-                          "Upload Article Image",
-                          "Supports PNG, JPG, JPEG, WEBP"
-                        )}
-
-                        {/* Person Name */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Title <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personName}
-                            onChange={(e) => setPersonName(e.target.value)}
-                            placeholder="Enter Title..."
-                          />
-                        </div>
-
-                        {/* Designation */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Sub Head <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personDesignation}
-                            onChange={(e) => setPersonDesignation(e.target.value)}
-                            placeholder="Enter Sub-head ..."
-                          />
-                        </div>
-
-                        {/* Biography */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Description <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <textarea
-                            rows={4}
-                            className="ss-input"
-                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
-                            value={personBio}
-                            onChange={(e) => setPersonBio(e.target.value)}
-                            placeholder="Enter Description..."
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Card Display Width */}
-                        {renderWidthSelector(contentWidth, setContentWidth)}
-
-                        {/* Upload Banner/Image */}
-                        {renderUploadZone(
-                          contentFileInputRef,
-                          contentFile,
-                          contentPreviewUrl,
-                          processContentFile,
-                          "Upload Banner/Image",
-                          "Supports PNG, JPG, JPEG, WEBP"
-                        )}
-
-                        {/* Text Content */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Text Content <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <textarea
-                            rows={6}
-                            className="ss-input"
-                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
-                            value={contentText}
-                            onChange={(e) => setContentText(e.target.value)}
-                            placeholder="Enter content description text..."
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    {/* Biography */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Description</label>
+                      <textarea
+                        rows={4}
+                        className="ss-input"
+                        style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
+                        value={personBio}
+                        onChange={(e) => setPersonBio(e.target.value)}
+                        placeholder="Enter Description..."
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {/* Card Display Width */}
                     {renderWidthSelector(htmlWidth, setHtmlWidth)}
 
-                    {/* Upload Image */}
-                    {renderUploadZone(
-                      htmlFileInputRef,
-                      htmlFile,
-                      htmlPreviewUrl,
-                      processHtmlFile,
-                      "Upload Image (Optional Banner)",
-                      "Supports PNG, JPG, JPEG, WEBP"
-                    )}
-
-                    {/* HTML Content */}
+                    {/* Rich Text Content — images/video/etc. are inserted
+                        from within the editor itself; there is no separate
+                        banner upload for this card type. */}
                     <div className="ss-modal-form-group">
-                      <label className="ss-modal-label">HTML Code <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                      <textarea
-                        rows={10}
-                        className="ss-input"
-                        style={{
-                          fontFamily: 'monospace, "Courier New", Courier',
-                          fontSize: '12px',
-                          lineHeight: '1.5',
-                          padding: '12px',
-                          height: '220px',
-                          resize: 'vertical',
-                          whiteSpace: 'pre',
-                          overflow: 'auto',
-                          background: 'var(--bg-tertiary)',
-                          border: '1px solid var(--border-primary)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)',
-                        }}
+                      <label className="ss-modal-label">Rich Text Editor <span style={{ color: 'var(--c-danger)' }}>*</span></label>
+                      <RichEditor
+                        key={editId ?? 'new'}
                         value={htmlContent}
-                        onChange={(e) => setHtmlContent(e.target.value)}
-                        placeholder="<!-- Enter custom HTML elements directly -->&#10;<div style='padding: 10px;'>...</div>"
+                        onChange={setHtmlContent}
+                        placeholder="Start writing your homepage card content..."
                       />
                     </div>
                   </div>
@@ -898,20 +895,19 @@ function HomeManagementPanelComponent() {
                 }}>
                   <div
                     style={{
-                      width: (activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
+                      width: (activeTab === 'text' ? personWidth : htmlWidth) === '50%' ? '50%' : '100%',
                       minWidth: '280px',
                       transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
                     <HomeCard
                       card={{
-                        card_type: activeTab === 'text' ? (activeSubtab === 'article' ? 'person_card' : 'content_card') : 'html_code',
-                        display_width: activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth,
-                        photo: activeTab === 'text' ? (activeSubtab === 'article' ? personPreviewUrl : contentPreviewUrl) : htmlPreviewUrl,
+                        card_type: activeTab === 'text' ? 'person_card' : 'html_code',
+                        display_width: activeTab === 'text' ? personWidth : htmlWidth,
+                        photo: activeTab === 'text' ? personPreviewUrl : null,
                         person_name: personName,
                         designation: personDesignation,
                         bio: personBio,
-                        text_content: contentText,
                         html_content: htmlContent,
                       }}
                     />
