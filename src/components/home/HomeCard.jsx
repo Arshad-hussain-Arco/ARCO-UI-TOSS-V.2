@@ -119,10 +119,14 @@ export function HomeCard({ card, className = '', style = {} }) {
   return (
     <>
       <article className={`home-card ${widthClass} ${isHtmlCard ? 'home-card-html-only' : ''} ${className}`} style={style}>
-        {/* Media Section — omitted entirely for Rich Text cards */}
-        {!isHtmlCard && (
+        {/* Media Section — omitted entirely for Rich Text cards, and for
+            Article/Content cards that never had an image or video uploaded
+            (a text-only card shouldn't show an empty placeholder box; the
+            placeholder only makes sense as a broken-image fallback for a
+            photoUrl that failed to load, not as "no media was provided"). */}
+        {!isHtmlCard && photoUrl && (
           <div className="home-card-media-wrapper">
-            {photoUrl && !imageError ? (
+            {!imageError ? (
               isVideo ? (
                 <video
                   src={photoUrl}

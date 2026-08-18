@@ -43,11 +43,13 @@ function HomeManagementPanelComponent() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Tab State
+  // Tab State — 'text' tab now holds only the Article form (the separate
+  // Content sub-tab was removed: one form is enough, and having a visible
+  // sub-tab selector for it was just an extra click for no real choice).
   const [activeTab, setActiveTab] = useState('text'); // 'text' | 'html'
-  const [activeSubtab, setActiveSubtab] = useState('article'); // 'article' | 'content'
 
-  // Person Subtab State
+  // Article State — every field here is optional. A card can be
+  // text-only, media-only, or both; nothing is required to save.
   const [personName, setPersonName] = useState('');
   const [personDesignation, setPersonDesignation] = useState('');
   const [personBio, setPersonBio] = useState('');
@@ -55,12 +57,6 @@ function HomeManagementPanelComponent() {
   const [personPreviewUrl, setPersonPreviewUrl] = useState(null);
   const [personMediaType, setPersonMediaType] = useState(null); // 'image' | 'video' | null
   const [personWidth, setPersonWidth] = useState('100%'); // '50%' | '100%'
-
-  // Content Subtab State
-  const [contentFile, setContentFile] = useState(null);
-  const [contentPreviewUrl, setContentPreviewUrl] = useState(null);
-  const [contentText, setContentText] = useState('');
-  const [contentWidth, setContentWidth] = useState('100%'); // '50%' | '100%'
 
   // Rich Text Tab State — images/video/etc. are inserted from within the
   // editor itself, so there is no separate banner file/preview state here.
@@ -72,7 +68,6 @@ function HomeManagementPanelComponent() {
 
   // File input refs
   const personFileInputRef = useRef(null);
-  const contentFileInputRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -95,7 +90,6 @@ function HomeManagementPanelComponent() {
     setEditId(null);
     setIsUploading(false);
     setActiveTab('text');
-    setActiveSubtab('article');
 
     setPersonName('');
     setPersonDesignation('');
@@ -106,12 +100,7 @@ function HomeManagementPanelComponent() {
     }
     setPersonPreviewUrl(null);
     setPersonMediaType(null);
-    setPersonWidth('50%'); // Default is 50% for Person Card
-
-    setContentFile(null);
-    setContentPreviewUrl(null);
-    setContentText('');
-    setContentWidth('100%'); // Default is 100% for Content Card
+    setPersonWidth('50%');
 
     setHtmlContent('');
     setHtmlWidth('100%');
@@ -134,37 +123,30 @@ function HomeManagementPanelComponent() {
     setPersonMediaType(null);
     setPersonWidth('50%');
 
-    setContentFile(null);
-    setContentPreviewUrl(null);
-    setContentText('');
-    setContentWidth('100%');
-
     setHtmlContent('');
     setHtmlWidth('100%');
 
     const photoUrl = card.photo ? (card.photo.startsWith('data:') || card.photo.startsWith('http:') ? card.photo : `data:image/jpeg;base64,${card.photo}`) : null;
     const widthVal = card.display_width || '100%';
 
-    if (card.card_type === 'person_card') {
-      setActiveTab('text');
-      setActiveSubtab('article');
-      setPersonName(card.person_name || '');
-      setPersonDesignation(card.designation || '');
-      setPersonBio(card.bio || '');
-      setPersonWidth(widthVal);
-      setPersonPreviewUrl(photoUrl);
-      const isVideo = card.media_type === 'video' || (photoUrl && photoUrl.startsWith('data:video/'));
-      setPersonMediaType(isVideo ? 'video' : 'image');
-    } else if (card.card_type === 'content_card') {
-      setActiveTab('text');
-      setActiveSubtab('content');
-      setContentText(card.text_content || '');
-      setContentWidth(widthVal);
-      setContentPreviewUrl(photoUrl);
-    } else {
+    if (card.card_type === 'html_code') {
       setActiveTab('html');
       setHtmlContent(card.html_content || '');
       setHtmlWidth(widthVal);
+    } else {
+      // person_card maps directly. The old content_card type (separate
+      // "Content" sub-tab, since removed) only ever had text_content +
+      // an optional photo — loads into the same Article form here with
+      // Title/Sub Head left blank; saving it back out now writes it as a
+      // person_card going forward.
+      setActiveTab('text');
+      setPersonName(card.person_name || '');
+      setPersonDesignation(card.designation || '');
+      setPersonBio(card.bio || card.text_content || '');
+      setPersonWidth(widthVal);
+      setPersonPreviewUrl(photoUrl);
+      const isVideo = card.media_type === 'video' || (photoUrl && photoUrl.startsWith('data:video/'));
+      setPersonMediaType(photoUrl ? (isVideo ? 'video' : 'image') : null);
     }
 
     setIsModalOpen(true);
@@ -238,29 +220,15 @@ function HomeManagementPanelComponent() {
     toast.success(`${isVideo ? 'Video' : 'Image'} selected: ${file.name}`);
   };
 
-  const processContentFile = (file) => {
-    if (!file) return;
-    setIsUploading(true);
-    setContentFile(file);
-    const url = URL.createObjectURL(file);
-    setContentPreviewUrl(url);
-    setIsUploading(false);
-    toast.success(`Image selected: ${file.name}`);
-  };
-
   const handleSaveCard = async () => {
-    // Validation
+    // Validation — Article fields are all optional (title/sub-head/
+    // description/media can be any combination, including none at all
+    // except needing *something* to actually show on the card). Rich Text
+    // still requires actual content since an empty editor renders nothing.
     if (activeTab === 'text') {
-      if (activeSubtab === 'article') {
-        if (!personName.trim() || !personDesignation.trim() || !personBio.trim()) {
-          toast.error('Title, Sub Head, and Description are required.');
-          return;
-        }
-      } else {
-        if (!contentText.trim()) {
-          toast.error('Text Content is required.');
-          return;
-        }
+      if (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile) {
+        toast.error('Add at least a title, description, or media to save this card.');
+        return;
       }
     } else {
       if (!htmlContent.trim()) {
@@ -274,21 +242,14 @@ function HomeManagementPanelComponent() {
       const payload = new FormData();
 
       if (activeTab === 'text') {
-        if (activeSubtab === 'article') {
-          payload.append('card_type', 'person_card');
-          payload.append('person_name', personName.trim());
-          payload.append('designation', personDesignation.trim());
-          payload.append('bio', personBio.trim());
-          payload.append('display_width', personWidth);
-          if (personFile) {
-            payload.append('photo', personFile);
-            if (personMediaType) payload.append('media_type', personMediaType);
-          }
-        } else {
-          payload.append('card_type', 'content_card');
-          payload.append('text_content', contentText.trim());
-          payload.append('display_width', contentWidth);
-          if (contentFile) payload.append('photo', contentFile);
+        payload.append('card_type', 'person_card');
+        payload.append('person_name', personName.trim());
+        payload.append('designation', personDesignation.trim());
+        payload.append('bio', personBio.trim());
+        payload.append('display_width', personWidth);
+        if (personFile) {
+          payload.append('photo', personFile);
+          if (personMediaType) payload.append('media_type', personMediaType);
         }
       } else {
         payload.append('card_type', 'html_code');
@@ -316,10 +277,7 @@ function HomeManagementPanelComponent() {
 
   const isSaveDisabled = isUploading || (
     activeTab === 'text'
-      ? (activeSubtab === 'article'
-        ? (!personName.trim() || !personDesignation.trim() || !personBio.trim())
-        : !contentText.trim()
-      )
+      ? (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile)
       : !htmlContent.trim()
   );
 
@@ -503,89 +461,6 @@ function HomeManagementPanelComponent() {
               </span>
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Maximum file size: 40 MB
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderUploadZone = (inputRef, file, previewUrl, onSelect, label, helperText) => {
-    return (
-      <div className="ss-modal-form-group">
-        <span className="ss-modal-label">{label}</span>
-        <div
-          role="button"
-          tabIndex={0}
-          onDragOver={handleDragOver}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const droppedFile = e.dataTransfer.files?.[0];
-            if (droppedFile && droppedFile.type.startsWith('image/')) {
-              onSelect(droppedFile);
-            }
-          }}
-          style={{
-            border: '2px dashed var(--border-primary)',
-            borderRadius: '8px',
-            padding: '24px 16px',
-            textAlign: 'center',
-            background: 'var(--bg-secondary)',
-            cursor: isUploading ? 'wait' : 'pointer',
-            transition: 'all 0.15s ease',
-            position: 'relative',
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isUploading) inputRef.current?.click();
-          }}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !isUploading) {
-              e.preventDefault();
-              e.stopPropagation();
-              inputRef.current?.click();
-            }
-          }}
-        >
-          <input
-            type="file"
-            ref={inputRef}
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const selected = e.target.files?.[0];
-              if (selected) onSelect(selected);
-            }}
-          />
-
-          {isUploading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '12px 0' }}>
-              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--c-primary)' }} />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Uploading image...
-              </span>
-            </div>
-          ) : previewUrl ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-              <img
-                src={previewUrl}
-                alt="Thumbnail preview"
-                style={{ height: '100px', maxWidth: '100%', objectFit: 'cover', borderRadius: '6px' }}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--c-primary)', fontWeight: 600 }}>
-                Click or drag to change image {file ? `(${file.name})` : ''}
-              </span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <Upload size={28} style={{ color: 'var(--text-tertiary)' }} />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Drag & drop image here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
-              </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                {helperText}
               </span>
             </div>
           )}
@@ -892,7 +767,7 @@ function HomeManagementPanelComponent() {
                 }}
               >
                 <FileText size={16} />
-                Text Details
+                Content
               </button>
               <button
                 type="button"
@@ -935,130 +810,50 @@ function HomeManagementPanelComponent() {
               {/* Left Column: Form Inputs */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {activeTab === 'text' ? (
-                  <>
-                    {/* Compact Segmented Subtabs */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        background: 'var(--bg-tertiary)',
-                        borderRadius: '6px',
-                        padding: '2px',
-                        gap: '2px',
-                      }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSubtab('article')}
-                          style={{
-                            padding: '5px 16px',
-                            border: 'none',
-                            background: activeSubtab === 'article' ? 'var(--surface-primary)' : 'transparent',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: activeSubtab === 'article' ? 600 : 500,
-                            color: activeSubtab === 'article' ? 'var(--c-primary)' : 'var(--text-secondary)',
-                            boxShadow: activeSubtab === 'article' ? 'var(--shadow-sm)' : 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.12s ease',
-                          }}
-                        >
-                          Article
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveSubtab('content')}
-                          style={{
-                            padding: '5px 16px',
-                            border: 'none',
-                            background: activeSubtab === 'content' ? 'var(--surface-primary)' : 'transparent',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: activeSubtab === 'content' ? 600 : 500,
-                            color: activeSubtab === 'content' ? 'var(--c-primary)' : 'var(--text-secondary)',
-                            boxShadow: activeSubtab === 'content' ? 'var(--shadow-sm)' : 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.12s ease',
-                          }}
-                        >
-                          Content
-                        </button>
-                      </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Card Display Width */}
+                    {renderWidthSelector(personWidth, setPersonWidth)}
+
+                    {/* Article Media Upload */}
+                    {renderArticleMediaZone()}
+
+                    {/* Title — all fields below are optional */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Title</label>
+                      <input
+                        type="text"
+                        className="ss-input"
+                        value={personName}
+                        onChange={(e) => setPersonName(e.target.value)}
+                        placeholder="Enter Title..."
+                      />
                     </div>
 
-                    {activeSubtab === 'article' ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Card Display Width */}
-                        {renderWidthSelector(personWidth, setPersonWidth)}
+                    {/* Designation */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Sub Head</label>
+                      <input
+                        type="text"
+                        className="ss-input"
+                        value={personDesignation}
+                        onChange={(e) => setPersonDesignation(e.target.value)}
+                        placeholder="Enter Sub-head ..."
+                      />
+                    </div>
 
-                        {/* Article Media Upload */}
-                        {renderArticleMediaZone()}
-
-                        {/* Person Name */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Title <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personName}
-                            onChange={(e) => setPersonName(e.target.value)}
-                            placeholder="Enter Title..."
-                          />
-                        </div>
-
-                        {/* Designation */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Sub Head <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personDesignation}
-                            onChange={(e) => setPersonDesignation(e.target.value)}
-                            placeholder="Enter Sub-head ..."
-                          />
-                        </div>
-
-                        {/* Biography */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Description <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <textarea
-                            rows={4}
-                            className="ss-input"
-                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
-                            value={personBio}
-                            onChange={(e) => setPersonBio(e.target.value)}
-                            placeholder="Enter Description..."
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {/* Card Display Width */}
-                        {renderWidthSelector(contentWidth, setContentWidth)}
-
-                        {/* Upload Banner/Image */}
-                        {renderUploadZone(
-                          contentFileInputRef,
-                          contentFile,
-                          contentPreviewUrl,
-                          processContentFile,
-                          "Upload Banner/Image",
-                          "Supports PNG, JPG, JPEG, WEBP"
-                        )}
-
-                        {/* Text Content */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Text Content <span style={{ color: 'var(--c-danger)' }}>*</span></label>
-                          <textarea
-                            rows={6}
-                            className="ss-input"
-                            style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
-                            value={contentText}
-                            onChange={(e) => setContentText(e.target.value)}
-                            placeholder="Enter content description text..."
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    {/* Biography */}
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label">Description</label>
+                      <textarea
+                        rows={4}
+                        className="ss-input"
+                        style={{ height: 'auto', padding: '10px 12px', fontSize: '13px', resize: 'vertical' }}
+                        value={personBio}
+                        onChange={(e) => setPersonBio(e.target.value)}
+                        placeholder="Enter Description..."
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {/* Card Display Width */}
@@ -1100,20 +895,19 @@ function HomeManagementPanelComponent() {
                 }}>
                   <div
                     style={{
-                      width: (activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth) === '50%' ? '50%' : '100%',
+                      width: (activeTab === 'text' ? personWidth : htmlWidth) === '50%' ? '50%' : '100%',
                       minWidth: '280px',
                       transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
                     <HomeCard
                       card={{
-                        card_type: activeTab === 'text' ? (activeSubtab === 'article' ? 'person_card' : 'content_card') : 'html_code',
-                        display_width: activeTab === 'text' ? (activeSubtab === 'article' ? personWidth : contentWidth) : htmlWidth,
-                        photo: activeTab === 'text' ? (activeSubtab === 'article' ? personPreviewUrl : contentPreviewUrl) : null,
+                        card_type: activeTab === 'text' ? 'person_card' : 'html_code',
+                        display_width: activeTab === 'text' ? personWidth : htmlWidth,
+                        photo: activeTab === 'text' ? personPreviewUrl : null,
                         person_name: personName,
                         designation: personDesignation,
                         bio: personBio,
-                        text_content: contentText,
                         html_content: htmlContent,
                       }}
                     />
