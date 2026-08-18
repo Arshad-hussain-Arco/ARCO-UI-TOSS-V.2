@@ -1,6 +1,6 @@
 import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
 
-const MAX_VIDEO_MB = 40;
+const MAX_VIDEO_MB = 19;
 const ACCEPTED_MIME = ['video/mp4', 'video/webm', 'video/ogg'];
 
 export async function ingestFile(file) {
