@@ -1021,7 +1021,7 @@ function HomeManagementPanelComponent() {
                 padding: '0 20px',
                 fontSize: '13px',
                 fontWeight: 600,
-                color: 'var(--surface-primary)',
+                color: '#ffffff',
                 background: 'var(--c-danger)',
                 border: 'none',
                 borderRadius: '6px',
