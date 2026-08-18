@@ -795,7 +795,8 @@ export function LeaveManagementPage() {
                         <col style={{ width: '15%' }} />
                         <col style={{ width: '20%' }} />
                         <col style={{ width: '10%' }} />
-                        <col style={{ width: '25%' }} />
+                        <col style={{ width: filterStatus === 'pending' ? '15%' : '25%' }} />
+                        {filterStatus === 'pending' && <col style={{ width: '10%' }} />}
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
                         <col style={{ width: '10%' }} />
@@ -814,7 +815,11 @@ export function LeaveManagementPage() {
                           <th className="leave-table-header" onClick={() => handleSort('leave_reason')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE REASON <SortIcon field="leave_reason" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
-
+                          {filterStatus === 'pending' && (
+                            <th className="leave-table-header" onClick={() => handleSort('requested_date')} style={{ cursor: 'pointer' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>PENDING SINCE <SortIcon field="requested_date" sortField={sortField} sortOrder={sortOrder} /></div>
+                            </th>
+                          )}
                           <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
@@ -857,6 +862,12 @@ export function LeaveManagementPage() {
                               <td className="leave-table-cell" data-label="Leave Reason">
                                 <TruncatedText text={leave.leave_reason} maxLength={30} title="Leave Reason" />
                               </td>
+
+                              {filterStatus === 'pending' && (
+                                <td className="leave-table-cell" style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                  {getRelativePendingTime(leave.requested_date || leave.created_at)}
+                                </td>
+                              )}
 
                               <td className="leave-table-cell" data-label="Status">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

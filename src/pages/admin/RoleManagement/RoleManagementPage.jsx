@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Fragment } from 'react';
 import {
   Plus,
   Search,
@@ -8,6 +8,7 @@ import {
   ShieldAlert,
   Edit,
   Trash,
+  Trash2,
   ChevronDown,
   ChevronUp,
   X,
@@ -16,10 +17,14 @@ import {
   Lock,
   Loader2,
   Save,
+  Ban,
+  UserCog,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
+import { useAuth } from '@hooks/useAuth';
+import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
 import './RoleManagementPage.css';
@@ -196,7 +201,9 @@ const mapRole = (r) => {
 };
 
 export function RoleManagementPage() {
+  useDocumentTitle('Roles & Permissions - Admin Panel');
   const toast = useToast();
+  const { refreshUser } = useAuth();
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -284,6 +291,28 @@ export function RoleManagementPage() {
     );
   };
 
+  const handleAllowAllModal = () => {
+    const allCodes = PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code));
+    setNewRoleCodes(allCodes);
+  };
+
+  const handleDenyAllModal = () => {
+    setNewRoleCodes([]);
+  };
+
+  const handleToggleModuleModal = (allModuleCodes, toggleCodes, isViewAllowed) => {
+    const removeCodes = allModuleCodes.map(c => c.code);
+    const addCodes = toggleCodes.map(c => c.code);
+
+    if (isViewAllowed) {
+      // Turning OFF: remove ALL codes for this module
+      setNewRoleCodes(prev => prev.filter(c => !removeCodes.includes(c)));
+    } else {
+      // Turning ON: add just the toggleCodes (View)
+      setNewRoleCodes(prev => [...new Set([...prev, ...addCodes])]);
+    }
+  };
+
   // Create Role Submit
   const handleCreateRole = async (e) => {
     e.preventDefault();
@@ -342,6 +371,10 @@ export function RoleManagementPage() {
         permissions: role.permissions,
       });
       toast.success('Role permissions updated successfully.');
+
+      // Sync the active user's permissions if they just updated their own role
+      refreshUser();
+
       setDirtyRoles((prev) => {
         const next = new Set(prev);
         next.delete(role.id);
@@ -355,6 +388,8 @@ export function RoleManagementPage() {
       setIsSaving(false);
     }
   };
+
+
 
   // Toggle Inline Accordion for Row
   const handleToggleConfigure = (id) => {
@@ -403,6 +438,63 @@ export function RoleManagementPage() {
     );
   };
 
+  const handleAllowAllInline = (roleId) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.id === roleId) {
+          return {
+            ...r,
+            permissions: PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code)),
+          };
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleDenyAllInline = (roleId) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.id === roleId) {
+          return {
+            ...r,
+            permissions: [],
+          };
+        }
+        return r;
+      })
+    );
+  };
+
+  const handleToggleModuleInline = (roleId, allModuleCodes, toggleCodes, isViewAllowed) => {
+    setDirtyRoles((prev) => new Set(prev).add(roleId));
+    const removeCodes = allModuleCodes.map(c => c.code);
+    const addCodes = toggleCodes.map(c => c.code);
+
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.id === roleId) {
+          if (isViewAllowed) {
+            // Turning OFF: remove ALL codes for this module
+            return {
+              ...r,
+              permissions: r.permissions.filter(c => !removeCodes.includes(c)),
+            };
+          } else {
+            // Turning ON: add just the toggleCodes (View)
+            return {
+              ...r,
+              permissions: [...new Set([...r.permissions, ...addCodes])],
+            };
+          }
+        }
+        return r;
+      })
+    );
+  };
+
   // Update Role Description Inline
   const handleInlineDescriptionChange = (roleId, newDescription) => {
     setDirtyRoles((prev) => new Set(prev).add(roleId));
@@ -422,52 +514,7 @@ export function RoleManagementPage() {
   return (
     <div className="rm-container">
       {/* ── Top Header & KPI Summary Bar ────────────────────────────────────────── */}
-      <div className="rm-header">
 
-
-        {/* 4 Compact Stat Cards */}
-        <div className="rm-kpi-grid">
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon blue">
-              <Users size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.total_users}</div>
-              <div className="rm-kpi-lbl">Total Users</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon green">
-              <ShieldCheck size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.admin_roles}</div>
-              <div className="rm-kpi-lbl">Admin Roles</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon purple">
-              <Lock size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.assigned_roles}</div>
-              <div className="rm-kpi-lbl">Assigned Roles</div>
-            </div>
-          </div>
-
-          <div className="rm-kpi-card">
-            <div className="rm-kpi-icon amber">
-              <ShieldAlert size={16} />
-            </div>
-            <div className="rm-kpi-info">
-              <div className="rm-kpi-val">{stats.unassigned_roles}</div>
-              <div className="rm-kpi-lbl">Unassigned Roles</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ── Main Section (Search & Existing Roles List Table) ────────────────── */}
       <div className="rm-main-section">
@@ -502,19 +549,20 @@ export function RoleManagementPage() {
 
         <div className="rm-table-wrapper">
           <table className="rm-roles-table">
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '35%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '20%' }} />
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: '20%' }}>Role Name</th>
-                <th style={{ width: '35%' }}>Description</th>
-                <th style={{ width: '15%' }} className="text-center">
-                  Permission Count
-                </th>
-                <th style={{ width: '10%' }} className="text-center">
-                  Admin
-                </th>
-                <th style={{ width: '20%' }} className="text-right">
-                  Actions
-                </th>
+                <th>Role Name</th>
+                <th>Description</th>
+                <th className="text-center">Permission Count</th>
+                <th className="text-center">Admin</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -531,7 +579,7 @@ export function RoleManagementPage() {
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
                     <div className="rm-empty-state">
-                      <Shield size={32} />
+                      <UserCog size={32} />
                       <p>No matching roles found.</p>
                     </div>
                   </td>
@@ -550,7 +598,7 @@ export function RoleManagementPage() {
                               <td style={{ width: '20%' }}>
                                 <div className="rm-cell-role-name">
                                   <div className="rm-role-badge-icon">
-                                    <Shield size={14} />
+                                    <UserCog size={14} />
                                   </div>
                                   <span className="rm-role-name">{role.name}</span>
                                 </div>
@@ -567,13 +615,28 @@ export function RoleManagementPage() {
                               </td>
 
                               <td style={{ width: '10%' }} className="text-center">
-                                <span className={`rm-admin-pill ${role.isAdmin ? 'yes' : 'no'}`}>
-                                  {role.isAdmin ? 'Yes' : 'No'}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                  <label className="rm-switch-btn" htmlFor={`admin-toggle-${role.id}`}>
+                                    <span className="sr-only">Toggle Admin</span>
+                                    <input
+                                      id={`admin-toggle-${role.id}`}
+                                      type="checkbox"
+                                      checked={role.isAdmin}
+                                      onChange={() => {
+                                        setDirtyRoles((prev) => new Set(prev).add(role.id));
+                                        setRoles((prev) => prev.map((r) => r.id === role.id ? { ...r, isAdmin: !r.isAdmin } : r));
+                                      }}
+                                    />
+                                    <span className="rm-switch-slider"></span>
+                                  </label>
+                                  <span className={`rm-admin-pill ${role.isAdmin ? 'yes' : 'no'}`} style={{ minWidth: '32px' }}>
+                                    {role.isAdmin ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
                               </td>
 
-                              <td style={{ width: '20%' }} className="text-right">
-                                <div className="rm-action-btns">
+                              <td className="text-center">
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                                   <button
                                     type="button"
                                     className={`rm-btn-action configure ${isExpanded ? 'active' : ''}`}
@@ -604,15 +667,16 @@ export function RoleManagementPage() {
                           </tbody>
                         </table>
 
-                        {/* Inline Accordion Expandable Permissions Matrix Panel */}
+                        {/* Inline Accordion Permissions Matrix */}
                         {isExpanded && (
-                          <div className="rm-accordion-panel">
-                            <div className="rm-accordion-header">
-                              <div className="rm-acc-title-wrap">
-                                <h3>Functions & Permission Matrix — {role.name}</h3>
-                                <p>Click any toggle button to switch between Allow and Deny.</p>
-                              </div>
+                          <div className="rm-expanded-content" style={{ padding: '16px 20px', background: 'var(--surface-primary)', borderTop: '1px solid var(--border-primary)' }}>
+                            <div className="rm-acc-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Configure Permissions</h4>
                               <div className="rm-acc-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>Global Permissions:</span>
+                                <button type="button" className="rm-btn-allow-all" onClick={() => handleAllowAllInline(role.id)}>Allow All</button>
+                                <button type="button" className="rm-btn-deny-all" onClick={() => handleDenyAllInline(role.id)}>Deny All</button>
+                                <div style={{ width: '1px', height: '20px', background: 'var(--border-primary)', margin: '0 4px' }}></div>
                                 <input
                                   type="text"
                                   className="ef-input"
@@ -647,44 +711,89 @@ export function RoleManagementPage() {
                               </div>
                             </div>
 
-                            <table className="rm-matrix-table">
-                              <thead>
-                                <tr>
-                                  <th>Function / Module Name</th>
-                                  <th>Permissions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {PERMISSION_CATALOG.map(({ module, codes }) => (
-                                  <tr key={module}>
-                                    <td className="rm-mod-name">{module}</td>
-                                    <td>
-                                      <div className="rm-code-badges">
-                                        {codes.map(({ code, label }) => {
+                            <div className="rm-permissions-list" style={{ marginTop: '12px' }}>
+                              <div className="rm-list-header-row" style={{ display: 'flex', borderBottom: '1px solid var(--border-primary)', padding: '8px 12px' }}>
+                                <div style={{ width: '160px', fontWeight: 600, fontSize: '10px', }}>Module / Page</div>
+                                <div style={{ flex: 1, fontWeight: 600, fontSize: '10px', }}>Available Permissions Configuration</div>
+                              </div>
+                              <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                Module Target Scope
+                              </div>
+                              {PERMISSION_CATALOG.map(({ module, codes }) => {
+                                const viewCodeObj = codes.find(c => c.label.startsWith('View'));
+                                const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
+
+                                const isViewAllowed = viewCodeObj
+                                  ? role.permissions.includes(viewCodeObj.code)
+                                  : codes.every(c => role.permissions.includes(c.code));
+
+                                const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
+
+                                return (
+                                  <div className="rm-module-row" key={module}>
+                                    <div className="rm-module-sidebar">
+                                      <span className="rm-mod-name">{module}</span>
+                                      <label className="rm-switch-btn" htmlFor={`inline-module-toggle-${role.id}-${module}`}>
+                                        <span className="sr-only">Toggle Module</span>
+                                        <input
+                                          id={`inline-module-toggle-${role.id}-${module}`}
+                                          type="checkbox"
+                                          checked={isViewAllowed}
+                                          onChange={() => handleToggleModuleInline(role.id, codes, toggleCodes, isViewAllowed)}
+                                        />
+                                        <span className="rm-switch-slider"></span>
+                                      </label>
+                                    </div>
+                                    <div className="rm-module-permissions">
+                                      {nonViewCodes.length > 0 ? (
+                                        nonViewCodes.map(({ code, label }) => {
                                           const isAllow = role.permissions.includes(code);
                                           return (
-                                            <button
+                                            <div
+                                              className="rm-perm-box"
                                               key={code}
-                                              type="button"
-                                              className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
-                                              {...activatable(
-                                                () => handleToggleInlinePermission(role.id, code),
-                                                {
-                                                  label: `Toggle ${label} for ${module} in ${role.name}`,
-                                                  isPressed: isAllow,
-                                                }
-                                              )}
+                                              style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                             >
-                                              {label}: {isAllow ? 'Allow' : 'Deny'}
-                                            </button>
+                                              <span className="rm-perm-label" title={label}>
+                                                {label}
+                                              </span>
+                                              <div className="rm-perm-toggle-group">
+                                                <button
+                                                  type="button"
+                                                  className={`rm-perm-btn allow ${isAllow ? 'active' : ''}`}
+                                                  {...activatable(
+                                                    () => { if (!isAllow) handleToggleInlinePermission(role.id, code); },
+                                                    { label: `Allow ${label} for ${module} in ${role.name}` }
+                                                  )}
+                                                >
+                                                  <Check size={10} />
+                                                  Allow
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  className={`rm-perm-btn deny ${!isAllow ? 'active' : ''}`}
+                                                  {...activatable(
+                                                    () => { if (isAllow) handleToggleInlinePermission(role.id, code); },
+                                                    { label: `Deny ${label} for ${module} in ${role.name}` }
+                                                  )}
+                                                >
+                                                  <Ban size={10} />
+                                                  Deny
+                                                </button>
+                                              </div>
+                                            </div>
                                           );
-                                        })}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                        })
+                                      ) : (
+                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                          View-only module
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </td>
@@ -878,45 +987,96 @@ export function RoleManagementPage() {
 
                 {/* Modal Permissions Matrix Section */}
                 <div className="rm-modal-matrix-section">
-                  <h4 className="rm-matrix-heading">Configure Module Permissions</h4>
-                  <table className="rm-matrix-table">
-                    <thead>
-                      <tr>
-                        <th>Function / Module Name</th>
-                        <th>Permissions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {PERMISSION_CATALOG.map(({ module, codes }) => (
-                        <tr key={module}>
-                          <td className="rm-mod-name">{module}</td>
-                          <td>
-                            <div className="rm-code-badges">
-                              {codes.map(({ code, label }) => {
+                  <div className="rm-matrix-header-action" style={{ padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
+                    <h4 className="rm-matrix-heading" style={{ fontSize: '11px' }}>Configure All Pages / Modules Permissions</h4>
+                    <div className="rm-master-toggles">
+                      <button type="button" className="rm-btn-allow-all" onClick={handleAllowAllModal}>Allow All</button>
+                      <button type="button" className="rm-btn-deny-all" onClick={handleDenyAllModal}>Deny All</button>
+                    </div>
+                  </div>
+                  <div className="rm-permissions-list">
+                    <div className="rm-list-header-row" style={{ display: 'flex', borderBottom: '1px solid var(--border-primary)', padding: '8px 12px' }}>
+                      <div style={{ width: '160px', fontWeight: 600, fontSize: '10px', }}>Module / Page</div>
+                      <div style={{ flex: 1, fontWeight: 600, fontSize: '10px', }}>Available Permissions Configuration</div>
+                    </div>
+                    <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Module Target Scope
+                    </div>
+                    {PERMISSION_CATALOG.map(({ module, codes }) => {
+                      const viewCodeObj = codes.find(c => c.label.startsWith('View'));
+                      const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
+
+                      const isViewAllowed = viewCodeObj
+                        ? newRoleCodes.includes(viewCodeObj.code)
+                        : codes.every(c => newRoleCodes.includes(c.code));
+
+                      const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
+
+                      return (
+                        <div className="rm-module-row" key={module}>
+                          <div className="rm-module-sidebar">
+                            <span className="rm-mod-name">{module}</span>
+                            <label className="rm-switch-btn" htmlFor={`module-toggle-${module}`}>
+                              <span className="sr-only">Toggle Module</span>
+                              <input
+                                id={`module-toggle-${module}`}
+                                type="checkbox"
+                                checked={isViewAllowed}
+                                onChange={() => handleToggleModuleModal(codes, toggleCodes, isViewAllowed)}
+                              />
+                              <span className="rm-switch-slider"></span>
+                            </label>
+                          </div>
+                          <div className="rm-module-permissions">
+                            {nonViewCodes.length > 0 ? (
+                              nonViewCodes.map(({ code, label }) => {
                                 const isAllow = newRoleCodes.includes(code);
                                 return (
-                                  <button
+                                  <div
+                                    className="rm-perm-box"
                                     key={code}
-                                    type="button"
-                                    className={`rm-toggle-btn ${isAllow ? 'allow' : 'deny'}`}
-                                    {...activatable(
-                                      () => handleToggleModalPermission(code),
-                                      {
-                                        label: `Toggle ${label} permission for ${module}`,
-                                        isPressed: isAllow,
-                                      }
-                                    )}
+                                    style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                   >
-                                    {label}: {isAllow ? 'Allow' : 'Deny'}
-                                  </button>
+                                    <span className="rm-perm-label" title={label}>
+                                      {label}
+                                    </span>
+                                    <div className="rm-perm-toggle-group">
+                                      <button
+                                        type="button"
+                                        className={`rm-perm-btn allow ${isAllow ? 'active' : ''}`}
+                                        {...activatable(
+                                          () => { if (!isAllow) handleToggleModalPermission(code); },
+                                          { label: `Allow ${label} permission for ${module}` }
+                                        )}
+                                      >
+                                        <Check size={10} />
+                                        Allow
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`rm-perm-btn deny ${!isAllow ? 'active' : ''}`}
+                                        {...activatable(
+                                          () => { if (isAllow) handleToggleModalPermission(code); },
+                                          { label: `Deny ${label} permission for ${module}` }
+                                        )}
+                                      >
+                                        <Ban size={10} />
+                                        Deny
+                                      </button>
+                                    </div>
+                                  </div>
                                 );
-                              })}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              })
+                            ) : (
+                              <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                View-only module
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

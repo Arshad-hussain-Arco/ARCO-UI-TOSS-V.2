@@ -1684,8 +1684,8 @@
 }
 
 .status-down {
-  background: var(--c-danger-light);
-  color: var(--c-danger);
+  background-color:  #fee2e2;
+  color: #dc2626;
 }
 
 [data-theme='dark'] .status-ok {
@@ -1693,10 +1693,10 @@
   color: #6ee7b7;
 }
 
-[data-theme='dark'] .status-down {
+/* [data-theme='dark'] .status-down {
   background: #7f1d1d;
   color: #fca5a5;
-}
+} */
 
 .dc-env-details {
   display: flex;

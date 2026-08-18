@@ -47,6 +47,8 @@ const endpoints = {
     createHomeData: '/dashboard/home-data/create/',
     updateHomeData: (id) => `/dashboard/home-data/${id}/update/`,
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
+    uploadHomeMedia: '/dashboard/home-data/media-upload/',
+    homeMediaContent: (id) => `/dashboard/home-media/${id}/`,
   },
   dashboard: {
     summary: '/dashboard/summary/',

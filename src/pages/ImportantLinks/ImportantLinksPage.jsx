@@ -120,6 +120,7 @@ export function ImportantLinksPage() {
   const canPinHeader = hasPermission('IMPORTANT_LINKS_PIN_HEADER');
   const canGroupEdit = hasPermission('IMPORTANT_LINKS_GROUP_EDIT');
   const canGroupDelete = hasPermission('IMPORTANT_LINKS_GROUP_DELETE');
+  const canGroupCreate = hasPermission('IMPORTANT_LINKS_GROUP_CREATE');
   const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
@@ -232,11 +233,7 @@ export function ImportantLinksPage() {
         const newLinkResponse = await linkService.createLink(formData);
         const newLinkId = newLinkResponse?.data?.id || id;
 
-        if (pinToHeader) {
-          pinLink({ id: newLinkId, group, label, url });
-        }
-
-        await refetch();
+        refetch();
         window.dispatchEvent(new Event('pinned-links:refresh'));
         toast.success('Link added successfully');
         handleCloseModal();
@@ -265,28 +262,36 @@ export function ImportantLinksPage() {
         const existingGroup = serverCategories?.find((c) => c.title === group);
         const groupId = existingGroup?.id;
 
-        const formData = new FormData();
-        formData.append('link', label);
-        formData.append('url', url);
-        formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
-        formData.append('is_header', pinToHeader ? 1 : 0);
-        formData.append('isHeader', pinToHeader ? 1 : 0);
-        if (group) {
-          formData.append('group', group);
-        }
-        if (files && files.length > 0 && files[0] instanceof File) {
-          formData.append('file', files[0]);
-        }
+        const hasNewFile = files && files.length > 0 && files[0] instanceof File;
 
-        await linkService.updateLink(id, formData);
-
-        if (pinToHeader) {
-          pinLink({ id, group, label, url });
+        let payload;
+        if (hasNewFile) {
+          payload = new FormData();
+          payload.append('link', label);
+          payload.append('url', url);
+          payload.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
+          payload.append('is_header', pinToHeader ? 1 : 0);
+          payload.append('isHeader', pinToHeader ? 1 : 0);
+          if (group) payload.append('group', group);
+          payload.append('file', files[0]);
         } else {
-          unpinLink(id);
+          payload = {
+            link: label,
+            url: url,
+            content: [sharedFolder, comments].filter(Boolean).join(' · ') || '',
+            is_header: pinToHeader ? 1 : 0,
+            isHeader: pinToHeader ? 1 : 0,
+          };
+          if (group) payload.group = group;
+
+          if (!files || files.length === 0) {
+            payload.file_name = null;
+          }
         }
 
-        await refetch();
+        await linkService.updateLink(id, payload);
+
+        refetch();
         window.dispatchEvent(new Event('pinned-links:refresh'));
         toast.success('Link updated successfully');
         handleCloseModal();
@@ -310,8 +315,7 @@ export function ImportantLinksPage() {
     setIsSaving(true);
     try {
       await linkService.deleteLink(deleteTarget.id);
-      unpinLink(deleteTarget.id);
-      await refetch();
+      refetch();
       window.dispatchEvent(new Event('pinned-links:refresh'));
       toast.success('Link deleted successfully');
       setDeleteTarget(null);
@@ -353,7 +357,7 @@ export function ImportantLinksPage() {
         }
         return Promise.resolve();
       }));
-      await refetch();
+      refetch();
       window.dispatchEvent(new Event('pinned-links:refresh'));
       toast.success(newPinStatus ? 'Group pinned to header' : 'Group unpinned from header');
     } catch (err) {
@@ -518,6 +522,7 @@ export function ImportantLinksPage() {
           onUpdate={handleUpdateLink}
           onClose={handleCloseModal}
           isSaving={isSaving}
+          canCreateGroup={canGroupCreate}
         />
       )}
 
@@ -575,7 +580,7 @@ export function ImportantLinksPage() {
             <button
               type="button"
               className="tv-btn save"
-              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--c-primary)', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: ' #006633', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
               onClick={executeRenameGroup}
               disabled={isSavingGroup || !renameGroupValue.trim()}
             >
@@ -591,7 +596,7 @@ export function ImportantLinksPage() {
           <input
             id="il-rename-group-input"
             type="text"
-            className="il-search-input"
+            className="il-input"
             style={{ width: '100%' }}
             value={renameGroupValue}
             onChange={(e) => setRenameGroupValue(e.target.value)}

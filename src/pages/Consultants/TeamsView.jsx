@@ -26,7 +26,7 @@ function EmployeeCard({ consultant, onClick }) {
   const handleCopy = (e, text) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
-    toast.success('Employee ID copied');
+    toast.success('Username copied');
   };
 
   return (
@@ -45,7 +45,7 @@ function EmployeeCard({ consultant, onClick }) {
             onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, consultant.userId || 'N/A')}
             role="button"
             tabIndex={0}
-            title="Copy Employee ID"
+            title="Copy Username"
           >
             <span className="tv-emp-id">{consultant.userId || 'N/A'}</span>
             <Copy size={12} className="copy-icon" />
@@ -56,13 +56,23 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, canEdit, canDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
     const list = hc?.members || hc?.employees || hc?.consultants || hc?.users || [];
-    return list.map(c => normalizeConsultant(c, true));
-  }, [hc]);
+    return list.map(c => {
+      const norm = normalizeConsultant(c, true);
+      if (employeesData) {
+        const fullList = Array.isArray(employeesData) ? employeesData : (employeesData.results || []);
+        const fullEmp = fullList.find(e => String(e.emp_id || e.id) === String(norm.id));
+        if (fullEmp && (fullEmp.user_name || fullEmp.username || fullEmp.userId)) {
+          norm.userId = fullEmp.user_name || fullEmp.username || fullEmp.userId;
+        }
+      }
+      return norm;
+    });
+  }, [hc, employeesData]);
 
   const filteredActiveMembers = useMemo(() => {
     if (!memberSearch.trim()) return activeMembers;
@@ -195,11 +205,12 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView, onTeamChanged }) {
+export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
   const { user, hasPermission } = useAuth();
+  
   const canCreateTeam = hasPermission('TEAMS_CREATE');
-  const canEditTeam = hasPermission('TEAMS_EDIT');
-  const canDeleteTeam = hasPermission('TEAMS_DELETE');
+  const canEdit = hasPermission('TEAMS_EDIT');
+  const canDelete = hasPermission('TEAMS_DELETE');
 
   const fetchTeams = useCallback(async () => {
     const res = await consultantService.getTeams();
@@ -507,8 +518,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               headcountMap={headcountMap}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
-              canEdit={canEditTeam}
-              canDelete={canDeleteTeam}
+              employeesData={employeesData}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </div>
         ))}

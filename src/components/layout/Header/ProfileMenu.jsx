@@ -29,7 +29,11 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
         aria-expanded={isOpen}
       >
         <div className="header-profile-avatar">
-          <span className="header-profile-avatar-text">{user.initials}</span>
+          {user.avatar ? (
+            <img src={user.avatar} alt={user.name} className="header-profile-avatar-img" />
+          ) : (
+            <span className="header-profile-avatar-text">{user.initials}</span>
+          )}
         </div>
         <div className="header-profile-info">
           <div className="header-profile-name">{user.name}</div>

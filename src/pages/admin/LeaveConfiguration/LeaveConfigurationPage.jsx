@@ -556,9 +556,22 @@ export function LeaveConfigurationPage() {
           setWorkScheduleSummary(data);
           if (data?.meta?.distinct_schedules === 1) {
             const group = data.results[0];
-            if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
-              setSelectedCustomDays(group.custom_weekend_days);
+            let days = [];
+            if (group.work_schedule === 'MON_FRI') {
+              days = [5, 6];
+            } else if (group.work_schedule === 'MON_SAT') {
+              days = [6];
+            } else if (group.work_schedule === 'SUN_THU') {
+              days = [4, 5];
+            } else if (group.custom_weekend_days) {
+              let parsed = group.custom_weekend_days;
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } 
+                catch (e) { parsed = parsed.split(',').map(s => s.trim()); }
+              }
+              if (Array.isArray(parsed)) days = parsed.map(Number);
             }
+            if (days.length > 0) setSelectedCustomDays(days);
           }
         }
       } catch (err) {
@@ -944,9 +957,22 @@ export function LeaveConfigurationPage() {
       setWorkScheduleSummary(data);
       if (data?.meta?.distinct_schedules === 1) {
         const group = data.results[0];
-        if (group.work_schedule === 'CUSTOM' && group.custom_weekend_days) {
-          setSelectedCustomDays(group.custom_weekend_days);
+        let days = [];
+        if (group.work_schedule === 'MON_FRI') {
+          days = [5, 6];
+        } else if (group.work_schedule === 'MON_SAT') {
+          days = [6];
+        } else if (group.work_schedule === 'SUN_THU') {
+          days = [4, 5];
+        } else if (group.custom_weekend_days) {
+          let parsed = group.custom_weekend_days;
+          if (typeof parsed === 'string') {
+            try { parsed = JSON.parse(parsed); } 
+            catch (e) { parsed = parsed.split(',').map(s => s.trim()); }
+          }
+          if (Array.isArray(parsed)) days = parsed.map(Number);
         }
+        if (days.length > 0) setSelectedCustomDays(days);
       }
     } catch (err) {
       console.error(err);
