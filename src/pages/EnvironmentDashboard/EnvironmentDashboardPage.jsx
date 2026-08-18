@@ -32,6 +32,7 @@ import { AdminTable } from '@components/ui/AdminTable/AdminTable';
 import { Button } from '@components/ui/Button/Button';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
@@ -43,6 +44,11 @@ import './EnvironmentDashboardPage.css';
 export function EnvironmentDashboardPage() {
   useDocumentTitle('Environment Dashboard');
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('ENVIRONMENT_DASHBOARD_CREATE');
+  const canEdit = hasPermission('ENVIRONMENT_DASHBOARD_EDIT');
+  const canDelete = hasPermission('ENVIRONMENT_DASHBOARD_DELETE');
+  const canExport = hasPermission('ENVIRONMENT_DASHBOARD_EXPORT');
 
   const fetchEnvironments = useCallback(() => environmentService.getEnvironments(), []);
   const { data, isLoading, error, refetch } = useAsync(fetchEnvironments);
@@ -372,24 +378,28 @@ export function EnvironmentDashboardPage() {
               />
             </div>
             <div className="env-toolbar-actions">
-              <Button
-                variant="primary"
-                size="sm"
-                leadingIcon={FileUp}
-                onClick={() => {
-                  setAddForm({ featureType: '', fileName: '', storageLocation: '' });
-                  setAddErrors({});
-                  setShowAddModal(true);
-                }}
-              >
-                Add Config
-              </Button>
-              <ExportButton
-                excel
-                pdf
-                onExcelExport={handleGlobalExportExcel}
-                onPdfExport={handleGlobalExportPDF}
-              />
+              {canCreate && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leadingIcon={FileUp}
+                  onClick={() => {
+                    setAddForm({ featureType: '', fileName: '', storageLocation: '' });
+                    setAddErrors({});
+                    setShowAddModal(true);
+                  }}
+                >
+                  Add Config
+                </Button>
+              )}
+              {canExport && (
+                <ExportButton
+                  excel
+                  pdf
+                  onExcelExport={handleGlobalExportExcel}
+                  onPdfExport={handleGlobalExportPDF}
+                />
+              )}
             </div>
           </div>
 
@@ -454,20 +464,24 @@ export function EnvironmentDashboardPage() {
                     </div>
 
                     <div className="env-config-card-footer">
-                      <button
-                        className="action-icon-btn edit"
-                        onClick={() => handleOpenEdit(config)}
-                        title="Edit Configuration"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        className="action-icon-btn delete"
-                        onClick={() => handleOpenDelete(config)}
-                        title="Delete Configuration"
-                      >
-                        <Trash size={14} />
-                      </button>
+                      {canEdit && (
+                        <button
+                          className="action-icon-btn edit"
+                          onClick={() => handleOpenEdit(config)}
+                          title="Edit Configuration"
+                        >
+                          <Edit size={14} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          className="action-icon-btn delete"
+                          onClick={() => handleOpenDelete(config)}
+                          title="Delete Configuration"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -595,39 +609,41 @@ export function EnvironmentDashboardPage() {
                               }}
                             />
                           </div>
-                          <ExportButton
-                            excel
-                            pdf
-                            onExcelExport={() => {
-                              if (filteredRecords.length > 0) {
-                                const data = filteredRecords.map(r => {
-                                  const row = {};
-                                  dynamicCols.forEach(c => row[c.label] = r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-');
-                                  return row;
-                                });
-                                const ws = XLSX.utils.json_to_sheet(data);
-                                const wb = XLSX.utils.book_new();
-                                XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                                XLSX.writeFile(wb, `${config.featureType || config.fileName || 'export'}.xlsx`);
-                                toast.success(`Exported ${filteredRecords.length} records to Excel.`);
-                              } else {
-                                toast.error('No records to export.');
-                              }
-                            }}
-                            onPdfExport={() => {
-                              if (filteredRecords.length > 0) {
-                                const doc = new jsPDF('landscape');
-                                doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
-                                const headers = dynamicCols.map(c => c.label);
-                                const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
-                                autoTable(doc, { head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
-                                doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
-                                toast.success(`Exported ${filteredRecords.length} records to PDF.`);
-                              } else {
-                                toast.error('No records to export.');
-                              }
-                            }}
-                          />
+                          {canExport && (
+                            <ExportButton
+                              excel
+                              pdf
+                              onExcelExport={() => {
+                                if (filteredRecords.length > 0) {
+                                  const data = filteredRecords.map(r => {
+                                    const row = {};
+                                    dynamicCols.forEach(c => row[c.label] = r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-');
+                                    return row;
+                                  });
+                                  const ws = XLSX.utils.json_to_sheet(data);
+                                  const wb = XLSX.utils.book_new();
+                                  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                                  XLSX.writeFile(wb, `${config.featureType || config.fileName || 'export'}.xlsx`);
+                                  toast.success(`Exported ${filteredRecords.length} records to Excel.`);
+                                } else {
+                                  toast.error('No records to export.');
+                                }
+                              }}
+                              onPdfExport={() => {
+                                if (filteredRecords.length > 0) {
+                                  const doc = new jsPDF('landscape');
+                                  doc.text(`Export - ${config.featureType || config.fileName}`, 14, 15);
+                                  const headers = dynamicCols.map(c => c.label);
+                                  const data = filteredRecords.map(r => dynamicCols.map(c => r[c.key] !== null && r[c.key] !== undefined ? String(r[c.key]) : '-'));
+                                  autoTable(doc, { head: [headers], body: data, startY: 20, styles: { fontSize: 8 } });
+                                  doc.save(`${config.featureType || config.fileName || 'export'}.pdf`);
+                                  toast.success(`Exported ${filteredRecords.length} records to PDF.`);
+                                } else {
+                                  toast.error('No records to export.');
+                                }
+                              }}
+                            />
+                          )}
                         </div>
                         <div
                           style={{ display: 'flex', alignItems: 'center', paddingLeft: '20px', marginLeft: '20px', borderLeft: '1px solid var(--border-secondary)', height: '32px', cursor: 'pointer' }}
@@ -674,7 +690,7 @@ export function EnvironmentDashboardPage() {
         title="Add Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
+            <Button variant="outline" size="sm" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" leadingIcon={FileUp} onClick={handleCreateConfig}>
@@ -737,7 +753,7 @@ export function EnvironmentDashboardPage() {
         title="Edit Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setEditingConfig(null)}>
+            <Button variant="outline" size="sm" onClick={() => setEditingConfig(null)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" leadingIcon={RefreshCw} onClick={handleUpdateConfig}>
@@ -802,7 +818,7 @@ export function EnvironmentDashboardPage() {
         title="Delete Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setDeletingConfig(null)}>
+            <Button variant="outline" size="sm" onClick={() => setDeletingConfig(null)}>
               Cancel
             </Button>
             <Button variant="danger" size="sm" leadingIcon={Trash} onClick={handleDeleteConfig}>

@@ -231,7 +231,8 @@ function InlineLegend() {
 export function AttendancePage() {
   useDocumentTitle('Attendance');
 
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canExport = hasPermission('ATTENDANCE_EXPORT');
 
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
@@ -300,7 +301,7 @@ export function AttendancePage() {
         .catch(err => console.error(err))
         .finally(() => setIsLeaveLoading(false));
     }
-  }, [subTab, user]);
+  }, [subTab, user?.emp_id, user?.id]);
 
   // ── Date filters ──
   const today = useMemo(() => new Date(), []);
@@ -365,7 +366,7 @@ export function AttendancePage() {
         phone: '',
         email: '',
         status: 'present',
-        avatar: m.photo || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'),
+        avatar: m.photo_url_base64 || m.photo || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'),
         designation: m.designation,
       }));
   }, [data?.teamMembers]);
@@ -505,7 +506,7 @@ export function AttendancePage() {
         location: d.working_mode === 'WFH' ? 'Remote' : 'Office',
         phone: 'N/A',
         email: 'N/A',
-        avatar: d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
+        avatar: d.photo_url_base64 || d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
       }));
     }
 
@@ -551,7 +552,7 @@ export function AttendancePage() {
         startDate: leaveData.date,
         endDate: leaveData.date,
         days: 1,
-        avatar: d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
+        avatar: d.photo_url_base64 || d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
       }));
     } else {
       const todayStr = formatDateKey(today);
@@ -723,18 +724,30 @@ export function AttendancePage() {
 
   // ── Render Avatar Helper ──
   const renderAvatar = (avatarData, name) => {
-    if (!avatarData || avatarData === '?') {
+    if (!avatarData || avatarData === '?' || avatarData === 'null') {
       return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
     }
-    const imgStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', backgroundColor: '#ffffff' };
-    if (avatarData.length > 100) {
-      const src = avatarData.startsWith('data:image') ? avatarData : `data:image/jpeg;base64,${avatarData}`;
-      return <img src={src} alt={name} style={imgStyle} />;
+    const imgStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', backgroundColor: '#ffffff' };
+    
+    let src = avatarData;
+    if (typeof src === 'string') {
+      src = src.replace(/\s+/g, '');
+      if (!src || src === 'null') {
+          return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
+      }
+      if (src.startsWith('data:image') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
+        // Use as-is
+      } else if (src.startsWith('/')) {
+        const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+        src = `${apiOrigin}${src}`;
+      } else if (src.length > 100) {
+        src = `data:image/jpeg;base64,${src}`;
+      } else {
+        return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
+      }
     }
-    if (avatarData.includes('http') || avatarData.includes('/')) {
-      return <img src={avatarData} alt={name} style={imgStyle} />;
-    }
-    return avatarData;
+    
+    return <img src={src} alt={name} style={imgStyle} />;
   };
 
   return (
@@ -853,12 +866,14 @@ export function AttendancePage() {
         )}
 
         {/* Export */}
-        <ExportButton
-          excel
-          pdf
-          onExcelExport={handleExportCSV}
-          onPdfExport={handleExportPDF}
-        />
+        {canExport && (
+          <ExportButton
+            excel
+            pdf
+            onExcelExport={handleExportCSV}
+            onPdfExport={handleExportPDF}
+          />
+        )}
       </div>
 
       {/* ── KPI Cards — On Duty tab only ── */}
@@ -1052,7 +1067,7 @@ export function AttendancePage() {
                     <div key={c.emp_id} className="attendance-consultant-row">
                       <div className="attendance-consultant-main">
                         <div className="attendance-consultant-avatar">
-                          {renderAvatar(c.photo || allConsultants.find(x => x.id === c.emp_id)?.avatar, c.emp_name)}
+                          {renderAvatar(c.photo_url_base64 || c.photo || allConsultants.find(x => x.id === c.emp_id)?.avatar, c.emp_name)}
                         </div>
                         <div className="attendance-consultant-info">
                           <div className="attendance-consultant-name">{c.emp_name}</div>

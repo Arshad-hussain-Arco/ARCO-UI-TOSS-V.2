@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { leaveService } from '@services/leaveService';
+import { settingsService } from '@services/settingsService';
 import {
   X,
   Plus,
@@ -47,7 +48,11 @@ function dateStr(d) {
 // missing from dayMap (not yet loaded, or outside the fetched range) is
 // treated as a working day — acceptable loading-state fallback.
 function isRealWeekend(d, dayMap) {
-  return !!dayMap?.[dateStr(d)]?.is_weekend;
+  const dStr = dateStr(d);
+  if (dayMap && dayMap[dStr] !== undefined) {
+    return !!dayMap[dStr].is_weekend;
+  }
+  return false;
 }
 function isRealHoliday(d, dayMap) {
   return !!dayMap?.[dateStr(d)]?.is_org_holiday;
@@ -561,7 +566,12 @@ function buildLeaveTypeItem(entry, balances) {
     gender: entry.gender_restriction || undefined,
   };
 }
-function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
+// `canApplyOnBehalf`: whether this user may apply leave for a subordinate,
+// i.e. whether "Apply for: self / behalf" appears at all. Required — no
+// default — since this is a manager-hierarchy capability (derived from
+// user.mySubordinates by the caller), never a role/permission check, and a
+// truthy default here would silently grant it to everyone.
+function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   const MODAL_TITLES = {
     leave: 'Apply Leave',
     wfh: 'Apply WFH',
@@ -631,6 +641,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
   const [lastDayBreakdown, setLastDayBreakdown] = useState(null);
   const [refNum] = useState(`LV-${Date.now().toString().slice(-6)}`);
   const [dailyConfigs, setDailyConfigs] = useState({}); // { '2026-08-07': 'full' }
+  const [datePickerMonth, setDatePickerMonth] = useState(null);
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+
 
   // Sync dailyConfigs when dates change
   useEffect(() => {
@@ -808,10 +821,23 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
     let active = true;
     const monthStart = new Date(calYear, calMonth, 1);
     const monthEnd = new Date(calYear, calMonth + 1, 0);
-    const rangeStart = startDate && startDate < monthStart ? startDate : monthStart;
-    const rangeEndBound = end && end > monthEnd ? end : monthEnd;
+    
+    let earliest = monthStart;
+    let latest = monthEnd;
+
+    if (startDate && startDate < earliest) earliest = startDate;
+    if (end && end > latest) latest = end;
+
+    if (datePickerMonth) {
+      const dpStart = new Date(datePickerMonth.getFullYear(), datePickerMonth.getMonth(), 1);
+      const dpEnd = new Date(datePickerMonth.getFullYear(), datePickerMonth.getMonth() + 1, 0);
+      if (dpStart < earliest) earliest = dpStart;
+      if (dpEnd > latest) latest = dpEnd;
+    }
+
+    setIsCalendarLoading(true);
     leaveService
-      .getCalendar(effectiveEmpId, { start: dateStr(rangeStart), end: dateStr(rangeEndBound) })
+      .getCalendar(effectiveEmpId, { start: dateStr(earliest), end: dateStr(latest) })
       .then((data) => {
         if (!active) return;
         const map = {};
@@ -819,15 +845,19 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
           map[day.date] = day;
         });
         setCalendarDayMap(map);
+        setIsCalendarLoading(false);
       })
       .catch((err) => {
         console.error('Failed to fetch calendar data', err);
-        if (active) setCalendarDayMap({});
+        if (active) {
+          setCalendarDayMap({});
+          setIsCalendarLoading(false);
+        }
       });
     return () => {
       active = false;
     };
-  }, [effectiveEmpId, calYear, calMonth, startDate, end]);
+  }, [effectiveEmpId, calYear, calMonth, startDate, end, datePickerMonth]);
   // Claims are retroactive — once a Claim type is selected, fetch which
   // dates in the last 12 months actually qualify under its configured
   // rule (Weekend/Company Holiday/Custom Dates), so the date picker can
@@ -1233,7 +1263,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
             {/* ── Form ──────────────────────────────────────────────────── */}
             <div className="al-form-col">
               {/* Apply For + Employee row */}
-              {isAdmin ? (
+              {canApplyOnBehalf ? (
                 <>
                   <div className="al-apply-for-row">
                     <span className="al-apply-for-label">Apply for</span>
@@ -1343,8 +1373,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                         setStartDate(d);
                         if (d && endDate && endDate < d) setEndDate(null);
                       }}
+                      onMonthChange={setDatePickerMonth}
                       minDate={today}
-                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
+                      isDateDisabled={(d) => isCalendarLoading || isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select start date"
                       width="100%"
                     />
@@ -1357,8 +1388,9 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     <DatePicker
                       value={endDate}
                       onChange={(d) => setEndDate(d)}
+                      onMonthChange={setDatePickerMonth}
                       minDate={startDate || today}
-                      isDateDisabled={(d) => isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
+                      isDateDisabled={(d) => isCalendarLoading || isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select end date"
                       width="100%"
                     />
@@ -1448,57 +1480,61 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                           return !isRealWeekend(day, calendarDayMap) && !isRealHoliday(day, calendarDayMap);
                         });
 
-                        return bizDaysArr.map((day, index) => {
-                          const dStr = dateStr(day);
-                          const isStartDay = index === 0;
-                          const isEndDay = index === bizDaysArr.length - 1;
-                          const isMiddleDay = !isStartDay && !isEndDay;
-                          const currentVal = dailyConfigs[dStr] || 'full';
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '210px', overflowY: 'auto', paddingRight: '4px' }}>
+                            {bizDaysArr.map((day, index) => {
+                              const dStr = dateStr(day);
+                              const isStartDay = index === 0;
+                              const isEndDay = index === bizDaysArr.length - 1;
+                              const isMiddleDay = !isStartDay && !isEndDay;
+                              const currentVal = dailyConfigs[dStr] || 'full';
 
-                          return (
-                            <div key={dStr} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)' }}>
-                              <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                                {fmtShort(day)}
-                              </span>
-                              <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
-                                {[
-                                  ['full', 'Full Day'],
-                                  ['morning', '1st Half'],
-                                  ['afternoon', '2nd Half'],
-                                ].map(([val, lbl]) => {
-                                  let isDisabled = false;
-                                  if (bizDaysArr.length > 1) {
-                                    isDisabled = 
-                                      (isMiddleDay && val !== 'full') ||
-                                      (isStartDay && val === 'morning') ||
-                                      (isEndDay && val === 'afternoon');
-                                  }
-                                  
-                                  return (
-                                    <button
-                                      key={val}
-                                      type="button"
-                                      className="al-duration-chip"
-                                      style={{ 
-                                        padding: '3px 8px', 
-                                        fontSize: '11px', 
-                                        opacity: isDisabled ? 0.4 : 1, 
-                                        cursor: isDisabled ? 'not-allowed' : 'pointer' 
-                                      }}
-                                      data-active={currentVal === val}
-                                      disabled={isDisabled}
-                                      onClick={() => {
-                                        if (!isDisabled) setDailyConfigs(prev => ({ ...prev, [dStr]: val }));
-                                      }}
-                                    >
-                                      {lbl}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        });
+                              return (
+                                <div key={dStr} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', backgroundColor: 'var(--surface-primary)', borderRadius: '4px', border: '1px solid var(--border-primary)', flexShrink: 0 }}>
+                                  <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                                    {fmtShort(day)}
+                                  </span>
+                                  <div className="al-duration-chips" style={{ margin: 0, gap: '4px' }}>
+                                    {[
+                                      ['full', 'Full Day'],
+                                      ['morning', '1st Half'],
+                                      ['afternoon', '2nd Half'],
+                                    ].map(([val, lbl]) => {
+                                      let isDisabled = false;
+                                      if (bizDaysArr.length > 1) {
+                                        isDisabled = 
+                                          (isMiddleDay && val !== 'full') ||
+                                          (isStartDay && val === 'morning') ||
+                                          (isEndDay && val === 'afternoon');
+                                      }
+                                      
+                                      return (
+                                        <button
+                                          key={val}
+                                          type="button"
+                                          className="al-duration-chip"
+                                          style={{ 
+                                            padding: '3px 8px', 
+                                            fontSize: '11px', 
+                                            opacity: isDisabled ? 0.4 : 1, 
+                                            cursor: isDisabled ? 'not-allowed' : 'pointer' 
+                                          }}
+                                          data-active={currentVal === val}
+                                          disabled={isDisabled}
+                                          onClick={() => {
+                                            if (!isDisabled) setDailyConfigs(prev => ({ ...prev, [dStr]: val }));
+                                          }}
+                                        >
+                                          {lbl}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
                       })()}
                     </div>
                   ) : (
@@ -1691,6 +1727,7 @@ function ApplyLeaveModal({ onClose, isAdmin = true, type = 'leave' }) {
                     calendarDayMap={calendarDayMap}
                     restrictToWorkingDays
                     newLeaveTypeCode={effectiveLeaveType?.code || fixedCode}
+                    isLoading={isCalendarLoading}
                   />
                 </div>
               )}

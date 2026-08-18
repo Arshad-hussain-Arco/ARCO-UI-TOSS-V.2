@@ -99,26 +99,30 @@ export function FolderTree({
             <HighlightText text={file.name} highlight={searchQuery} />
           </span>
           <div className="doc-file-actions-group">
-            <button
-              className="action-icon-btn edit"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditDocument(file, 'file');
-              }}
-              title="Edit / Update File"
-            >
-              <Edit size={13} />
-            </button>
-            <button
-              className="action-icon-btn delete"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteDocument(file.id, file.name);
-              }}
-              title="Delete File"
-            >
-              <Trash size={13} />
-            </button>
+            {onEditDocument && (
+              <button
+                className="action-icon-btn edit"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditDocument(file, 'file');
+                }}
+                title="Edit / Update File"
+              >
+                <Edit size={13} />
+              </button>
+            )}
+            {onDeleteDocument && (
+              <button
+                className="action-icon-btn delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteDocument(file.id, file.name);
+                }}
+                title="Delete File"
+              >
+                <Trash size={13} />
+              </button>
+            )}
           </div>
         </div>
       );
@@ -172,28 +176,32 @@ export function FolderTree({
                     ? folder.children.reduce((acc, c) => acc + (c.fileCount || 0), 0)
                     : 0)}
               </span>
-              {folder.id !== 'root' && (
+              {folder.id !== 'root' && (onEditDocument || onDeleteDocument) && (
                 <div className="doc-folder-actions">
-                  <button
-                    className="action-icon-btn edit"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditDocument(folder, 'folder');
-                    }}
-                    title="Edit / Update Folder"
-                  >
-                    <Edit size={12} />
-                  </button>
-                  <button
-                    className="action-icon-btn delete"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteDocument(folder.id, folder.name);
-                    }}
-                    title="Delete Folder"
-                  >
-                    <Trash size={12} />
-                  </button>
+                  {onEditDocument && (
+                    <button
+                      className="action-icon-btn edit"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditDocument(folder, 'folder');
+                      }}
+                      title="Edit / Update Folder"
+                    >
+                      <Edit size={12} />
+                    </button>
+                  )}
+                  {onDeleteDocument && (
+                    <button
+                      className="action-icon-btn delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDocument(folder.id, folder.name);
+                      }}
+                      title="Delete Folder"
+                    >
+                      <Trash size={12} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>

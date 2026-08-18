@@ -2,10 +2,15 @@ import React, { useEffect } from 'react';
 import { Play, RefreshCw } from 'lucide-react';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
+import { useAuth } from '@hooks/useAuth';
 import { useEodContext } from '../context/EodContext';
 import { CtrlCard } from './CtrlCard';
 
 export function ControlSection() {
+  const { hasPermission } = useAuth();
+  const canExecute = hasPermission('EOD_CONTROL_EXECUTE');
+  const canViewLogs = hasPermission('EOD_CONTROL_VIEW_LOGS');
+
   const {
     controlsEnvs,
     isLoadingControls,
@@ -50,18 +55,20 @@ export function ControlSection() {
           >
             <RefreshCw size={11} /> Refresh
           </button>
-          <button
-            className="eod-add-btn"
-            onClick={() =>
-              controlsEnvs.forEach((e) => {
-                if (e.status !== 'running' && e.status !== 'paused') {
-                  handleStartEOD(e.id);
-                }
-              })
-            }
-          >
-            <Play size={11} /> Run All Idle
-          </button>
+          {canExecute && (
+            <button
+              className="eod-add-btn"
+              onClick={() =>
+                controlsEnvs.forEach((e) => {
+                  if (e.status !== 'running' && e.status !== 'paused') {
+                    handleStartEOD(e.id);
+                  }
+                })
+              }
+            >
+              <Play size={11} /> Run All Idle
+            </button>
+          )}
         </div>
       </div>
       <div className="eod-control-grid">
@@ -74,6 +81,8 @@ export function ControlSection() {
               onStart={handleStartEOD}
               onPause={handlePauseEOD}
               onStop={handleStopEOD}
+              canExecute={canExecute}
+              canViewLogs={canViewLogs}
             />
           ))}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -6,7 +6,8 @@ import logoExpandedUrl from '@assets/images/logo-expanded.png';
 import logoWhiteUrl from '@assets/images/logo(white).png';
 import iconCollapseUrl from '@assets/images/icon-collapse.png';
 import { APP_NAME } from '@constants/app';
-import { SIDEBAR_NAVIGATION } from '@constants/navigation';
+import { getVisibleNavigation } from '@constants/navigation';
+import { useAuth } from '@hooks/useAuth';
 import { useSidebar } from '@hooks/useSidebar';
 import { useTheme } from '@hooks/useTheme';
 
@@ -22,10 +23,16 @@ export function Sidebar() {
   const { isCollapsed, toggle, collapseOnMobile } = useSidebar();
   const { isDarkMode } = useTheme();
   const { pathname } = useLocation();
+  const { user, hasPermission } = useAuth();
+
+  const visibleNavigation = useMemo(
+    () => getVisibleNavigation(user, hasPermission),
+    [user, hasPermission],
+  );
 
   const [expandedId, setExpandedId] = useState(() => {
     // Initialise with whichever group has an active child
-    const active = SIDEBAR_NAVIGATION.find(
+    const active = visibleNavigation.find(
       (item) => item.children && item.children.some((child) => window.location.pathname === child.to)
     );
     return active ? active.id : null;
@@ -34,7 +41,7 @@ export function Sidebar() {
 
   // Keep the submenu in sync with navigation — open when on a child route, close otherwise
   useEffect(() => {
-    const activeGroup = SIDEBAR_NAVIGATION.find(
+    const activeGroup = visibleNavigation.find(
       (item) => item.children && item.children.some((child) => pathname === child.to)
     );
     if (activeGroup) {
@@ -42,7 +49,7 @@ export function Sidebar() {
     } else {
       setExpandedId(null);
     }
-  }, [pathname]);
+  }, [pathname, visibleNavigation]);
 
   const isChildActive = useCallback((to) => pathname === to, [pathname]);
 
@@ -86,7 +93,7 @@ export function Sidebar() {
       <div className="sidebar-menu-container">
         <nav className="sidebar-nav" aria-label="Main navigation">
           {(() => {
-            const activeIndex = SIDEBAR_NAVIGATION.findIndex((item) => isItemActive(item));
+            const activeIndex = visibleNavigation.findIndex((item) => isItemActive(item));
             return activeIndex !== -1 ? (
               <div
                 className="nav-glider"
@@ -94,7 +101,7 @@ export function Sidebar() {
               />
             ) : null;
           })()}
-          {SIDEBAR_NAVIGATION.map((item) => (
+          {visibleNavigation.map((item) => (
             <SidebarMenuItem
               key={item.id}
               item={item}

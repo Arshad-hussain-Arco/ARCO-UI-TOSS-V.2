@@ -171,6 +171,9 @@ function normalizeRow(row, activeMappings, defaultKeyCols = []) {
 export function ReconciliationPage() {
   useDocumentTitle('File Reconciliation');
   const toast = useToast();
+  // Upload/run/export all fold into RECONCILIATION_VIEW — no separate
+  // tier. The route itself already requires RECONCILIATION_VIEW, so
+  // reaching this page is sufficient to use the whole workflow.
 
   const [step, setStep] = useState(1);
   const [files, setFiles] = useState([null, null]);

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useDebounce } from '@hooks/useDebounce';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
@@ -221,7 +222,7 @@ function exportToCSV(rows, filename, isCR = false) {
 }
 
 /* ── Dynamic Drilldown Modal (Matches Image 2 & Image 5) ────────────────── */
-function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData = [] }) {
+function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData = [], canExport }) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 500);
   const inputRef = useRef(null);
@@ -309,9 +310,11 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
             <span className="pm-modal-result-count">
               Showing <strong>{matchedProjects.length}</strong> of {totalCount}
             </span>
-            <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.csv`, isCR)}>
-              <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
-            </button>
+            {canExport && (
+              <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.csv`, isCR)}>
+                <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
+              </button>
+            )}
           </div>
         </div>
 
@@ -364,7 +367,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.woId || p.id}</span>
                       </td>
-                      <td style={{ maxWidth: 220 }}>
+                      <td className="pm-col-summary" style={{ maxWidth: 220 }}>
                         <ProjectSummary summary={p.summary} />
                       </td>
                       <td>
@@ -386,7 +389,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.id}</span>
                       </td>
-                      <td style={{ maxWidth: 220 }}>
+                      <td className="pm-col-summary" style={{ maxWidth: 220 }}>
                         <ProjectSummary summary={p.summary} />
                       </td>
                       <td>
@@ -418,6 +421,8 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
    ═══════════════════════════════════════════════════════════════════════════ */
 export function ProjectMonitoringPage() {
   useDocumentTitle('Project Monitoring');
+  const { hasPermission } = useAuth();
+  const canExport = hasPermission('PROJECT_MONITORING_EXPORT');
 
   // View mode: 'business' (SDLC View 7 stages) vs 'development' (Tech View 17 stages)
   const [lifecycleMode, setLifecycleMode] = useState('business');
@@ -971,13 +976,15 @@ export function ProjectMonitoringPage() {
 
                 <div className="pm-toolbar-divider" />
 
-                <button
-                  type="button"
-                  className="pm-export-btn"
-                  onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}
-                >
-                  <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
-                </button>
+                {canExport && (
+                  <button
+                    type="button"
+                    className="pm-export-btn"
+                    onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}
+                  >
+                    <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1183,6 +1190,7 @@ export function ProjectMonitoringPage() {
           onClose={() => setDrilldownStage(null)}
           projectsData={categoryProjects}
           changeRequestsData={changeRequestsList}
+          canExport={canExport}
         />
       )}
     </div>

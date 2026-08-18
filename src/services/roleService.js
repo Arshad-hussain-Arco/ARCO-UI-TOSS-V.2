@@ -8,10 +8,11 @@ export const roleService = {
   },
 
   createRole: async (data) => {
-    // Backend serializer expects permissions to be a list/array
+    // Backend expects `permissions` as a flat list of permission codes
+    // (e.g. ["EMPLOYEE_VIEW", "DOCUMENTS_EDIT"]) — see RolePermissionWriteSerializer.
     const payload = {
       role_name: data.name,
-      permissions: [data.permissions], // Wrap dict in array
+      permissions: data.permissions,
       isadmin: data.isAdmin,
       description: data.description,
     };
@@ -20,10 +21,9 @@ export const roleService = {
   },
 
   updateRole: async (id, data) => {
-    // Backend serializer expects permissions to be a list/array
     const payload = {
       role_name: data.name,
-      permissions: [data.permissions], // Wrap dict in array
+      permissions: data.permissions,
       isadmin: data.isAdmin,
       description: data.description,
     };

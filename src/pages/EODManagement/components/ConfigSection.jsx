@@ -14,6 +14,7 @@ import {
 import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
+import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { eodService } from '@services/eodService';
 import { StatusBadge } from './StatusBadge';
@@ -37,6 +38,11 @@ const BLANK_ENV = {
 };
 
 export function ConfigSection() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('EOD_CONFIG_CREATE');
+  const canEdit = hasPermission('EOD_CONFIG_EDIT');
+  const canDelete = hasPermission('EOD_CONFIG_DELETE');
+
   const [environments, setEnvironments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -211,9 +217,11 @@ export function ConfigSection() {
               <List size={13} />
             </button>
           </div>
-          <button className="eod-add-btn" onClick={openAdd}>
-            <Plus size={11} /> New Environment
-          </button>
+          {canCreate && (
+            <button className="eod-add-btn" onClick={openAdd}>
+              <Plus size={11} /> New Environment
+            </button>
+          )}
         </div>
       </div>
 
@@ -228,9 +236,11 @@ export function ConfigSection() {
               : 'No environment configuration records available.'
           }
           action={
-            <button className="eod-add-btn" onClick={openAdd}>
-              <Plus size={11} /> New Environment
-            </button>
+            canCreate && (
+              <button className="eod-add-btn" onClick={openAdd}>
+                <Plus size={11} /> New Environment
+              </button>
+            )
           }
         />
       ) : (
@@ -248,28 +258,34 @@ export function ConfigSection() {
                       <StatusBadge status={env.status} />
                     </div>
                     <div className="eod-config-head-right">
-                      <label className="eod-toggle-wrap">
-                        <span className="eod-toggle-text">{env.isActive ? 'Enabled' : 'Disabled'}</span>
-                        <span className="eod-toggle">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(env.isActive)}
-                            onChange={() => handleToggleActive(env.id)}
-                            aria-label={`${env.isActive ? 'Disable' : 'Enable'} ${env.name}`}
-                          />
-                          <span className="eod-toggle-track" />
-                        </span>
-                      </label>
-                      <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
-                        <Edit size={11} />
-                      </button>
-                      <button
-                        className="eod-icon-btn danger"
-                        title="Delete"
-                        onClick={() => setDeleteTarget(env)}
-                      >
-                        <Trash size={11} />
-                      </button>
+                      {canEdit && (
+                        <label className="eod-toggle-wrap">
+                          <span className="eod-toggle-text">{env.isActive ? 'Enabled' : 'Disabled'}</span>
+                          <span className="eod-toggle">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(env.isActive)}
+                              onChange={() => handleToggleActive(env.id)}
+                              aria-label={`${env.isActive ? 'Disable' : 'Enable'} ${env.name}`}
+                            />
+                            <span className="eod-toggle-track" />
+                          </span>
+                        </label>
+                      )}
+                      {canEdit && (
+                        <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
+                          <Edit size={11} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          className="eod-icon-btn danger"
+                          title="Delete"
+                          onClick={() => setDeleteTarget(env)}
+                        >
+                          <Trash size={11} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -365,16 +381,20 @@ export function ConfigSection() {
                       </td>
                       <td className="eod-env-td" style={{ textAlign: 'right' }}>
                         <div className="eod-tl-actions">
-                          <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
-                            <Edit size={11} />
-                          </button>
-                          <button
-                            className="eod-icon-btn danger"
-                            title="Delete"
-                            onClick={() => setDeleteTarget(env)}
-                          >
-                            <Trash size={11} />
-                          </button>
+                          {canEdit && (
+                            <button className="eod-icon-btn" title="Edit" onClick={() => openEdit(env)}>
+                              <Edit size={11} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              className="eod-icon-btn danger"
+                              title="Delete"
+                              onClick={() => setDeleteTarget(env)}
+                            >
+                              <Trash size={11} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

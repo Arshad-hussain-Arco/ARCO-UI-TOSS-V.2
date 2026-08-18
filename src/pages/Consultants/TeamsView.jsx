@@ -26,7 +26,7 @@ function EmployeeCard({ consultant, onClick }) {
   const handleCopy = (e, text) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
-    toast.success('Employee ID copied');
+    toast.success('Username copied');
   };
 
   return (
@@ -45,7 +45,7 @@ function EmployeeCard({ consultant, onClick }) {
             onKeyDown={(e) => e.key === 'Enter' && handleCopy(e, consultant.userId || 'N/A')}
             role="button"
             tabIndex={0}
-            title="Copy Employee ID"
+            title="Copy Username"
           >
             <span className="tv-emp-id">{consultant.userId || 'N/A'}</span>
             <Copy size={12} className="copy-icon" />
@@ -56,13 +56,23 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
     const list = hc?.members || hc?.employees || hc?.consultants || hc?.users || [];
-    return list.map(c => normalizeConsultant(c, true));
-  }, [hc]);
+    return list.map(c => {
+      const norm = normalizeConsultant(c, true);
+      if (employeesData) {
+        const fullList = Array.isArray(employeesData) ? employeesData : (employeesData.results || []);
+        const fullEmp = fullList.find(e => String(e.emp_id || e.id) === String(norm.id));
+        if (fullEmp && (fullEmp.user_name || fullEmp.username || fullEmp.userId)) {
+          norm.userId = fullEmp.user_name || fullEmp.username || fullEmp.userId;
+        }
+      }
+      return norm;
+    });
+  }, [hc, employeesData]);
 
   const filteredActiveMembers = useMemo(() => {
     if (!memberSearch.trim()) return activeMembers;
@@ -75,7 +85,10 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 
   const { manager, employees } = useMemo(() => {
     const mems = activeMembers;
-    let mgr = mems.find(m => m.designation?.toLowerCase().includes('manager') || m.designation?.toLowerCase().includes('lead') || m.role?.toLowerCase().includes('manager'));
+    // Manager hierarchy only — never inferred from designation/role text.
+    // The team's manager is whoever another member's managerId points at.
+    const managerIds = new Set(mems.map(m => m.managerId).filter(Boolean));
+    let mgr = mems.find(m => managerIds.has(m.id));
     if (!mgr && mems.length > 0) mgr = mems[0];
     const emps = mgr ? mems.filter(m => m.id !== mgr.id) : mems;
     return { manager: mgr, employees: emps };
@@ -122,22 +135,28 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
         </div>
 
         <div className="tv-ah-right">
-          <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="action-icon-btn edit"
-              title="Edit Team"
-              onClick={(e) => { e.stopPropagation(); onEdit(team); }}
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              className="action-icon-btn delete"
-              title="Delete Team"
-              onClick={(e) => { e.stopPropagation(); onDelete(team); }}
-            >
-              <Trash size={16} />
-            </button>
-          </div>
+          {(canEdit || canDelete) && (
+            <div className="tv-ah-actions" style={{ display: 'flex', gap: '8px' }}>
+              {canEdit && (
+                <button
+                  className="action-icon-btn edit"
+                  title="Edit Team"
+                  onClick={(e) => { e.stopPropagation(); onEdit(team); }}
+                >
+                  <Edit size={16} />
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  className="action-icon-btn delete"
+                  title="Delete Team"
+                  onClick={(e) => { e.stopPropagation(); onDelete(team); }}
+                >
+                  <Trash size={16} />
+                </button>
+              )}
+            </div>
+          )}
 
           <ChevronDown size={20} className={`tv-ah-chevron ${isExpanded ? 'open' : ''}`} style={{ marginLeft: '16px' }} />
         </div>
@@ -186,8 +205,12 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView, onTeamChanged }) {
-  const { user } = useAuth();
+export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
+  const { user, hasPermission } = useAuth();
+  
+  const canCreateTeam = hasPermission('TEAMS_CREATE');
+  const canEdit = hasPermission('TEAMS_EDIT');
+  const canDelete = hasPermission('TEAMS_DELETE');
 
   const fetchTeams = useCallback(async () => {
     const res = await consultantService.getTeams();
@@ -410,10 +433,12 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
             <RotateCcw size={16} />
             <span>Reset</span>
           </button>
-          <button className="consultants-add-button" onClick={openAddModal}>
-            <Plus size={16} />
-            <span>Add Team</span>
-          </button>
+          {canCreateTeam && (
+            <button className="consultants-add-button" onClick={openAddModal}>
+              <Plus size={16} />
+              <span>Add Team</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -493,6 +518,9 @@ export function TeamsView({ onProfileView, onTeamChanged }) {
               headcountMap={headcountMap}
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
+              employeesData={employeesData}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </div>
         ))}

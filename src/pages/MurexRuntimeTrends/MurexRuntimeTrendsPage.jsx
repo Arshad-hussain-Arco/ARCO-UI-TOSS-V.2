@@ -29,6 +29,7 @@ import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 import { useAsync } from '@hooks/useAsync';
+import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
 import { parseISO, getISOWeek, getDay } from 'date-fns';
@@ -775,6 +776,10 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
 export function MurexRuntimeTrendsPage() {
   useDocumentTitle('Murex Runtime Trends');
   const themeColor = useChartThemeColor();
+  const { hasPermission } = useAuth();
+  const canCreateCategory = hasPermission('MUREX_SCRIPT_CATEGORY_CREATE');
+  const canEditCategory = hasPermission('MUREX_SCRIPT_CATEGORY_EDIT');
+  const canDeleteCategory = hasPermission('MUREX_SCRIPT_CATEGORY_DELETE');
 
   const [timeRange, setTimeRange] = useState('7d'); // Default selected timeframe: 7d
 
@@ -828,6 +833,12 @@ export function MurexRuntimeTrendsPage() {
   }, [fetchCategories]);
 
   const remoteCategories = Array.isArray(remoteCategoriesData) ? remoteCategoriesData : [];
+  const filteredCategories = useMemo(() => {
+    if (!debouncedCategorySearch.trim()) return remoteCategories;
+    const q = debouncedCategorySearch.toLowerCase();
+    return remoteCategories.filter(c => (c.name || '').toLowerCase().includes(q));
+  }, [remoteCategories, debouncedCategorySearch]);
+
   const scripts = useMemo(
     () =>
       (data?.scripts ?? []).map((script) => {
@@ -1493,28 +1504,38 @@ export function MurexRuntimeTrendsPage() {
                   type="text"
                   placeholder="Search category..."
                   className="murex-category-search-input"
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
                 />
+                {categorySearch && (
+                  <button type="button" className="search-clear-btn" onClick={() => setCategorySearch('')} style={{ padding: 0 }}>
+                    <X size={12} />
+                  </button>
+                )}
               </div>
 
               <div className="murex-category-list">
-                <button
-                  className={`murex-category-item ${selectedCategory === 'all' ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory('all')}
-                >
-                  <span className="murex-category-name">All Scripts</span>
-                  <span className="murex-category-count">{scripts.length}</span>
-                </button>
+                {(!debouncedCategorySearch.trim() || 'all scripts'.includes(debouncedCategorySearch.toLowerCase())) && (
+                  <button
+                    className={`murex-category-item ${selectedCategory === 'all' ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory('all')}
+                  >
+                    <span className="murex-category-name">All Scripts</span>
+                    <span className="murex-category-count">{managementScripts.length}</span>
+                  </button>
+                )}
 
-                {remoteCategories.map((category) => (
+                {filteredCategories.map((category) => (
                   <div
                     key={category.id}
                     className="murex-category-item-wrapper"
                     style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}
                     onDragOver={(e) => {
-                      if (category.id !== null) e.preventDefault();
+                      if (category.id !== null && canEditCategory) e.preventDefault();
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      if (!canEditCategory) return;
                       const scriptName = e.dataTransfer.getData('text/plain');
                       if (scriptName && category.id !== null) {
                         handleAssignScriptDirectly(scriptName, category);
@@ -1528,45 +1549,60 @@ export function MurexRuntimeTrendsPage() {
                     >
                       <span className="murex-category-name">{category.name}</span>
                       <span className="murex-category-count">
-                        {scripts.filter((s) => s.category === category.name).length}
+                        {managementScripts.filter((s) => s.category === category.name).length}
                       </span>
                     </button>
-                    {category.id !== null && (
+                    {category.id !== null && (canEditCategory || canDeleteCategory) && (
                       <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
-                        <button
-                          className="murex-icon-btn"
-                          title="Edit Category"
-                          onClick={(e) => handleEditCategory(category, e)}
-                        >
-                          <Edit size={12} />
-                        </button>
-                        <button
-                          className="murex-icon-btn error"
-                          title="Delete Category"
-                          onClick={(e) => handleDeleteCategory(category, e)}
-                          style={{ color: 'var(--error-color)' }}
-                        >
-                          <Trash size={12} />
-                        </button>
+                        {canEditCategory && (
+                          <button
+                            className="murex-icon-btn"
+                            title="Edit Category"
+                            onClick={(e) => handleEditCategory(category, e)}
+                          >
+                            <Edit size={12} />
+                          </button>
+                        )}
+                        {canDeleteCategory && (
+                          <button
+                            className="murex-icon-btn error"
+                            title="Delete Category"
+                            onClick={(e) => handleDeleteCategory(category, e)}
+                            style={{ color: 'var(--error-color)' }}
+                          >
+                            <Trash size={12} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
                 ))}
+
+                {filteredCategories.length === 0 && (!debouncedCategorySearch.trim() || !'all scripts'.includes(debouncedCategorySearch.toLowerCase())) && (
+                  <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '11px' }}>
+                    No categories found.
+                  </div>
+                )}
               </div>
 
-              <button
-                className="murex-add-category-btn"
-                onClick={handleAddCategory}
-                style={{ backgroundColor: '#006633', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
-              >
-                <Plus size={14} />
-                <span>Add Category</span>
-              </button>
+              {canCreateCategory && (
+                <button
+                  className="murex-add-category-btn"
+                  onClick={handleAddCategory}
+                  style={{ backgroundColor: '#006633', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  <Plus size={14} />
+                  <span>Add Category</span>
+                </button>
+              )}
             </div>
 
             {/* Main Script Table */}
             <div className="murex-script-table-section">
-              <div className="murex-table-header">
+              <div className="murex-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Scripts <span style={{ color: 'var(--text-tertiary)', fontSize: '12px', fontWeight: 500 }}>({filteredManagementScripts.length})</span>
+                </div>
                 <div className="murex-search-wrapper">
                   <Search size={12} className="murex-search-icon" />
                   <input
@@ -1622,17 +1658,17 @@ export function MurexRuntimeTrendsPage() {
                             >
                               <td className="murex-script-td">
                                 <div className="murex-script-name-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <CiPlay1
-                                    size={16}
-                                    style={{
-                                      color: 'var(--primary-color)',
-                                      cursor: 'pointer',
-                                      transition: 'transform 0.3s ease',
-                                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                  <button
+                                    className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      togglePin(script.id);
                                     }}
-                                    onClick={(e) => { e.stopPropagation(); toggleExpandScript(script.id, e); }}
-                                  />
-                                  {script.isPinned && <Pin size={12} className="murex-pinned-icon" />}
+                                    title={script.isPinned ? "Unpin Script" : "Pin Script"}
+                                    style={{ padding: 0, margin: 0, height: 'auto', border: 'none', background: 'transparent' }}
+                                  >
+                                    <Pin size={14} style={{ fill: script.isPinned ? 'currentColor' : 'none' }} />
+                                  </button>
                                   <span>{script.name}</span>
                                 </div>
                               </td>
@@ -1654,14 +1690,21 @@ export function MurexRuntimeTrendsPage() {
                             <td className="murex-script-td actions-col">
                               <div className="murex-script-actions">
                                 <button
-                                  className={`murex-icon-btn ${script.isPinned ? 'active' : ''}`}
+                                  className="murex-icon-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    togglePin(script.id);
+                                    toggleExpandScript(script.id, e);
                                   }}
-                                  title="Pin Script"
+                                  title={isExpanded ? "Collapse Details" : "View Details"}
                                 >
-                                  <Pin size={12} />
+                                  <CiPlay1
+                                    size={16}
+                                    style={{
+                                      color: 'var(--primary-color)',
+                                      transition: 'transform 0.3s ease',
+                                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                    }}
+                                  />
                                 </button>
                               </div>
                             </td>

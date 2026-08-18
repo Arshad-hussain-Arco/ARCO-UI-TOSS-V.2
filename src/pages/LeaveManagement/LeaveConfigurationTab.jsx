@@ -321,7 +321,9 @@ export function LeaveConfigurationTab() {
     const isEditing = editingRowId === emp.id;
     const hasChildren = emp.children && emp.children.length > 0;
     const isExpanded = expandedRows[emp.id] !== false; // Default expanded to see tree initially
-    const isManager = emp.role?.toLowerCase().includes('manager') || hasChildren;
+    // Manager hierarchy only — never inferred from job-title/designation text
+    // (emp.role here is a designation string, not an RBAC role).
+    const isManager = hasChildren;
 
     return (
       <React.Fragment key={emp.id}>

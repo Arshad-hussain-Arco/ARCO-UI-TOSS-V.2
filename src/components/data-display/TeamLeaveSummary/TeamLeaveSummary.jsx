@@ -61,8 +61,18 @@ function calcRemaining(c) {
   return c.leaveQuota - c.annualLeaveUsed - c.sickLeaveUsed;
 }
 function calcUtilization(c) {
-  return c.leaveQuota > 0
-    ? Math.round(((c.annualLeaveUsed + c.sickLeaveUsed) / c.leaveQuota) * 100)
+  if (!c.leaveTypes || c.leaveTypes.length === 0) return 0;
+
+  const totalQuota = c.leaveTypes
+    .filter(leave => !leave.is_unlimited)
+    .reduce((sum, leave) => sum + (Number(leave.entitled) || 0), 0);
+
+  const totalBooked = c.leaveTypes
+    .filter(leave => !leave.is_unlimited)
+    .reduce((sum, leave) => sum + (Number(leave.booked) || 0), 0);
+
+  return totalQuota > 0
+    ? Number(((totalBooked / totalQuota) * 100).toFixed(2))
     : 0;
 }
 function getDeptStats(dept) {
@@ -91,12 +101,26 @@ function TeamLeaveSummary() {
   const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [summaryView, setSummaryView] = useState('department');
+  const [summaryDepartment, setSummaryDepartment] = useState('all');
+  const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
+  const [summaryLeaveType, setSummaryLeaveType] = useState('all');
+  const [teamSortState, setTeamSortState] = useState({});
+  const [teamSearchQueries, setTeamSearchQueries] = useState({});
+  const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
+  const [expandedEmployees, setExpandedEmployees] = useState(new Set());
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+  const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+
   useEffect(() => {
     const fetchSummary = async () => {
       if (!user?.emp_id) return;
       try {
-        setLoading(true);
-        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id));
+        if (departmentData.length === 0) setLoading(true);
+        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id), {
+          params: summaryTimePeriod ? { month: summaryTimePeriod } : {}
+        });
         const payload = res.data?.data || res.data;
         const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
 
@@ -129,6 +153,7 @@ function TeamLeaveSummary() {
             id: emp.emp_id,
             name: emp.emp_name || 'Unknown Employee',
             designation: emp.designation,
+            photo: emp.photo || emp.avatar || null,
             balances: b, // keep balances for backwards compatibility if needed
             leaveTypes: Array.isArray(emp.leave_types) ? emp.leave_types : [],
             leaveQuota: emp.summary?.total_entitled || (b.AL?.entitled || 0) + (b.SL?.entitled || 0),
@@ -151,19 +176,7 @@ function TeamLeaveSummary() {
       }
     };
     fetchSummary();
-  }, [user?.emp_id]);
-
-  const [summaryView, setSummaryView] = useState('department');
-  const [summaryDepartment, setSummaryDepartment] = useState('all');
-  const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
-  const [summaryLeaveType, setSummaryLeaveType] = useState('all');
-  const [teamSortState, setTeamSortState] = useState({});
-  const [teamSearchQueries, setTeamSearchQueries] = useState({});
-  const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
-  const [expandedEmployees, setExpandedEmployees] = useState(new Set()); // New state for tracking expanded employee rows
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
-  const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+  }, [user?.emp_id, summaryTimePeriod]);
 
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
@@ -227,9 +240,21 @@ function TeamLeaveSummary() {
     }
   };
   const filteredDepartments = useMemo(() => {
-    if (summaryDepartment === 'all') return departmentData;
-    return departmentData.filter((d) => String(d.id) === String(summaryDepartment));
-  }, [summaryDepartment, departmentData]);
+    let depts = departmentData;
+    
+    if (summaryDepartment !== 'all') {
+      depts = depts.filter((d) => String(d.id) === String(summaryDepartment));
+    }
+
+    if (summaryTimePeriod) {
+      depts = depts.map(dept => {
+        const activeConsultants = (dept.consultants || []).filter(c => calcTotal(c) > 0);
+        return { ...dept, consultants: activeConsultants };
+      }).filter(dept => dept.consultants.length > 0);
+    }
+
+    return depts;
+  }, [summaryDepartment, departmentData, summaryTimePeriod]);
   const getSortedConsultants = (deptId, consultants) => {
     let filtered = consultants;
     const q = (teamSearchQueries[deptId] || '').trim().toLowerCase();
@@ -475,7 +500,12 @@ function TeamLeaveSummary() {
     ═══════════════════════════════════════════════════════════ */}
           {summaryView === 'department' && (
             <div className="team-summary-departments">
-              {filteredDepartments.map((department) => {
+              {filteredDepartments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px', fontSize: '13px' }}>
+                  No team leave data available for the selected filters.
+                </div>
+              ) : (
+                filteredDepartments.map((department) => {
                 const isExpanded = expandedDepts.has(department.id);
                 const stats = getDeptStats(department);
                 const sorted = getSortedConsultants(department.id, department.consultants);
@@ -679,7 +709,8 @@ function TeamLeaveSummary() {
                     )}
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
 
@@ -719,8 +750,8 @@ function TeamLeaveSummary() {
               {/* ── Department Accordion List ── */}
               <div className="tsa-dept-list">
                 {sortedAnalyticsDepts.length === 0 ? (
-                  <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '15px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
-                    No departments have utilized this specific leave type.
+                  <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
+                    No team leave data available for the selected filters.
                   </div>
                 ) : (
                   sortedAnalyticsDepts.map(({ dept, stats }) => {
@@ -855,9 +886,17 @@ function TeamLeaveSummary() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                               <div
                                                 className="tsa-avatar"
-                                                style={{ backgroundColor: avatarColor }}
+                                                style={{ backgroundColor: emp.photo ? 'transparent' : avatarColor }}
                                               >
-                                                {initials}
+                                                {emp.photo ? (
+                                                  <img
+                                                    src={emp.photo.startsWith('data:') ? emp.photo : `data:image/jpeg;base64,${emp.photo}`}
+                                                    alt={emp.name}
+                                                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                                  />
+                                                ) : (
+                                                  initials
+                                                )}
                                               </div>
                                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span style={{ fontWeight: 500, fontSize: '13px', color: 'var(--text-primary)' }}>{emp.name}</span>

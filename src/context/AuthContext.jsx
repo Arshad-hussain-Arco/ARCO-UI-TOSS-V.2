@@ -15,10 +15,17 @@ import { useTheme } from '@hooks/useTheme';
  * @property {(credentials: { username: string, password: string }) => Promise<void>} login
  * @property {() => Promise<void>} logout
  * @property {(permission: string) => boolean} hasPermission
+ * @property {() => Promise<void>} refreshUser  Re-fetches role/permissions without a full reload.
  * @property {() => void} clearError
  */
 
 export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
+
+// Background safety net only — the primary refresh trigger is tab
+// focus/visibility (see below), which is when a user actually notices a
+// role change. This interval just covers a tab left open and unfocused
+// for a long stretch. Kept long since this fires for every active session.
+const USER_INFO_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -26,98 +33,142 @@ export function AuthProvider({ children }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  const { setTheme } = useTheme();
+
+  // Pulls fresh role/permission/subordinate data from /auth/user-info/ and
+  // merges it into whatever's currently persisted, without discarding any
+  // locally-known fields the endpoint doesn't return. Used on first mount,
+  // on an interval, and whenever the tab regains focus/visibility — this is
+  // the single place that logic lives, so "log out and back in" is never
+  // required just to pick up a role/permission change.
+  //
+  // The photo re-fetch is opt-in (`includePhoto`) and only used on the
+  // initial mount — a profile photo changes far less often than a role
+  // does, so re-fetching it on every periodic/focus refresh (across every
+  // active session, at scale) would be pure waste.
+  const refreshUser = useCallback(async ({ includePhoto = false } = {}) => {
+    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
+    if (!token) return;
+
+    let persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
+
+    try {
+      const { default: httpClient } = await import('@api/httpClient');
+      const { default: endpoints } = await import('@api/endpoints');
+      const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
+      const fullInfo = userInfoRes.data;
+      const info = fullInfo.userInformation || fullInfo;
+
+      persistedUser = {
+        ...persistedUser,
+        id: info.id || persistedUser?.id,
+        emp_id: info.empId || info.emp_id || info.employee_id || persistedUser?.emp_id,
+        username: info.userName || info.username || persistedUser?.username,
+        name: info.empName || info.name || info.full_name || persistedUser?.name,
+        email: info.email || persistedUser?.email,
+        role: info.roleName || info.role || persistedUser?.role,
+        roleName: info.roleName || persistedUser?.roleName,
+        isAdmin: info.isAdmin !== undefined ? info.isAdmin : persistedUser?.isAdmin,
+        permissions: info.permissions || persistedUser?.permissions || [],
+        mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
+        designation: info.designation || persistedUser?.designation,
+        designationName: info.designationName || persistedUser?.designationName,
+        teamName: info.teamName || persistedUser?.teamName,
+        reportingManager: info.reportingManager || persistedUser?.reportingManager,
+        gender: info.gender || persistedUser?.gender,
+        work_location: info.work_location || persistedUser?.work_location,
+        landline: info.landline || persistedUser?.landline,
+        pcAvailable:
+          info.physicalPcAvailable !== undefined
+            ? info.physicalPcAvailable
+            : persistedUser?.pcAvailable,
+        mobile: info.mobile || persistedUser?.mobile,
+        computerName: info.computerName || persistedUser?.computerName,
+        computerLocation: info.computerLocation || persistedUser?.computerLocation,
+        locationRef: info.computerLocationRef || persistedUser?.locationRef,
+        doj: info.dateOfJoining || persistedUser?.doj,
+        theme: info.theme || persistedUser?.theme,
+      };
+      if (info.userName || info.username) {
+        persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
+      }
+
+
+      if (includePhoto && persistedUser.emp_id) {
+        try {
+          const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
+          if (photoRes.data?.photo) {
+            persistedUser.avatar = photoRes.data.photo.startsWith('data:')
+              ? photoRes.data.photo
+              : `data:image/jpeg;base64,${photoRes.data.photo}`;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch user photo', err);
+        }
+      }
+
+      storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
+    } catch (err) {
+      console.warn('Failed to refresh user-info', err);
+      // Keep whatever was already persisted/rendered — a transient network
+      // failure here must not sign the user out or blank their permissions.
+    }
+
+    if (persistedUser && storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
+      setUser((prevUser) => {
+        const finalUser = { ...persistedUser };
+        // If storage failed to save the avatar (e.g. due to quota), preserve it from React state
+        if (!finalUser.avatar && prevUser?.avatar) {
+          finalUser.avatar = prevUser.avatar;
+          // Also try to persist it back just in case
+          storage.set(STORAGE_KEYS.AUTH_USER, finalUser);
+        }
+        return finalUser;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Restore a persisted session on first mount so a refresh does not sign the
-  // user out. Mock auth stores the user alongside the token.
+  // user out, and pull fresh role/permission data at the same time.
   useEffect(() => {
     let isMounted = true;
 
-    const initAuth = async () => {
-      const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-      let persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
-
-      if (token) {
-        try {
-          // Attempt to fetch fresh user info from the backend
-          const { default: httpClient } = await import('@api/httpClient');
-          const { default: endpoints } = await import('@api/endpoints');
-          const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
-          const fullInfo = userInfoRes.data;
-          const info = fullInfo.userInformation || fullInfo;
-
-          persistedUser = {
-            ...persistedUser,
-            id: info.id || persistedUser?.id,
-            emp_id: info.empId || info.emp_id || info.employee_id || persistedUser?.emp_id,
-            username: info.userName || info.username || persistedUser?.username,
-            name: info.empName || info.name || info.full_name || persistedUser?.name,
-            email: info.email || persistedUser?.email,
-            role: info.roleName || info.role || persistedUser?.role,
-            roleName: info.roleName || persistedUser?.roleName,
-            isAdmin: info.isAdmin !== undefined ? info.isAdmin : persistedUser?.isAdmin,
-            permissions: info.permissions || persistedUser?.permissions || [],
-            mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
-            designation: info.designation || persistedUser?.designation,
-            designationName: info.designationName || persistedUser?.designationName,
-            teamName: info.teamName || persistedUser?.teamName,
-            reportingManager: info.reportingManager || persistedUser?.reportingManager,
-            gender: info.gender || persistedUser?.gender,
-            work_location: info.work_location || persistedUser?.work_location,
-            landline: info.landline || persistedUser?.landline,
-            pcAvailable:
-              info.physicalPcAvailable !== undefined
-                ? info.physicalPcAvailable
-                : persistedUser?.pcAvailable,
-            mobile: info.mobile || persistedUser?.mobile,
-            computerName: info.computerName || persistedUser?.computerName,
-            computerLocation: info.computerLocation || persistedUser?.computerLocation,
-            locationRef: info.computerLocationRef || persistedUser?.locationRef,
-            doj: info.dateOfJoining || persistedUser?.doj,
-            theme: info.theme || persistedUser?.theme,
-          };
-          if (info.userName || info.username) {
-            persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
-          }
-
-          if (info.theme) {
-            setTheme(info.theme);
-          }
-
-          if (persistedUser.emp_id) {
-            try {
-              const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
-              if (photoRes.data?.photo) {
-                persistedUser.avatar = photoRes.data.photo.startsWith('data:')
-                  ? photoRes.data.photo
-                  : `data:image/jpeg;base64,${photoRes.data.photo}`;
-              }
-            } catch (err) {
-              console.warn('Failed to fetch user photo', err);
-            }
-          }
-
-          storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
-        } catch (error) {
-          console.warn('Failed to fetch user-info on load', error);
-        }
-
-        if (isMounted && persistedUser) {
-          if (storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
-            setUser(persistedUser);
-          }
-        }
-      }
-
+    (async () => {
+      await refreshUser({ includePhoto: true });
       if (isMounted) {
         setIsInitialising(false);
       }
-    };
-
-    initAuth();
+    })();
 
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep permissions from going stale for a long-lived session: re-pull on
+  // an interval, and whenever the tab regains focus/visibility (the moment
+  // a user is most likely to notice a role change an admin just made).
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const interval = setInterval(refreshUser, USER_INFO_REFRESH_INTERVAL_MS);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshUser();
+      }
+    };
+    window.addEventListener('focus', refreshUser);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshUser);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user, refreshUser]);
 
   const clearSession = useCallback(() => {
     storage.remove(STORAGE_KEYS.AUTH_TOKEN);
@@ -148,8 +199,6 @@ export function AuthProvider({ children }) {
     window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
   }, [clearSession]);
-
-  const { setTheme } = useTheme();
 
   const login = useCallback(async (credentials) => {
     setIsSubmitting(true);
@@ -203,9 +252,10 @@ export function AuthProvider({ children }) {
       login,
       logout,
       hasPermission,
+      refreshUser,
       clearError,
     }),
-    [user, isInitialising, isSubmitting, error, login, logout, hasPermission, clearError],
+    [user, isInitialising, isSubmitting, error, login, logout, hasPermission, refreshUser, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

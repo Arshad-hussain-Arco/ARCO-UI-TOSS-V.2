@@ -1,48 +1,61 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 
+let categoriesPromise = null;
+
 export const linkService = {
-  getLinkCategories: async () => {
-    const [groupsRes, linksRes] = await Promise.all([
-      httpClient.get(endpoints.importantLinks.groups.listCreate),
-      httpClient.get(endpoints.importantLinks.links.list),
-    ]);
+  getLinkCategories: () => {
+    if (categoriesPromise) return categoriesPromise;
+    
+    categoriesPromise = (async () => {
+      try {
+        const [groupsRes, linksRes] = await Promise.all([
+          httpClient.get(endpoints.importantLinks.groups.listCreate),
+          httpClient.get(endpoints.importantLinks.links.list),
+        ]);
 
-    const groups = groupsRes.data || [];
-    const links = linksRes.data || [];
+        const groups = groupsRes.data || [];
+        const links = linksRes.data || [];
 
-    const uiLinks = links.map(l => ({
-      id: l.id,
-      label: l.link || '',
-      url: l.url || '',
-      description: l.content || '',
-      sharedFolder: null,
-      comments: l.content || '',
-      pinToHeader: l.isHeader === true || l.isHeader === 1 || String(l.isHeader) === '1' || String(l.isHeader).toLowerCase() === 'true' || 
-                   l.is_header === true || l.is_header === 1 || String(l.is_header) === '1' || String(l.is_header).toLowerCase() === 'true',
-      tag: null,
-      files: l.file || l.file_name ? [{ name: l.file_name || l.file, url: l.file }] : [],
-      groupId: l.group,
-    }));
+        const uiLinks = links.map(l => ({
+          id: l.id,
+          label: l.link || '',
+          url: l.url || '',
+          description: l.content || '',
+          sharedFolder: null,
+          comments: l.content || '',
+          pinToHeader: l.isHeader === true || l.isHeader === 1 || String(l.isHeader) === '1' || String(l.isHeader).toLowerCase() === 'true' || 
+                       l.is_header === true || l.is_header === 1 || String(l.is_header) === '1' || String(l.is_header).toLowerCase() === 'true',
+          tag: null,
+          files: l.file || l.file_name ? [{ name: l.file_name || (l.file ? l.file.split('/').pop() : ''), url: l.file }] : [],
+          groupId: l.group,
+        }));
 
-    const categories = groups.map(g => ({
-      id: g.id,
-      title: g.name,
-      iconKey: null,
-      links: uiLinks.filter(l => l.groupId === g.id)
-    }));
+        const categories = groups.map(g => ({
+          id: g.id,
+          title: g.name,
+          iconKey: null,
+          links: uiLinks.filter(l => l.groupId === g.id)
+        }));
 
-    const unassignedLinks = uiLinks.filter(l => !l.groupId);
-    if (unassignedLinks.length > 0) {
-      categories.push({
-        id: 'unassigned',
-        title: 'Other Links',
-        iconKey: null,
-        links: unassignedLinks,
-      });
-    }
+        const unassignedLinks = uiLinks.filter(l => !l.groupId);
+        if (unassignedLinks.length > 0) {
+          categories.push({
+            id: 'unassigned',
+            title: 'Other Links',
+            iconKey: null,
+            links: unassignedLinks,
+          });
+        }
 
-    return categories;
+        return categories;
+      } finally {
+        // clear the cache so the next request after this batch fetches fresh data
+        categoriesPromise = null;
+      }
+    })();
+    
+    return categoriesPromise;
   },
 
   createGroup: async (name) => {
@@ -73,7 +86,7 @@ export const linkService = {
   deleteLink: async (id) => {
     const res = await httpClient.delete(endpoints.importantLinks.links.delete(id));
     return res.data;
-  }
+  },
 };
 
 export default linkService;

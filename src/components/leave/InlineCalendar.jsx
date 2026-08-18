@@ -143,6 +143,7 @@ export function InlineCalendar({
   // 'WFH', 'OW') — see isOverlapBlocked: a different type can be selected
   // over an existing own WFH/OW date since the backend auto-adjusts those.
   newLeaveTypeCode = null,
+  isLoading = false,
 }) {
   const today = /* @__PURE__ */ new Date();
   today.setHours(0, 0, 0, 0);
@@ -199,7 +200,7 @@ export function InlineCalendar({
     return cls.join(' ');
   }
   return (
-    <div className="al-cal-wrap">
+    <div className={`al-cal-wrap`}>
       <div className="al-cal-top">
         <button type="button" className="al-cal-nav-btn" onClick={onPrev}>
           <ChevronLeft size={13} />

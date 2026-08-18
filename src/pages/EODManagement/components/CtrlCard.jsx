@@ -11,7 +11,7 @@ const formatSeconds = (totalSecs) => {
   return `${hrs}:${mins}:${secs}`;
 };
 
-export function CtrlCard({ env, onStart, onPause, onStop }) {
+export function CtrlCard({ env, onStart, onPause, onStop, canExecute, canViewLogs }) {
   const isRunning = env.status === 'running';
   const isCompleted = env.status === 'completed';
   const isFailed = env.status === 'failed';
@@ -150,21 +150,23 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
         <div className="eod-ctrl-head">
           <span className="eod-ctrl-env-name">{env.name}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={() => setIsLogModalOpen(true)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#888',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '4px',
-              }}
-              title="View Logs"
-            >
-              <Eye size={16} />
-            </button>
+            {canViewLogs && (
+              <button
+                onClick={() => setIsLogModalOpen(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#888',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px',
+                }}
+                title="View Logs"
+              >
+                <Eye size={16} />
+              </button>
+            )}
             <div
               className="eod-ctrl-status"
               style={{ color: env.color || '#6366f1', background: `${env.color || '#6366f1'}18` }}
@@ -177,38 +179,40 @@ export function CtrlCard({ env, onStart, onPause, onStop }) {
           </div>
         </div>
 
-        {/* Action row */}
-        <div className="eod-ctrl-actions">
-          <button
-            className="eod-ctrl-btn eod-ctrl-btn-start"
-            disabled={!canStart}
-            onClick={() => onStart(env.id)}
-          >
-            <Play size={12} /> Start
-          </button>
-          <button
-            className="eod-ctrl-btn eod-ctrl-btn-pause"
-            disabled={!canPause && !isPaused}
-            onClick={() => onPause(env.id)}
-          >
-            {isPaused ? (
-              <>
-                <Play size={12} /> Resume
-              </>
-            ) : (
-              <>
-                <Pause size={12} /> Pause
-              </>
-            )}
-          </button>
-          <button
-            className="eod-ctrl-btn eod-ctrl-btn-stop"
-            disabled={!canStop}
-            onClick={() => onStop(env.id)}
-          >
-            <Square size={12} /> Stop
-          </button>
-        </div>
+        {/* Action row — Start/Pause/Resume/Stop all require EOD_CONTROL_EXECUTE */}
+        {canExecute && (
+          <div className="eod-ctrl-actions">
+            <button
+              className="eod-ctrl-btn eod-ctrl-btn-start"
+              disabled={!canStart}
+              onClick={() => onStart(env.id)}
+            >
+              <Play size={12} /> Start
+            </button>
+            <button
+              className="eod-ctrl-btn eod-ctrl-btn-pause"
+              disabled={!canPause && !isPaused}
+              onClick={() => onPause(env.id)}
+            >
+              {isPaused ? (
+                <>
+                  <Play size={12} /> Resume
+                </>
+              ) : (
+                <>
+                  <Pause size={12} /> Pause
+                </>
+              )}
+            </button>
+            <button
+              className="eod-ctrl-btn eod-ctrl-btn-stop"
+              disabled={!canStop}
+              onClick={() => onStop(env.id)}
+            >
+              <Square size={12} /> Stop
+            </button>
+          </div>
+        )}
 
         {/* Progress & Live Execution Info */}
         {(isRunning || isPaused || isCompleted || isFailed) && (
