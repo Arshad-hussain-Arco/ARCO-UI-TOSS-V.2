@@ -182,6 +182,55 @@ export async function deleteMediaFile(id) {
   }
 }
 
+/**
+ * Rich-text video embeds must not auto-fetch on homepage load — a page with
+ * several video cards would otherwise fire one full/range GET per video the
+ * instant the HTML is injected via dangerouslySetInnerHTML (the browser
+ * starts loading a <video> as soon as it's attached to the DOM, even with
+ * no user interaction). This strips `src`/`<source src>` into
+ * `data-video-src` and forces preload="none", replacing the network-visible
+ * markup with an inert one until the reader explicitly presses Play — wired
+ * up by HomeCard's click handler for `.rte-video-play-trigger`.
+ */
+export function deferPublicVideoLoad(html) {
+  if (!html) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  container.querySelectorAll('video').forEach((video) => {
+    if (video.closest('.rte-video-lazy-wrap')) return;
+
+    video.removeAttribute('autoplay');
+    video.setAttribute('preload', 'none');
+
+    const src = video.getAttribute('src');
+    if (src) {
+      video.removeAttribute('src');
+      video.setAttribute('data-video-src', src);
+    }
+    video.querySelectorAll('source').forEach((source) => {
+      const sourceSrc = source.getAttribute('src');
+      if (sourceSrc) {
+        source.removeAttribute('src');
+        source.setAttribute('data-video-src', sourceSrc);
+      }
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rte-video-lazy-wrap';
+    video.parentNode.insertBefore(wrapper, video);
+    wrapper.appendChild(video);
+
+    const playBtn = document.createElement('button');
+    playBtn.setAttribute('type', 'button');
+    playBtn.className = 'rte-video-play-trigger';
+    playBtn.setAttribute('aria-label', 'Play video');
+    wrapper.appendChild(playBtn);
+  });
+
+  return container.innerHTML;
+}
+
 let uploadPlaceholderSeq = 0;
 
 /** Human label for the "Uploading …" placeholder, based on the file being ingested. */
