@@ -118,7 +118,16 @@ export function AuthProvider({ children }) {
     }
 
     if (persistedUser && storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
-      setUser(persistedUser);
+      setUser((prevUser) => {
+        const finalUser = { ...persistedUser };
+        // If storage failed to save the avatar (e.g. due to quota), preserve it from React state
+        if (!finalUser.avatar && prevUser?.avatar) {
+          finalUser.avatar = prevUser.avatar;
+          // Also try to persist it back just in case
+          storage.set(STORAGE_KEYS.AUTH_USER, finalUser);
+        }
+        return finalUser;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -56,7 +56,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
@@ -206,7 +206,11 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
 }
 
 export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  
+  const canCreateTeam = hasPermission('TEAMS_CREATE');
+  const canEdit = hasPermission('TEAMS_EDIT');
+  const canDelete = hasPermission('TEAMS_DELETE');
 
   const fetchTeams = useCallback(async () => {
     const res = await consultantService.getTeams();
@@ -515,6 +519,8 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
               onEdit={openEditModal}
               onDelete={setDeleteTarget}
               employeesData={employeesData}
+              canEdit={canEdit}
+              canDelete={canDelete}
             />
           </div>
         ))}

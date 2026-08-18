@@ -103,7 +103,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
  * @param {(payload: Object) => void} props.onUpdate
  * @param {() => void} props.onClose
  */
-function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, onUpdate, onClose, isSaving = false }) {
+function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, onUpdate, onClose, isSaving = false, canCreateGroup = true }) {
   const isEditMode = !!editLink;
 
   const getInitialState = useCallback(() => {
@@ -437,7 +437,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
         {/* ── Footer ──────────────────────────────────────────────── */}
         <div className="il-modal-footer">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={isSaving}>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
           <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleReset} disabled={isSaving}>

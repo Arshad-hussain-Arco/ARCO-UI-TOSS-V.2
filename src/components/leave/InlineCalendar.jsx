@@ -154,7 +154,6 @@ export function InlineCalendar({
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   const rangeEnd = endDate ?? (startDate && hoverDate && hoverDate > startDate ? hoverDate : null);
   function isRuleIneligible(d) {
-    if (isLoading) return true;
     // Claims are retroactive — today itself never qualifies, only strictly
     // past dates do. Beyond that, if a specific eligible-dates set was
     // resolved for the selected Claim type (Weekend/Company Holiday/Custom
@@ -201,12 +200,7 @@ export function InlineCalendar({
     return cls.join(' ');
   }
   return (
-    <div className={`al-cal-wrap ${isLoading ? 'is-loading' : ''}`}>
-      {isLoading && (
-        <div className="al-cal-loading-overlay">
-          <div className="al-cal-spinner" />
-        </div>
-      )}
+    <div className={`al-cal-wrap`}>
       <div className="al-cal-top">
         <button type="button" className="al-cal-nav-btn" onClick={onPrev}>
           <ChevronLeft size={13} />

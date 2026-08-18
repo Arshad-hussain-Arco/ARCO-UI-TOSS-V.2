@@ -120,6 +120,7 @@ export function ImportantLinksPage() {
   const canPinHeader = hasPermission('IMPORTANT_LINKS_PIN_HEADER');
   const canGroupEdit = hasPermission('IMPORTANT_LINKS_GROUP_EDIT');
   const canGroupDelete = hasPermission('IMPORTANT_LINKS_GROUP_DELETE');
+  const canGroupCreate = hasPermission('IMPORTANT_LINKS_GROUP_CREATE');
   const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
@@ -521,6 +522,7 @@ export function ImportantLinksPage() {
           onUpdate={handleUpdateLink}
           onClose={handleCloseModal}
           isSaving={isSaving}
+          canCreateGroup={canGroupCreate}
         />
       )}
 
@@ -594,7 +596,7 @@ export function ImportantLinksPage() {
           <input
             id="il-rename-group-input"
             type="text"
-            className="il-search-input"
+            className="il-input"
             style={{ width: '100%' }}
             value={renameGroupValue}
             onChange={(e) => setRenameGroupValue(e.target.value)}

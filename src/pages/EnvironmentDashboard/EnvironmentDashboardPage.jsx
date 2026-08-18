@@ -690,7 +690,7 @@ export function EnvironmentDashboardPage() {
         title="Add Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setShowAddModal(false)}>
+            <Button variant="outline" size="sm" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" leadingIcon={FileUp} onClick={handleCreateConfig}>
@@ -753,7 +753,7 @@ export function EnvironmentDashboardPage() {
         title="Edit Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setEditingConfig(null)}>
+            <Button variant="outline" size="sm" onClick={() => setEditingConfig(null)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" leadingIcon={RefreshCw} onClick={handleUpdateConfig}>
@@ -818,7 +818,7 @@ export function EnvironmentDashboardPage() {
         title="Delete Configuration"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setDeletingConfig(null)}>
+            <Button variant="outline" size="sm" onClick={() => setDeletingConfig(null)}>
               Cancel
             </Button>
             <Button variant="danger" size="sm" leadingIcon={Trash} onClick={handleDeleteConfig}>
