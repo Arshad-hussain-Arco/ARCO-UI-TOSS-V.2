@@ -1144,7 +1144,7 @@
 
 .rrs-modal {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   width: 100%;
   max-width: 400px;
@@ -1624,4 +1624,10 @@
   background: var(--surface-primary);
   border-left: 1px solid var(--border-primary);
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.03);
+}
+
+
+[data-theme="dark"] .rrs-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

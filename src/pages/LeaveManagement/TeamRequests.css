@@ -1383,16 +1383,15 @@
 }
 
 .tr-sdl-emp-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px 1fr 120px 80px 100px 90px 160px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 9px 12px;
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
-  transition:
-    background 0.1s,
-    border-color 0.1s;
+  transition: background 0.1s, border-color 0.1s;
 }
 
 .tr-sdl-emp-row:hover {
