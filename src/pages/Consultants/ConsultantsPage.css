@@ -1425,7 +1425,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--surface-primary);
+  background:  #ffffff;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s;
 }
