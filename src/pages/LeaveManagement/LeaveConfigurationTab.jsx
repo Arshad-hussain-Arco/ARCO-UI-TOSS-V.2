@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, ArrowUpDown, Edit, Check, X, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, ArrowUpDown, Edit, Check, X, Users, ChevronDown, ChevronRight, Filter } from 'lucide-react';
 import { Select } from '@components/forms/Select/Select';
-import { activatable } from '@utils/interactive';
+import { useToast } from '@hooks/useToast';
 import { Loader } from '@components/feedback/Loader/Loader';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
@@ -51,8 +51,11 @@ function parsePhotoUrl(photoUrl) {
   return url;
 }
 
-export function LeaveConfigurationTab() {
+const TYPE_ORDER = ['AL', 'SL', 'CompOff', 'CCompOff', 'WFH', 'WW', 'CWW', 'OW', 'PL', 'ML', 'SLP'];
+
+export function LeaveConfigurationTab({ teamPhotosData }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [employees, setEmployees] = useState([]);
   const [teams, setTeams] = useState(['All Teams']);
   const [loading, setLoading] = useState(true);
@@ -90,7 +93,7 @@ export function LeaveConfigurationTab() {
             sickLeave: { balance: sl.current_value || 0, maxQuota: 0 },
             compOff: { balance: compOff.current_value || 0 },
             weekendWork: { balance: ww.current_value || 0 },
-            photo: parsePhotoUrl(emp.photo),
+            photo: parsePhotoUrl(emp.photo || emp.avatar),
             _raw: emp
           };
         });
@@ -143,7 +146,16 @@ export function LeaveConfigurationTab() {
 
   // Sorted Employees
   const sortedEmployees = useMemo(() => {
-    return [...filteredEmployees].sort((a, b) => {
+    let list = filteredEmployees;
+    if (teamPhotosData && teamPhotosData.team) {
+      const photoMap = {};
+      const allPhotos = [...teamPhotosData.team];
+      if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
+      allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+      list = list.map(emp => photoMap[emp.id] && photoMap[emp.id] !== emp.photo ? { ...emp, photo: photoMap[emp.id] } : emp);
+    }
+    
+    return [...list].sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
 
@@ -166,7 +178,7 @@ export function LeaveConfigurationTab() {
       }
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
     });
-  }, [filteredEmployees, sortField, sortOrder]);
+  }, [filteredEmployees, sortField, sortOrder, teamPhotosData]);
 
   const treeData = useMemo(() => {
     if (sortedEmployees.length === 0) return [];
@@ -337,14 +349,13 @@ export function LeaveConfigurationTab() {
               ) : (
                 <span className="lc-expand-placeholder"></span>
               )}
-              <div className="lc-emp-cell">
-                <div className="lc-avatar" style={{ backgroundColor: getAvatarBg(emp.id) }}>
-                  {emp.photo ? (
-                    <img src={emp.photo} alt={emp.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', backgroundColor: '#ffffff' }} />
-                  ) : (
-                    getInitials(emp.name)
-                  )}
-                </div>
+                <div className="lc-emp-cell">
+                  <div className="lc-avatar" style={{ backgroundColor: getAvatarBg(emp.id), color: '#ffffff' }}>
+                    {emp.photo ? (
+                      <img src={emp.photo.startsWith('data:') || emp.photo.startsWith('http') || emp.photo.startsWith('/') ? emp.photo : `data:image/jpeg;base64,${emp.photo}`} alt={emp.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : null}
+                    <div style={{ display: emp.photo ? 'none' : 'block' }}>{getInitials(emp.name)}</div>
+                  </div>
                 <div className="lc-emp-info">
                   <div className="lc-emp-name-wrap">
                     <span className="lc-emp-name">{emp.name}</span>

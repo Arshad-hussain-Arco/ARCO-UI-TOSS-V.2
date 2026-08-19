@@ -96,7 +96,7 @@ function getInitials(name) {
     .join('')
     .toUpperCase();
 }
-function TeamLeaveSummary() {
+function TeamLeaveSummary({ teamPhotosData }) {
   const { user } = useAuth();
   const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +126,7 @@ function TeamLeaveSummary() {
 
         // Group employees by team
         const deptMap = {};
+
         rawData.forEach(emp => {
           const tId = emp.team_id || 'unknown';
           if (!deptMap[tId]) {
@@ -177,6 +178,22 @@ function TeamLeaveSummary() {
     };
     fetchSummary();
   }, [user?.emp_id, summaryTimePeriod]);
+
+  const mergedDepartmentData = useMemo(() => {
+    if (!teamPhotosData || !teamPhotosData.team) return departmentData;
+    const photoMap = {};
+    const allPhotos = [...(teamPhotosData.team || [])];
+    if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
+    
+    allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    return departmentData.map(dept => ({
+      ...dept,
+      consultants: dept.consultants.map(emp => ({
+        ...emp,
+        photo: photoMap[emp.id] || emp.photo
+      }))
+    }));
+  }, [departmentData, teamPhotosData]);
 
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
@@ -240,8 +257,8 @@ function TeamLeaveSummary() {
     }
   };
   const filteredDepartments = useMemo(() => {
-    let depts = departmentData;
-    
+    let depts = mergedDepartmentData;
+
     if (summaryDepartment !== 'all') {
       depts = depts.filter((d) => String(d.id) === String(summaryDepartment));
     }
@@ -254,7 +271,7 @@ function TeamLeaveSummary() {
     }
 
     return depts;
-  }, [summaryDepartment, departmentData, summaryTimePeriod]);
+  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod]);
   const getSortedConsultants = (deptId, consultants) => {
     let filtered = consultants;
     const q = (teamSearchQueries[deptId] || '').trim().toLowerCase();

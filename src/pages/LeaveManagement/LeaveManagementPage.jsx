@@ -42,6 +42,9 @@ import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import leaveService from '@services/leaveService';
+import consultantService from '@services/consultantService';
+import httpClient from '@api/httpClient';
+import endpoints from '@api/endpoints';
 import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
 import './LeaveManagementPage.css';
@@ -243,8 +246,6 @@ export function LeaveManagementPage() {
         // Fetch explicitly from user-info if emp_id is missing
         if (!targetEmpId) {
           try {
-            const { default: httpClient } = await import('@api/httpClient');
-            const { default: endpoints } = await import('@api/endpoints');
             const res = await httpClient.get(endpoints.auth.userInfo);
             const info = res.data?.userInformation || res.data;
             targetEmpId = info?.empId || info?.emp_id || info?.employee_id;
@@ -400,6 +401,39 @@ export function LeaveManagementPage() {
   // on this screen — Apply Leave / My Leave Summary have no gate at all.
   const isManager = Boolean(user?.mySubordinates?.length > 0);
   const canApplyOnBehalf = isManager;
+
+  const [teamPhotosData, setTeamPhotosData] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPhotos = async () => {
+      if (!isManager) return;
+      try {
+        let targetEmpId = user?.emp_id;
+
+        if (!targetEmpId) {
+          try {
+            const res = await httpClient.get(endpoints.auth.userInfo);
+            const info = res.data?.userInformation || res.data;
+            targetEmpId = info?.empId || info?.emp_id || info?.employee_id;
+          } catch (err) {
+            console.error("Failed to fetch user-info for team photos", err);
+          }
+        }
+
+        if (!targetEmpId) return;
+
+        const photos = await consultantService.getTeamPhotos(targetEmpId);
+        if (!isMounted) return;
+        
+        setTeamPhotosData(photos || { manager: null, team: [] });
+      } catch (err) {
+        console.error('Failed to fetch team photos', err);
+      }
+    };
+    fetchPhotos();
+    return () => { isMounted = false; };
+  }, [isManager, user?.emp_id]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -948,13 +982,13 @@ export function LeaveManagementPage() {
           </>
         )}
 
-        {activeTab === 'team-requests' && <TeamRequestsTab />}
+        {activeTab === 'team-requests' && <TeamRequestsTab teamPhotosData={teamPhotosData} />}
 
         {false}
 
-        {activeTab === 'team-summary' && <TeamLeaveSummary />}
+        {activeTab === 'team-summary' && <TeamLeaveSummary teamPhotosData={teamPhotosData} />}
 
-        {activeTab === 'leave-config' && <LeaveConfigurationTab />}
+        {activeTab === 'leave-config' && <LeaveConfigurationTab teamPhotosData={teamPhotosData} />}
 
         {activeTab === 'my-leaves-summary' && (
           <MyLeavesSummaryTab

@@ -165,6 +165,10 @@ export const consultantService = {
     const response = await httpClient.get(endpoints.consultants.myTeam(managerId));
     return response.data;
   },
+  getTeamPhotos: async (managerId) => {
+    const response = await httpClient.get(endpoints.consultants.teamPhotos(managerId));
+    return response.data;
+  },
   activateConsultant: async (payload) => {
     const response = await httpClient.post(endpoints.consultants.activate, payload);
     return response.data;
