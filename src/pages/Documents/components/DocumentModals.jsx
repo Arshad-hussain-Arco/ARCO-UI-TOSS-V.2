@@ -9,6 +9,14 @@ export function AddFolderModal({ isOpen, onClose, selectedFolder, onSuccess }) {
   const [newFolderDescription, setNewFolderDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setNewFolderName('');
+      setNewFolderDescription('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleCreateFolder = async (e) => {
@@ -97,21 +105,34 @@ export function UploadFileModal({ isOpen, onClose, selectedFolder, onSuccess }) 
   const [newFileDescription, setNewFileDescription] = useState('');
   const [uploadedFileObject, setUploadedFileObject] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileError, setFileError] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setNewFileName('');
+      setNewFileDescription('');
+      setUploadedFileObject(null);
+      setFileError(false);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleUploadFile = async (e) => {
     e.preventDefault();
     if (!uploadedFileObject) {
+      setFileError(true);
       toast.error('Please select a file to upload');
       return;
     }
+    setFileError(false);
 
     setIsSubmitting(true);
     try {
       await documentService.uploadFile({
         file: uploadedFileObject,
-        title: newFileName.trim() || uploadedFileObject.name,
+        title: newFileName.trim() || uploadedFileObject?.name || '',
         description: newFileDescription.trim(),
         folderId: selectedFolder,
       });
@@ -144,7 +165,8 @@ export function UploadFileModal({ isOpen, onClose, selectedFolder, onSuccess }) 
                 Select or Drag File
               </label>
               <div
-                className="doc-upload-dropzone"
+                className={`doc-upload-dropzone ${fileError ? 'error-border' : ''}`}
+                style={fileError ? { border: '1px dashed var(--c-danger)' } : {}}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -152,6 +174,7 @@ export function UploadFileModal({ isOpen, onClose, selectedFolder, onSuccess }) 
                     const fileObj = e.dataTransfer.files[0];
                     setUploadedFileObject(fileObj);
                     setNewFileName(fileObj.name);
+                    setFileError(false);
                   }
                 }}
               >
@@ -168,6 +191,7 @@ export function UploadFileModal({ isOpen, onClose, selectedFolder, onSuccess }) 
                       const fileObj = e.target.files[0];
                       setUploadedFileObject(fileObj);
                       setNewFileName(fileObj.name);
+                      setFileError(false);
                     }
                   }}
                 />
@@ -178,6 +202,11 @@ export function UploadFileModal({ isOpen, onClose, selectedFolder, onSuccess }) 
                   </div>
                 )}
               </div>
+              {fileError && (
+                <span style={{ color: 'var(--c-danger)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                  A file is required to proceed.
+                </span>
+              )}
             </div>
 
             <div className="doc-form-group">
@@ -307,21 +336,38 @@ export function EditDocumentModal({ isOpen, onClose, targetDocument, targetType,
             {targetType === 'file' && (
               <div className="doc-form-group">
                 <label htmlFor="replace-file" className="doc-form-label">
-                  Replace File (Optional)
+                  Document File
                 </label>
-                <input
-                  id="replace-file"
-                  type="file"
-                  className="doc-form-input"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setReplacementFile(e.target.files[0]);
-                    }
-                  }}
-                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    className="doc-form-input"
+                    readOnly
+                    value={replacementFile ? replacementFile.name : (targetDocument.fileName || 'Unknown File')}
+                    style={{ flex: 1, backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                  />
+                  <input
+                    id="replace-file"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setReplacementFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="doc-modal-btn secondary"
+                    style={{ padding: '0 16px', height: '36px', whiteSpace: 'nowrap' }}
+                    onClick={() => document.getElementById('replace-file').click()}
+                  >
+                    Replace
+                  </button>
+                </div>
                 {replacementFile && (
-                  <span style={{ fontSize: '12px', color: 'var(--c-success)', marginTop: '4px', display: 'block' }}>
-                    New file selected: {replacementFile.name}
+                  <span style={{ fontSize: '12px', color: 'var(--c-success)', marginTop: '6px', display: 'block' }}>
+                    File will be replaced on save
                   </span>
                 )}
               </div>

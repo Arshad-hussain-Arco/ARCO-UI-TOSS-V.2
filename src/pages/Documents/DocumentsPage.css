@@ -519,6 +519,35 @@
   border: 1px solid var(--border-secondary);
 }
 
+.doc-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.doc-preview-error .doc-error-icon {
+  color: var(--c-danger, #ef4444);
+  margin-bottom: 16px;
+}
+
+.doc-preview-error h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.doc-preview-error p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+}
+
 .doc-preview-placeholder-icon {
   color: var(--text-tertiary);
   margin-bottom: 24px;
@@ -934,6 +963,9 @@
   background-color: #006633; 
   color:  #ffffff;
   border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .doc-modal-btn.primary:hover {
   background-color: #006633; 

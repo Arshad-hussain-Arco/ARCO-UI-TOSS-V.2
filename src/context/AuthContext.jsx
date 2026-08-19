@@ -160,12 +160,10 @@ export function AuthProvider({ children }) {
         refreshUser();
       }
     };
-    window.addEventListener('focus', refreshUser);
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', refreshUser);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user, refreshUser]);
