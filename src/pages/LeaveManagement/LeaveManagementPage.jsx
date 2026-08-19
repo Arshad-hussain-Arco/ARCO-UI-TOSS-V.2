@@ -469,13 +469,15 @@ export function LeaveManagementPage() {
   }, [leavesWithModRequests, filterStatus, sortField, sortOrder]);
 
   const handleExportCSV = () => {
-    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Status'];
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Leave Reason', 'Status', 'Comments'];
     const rows = filteredSortedLeaves.map(l => [
       l.leave_type || '',
       l.start_date || '',
       l.end_date || '',
       l.business_days || 0,
-      l.status_code || ''
+      l.leave_reason || '',
+      l.status_code || '',
+      l.manager_comment || l.hr_comment || ''
     ]);
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -486,8 +488,8 @@ export function LeaveManagementPage() {
   const handleExportPDF = () => {
     const doc = new jsPDF('landscape');
     autoTable(doc, {
-      head: [['Leave Type', 'Dates', 'Work Days', 'Status']],
-      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.status_code || '']),
+      head: [['Leave Type', 'Dates', 'Work Days', 'Leave Reason', 'Status', 'Comments']],
+      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.manager_comment || l.hr_comment || '']),
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [29, 78, 216] }
