@@ -410,7 +410,7 @@
 }
 
 .header-profile-menu-item:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover); 
 }
 
 .header-profile-menu-item[data-danger='true'] {
@@ -419,6 +419,7 @@
 
 .header-profile-menu-item[data-danger='true']:hover {
   background-color: var(--c-danger-light);
+  color:  var(--text-primary);
 }
 
 .header-profile-menu-icon {

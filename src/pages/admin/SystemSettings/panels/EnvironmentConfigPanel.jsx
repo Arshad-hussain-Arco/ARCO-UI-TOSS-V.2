@@ -17,6 +17,7 @@ function EnvironmentConfigPanelComponent() {
   const [formData, setFormData] = useState({
     clientDirectory: '',
     ImpLinksPath: '',
+    documentfilePath: '',
     systemHealthHeartbeat: '',
     eodHeartbeatInterval: '',
     envConfigServerIp: '',
@@ -39,6 +40,7 @@ function EnvironmentConfigPanelComponent() {
         setFormData({
           clientDirectory: res.clientDirectory || '',
           ImpLinksPath: res.ImpLinksPath || '',
+          documentfilePath: res.documentfilePath || '',
           systemHealthHeartbeat: res.systemHealthHeartbeat || '',
           eodHeartbeatInterval: res.eodHeartbeatInterval || '',
           envConfigServerIp: res.envConfigServerIp || '',
@@ -146,6 +148,21 @@ function EnvironmentConfigPanelComponent() {
               value={formData.ImpLinksPath}
               placeholder="/upload/CABCalendar"
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
+            />
+          </div>
+
+          {/* 2.5 Documents FilePath */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="env-docs-filepath">
+              Documents FilePath
+            </label>
+            <input
+              id="env-docs-filepath"
+              type="text"
+              className="ss-input"
+              value={formData.documentfilePath}
+              placeholder="/upload/Documents"
+              onChange={(e) => handleChange('documentfilePath', e.target.value)}
             />
           </div>
 

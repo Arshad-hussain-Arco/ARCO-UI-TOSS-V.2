@@ -113,9 +113,13 @@ export const documentService = {
 
   uploadFile: async ({ file, title, description, folderId }) => {
     const formData = new FormData();
-    formData.append('document_title', title || file.name);
+    formData.append('document_title', title || (file ? file.name : ''));
     formData.append('document_description', description || '');
-    formData.append('file_name', file);
+    if (file) {
+      formData.append('file_name', file);
+    } else {
+      formData.append('file_name', '');
+    }
     const parsed = parseInt(folderId, 10);
     const pid = (folderId && folderId !== 'root' && !isNaN(parsed)) ? parsed : 0;
     formData.append('pid', pid);

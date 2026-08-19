@@ -20,6 +20,7 @@ function ImportConfigPanelComponent() {
     changeRequestFilePath: '',
     runTimeFilePath: '',
     ImpLinksPath: '',
+    documentfilePath: '',
     changeRequestServerIp: '',
     changeRequestPort: '',
     changeRequestUsername: '',
@@ -42,6 +43,7 @@ function ImportConfigPanelComponent() {
           changeRequestFilePath: res.changeRequestFilePath || '',
           runTimeFilePath: res.runTimeFilePath || '',
           ImpLinksPath: res.ImpLinksPath || '',
+          documentfilePath: res.documentfilePath || '',
           changeRequestServerIp: res.changeRequestServerIp || '',
           changeRequestPort: res.changeRequestPort || '',
           changeRequestUsername: res.changeRequestUsername || '',
@@ -262,17 +264,31 @@ function ImportConfigPanelComponent() {
             </div>
           </div>
 
-          {/* 4. Documents FilePath */}
+          {/* 4. Important Links FilePath */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="imp-docs-filepath">
-              Documents FilePath
+            <label className="ss-modal-label" htmlFor="imp-links-filepath">
+              Important Links FilePath
             </label>
             <input
-              id="imp-docs-filepath"
+              id="imp-links-filepath"
               type="text"
               className="ss-input"
               value={formData.ImpLinksPath}
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
+            />
+          </div>
+
+          {/* 5. Documents FilePath */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="imp-real-docs-filepath">
+              Documents FilePath
+            </label>
+            <input
+              id="imp-real-docs-filepath"
+              type="text"
+              className="ss-input"
+              value={formData.documentfilePath}
+              onChange={(e) => handleChange('documentfilePath', e.target.value)}
             />
           </div>
 
