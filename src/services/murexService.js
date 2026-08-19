@@ -3,6 +3,7 @@ import endpoints from '@api/endpoints';
 import * as murexMocks from '@mocks/handlers/murexHandlers';
 import { clone } from '@utils/async';
 import { MUREX_HOURLY_HEATMAP, MUREX_MONTHLY_HEATMAP } from '@mocks/data/murex';
+import { shapeOverviewRuns } from '@pages/MurexRuntimeTrends/overviewApiTransform';
 
 const formatTime = (totalMinutes) => {
   if (isNaN(totalMinutes)) return '0s';
@@ -226,6 +227,34 @@ export const murexService = {
     } catch (err) {
       console.error('Failed to fetch runtime details:', err);
       return null;
+    }
+  },
+  getOverviewAvailableDates: async () => {
+    try {
+      const res = await api.get(endpoints.scriptManager.runtimeFileOverview, {
+        params: { dates_only: true },
+      });
+      return res.data?.dates || [];
+    } catch (err) {
+      console.error('Failed to fetch overview available dates:', err);
+      return murexMocks.getOverviewAvailableDates();
+    }
+  },
+  getOverviewTimeline: async (isoDate) => {
+    try {
+      const res = await api.get(endpoints.scriptManager.runtimeFileOverview, {
+        params: { date: isoDate },
+      });
+      const runs = res.data?.data || [];
+      return shapeOverviewRuns(runs, isoDate);
+    } catch (err) {
+      // A 404 here just means "no runs recorded for this date" - not an error condition
+      if (err.response?.status === 404) {
+        return { matrixJobs: [], timelineList: [] };
+      }
+      console.error('Failed to fetch overview timeline:', err);
+      const mockRuns = await murexMocks.getOverviewRuns(isoDate);
+      return shapeOverviewRuns(mockRuns, isoDate);
     }
   },
   getCategories: async () => {

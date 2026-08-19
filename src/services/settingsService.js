@@ -21,8 +21,13 @@ export const settingsService = {
   },
 
   uploadFile: async (formData) => {
+    // Runtime-file uploads parse the whole CSV server-side (row-by-row state
+    // machine over potentially months of daily logs) before the SFTP step
+    // even starts - that can outlast the shared 30s default timeout on
+    // large files, so give this call more room.
     const response = await httpClient.post(endpoints.systemSettings.uploadFile, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
     });
     return response.data;
   },

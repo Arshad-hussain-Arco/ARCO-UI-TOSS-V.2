@@ -224,3 +224,86 @@ export const MUREX_SCRIPTS = [
     isPinned: false,
   },
 ];
+
+/**
+ * Fixture for GET /script-manager/runtime-file/overview/, matching the real
+ * endpoint's flat shape: run_start/run_end are ISO 8601, step-level
+ * date_time_cmp/finished_time are raw Murex "DD-MMM-YYYY HH:MM:SS" strings -
+ * overviewApiTransform.shapeOverviewRuns() normalizes both.
+ */
+export const MUREX_OVERVIEW_AVAILABLE_DATES = ['2026-07-11', '2026-07-12', '2026-07-13'];
+
+export const MUREX_OVERVIEW_RUNS_BY_DATE = {
+  '2026-07-12': [
+    {
+      script_name: 'MO_EOD',
+      run_start: '2026-07-12T23:25:42',
+      run_end: '2026-07-13T00:55:40',
+      duration_sec: 5398,
+      steps: [
+        {
+          step: 'Checking',
+          date_time_cmp: '12-JUL-2026 23:25:42',
+          finished_time: '12-JUL-2026 23:25:42',
+          idle_sec: 0,
+          cpu_sec: 0,
+          db_sec: 0,
+          elapsed_sec: 0,
+        },
+        {
+          step: 'Step 1/3 [FEED_1]',
+          date_time_cmp: '12-JUL-2026 23:25:42',
+          finished_time: '12-JUL-2026 23:36:00',
+          idle_sec: 318,
+          cpu_sec: 120,
+          db_sec: 180,
+          elapsed_sec: 618,
+        },
+        {
+          step: 'Step 2/3 [FEED_2]',
+          date_time_cmp: '12-JUL-2026 23:30:00',
+          finished_time: '12-JUL-2026 23:45:24',
+          idle_sec: 473,
+          cpu_sec: 47,
+          db_sec: 404,
+          elapsed_sec: 924,
+        },
+        {
+          step: 'Step 3/3 [FINAL]',
+          date_time_cmp: '12-JUL-2026 23:59:00',
+          finished_time: '13-JUL-2026 00:55:40',
+          idle_sec: 750,
+          cpu_sec: 240,
+          db_sec: 2410,
+          elapsed_sec: 3400,
+        },
+      ],
+    },
+    {
+      script_name: 'FO_EOD',
+      run_start: '2026-07-12T21:15:00',
+      run_end: '2026-07-12T23:10:15',
+      duration_sec: 6915,
+      steps: [
+        {
+          step: 'Step 1/2 [PRE_TRADE_VAL]',
+          date_time_cmp: '12-JUL-2026 21:15:00',
+          finished_time: '12-JUL-2026 22:10:00',
+          idle_sec: 600,
+          cpu_sec: 1200,
+          db_sec: 1500,
+          elapsed_sec: 3300,
+        },
+        {
+          step: 'Step 2/2 [POSITION_KEEPING]',
+          date_time_cmp: '12-JUL-2026 22:10:00',
+          finished_time: '12-JUL-2026 23:10:15',
+          idle_sec: 600,
+          cpu_sec: 0,
+          db_sec: 3015,
+          elapsed_sec: 3615,
+        },
+      ],
+    },
+  ],
+};
