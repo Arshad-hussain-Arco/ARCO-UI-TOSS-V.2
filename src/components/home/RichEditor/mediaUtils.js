@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { isOfficePreviewable } from '@components/media/officeViewer';
@@ -138,7 +139,7 @@ export function assertWithinSizeLimit(file, maxMb) {
  * render the card instead. Mirrors the same origin-resolution convention
  * used for consultant avatar URLs in pages/Consultants/utils.js.
  */
-function toAbsoluteMediaUrl(path) {
+export function toAbsoluteMediaUrl(path) {
   if (!path || !path.startsWith('/')) return path;
   const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
     .replace(/\/api\/?$/, '');
@@ -173,6 +174,159 @@ export async function uploadMediaFile(file) {
  * orphaned file on SFTP, which is far less disruptive than blocking the
  * user's delete/replace action on it.
  */
+/**
+ * HomeMediaContentView's GET is AllowAny at the DRF layer (a plain
+ * <img>/<video> tag request can't carry our JWT header) but requires a
+ * short-lived signed `media_token` query param instead (see backend
+ * dashboard/media_tokens.py) — minted only via an IsAuthenticated endpoint,
+ * so holding one is proof of the same "logged-in employee" check every
+ * other Homepage endpoint uses. This fetches it once per session (shared
+ * across every HomeCard instance) and refetches automatically once it's
+ * past its safety margin.
+ */
+let _cachedMediaToken = null;
+let _cachedMediaTokenExpiresAt = 0;
+let _mediaTokenPromise = null;
+
+export async function getHomeMediaToken() {
+  const now = Date.now();
+  if (_cachedMediaToken && now < _cachedMediaTokenExpiresAt) {
+    return _cachedMediaToken;
+  }
+  if (_mediaTokenPromise) return _mediaTokenPromise;
+
+  _mediaTokenPromise = (async () => {
+    try {
+      const response = await httpClient.get(endpoints.systemSettings.homeMediaToken);
+      const { token, expires_in: expiresIn } = response.data;
+      _cachedMediaToken = token;
+      // Refresh a bit before actual expiry rather than racing it.
+      _cachedMediaTokenExpiresAt = Date.now() + Math.max((expiresIn - 60) * 1000, 0);
+      return token;
+    } finally {
+      _mediaTokenPromise = null;
+    }
+  })();
+  return _mediaTokenPromise;
+}
+
+const HOME_MEDIA_URL_PATTERN = /\/api\/dashboard\/home-media\/\d+\/(?:[?#]|$)/;
+
+/** Strips any existing `media_token` param from a single URL string, leaving other params/URL shape intact. */
+function stripMediaTokenFromUrl(url) {
+  if (!url || !url.includes('media_token=')) return url;
+  return url
+    .replace(/([?&])media_token=[^&#]*&/, '$1')
+    .replace(/[?&]media_token=[^&#]*(?=[#]|$)/, (m) => (m[0] === '?' ? '?' : ''))
+    .replace(/\?$/, '');
+}
+
+// Idempotent — safe to call on a URL that may already carry a (possibly
+// stale) token, so re-tokenizing never produces duplicate media_token
+// params or leaves an old one sitting alongside a new one.
+function appendMediaToken(url, token) {
+  if (!url || !token || !HOME_MEDIA_URL_PATTERN.test(url)) return url;
+  const bare = stripMediaTokenFromUrl(url);
+  return bare.includes('?') ? `${bare}&media_token=${token}` : `${bare}?media_token=${token}`;
+}
+
+/**
+ * Rewrites every home-media reference in rich-text HTML to carry the
+ * current session's media_token — done at render time, never at save time,
+ * so the stored html_content stays a stable bare URL and doesn't go stale
+ * when the token expires. Covers every shape rebuildPublicMediaActions()/
+ * deferPublicVideoLoad() produce: video src, <source> data-video-src,
+ * the pdf/office card's own data-src, and the View/Download actions
+ * rebuildPublicMediaActions() rebuilds from it (data-pdf-src,
+ * data-office-src, and the Download anchor's href).
+ */
+export function attachHomeMediaToken(html, token) {
+  if (!html || !token) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  container.querySelectorAll('video[data-video-src], source[data-video-src]').forEach((el) => {
+    el.setAttribute('data-video-src', appendMediaToken(el.getAttribute('data-video-src'), token));
+  });
+  container.querySelectorAll('video[src], source[src], img[src]').forEach((el) => {
+    el.setAttribute('src', appendMediaToken(el.getAttribute('src'), token));
+  });
+  container.querySelectorAll('a[href]').forEach((el) => {
+    el.setAttribute('href', appendMediaToken(el.getAttribute('href'), token));
+  });
+  container.querySelectorAll('[data-src]').forEach((el) => {
+    el.setAttribute('data-src', appendMediaToken(el.getAttribute('data-src'), token));
+  });
+  container.querySelectorAll('[data-pdf-src]').forEach((el) => {
+    el.setAttribute('data-pdf-src', appendMediaToken(el.getAttribute('data-pdf-src'), token));
+  });
+  container.querySelectorAll('[data-office-src]').forEach((el) => {
+    el.setAttribute('data-office-src', appendMediaToken(el.getAttribute('data-office-src'), token));
+  });
+
+  return container.innerHTML;
+}
+
+const TOKENIZABLE_SELECTOR = [
+  'video[data-video-src]', 'source[data-video-src]',
+  'video[src]', 'source[src]', 'img[src]',
+  'a[href]', '[data-src]', '[data-pdf-src]', '[data-office-src]',
+].join(', ');
+const TOKENIZABLE_ATTRS = ['data-video-src', 'src', 'href', 'data-src', 'data-pdf-src', 'data-office-src'];
+
+/**
+ * Inverse of attachHomeMediaToken — strips `media_token` back out of every
+ * home-media reference. The Rich Text Editor displays tokenized URLs in its
+ * live contenteditable DOM (so images/videos/PDFs actually load while
+ * editing) but must never persist a token into the saved html_content: it
+ * expires, and baking one in would make the card break itself later.
+ * RichEditor.jsx calls this on every outward sync (flushOutwardNow).
+ */
+/**
+ * Awaits a CONFIRMED token (not whatever mediaToken state happens to be
+ * mid-render) and returns `url` with it applied — idempotent, so it's safe
+ * to call on a URL that may already carry a stale/missing token. Use this
+ * at the moment of actually playing/opening media (click handlers), not at
+ * render time, to close the race where a component renders with the token
+ * still in flight and mounts a request that's doomed to 401.
+ */
+export async function withFreshMediaToken(url) {
+  const token = await getHomeMediaToken();
+  return appendMediaToken(url, token);
+}
+
+export function stripHomeMediaToken(html) {
+  if (!html || !html.includes('media_token=')) return html;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  container.querySelectorAll(TOKENIZABLE_SELECTOR).forEach((el) => {
+    TOKENIZABLE_ATTRS.forEach((attr) => {
+      const value = el.getAttribute(attr);
+      if (value) el.setAttribute(attr, stripMediaTokenFromUrl(value));
+    });
+  });
+
+  return container.innerHTML;
+}
+
+/** Shared by every HomeCard/Preview instance — one token fetch per session, not one per card. */
+export function useHomeMediaToken() {
+  const [token, setToken] = useState(_cachedMediaToken);
+
+  useEffect(() => {
+    let cancelled = false;
+    getHomeMediaToken().then((t) => {
+      if (!cancelled) setToken(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return token;
+}
+
 export async function deleteMediaFile(id) {
   if (!id) return;
   try {

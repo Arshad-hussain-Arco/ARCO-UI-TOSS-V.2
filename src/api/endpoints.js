@@ -37,6 +37,7 @@ const endpoints = {
     environmentConfig: '/env-admin/environment-config/',
     updateConfig: '/env-admin/update-config/',
     importFileConfig: '/env-admin/import-file-config/',
+    allConfigurations: '/env-admin/all-configs/',
     uploadFile: '/env-admin/upload-file/',
     crColumns: '/capacity-planning/cr-columns/',
     updateCrColumn: (id) => `/capacity-planning/cr-columns/${id}/update/`,
@@ -49,6 +50,7 @@ const endpoints = {
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
     uploadHomeMedia: '/dashboard/home-data/media-upload/',
     homeMediaContent: (id) => `/dashboard/home-media/${id}/`,
+    homeMediaToken: '/dashboard/home-media/token/',
   },
   dashboard: {
     summary: '/dashboard/summary/',

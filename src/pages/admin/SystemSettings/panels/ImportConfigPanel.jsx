@@ -91,10 +91,17 @@ function ImportConfigPanelComponent() {
     try {
       setSaving(true);
       
-      const allConfigs = await settingsService.getEnvironmentConfig(); 
-      const importConfigs = await settingsService.getImportFileConfig(); 
+      // update-config is a full replace of config_json, and
+      // getEnvironmentConfig()/getImportFileConfig() only return their own
+      // ~8-key whitelist each — merging just those two silently drops any
+      // key neither tab knows about (e.g. homeMediaFilePath). Spread the
+      // full raw config in first (lowest precedence) so those survive.
+      const rawConfig = await settingsService.getAllConfigurations();
+      const allConfigs = await settingsService.getEnvironmentConfig();
+      const importConfigs = await settingsService.getImportFileConfig();
 
       const mergedConfig = {
+        ...rawConfig,
         ...allConfigs,
         ...importConfigs,
         ...formData

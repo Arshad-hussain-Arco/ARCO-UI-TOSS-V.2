@@ -14,7 +14,19 @@ export function isSupportedVideoFile(file) {
   return ACCEPTED_MIME.includes(file.type) || file.type.startsWith('video/');
 }
 
-/** Lightweight production markup for inserted video with compact metadata bar. */
+/**
+ * Lightweight production markup for inserted video with compact metadata
+ * bar. Built already in "lazy" form — `data-video-src` (not `src`),
+ * `preload="none"`, wrapped in `.rte-video-lazy-wrap` with a
+ * `.rte-video-play-trigger` overlay — so the video never fires a network
+ * request the moment it's inserted/loaded into the editor or the published
+ * Homepage; EditableArea's click handler (editor) / HomeCard's
+ * handleContentClick (published) both swap `data-video-src` -> `src` only
+ * once the user actually presses Play. This exact shape mirrors what
+ * mediaUtils.js's deferPublicVideoLoad() would otherwise build after the
+ * fact for read-only rendering — producing it here means that transform is
+ * a no-op for these blocks (see its `.rte-video-lazy-wrap` guard).
+ */
 export function buildVideoMarkup({ url, filename, filesize, mime, align = 'center' }) {
   const alignClass = `rte-align-${align}`;
   const filenameAttr = filename ? ` data-filename="${escapeAttr(filename)}"` : '';
@@ -25,7 +37,10 @@ export function buildVideoMarkup({ url, filename, filesize, mime, align = 'cente
   return (
     `<div class="rte-video-block ${alignClass}" data-media-type="video" data-src="${escapeAttr(url)}"${filenameAttr}${sizeAttr}${mimeAttr} contenteditable="false">` +
     `<div class="rte-video-container">` +
-    `<video src="${escapeAttr(url)}" controls preload="metadata" playsinline class="rte-video-element"></video>` +
+    `<div class="rte-video-lazy-wrap">` +
+    `<video data-video-src="${escapeAttr(url)}" controls preload="none" playsinline class="rte-video-element"></video>` +
+    `<button type="button" class="rte-video-play-trigger" aria-label="Play video"></button>` +
+    `</div>` +
     `</div>` +
     `<div class="rte-video-meta-bar">` +
     `<div class="rte-video-info">` +

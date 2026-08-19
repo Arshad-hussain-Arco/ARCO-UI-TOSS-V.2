@@ -60,12 +60,17 @@ function EnvironmentConfigPanelComponent() {
     try {
       setSaving(true);
       
-      // Need to fetch full config to merge as update requires full replace
-      // In this case, we just send what we have, but according to API, we might need all configs
+      // update-config is a full replace of config_json, and
+      // getEnvironmentConfig()/getImportFileConfig() only return their own
+      // ~8-key whitelist each — merging just those two silently drops any
+      // key neither tab knows about (e.g. homeMediaFilePath). Spread the
+      // full raw config in first (lowest precedence) so those survive.
+      const rawConfig = await settingsService.getAllConfigurations();
       const allConfigs = await settingsService.getEnvironmentConfig(); // Get base config
       const importConfigs = await settingsService.getImportFileConfig(); // It might return other fields
 
       const mergedConfig = {
+        ...rawConfig,
         ...allConfigs,
         ...importConfigs,
         ...formData
