@@ -30,21 +30,21 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
       .toUpperCase()
       .slice(0, 2);
   };
-  
+
   const handleCopy = (e, text) => {
     e.stopPropagation();
     navigator.clipboard.writeText(text);
     toast.success('Username copied');
   };
-  
+
   return (
     <div className="consultant-card">
       {/* Card Header */}
       <div className="consultant-card-header">
         <div className="consultant-header-left">
           {/* Avatar */}
-          <div 
-            className="consultant-avatar" 
+          <div
+            className="consultant-avatar"
             style={{ cursor: 'pointer' }}
             onClick={() => onAvatarClick && onAvatarClick(consultant)}
             onKeyDown={(e) => e.key === 'Enter' && onAvatarClick && onAvatarClick(consultant)}
@@ -93,8 +93,8 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
       <div className="consultant-card-body">
         {/* Absolute Pill on the break line */}
         {consultant.userId && (
-          <div 
-            className="consultant-id-copy consultant-id-copy-absolute" 
+          <div
+            className="consultant-id-copy consultant-id-copy-absolute"
             onClick={(e) => handleCopy(e, String(consultant.userId || ''))}
             title="Copy Username"
             role="button"
@@ -136,7 +136,7 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
                 className="consultant-footer-btn consultant-footer-btn-activate"
                 title="Activate Consultant"
                 disabled={isActivating}
-                style={{ width: '100%', display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center', opacity: isActivating ? 0.6 : 1, cursor: isActivating ? 'not-allowed' : 'pointer' }}
+                style={{ display: 'flex', gap: '8px', color: 'var(--c-success)', justifyContent: 'center', opacity: isActivating ? 0.6 : 1, cursor: isActivating ? 'not-allowed' : 'pointer' }}
               >
                 {isActivating ? (
                   <span className="spin-animation" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid var(--c-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
@@ -200,9 +200,9 @@ export function ConsultantCardSkeleton() {
         <div className="consultant-skeleton-block" style={{ width: '80%', height: '14px' }}></div>
       </div>
       <div className="consultant-card-footer" style={{ padding: '12px 20px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
-         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
-         <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+        <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+        <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
+        <div className="consultant-skeleton-block" style={{ width: '32px', height: '32px', borderRadius: '6px' }}></div>
       </div>
     </div>
   );

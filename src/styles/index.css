@@ -56,3 +56,19 @@
 .search-clear-btn:hover {
   background: var(--bg-hover);
 }
+
+/* Global animation for all refresh buttons */
+@keyframes global-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.click-spin .lucide-refresh-cw,
+.lucide-refresh-cw.click-spin,
+.click-spin .lucide-rotate-ccw,
+.lucide-rotate-ccw.click-spin,
+.spinning .lucide-refresh-cw,
+.eod-spin .lucide-refresh-cw,
+.spinning .lucide-rotate-ccw {
+  animation: global-refresh-spin 1s linear infinite;
+}

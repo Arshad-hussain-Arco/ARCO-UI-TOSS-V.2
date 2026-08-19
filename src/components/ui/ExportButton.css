@@ -38,6 +38,8 @@
 .common-export-icon-download {
   flex-shrink: 0;
   color: inherit;
+  width: 14px;
+  height: 14px;
 }
 
 .common-export-label {
