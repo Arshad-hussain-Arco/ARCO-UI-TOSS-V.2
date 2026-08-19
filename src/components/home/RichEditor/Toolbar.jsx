@@ -283,7 +283,7 @@ export function Toolbar() {
       <ToolbarDivider />
 
       {/* Link */}
-      <div className="rte-tb-popover-wrap" ref={openPopover === 'link' ? popoverRef : null}>
+      {/* <div className="rte-tb-popover-wrap" ref={openPopover === 'link' ? popoverRef : null}>
         <ToolbarButton icon={Link2} label="Insert / edit link" onAction={openLinkPopover} />
         {openPopover === 'link' && (
           <div className="rte-popover">
@@ -305,7 +305,7 @@ export function Toolbar() {
             </div>
           </div>
         )}
-      </div>
+      </div> */}
       <ToolbarDivider />
 
       {/* Media */}
