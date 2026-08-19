@@ -527,6 +527,7 @@ function buildLeaveTypeItem(entry, balances) {
     id: entry.code,
     code: entry.code,
     label: entry.leave_type,
+    description: entry.description || '',
     balance: available,
     isUnlimited,
     isFlexible: !isUnlimited && !!entry.is_flexible,
@@ -1331,6 +1332,9 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                     options={ltItems.map((item) => ({ value: item.id, label: item.label }))}
                     width="leaveType"
                   />
+                  {leaveType?.description && (
+                    <p className="al-policy-hint">{leaveType.description}</p>
+                  )}
                 </div>
               )}
 
@@ -1358,6 +1362,12 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                     options={claimTypeItems.map((t) => ({ value: t.code, label: t.leave_type }))}
                     width="leaveType"
                   />
+                  {(() => {
+                    const selectedClaim = claimTypeItems.find((t) => t.code === claimType);
+                    return selectedClaim?.description ? (
+                      <p className="al-policy-hint">{selectedClaim.description}</p>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
