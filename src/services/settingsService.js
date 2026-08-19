@@ -20,6 +20,26 @@ export const settingsService = {
     return response.data;
   },
 
+  /**
+   * The FULL, unfiltered SystemConfig(module='app') blob — every key, not
+   * just the ~8 a given settings tab's own GET exposes. updateConfig() does
+   * a full replace of config_json, so a save built only from
+   * getEnvironmentConfig()/getImportFileConfig() silently drops any key
+   * neither of those covers (e.g. homeMediaFilePath, which has no
+   * dedicated settings UI). Panels that save via updateConfig() should
+   * spread this in first (lowest precedence) before their own known fields.
+   */
+  getAllConfigurations: async () => {
+    const response = await httpClient.get(endpoints.systemSettings.allConfigurations);
+    const row = Array.isArray(response.data) ? response.data[0] : response.data;
+    if (!row?.config_json) return {};
+    try {
+      return JSON.parse(row.config_json);
+    } catch {
+      return {};
+    }
+  },
+
   uploadFile: async (formData) => {
     const response = await httpClient.post(endpoints.systemSettings.uploadFile, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

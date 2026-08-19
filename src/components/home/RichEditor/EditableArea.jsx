@@ -6,7 +6,7 @@ import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
 import { buildGrid, findCellPosition, findAncestorTable, findAncestorCell } from './TableHandler';
-import { buildUploadingPlaceholder, fileKindLabel, deleteMediaFile } from './mediaUtils';
+import { buildUploadingPlaceholder, fileKindLabel, deleteMediaFile, withFreshMediaToken } from './mediaUtils';
 import { indent, outdent } from './commands';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
 
@@ -94,6 +94,7 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
     toast,
     tableSelectionRef,
     selectedMediaRef,
+    displayHtml,
   } = useRichEditorContext();
 
   const [activeMediaModal, setActiveMediaModal] = useState({ isOpen: false, src: '', fileName: '', mediaType: 'pdf' });
@@ -147,7 +148,7 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
     try {
       const ingested = await handler.ingestFile(file);
       const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
-      const finalHtml = buildMarkup(ingested);
+      const finalHtml = displayHtml(buildMarkup(ingested));
       if (placeholder) {
         placeholder.outerHTML = finalHtml;
       } else {
@@ -194,7 +195,7 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
       try {
         const ingested = await config.handler.ingestFile(file);
         const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
-        const finalHtml = config.buildMarkup(ingested);
+        const finalHtml = displayHtml(config.buildMarkup(ingested));
         if (placeholder) {
           placeholder.outerHTML = finalHtml;
         } else {
@@ -359,6 +360,34 @@ export function EditableArea({ placeholder = 'Start writing your homepage conten
       if (targetBlock && mediaType) {
         replaceMediaBlock(targetBlock, mediaType);
       }
+      return;
+    }
+
+    const videoPlayBtn = e.target.closest?.('.rte-video-play-trigger');
+    if (videoPlayBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrapper = videoPlayBtn.closest('.rte-video-lazy-wrap');
+      const video = wrapper?.querySelector('video');
+      if (video) {
+        Promise.all(
+          Array.from(video.querySelectorAll('source[data-video-src]')).map(async (source) => {
+            source.src = await withFreshMediaToken(source.getAttribute('data-video-src'));
+            source.removeAttribute('data-video-src');
+          })
+        ).then(async () => {
+          const videoSrc = video.getAttribute('data-video-src');
+          if (videoSrc) {
+            video.src = await withFreshMediaToken(videoSrc);
+            video.removeAttribute('data-video-src');
+          }
+          video.setAttribute('preload', 'auto');
+          video.load();
+          video.play().catch(() => {});
+        });
+      }
+      videoPlayBtn.remove();
+      wrapper?.classList.add('rte-video-playing');
       return;
     }
 

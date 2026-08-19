@@ -1,5 +1,5 @@
 import { sanitizeEditorHtml } from './sanitize';
-import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad } from './mediaUtils';
+import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken } from './mediaUtils';
 
 /**
  * Read-only panel rendering the sanitized generated HTML exactly as the
@@ -33,13 +33,14 @@ function handlePreviewClick(e) {
 }
 
 export function Preview({ html }) {
+  const mediaToken = useHomeMediaToken();
   return (
     <div className="rte-preview-panel">
       <div className="rte-preview-label">Generated HTML preview</div>
       <div
         className="home-card-html-content rte-preview-content"
         onClick={handlePreviewClick}
-        dangerouslySetInnerHTML={{ __html: deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(sanitizeEditorHtml(html || '')))) }}
+        dangerouslySetInnerHTML={{ __html: attachHomeMediaToken(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(sanitizeEditorHtml(html || '')))), mediaToken) }}
       />
     </div>
   );
