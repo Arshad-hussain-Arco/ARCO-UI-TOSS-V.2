@@ -209,6 +209,7 @@ const endpoints = {
     computerLocations: '/employees/computer-locations/',
     computerLocationDetail: (id) => `/employees/computer-locations/${id}/`,
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
+    teamPhotos: (managerId) => `/employees/team-photos/${managerId}/`,
   },
   documents: {
     list: '/documents/get-documents/',

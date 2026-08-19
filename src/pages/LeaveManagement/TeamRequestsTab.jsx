@@ -108,9 +108,8 @@ export function initials(name) {
 }
 export function getPhotoUrl(photo) {
   if (!photo) return null;
-  if (photo.startsWith('http') || photo.startsWith('data:image')) return photo;
-  if (photo.startsWith('/')) return `http://127.0.0.1:8000${photo}`;
-  return `data:image/png;base64,${photo}`;
+  if (photo.startsWith('http') || photo.startsWith('data:image') || photo.startsWith('/')) return photo;
+  return `data:image/jpeg;base64,${photo}`;
 }
 function todayStr() {
   return /* @__PURE__ */ new Date().toISOString().slice(0, 10);
@@ -325,7 +324,7 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
   });
 }
 
-export function TeamRequestsTab() {
+export function TeamRequestsTab({ teamPhotosData }) {
   const toast = useToast();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -360,7 +359,8 @@ export function TeamRequestsTab() {
           return [];
         });
 
-      setRequests([...mappedLeaves, ...mappedModRequests]);
+      const combined = [...mappedLeaves, ...mappedModRequests];
+      setRequests(combined);
     } catch (error) {
       console.error("Failed to fetch team leaves:", error);
     } finally {
@@ -371,6 +371,23 @@ export function TeamRequestsTab() {
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  const mergedRequests = useMemo(() => {
+    if (!teamPhotosData || !teamPhotosData.team) return requests;
+    const photoMap = {};
+    const allPhotos = [...(teamPhotosData.team || [])];
+    if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
+    
+    allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    
+    return requests.map(r => {
+      const empId = Number(String(r.employeeId).replace('EMP', ''));
+      if (photoMap[empId] && photoMap[empId] !== r.photo) {
+        return { ...r, photo: photoMap[empId] };
+      }
+      return r;
+    });
+  }, [requests, teamPhotosData]);
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -425,9 +442,9 @@ export function TeamRequestsTab() {
     return set;
   }, [requests]);
   const sdlDayCount = useMemo(() => leaveDates.size, [leaveDates]);
-  const sdlTeams = useMemo(() => [...new Set(requests.map((r) => r.team))].sort(), [requests]);
+  const sdlTeams = useMemo(() => [...new Set(mergedRequests.map((r) => r.team))].sort(), [mergedRequests]);
   const sdlEmployees = useMemo(() => {
-    let list = requests.filter((r) => eachDay(r.startDate, r.endDate).includes(sdlSelected));
+    let list = mergedRequests.filter((r) => eachDay(r.startDate, r.endDate).includes(sdlSelected));
     if (sdlLeaveTF !== 'all')
       list = list.filter(
         (r) =>
@@ -447,7 +464,7 @@ export function TeamRequestsTab() {
       if (sdlSortBy === 'team') return a.team.localeCompare(b.team);
       return a.employeeName.localeCompare(b.employeeName);
     });
-  }, [requests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, debouncedSdlSearch, sdlSortBy]);
+  }, [mergedRequests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, debouncedSdlSearch, sdlSortBy]);
   function sdlPrevMonth() {
     if (sdlMonth === 0) {
       setSdlMonth(11);
@@ -461,7 +478,7 @@ export function TeamRequestsTab() {
     } else setSdlMonth((m) => m + 1);
   }
   const filtered = useMemo(() => {
-    let list = requests;
+    let list = mergedRequests;
     const q = debouncedSearch.toLowerCase().trim();
     if (q)
       list = list.filter(
@@ -956,11 +973,6 @@ export function TeamRequestsTab() {
                                         src={getPhotoUrl(req.photo)}
                                         alt={req.employeeName}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                                        onError={(e) => {
-                                          e.target.style.display = 'none';
-                                          e.target.nextSibling.style.display = 'block';
-                                          e.target.parentElement.style.background = avatarColor(req.employeeName);
-                                        }}
                                       />
                                     ) : null}
                                     <div style={{ display: req.photo ? 'none' : 'block' }}>
@@ -1234,11 +1246,6 @@ export function TeamRequestsTab() {
                                 src={getPhotoUrl(req.photo)}
                                 alt={req.employeeName}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'block';
-                                  e.target.parentElement.style.background = avatarColor(req.employeeName);
-                                }}
                               />
                             ) : null}
                             <div style={{ display: req.photo ? 'none' : 'block' }}>
