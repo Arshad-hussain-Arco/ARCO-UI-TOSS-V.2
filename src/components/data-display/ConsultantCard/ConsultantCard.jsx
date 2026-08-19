@@ -7,12 +7,22 @@ import './ConsultantCard.css';
 function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInactive, onActivate, onAvatarClick, isActivating }) {
   const toast = useToast();
   const getPhoto = (c) => {
-    if (c.avatar) return c.avatar;
-    if (c.photo) {
-      if (c.photo.startsWith('data:')) return c.photo;
-      return `data:image/jpeg;base64,${c.photo}`;
+    let photoData = c.avatar || c.photo_url_base64 || c.photo;
+    if (!photoData) return null;
+
+    if (photoData.startsWith('ZGF0Y')) {
+      try {
+        photoData = atob(photoData);
+      } catch (e) {
+        console.warn('Failed to decode base64 avatar in card');
+      }
     }
-    return null;
+
+    if (photoData.startsWith('data:') || photoData.startsWith('http') || photoData.startsWith('/')) {
+      return photoData;
+    }
+    
+    return `data:image/jpeg;base64,${photoData}`;
   };
 
   const [photoUrl, setPhotoUrl] = useState(getPhoto(consultant));
@@ -20,7 +30,7 @@ function ConsultantCard({ consultant, onEdit, onChangePassword, onDelete, isInac
 
   useEffect(() => {
     setPhotoUrl(getPhoto(consultant));
-  }, [consultant.avatar, consultant.photo]);
+  }, [consultant.avatar, consultant.photo, consultant.photo_url_base64]);
 
   const getInitials = (name) => {
     return name

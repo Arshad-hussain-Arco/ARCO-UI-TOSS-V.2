@@ -31,6 +31,7 @@ export const murexService = {
       }
       const query = paramStr ? `?${paramStr}` : '';
       const kpiRes = await api.get(`${endpoints.scriptManager.runtimeFileKpis}${query}`);
+      const globalTrend = kpiRes.data?.trend || [];
       const kpiData = kpiRes.data?.data || kpiRes.data || {};
       
       const scripts = [];
@@ -83,7 +84,7 @@ export const murexService = {
           p95Duration: (scriptKpis.p95_duration || 0) / 60,
           p95DurationFormatted: formatTime((scriptKpis.p95_duration || 0) / 60),
           successRate: 100, // Hardcoded or calculated later
-          failedRuns: 0, // Outliers mock
+          failedRuns: scriptKpis.failed_runs || 0,
           outlierCount: 0,
         });
       });
@@ -103,7 +104,7 @@ export const murexService = {
 
       return {
         summary,
-        trend: [], // Global trend requires full data, omit for now
+        trend: globalTrend,
         scripts,
         hourlyHeatmap: clone(MUREX_HOURLY_HEATMAP),
         monthlyHeatmap: clone(MUREX_MONTHLY_HEATMAP),

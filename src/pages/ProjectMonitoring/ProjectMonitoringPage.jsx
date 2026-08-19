@@ -26,6 +26,10 @@ import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useDebounce } from '@hooks/useDebounce';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
+import { ExportButton } from '@components/ui/ExportButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import projectService from '@services/projectService';
 import './ProjectMonitoringPage.css';
 
@@ -311,9 +315,51 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
               Showing <strong>{matchedProjects.length}</strong> of {totalCount}
             </span>
             {canExport && (
-              <button type="button" className="pm-export-btn" onClick={() => exportToCSV(matchedProjects, `${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.csv`, isCR)}>
-                <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
-              </button>
+              <ExportButton
+                excel
+                pdf
+                onExcelExport={() => {
+                  const rows = matchedProjects;
+                  if (!rows || !rows.length) return;
+                  const headers = isCR
+                    ? ['CR IPM Number', 'Work Order ID', 'Summary', 'Status', 'Effort (MDs)', 'Assigned Developer', 'Additional Developers', 'Start Date', 'End Date']
+                    : ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+
+                  const mappedRows = rows.map((p) =>
+                    isCR
+                      ? [p.code || p.ipmNumber || '', p.woId || p.id || '', p.summary || '', p.status || p.stage || '', p.effortInMDs || '0', p.assignedDeveloper || '', p.additionalDevelopers || '', p.startDate || '', p.endDate || '']
+                      : [p.code || '', p.id || '', p.summary || '', p.stage || '', p.itdl || '', p.backupItdl || '', p.po || '', p.pmo || '', p.lastComment || '']
+                  );
+
+                  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...mappedRows]);
+                  const workbook = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+                  XLSX.writeFile(workbook, `${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.xlsx`);
+                }}
+                onPdfExport={() => {
+                  const rows = matchedProjects;
+                  if (!rows || !rows.length) return;
+                  const doc = new jsPDF('landscape');
+                  const headers = isCR
+                    ? ['CR IPM Number', 'Work Order ID', 'Summary', 'Status', 'Effort (MDs)', 'Assigned Developer', 'Additional Developers', 'Start Date', 'End Date']
+                    : ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+
+                  const mappedRows = rows.map((p) =>
+                    isCR
+                      ? [p.code || p.ipmNumber || '', p.woId || p.id || '', p.summary || '', p.status || p.stage || '', p.effortInMDs || '0', p.assignedDeveloper || '', p.additionalDevelopers || '', p.startDate || '', p.endDate || '']
+                      : [p.code || '', p.id || '', p.summary || '', p.stage || '', p.itdl || '', p.backupItdl || '', p.po || '', p.pmo || '', p.lastComment || '']
+                  );
+
+                  autoTable(doc, {
+                    head: [headers],
+                    body: mappedRows,
+                    theme: 'grid',
+                    styles: { fontSize: 8 },
+                    headStyles: { fillColor: [29, 78, 216] }
+                  });
+                  doc.save(`${isCR ? 'CRs' : 'Projects'}_${stage.label.replace(/\s+/g, '_')}.pdf`);
+                }}
+              />
             )}
           </div>
         </div>
@@ -977,13 +1023,43 @@ export function ProjectMonitoringPage() {
                 <div className="pm-toolbar-divider" />
 
                 {canExport && (
-                  <button
-                    type="button"
-                    className="pm-export-btn"
-                    onClick={() => exportToCSV(filteredProjects, 'project_monitoring.csv')}
-                  >
-                    <svg className="common-export-icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fillRule="evenodd" d="M15 2h5.75c.69 0 1.25.56 1.25 1.25V9h-1.5V4.56l-9.22 9.22l-1.06-1.06l9.22-9.22H15zm2.25 17.5c.69 0 1.25-.56 1.25-1.25V12H20v6.25A2.755 2.755 0 0 1 17.25 21H5.75A2.755 2.755 0 0 1 3 18.25V6.75A2.755 2.755 0 0 1 5.75 4H12v1.5H5.75c-.69 0-1.25.56-1.25 1.25v11.5c0 .69.56 1.25 1.25 1.25z" clipRule="evenodd"></path></svg> Export
-                  </button>
+                  <ExportButton
+                    excel
+                    pdf
+                    onExcelExport={() => {
+                      const rows = filteredProjects;
+                      if (!rows || !rows.length) return;
+                      const headers = ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+
+                      const mappedRows = rows.map((p) =>
+                        [p.code || '', p.id || '', p.summary || '', p.stage || '', p.itdl || '', p.backupItdl || '', p.po || '', p.pmo || '', p.lastComment || '']
+                      );
+
+                      const worksheet = XLSX.utils.aoa_to_sheet([headers, ...mappedRows]);
+                      const workbook = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+                      XLSX.writeFile(workbook, `project_monitoring.xlsx`);
+                    }}
+                    onPdfExport={() => {
+                      const rows = filteredProjects;
+                      if (!rows || !rows.length) return;
+                      const doc = new jsPDF('landscape');
+                      const headers = ['Project Code', 'Project ID', 'Summary', 'Status', 'IT Delivery Lead', 'Backup ITDL', 'Product Owner', 'PMO Manager', 'Last Comment'];
+
+                      const mappedRows = rows.map((p) =>
+                        [p.code || '', p.id || '', p.summary || '', p.stage || '', p.itdl || '', p.backupItdl || '', p.po || '', p.pmo || '', p.lastComment || '']
+                      );
+
+                      autoTable(doc, {
+                        head: [headers],
+                        body: mappedRows,
+                        theme: 'grid',
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [29, 78, 216] }
+                      });
+                      doc.save(`project_monitoring.pdf`);
+                    }}
+                  />
                 )}
               </div>
             </div>
