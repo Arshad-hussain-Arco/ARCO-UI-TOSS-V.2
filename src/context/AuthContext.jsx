@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { storage } from '@utils/storage';
+import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
 import { useTheme } from '@hooks/useTheme';
@@ -95,16 +96,8 @@ export function AuthProvider({ children }) {
 
 
       if (includePhoto && persistedUser.emp_id) {
-        try {
-          const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
-          if (photoRes.data?.photo) {
-            persistedUser.avatar = photoRes.data.photo.startsWith('data:')
-              ? photoRes.data.photo
-              : `data:image/jpeg;base64,${photoRes.data.photo}`;
-          }
-        } catch (err) {
-          console.warn('Failed to fetch user photo', err);
-        }
+        const avatar = await resolveAvatarDataUri(persistedUser.emp_id);
+        if (avatar) persistedUser.avatar = avatar;
       }
 
       storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);

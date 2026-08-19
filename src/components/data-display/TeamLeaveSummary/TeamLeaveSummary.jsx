@@ -96,7 +96,7 @@ function getInitials(name) {
     .join('')
     .toUpperCase();
 }
-function TeamLeaveSummary({ teamPhotosData }) {
+function TeamLeaveSummary({ getPhoto }) {
   const { user } = useAuth();
   const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,20 +180,15 @@ function TeamLeaveSummary({ teamPhotosData }) {
   }, [user?.emp_id, summaryTimePeriod]);
 
   const mergedDepartmentData = useMemo(() => {
-    if (!teamPhotosData || !teamPhotosData.team) return departmentData;
-    const photoMap = {};
-    const allPhotos = [...(teamPhotosData.team || [])];
-    if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
-    
-    allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    if (!getPhoto) return departmentData;
     return departmentData.map(dept => ({
       ...dept,
       consultants: dept.consultants.map(emp => ({
         ...emp,
-        photo: photoMap[emp.id] || emp.photo
+        photo: getPhoto(emp.emp_id || emp.id) || emp.photo
       }))
     }));
-  }, [departmentData, teamPhotosData]);
+  }, [departmentData, getPhoto]);
 
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {

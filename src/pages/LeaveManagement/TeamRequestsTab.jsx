@@ -324,7 +324,7 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
   });
 }
 
-export function TeamRequestsTab({ teamPhotosData }) {
+export function TeamRequestsTab({ getPhoto }) {
   const toast = useToast();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -373,21 +373,16 @@ export function TeamRequestsTab({ teamPhotosData }) {
   }, [refetch]);
 
   const mergedRequests = useMemo(() => {
-    if (!teamPhotosData || !teamPhotosData.team) return requests;
-    const photoMap = {};
-    const allPhotos = [...(teamPhotosData.team || [])];
-    if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
-    
-    allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
-    
+    if (!getPhoto) return requests;
     return requests.map(r => {
-      const empId = Number(String(r.employeeId).replace('EMP', ''));
-      if (photoMap[empId] && photoMap[empId] !== r.photo) {
-        return { ...r, photo: photoMap[empId] };
+      const empId = String(r.employeeId).replace('EMP', '');
+      const photo = getPhoto(empId);
+      if (photo && photo !== r.photo) {
+        return { ...r, photo };
       }
       return r;
     });
-  }, [requests, teamPhotosData]);
+  }, [requests, getPhoto]);
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');

@@ -103,7 +103,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
     );
   }
 
-  if (isLoading && !consultants) {
+  if (isLoading && !inactiveData) {
     return (
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">

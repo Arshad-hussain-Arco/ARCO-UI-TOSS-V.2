@@ -1,6 +1,7 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { storage } from '@utils/storage';
+import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { jwtDecode } from 'jwt-decode';
 
@@ -85,18 +86,10 @@ export const authService = {
         };
 
         if (user.emp_id) {
-          try {
-            const photoRes = await httpClient.get(endpoints.consultants.photo(user.emp_id), {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (photoRes.data?.photo) {
-              user.avatar = photoRes.data.photo.startsWith('data:')
-                ? photoRes.data.photo
-                : `data:image/jpeg;base64,${photoRes.data.photo}`;
-            }
-          } catch (err) {
-            console.warn('Failed to fetch user photo', err);
-          }
+          const avatar = await resolveAvatarDataUri(user.emp_id, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (avatar) user.avatar = avatar;
         }
       } catch (err) {
         console.warn('Failed to fetch user-info, falling back to token data', err);

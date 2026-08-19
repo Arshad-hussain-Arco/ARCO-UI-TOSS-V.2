@@ -59,7 +59,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, orgPhotosData, canEdit, canDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, getPhoto, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
@@ -73,21 +73,13 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
           norm.userId = fullEmp.user_name || fullEmp.username || fullEmp.userId;
         }
       }
-      
-      if (orgPhotosData) {
-        const photoList = Array.isArray(orgPhotosData) ? orgPhotosData : (orgPhotosData.results || []);
-        const photoEmp = photoList.find(e => String(e.emp_id || e.id) === String(norm.id));
-        if (photoEmp) {
-          const rawPhoto = photoEmp.photo || photoEmp.photo_url_base64;
-          if (rawPhoto) {
-            norm.photo = rawPhoto;
-          }
-        }
-      }
-      
+
+      const photo = getPhoto?.(norm.id);
+      if (photo) norm.photo = photo;
+
       return norm;
     });
-  }, [hc, employeesData, orgPhotosData]);
+  }, [hc, employeesData, getPhoto]);
 
   const filteredActiveMembers = useMemo(() => {
     if (!memberSearch.trim()) return activeMembers;
@@ -220,7 +212,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView, onTeamChanged, employeesData, orgPhotosData }) {
+export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhoto }) {
   const { user, hasPermission } = useAuth();
   
   const canCreateTeam = hasPermission('TEAMS_CREATE');
@@ -534,7 +526,7 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, orgPhot
                 onEdit={openEditModal}
                 onDelete={setDeleteTarget}
                 employeesData={employeesData}
-                orgPhotosData={orgPhotosData}
+                getPhoto={getPhoto}
                 canEdit={canEdit}
                 canDelete={canDelete}
               />
