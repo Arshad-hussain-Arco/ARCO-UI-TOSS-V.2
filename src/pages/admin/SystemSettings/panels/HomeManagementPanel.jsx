@@ -14,8 +14,7 @@ import DOMPurify from 'dompurify';
 const MAX_ARTICLE_IMAGE_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
 const MAX_ARTICLE_VIDEO_SIZE_BYTES = 19 * 1024 * 1024; // 19 MB, matches VideoHandler's MAX_VIDEO_MB — same upload endpoint enforces this server-side
 const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm'];
-const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm'];
+const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 // const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
 function formatFileSize(bytes) {
@@ -226,25 +225,22 @@ function HomeManagementPanelComponent() {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isImageMime = ALLOWED_IMAGE_MIME.includes(file.type);
-    const isVideoMime = ALLOWED_VIDEO_MIME.includes(file.type);
     const isValidExt = ALLOWED_EXTENSIONS.includes(ext);
 
-    const isVideo = isVideoMime || ext === 'mp4' || ext === 'webm';
     const isImage = isImageMime || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
 
     // 1. Validate file format
-    if (!isValidExt || (!isImage && !isVideo)) {
-      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, WEBP, MP4, or WEBM.');
+    if (!isValidExt || !isImage) {
+      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, or WEBP.');
       // Do NOT clear existing valid media
       return;
     }
 
-    // 2. Validate file size (image vs video limits differ — see constants)
-    const maxBytes = isVideo ? MAX_ARTICLE_VIDEO_SIZE_BYTES : MAX_ARTICLE_IMAGE_SIZE_BYTES;
+    // 2. Validate file size
+    const maxBytes = MAX_ARTICLE_IMAGE_SIZE_BYTES;
     if (file.size > maxBytes) {
       const sizeMb = formatFileSize(file.size);
-      const mediaLabel = isVideo ? 'Video' : 'Image';
-      toast.error(`${mediaLabel} too large — ${sizeMb} selected. Maximum allowed size is ${maxBytes / (1024 * 1024)} MB.`);
+      toast.error(`Image too large — ${sizeMb} selected. Maximum allowed size is ${maxBytes / (1024 * 1024)} MB.`);
       // Do NOT clear existing valid media
       return;
     }
@@ -266,9 +262,9 @@ function HomeManagementPanelComponent() {
     setPersonVideoRemoved(false);
     setPersonVideoPreviewPlaying(false);
     setPersonVideoConfirmedSrc(null);
-    setPersonMediaType(isVideo ? 'video' : 'image');
+    setPersonMediaType('image');
     setIsUploading(false);
-    toast.success(`${isVideo ? 'Video' : 'Image'} selected: ${file.name}`);
+    toast.success(`Image selected: ${file.name}`);
   };
 
   const handleSaveCard = async () => {
@@ -358,7 +354,7 @@ function HomeManagementPanelComponent() {
         <label className="ss-modal-label" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Article Media</span>
           <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-tertiary)' }}>
-            Upload an image or video to display with this article.
+            Upload an image to display with this article.
           </span>
         </label>
 
@@ -402,7 +398,7 @@ function HomeManagementPanelComponent() {
           <input
             type="file"
             ref={personFileInputRef}
-            accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.webm"
+            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
             style={{ display: 'none' }}
             onChange={(e) => {
               const selected = e.target.files?.[0];
@@ -566,7 +562,7 @@ function HomeManagementPanelComponent() {
                 Drag & drop media here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                Supports PNG, JPG, JPEG, WEBP, MP4, WEBM
+                Supports PNG, JPG, JPEG, WEBP
               </span>
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Maximum file size: 40 MB

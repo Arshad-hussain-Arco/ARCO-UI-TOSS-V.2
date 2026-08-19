@@ -380,7 +380,7 @@ export function EnvironmentDashboardPage() {
             <div className="env-toolbar-actions">
               {canCreate && (
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
                   leadingIcon={FileUp}
                   onClick={() => {

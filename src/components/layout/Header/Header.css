@@ -54,8 +54,7 @@
   display: none;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: linear-gradient(to bottom right, var(--c-primary), var(--c-primary-dark));
+  border-radius: 8px; 
   align-items: center;
   justify-content: center;
 }
