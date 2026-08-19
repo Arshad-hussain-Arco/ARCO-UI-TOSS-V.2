@@ -3,15 +3,12 @@ import * as Popover from '@radix-ui/react-popover';
 import { DayPicker } from 'react-day-picker';
 import {
   format,
-  addDays,
-  subDays,
   addMonths,
   setMonth as dateFnsSetMonth,
   setYear as dateFnsSetYear,
   getYear,
   getMonth,
   parseISO,
-  isToday,
 } from 'date-fns';
 import {
   ChevronLeft,
@@ -22,11 +19,12 @@ import {
   FileQuestion,
   Clock,
   ListOrdered,
+  Loader2,
 } from 'lucide-react';
 import 'react-day-picker/dist/style.css';
 import '@components/forms/DatePicker/DatePicker.css';
 import { PlotlyChart } from './MurexRuntimeTrendsPage';
-import { overviewParsedData } from './overviewCsvParser';
+import { murexService } from '@services/murexService';
 
 const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr',
@@ -52,12 +50,57 @@ function useChartThemeColor() {
 }
 
 export function MurexOverviewTab() {
-  const availableDates = overviewParsedData.availableDates;
-  const latestIsoDate = availableDates[availableDates.length - 1] || '2026-08-11';
+  const [availableDates, setAvailableDates] = useState([]);
+  const [selectedIsoDate, setSelectedIsoDate] = useState(null);
+  const selectedDate = useMemo(
+    () => (selectedIsoDate ? parseISO(selectedIsoDate) : new Date()),
+    [selectedIsoDate]
+  );
 
-  // Default date: latest available date in CSV (2026-08-11 -> 11 Aug 2026)
-  const [selectedIsoDate, setSelectedIsoDate] = useState(latestIsoDate);
-  const selectedDate = useMemo(() => parseISO(selectedIsoDate), [selectedIsoDate]);
+  const [dayData, setDayData] = useState({ matrixJobs: [], timelineList: [] });
+  const [isLoadingDates, setIsLoadingDates] = useState(true);
+  const [isLoadingDay, setIsLoadingDay] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+
+  // Fetch the list of dates that have recorded runs, once, then default to the latest.
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingDates(true);
+    murexService.getOverviewAvailableDates().then((dates) => {
+      if (cancelled) return;
+      setAvailableDates(dates);
+      setSelectedIsoDate((prev) => prev || dates[dates.length - 1] || format(new Date(), 'yyyy-MM-dd'));
+      setIsLoadingDates(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch the run/step data for whichever date is currently selected.
+  useEffect(() => {
+    if (!selectedIsoDate) return;
+    let cancelled = false;
+    setIsLoadingDay(true);
+    setLoadError(null);
+    murexService.getOverviewTimeline(selectedIsoDate)
+      .then((data) => {
+        if (cancelled) return;
+        setDayData(data || { matrixJobs: [], timelineList: [] });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err);
+        setDayData({ matrixJobs: [], timelineList: [] });
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingDay(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIsoDate]);
 
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('calendar');
@@ -78,37 +121,34 @@ export function MurexOverviewTab() {
 
   const themeColor = useChartThemeColor();
 
-  // Navigation handlers cycling strictly through available CSV dates
+  // Only dates the API actually has runs for are selectable - both via the
+  // prev/next arrows and the calendar popover.
+  const availableDatesSet = useMemo(() => new Set(availableDates), [availableDates]);
+  const isDateAvailable = (date) => availableDatesSet.has(format(date, 'yyyy-MM-dd'));
+
+  const selectedDateIdx = availableDates.indexOf(selectedIsoDate);
+  const isAtFirstAvailableDate = selectedDateIdx <= 0;
+  const isAtLastAvailableDate = selectedDateIdx === -1 || selectedDateIdx >= availableDates.length - 1;
+
+  // Navigation handlers cycling strictly through available dates
   const handlePrevDay = () => {
-    const currentIdx = availableDates.indexOf(selectedIsoDate);
-    if (currentIdx > 0) {
-      const prevIso = availableDates[currentIdx - 1];
+    if (selectedDateIdx > 0) {
+      const prevIso = availableDates[selectedDateIdx - 1];
       setSelectedIsoDate(prevIso);
       setCurrentMonth(parseISO(prevIso));
-    } else {
-      const nextDate = subDays(selectedDate, 1);
-      const isoStr = format(nextDate, 'yyyy-MM-dd');
-      setSelectedIsoDate(isoStr);
-      setCurrentMonth(nextDate);
     }
   };
 
   const handleNextDay = () => {
-    const currentIdx = availableDates.indexOf(selectedIsoDate);
-    if (currentIdx !== -1 && currentIdx < availableDates.length - 1) {
-      const nextIso = availableDates[currentIdx + 1];
+    if (selectedDateIdx !== -1 && selectedDateIdx < availableDates.length - 1) {
+      const nextIso = availableDates[selectedDateIdx + 1];
       setSelectedIsoDate(nextIso);
       setCurrentMonth(parseISO(nextIso));
-    } else {
-      const nextDate = addDays(selectedDate, 1);
-      const isoStr = format(nextDate, 'yyyy-MM-dd');
-      setSelectedIsoDate(isoStr);
-      setCurrentMonth(nextDate);
     }
   };
 
   const handleSelectDate = (date) => {
-    if (date) {
+    if (date && isDateAvailable(date)) {
       const isoStr = format(date, 'yyyy-MM-dd');
       setSelectedIsoDate(isoStr);
       setCurrentMonth(date);
@@ -133,13 +173,8 @@ export function MurexOverviewTab() {
 
   const formattedDate = format(selectedDate, 'dd MMM yyyy');
 
-  // Extract CSV data for current selected ISO date
-  const currentDayData = useMemo(() => {
-    return overviewParsedData.dataByDate[selectedIsoDate] || { matrixJobs: [], timelineList: [] };
-  }, [selectedIsoDate]);
-
-  const matrixJobs = currentDayData.matrixJobs || [];
-  const timelineList = currentDayData.timelineList || [];
+  const matrixJobs = dayData.matrixJobs || [];
+  const timelineList = dayData.timelineList || [];
 
 
 
@@ -259,6 +294,17 @@ export function MurexOverviewTab() {
     return { data: traces, layout };
   };
 
+  if (isLoadingDates) {
+    return (
+      <div className="murex-overview-tab">
+        <div className="murex-overview-empty-state">
+          <Loader2 size={24} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+          <span>Loading available dates…</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="murex-overview-tab">
       {/* 1. Date Navigation Header */}
@@ -268,6 +314,7 @@ export function MurexOverviewTab() {
             type="button"
             className="murex-date-arrow-btn"
             onClick={handlePrevDay}
+            disabled={isAtFirstAvailableDate}
             title="Previous Day"
             aria-label="Previous Day"
           >
@@ -383,6 +430,7 @@ export function MurexOverviewTab() {
                     onMonthChange={setCurrentMonth}
                     selected={selectedDate}
                     onSelect={handleSelectDate}
+                    disabled={(date) => !isDateAvailable(date)}
                     showOutsideDays
                     className="dp-calendar"
                     classNames={{
@@ -413,7 +461,7 @@ export function MurexOverviewTab() {
             type="button"
             className="murex-date-arrow-btn"
             onClick={handleNextDay}
-            disabled={isToday(selectedDate)}
+            disabled={isAtLastAvailableDate}
             title="Next Day"
             aria-label="Next Day"
           >
@@ -421,6 +469,24 @@ export function MurexOverviewTab() {
           </button>
         </div>
       </div>
+
+      {isLoadingDay && (
+        <div className="murex-overview-section">
+          <div className="murex-overview-empty-state">
+            <Loader2 size={20} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+            <span>Loading runtime data for {formattedDate}…</span>
+          </div>
+        </div>
+      )}
+
+      {!isLoadingDay && loadError && (
+        <div className="murex-overview-section">
+          <div className="murex-overview-empty-state">
+            <FileQuestion size={24} className="murex-empty-icon" />
+            <span>Failed to load runtime data for {formattedDate}. Showing fallback data if available.</span>
+          </div>
+        </div>
+      )}
 
       {/* 2. Job - Duration Matrix (New Tabular Layout) */}
       <div className="murex-overview-section">

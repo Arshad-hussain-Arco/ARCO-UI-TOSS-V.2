@@ -32,13 +32,22 @@ import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { murexService } from '@services/murexService';
-import { parseISO, getISOWeek, getDay } from 'date-fns';
+import { parseISO, getISOWeek, getDay, format as formatDate, isValid } from 'date-fns';
 
 import './MurexRuntimeTrendsPage.css';
 import { dismissBackdrop } from '@utils/interactive';
 import { useDebounce } from '@hooks/useDebounce';
 import { ScriptRunMonitor } from './ScriptRunMonitor';
 import { MurexOverviewTab } from './MurexOverviewTab';
+
+// The categories API returns last_run as raw ISO-8601 ("2026-08-18T00:00:00Z");
+// this renders it as a readable date instead of showing that string verbatim.
+function formatLastRun(isoString) {
+  if (!isoString) return 'N/A';
+  const parsed = parseISO(isoString);
+  if (!isValid(parsed)) return 'N/A';
+  return formatDate(parsed, 'dd MMM yyyy');
+}
 
 function useChartThemeColor() {
   const [themeColor, setThemeColor] = useState('#000000');
@@ -669,43 +678,65 @@ function getCellExecutionDetails(script, weekLabel, dayLabel) {
 
 export function getRunGanttSpec(run, themeColor = '#000000') {
   const steps = run.steps.map((s) => s.name);
-  steps.push('Total CPU', 'Total DB');
+  steps.push('Total CPU', 'Total DB', 'Total Idle');
 
   const baseTimes = [];
+  const idleTimes = [];
   const dbTimes = [];
   const cpuTimes = [];
   const totalCpuTimes = [];
   const totalDbTimes = [];
+  const totalIdleTimes = [];
 
   let currentStart = 0;
   let totalDb = 0;
   let totalCpu = 0;
+  let totalIdle = 0;
 
   run.steps.forEach(step => {
+    const idleTime = step.idleTime || 0;
     baseTimes.push(currentStart);
+    idleTimes.push(idleTime);
     dbTimes.push(step.dbTime);
     cpuTimes.push(step.cpuTime);
     totalCpuTimes.push(0);
     totalDbTimes.push(0);
+    totalIdleTimes.push(0);
 
     totalDb += step.dbTime;
     totalCpu += step.cpuTime;
-    currentStart += (step.dbTime + step.cpuTime); // waterfall flows continuously
+    totalIdle += idleTime;
+    // waterfall flows continuously: idle (waiting) happens first, then the
+    // step's own active cpu+db work
+    currentStart += (idleTime + step.dbTime + step.cpuTime);
   });
 
   // For Total CPU bar
   baseTimes.push(0);
+  idleTimes.push(0);
   dbTimes.push(0);
   cpuTimes.push(0);
   totalCpuTimes.push(totalCpu);
   totalDbTimes.push(0);
+  totalIdleTimes.push(0);
 
   // For Total DB bar
   baseTimes.push(0);
+  idleTimes.push(0);
   dbTimes.push(0);
   cpuTimes.push(0);
   totalCpuTimes.push(0);
   totalDbTimes.push(totalDb);
+  totalIdleTimes.push(0);
+
+  // For Total Idle bar
+  baseTimes.push(0);
+  idleTimes.push(0);
+  dbTimes.push(0);
+  cpuTimes.push(0);
+  totalCpuTimes.push(0);
+  totalDbTimes.push(0);
+  totalIdleTimes.push(totalIdle);
 
   const formatNum = (num) => num > 0 ? num.toLocaleString() + 's' : '';
 
@@ -718,6 +749,15 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
         marker: { color: 'rgba(0,0,0,0)' },
         hoverinfo: 'none',
         showlegend: false,
+      },
+      {
+        x: steps,
+        y: idleTimes,
+        name: 'Idle / Wait',
+        type: 'bar',
+        marker: { color: '#cbd5e1' }, // light slate, matches Overview tab's idle color
+        textposition: 'none',
+        hovertemplate: '<b>%{x}</b><br>Idle / Wait: %{y}s<extra></extra>',
       },
       {
         x: steps,
@@ -754,6 +794,15 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
         marker: { color: '#5c8aea' },
         textposition: 'none',
         hovertemplate: '<b>%{x}</b><br>Total DB Time: %{y}s<extra></extra>',
+      },
+      {
+        x: steps,
+        y: totalIdleTimes,
+        name: 'Total Idle Time',
+        type: 'bar',
+        marker: { color: '#cbd5e1' },
+        textposition: 'none',
+        hovertemplate: '<b>%{x}</b><br>Total Idle Time: %{y}s<extra></extra>',
       },
     ],
     layout: {
@@ -860,16 +909,20 @@ export function MurexRuntimeTrendsPage() {
     remoteCategories.forEach(cat => {
       (cat.scripts || []).forEach(s => {
         if (!scriptsMap.has(s.script_name)) {
+          // last_run/status come straight from the Script model (populated
+          // by _sync_scripts() on runtime-file upload) - null/blank here
+          // means this script has never appeared in an uploaded runtime
+          // file, not that the API failed to return it.
           scriptsMap.set(s.script_name, {
             id: s.script_name,
             name: s.script_name,
             category: cat.name || 'Unassigned Scripts',
             isPinned: pinnedScriptIds.has(s.script_name),
-            status: 'N/A',
+            lastRun: formatLastRun(s.last_run),
+            status: s.status || 'N/A',
             health: 'Unknown',
             trendSlope: 0,
             totalExecutions: 0,
-            avgRuntime: 'N/A',
             minRuntimeFormatted: 'N/A',
             maxRuntimeFormatted: 'N/A',
             p95DurationFormatted: 'N/A',
@@ -1004,6 +1057,9 @@ export function MurexRuntimeTrendsPage() {
                   dbTime: stepsData.db_time[stepIndex],
                   cpuTime: stepsData.cpu_time[stepIndex],
                   elapsed: stepsData.elapsed_time[stepIndex],
+                  idleTime: stepsData.idle_time?.[stepIndex] ?? 0,
+                  startTs: stepsData.date_time_cmp?.[stepIndex] ?? null,
+                  endTs: stepsData.finished_time?.[stepIndex] ?? null,
                 }))
               };
             });
@@ -1627,7 +1683,6 @@ export function MurexRuntimeTrendsPage() {
                       <th className="murex-script-th">Script Name</th>
                       <th className="murex-script-th">Category</th>
                       <th className="murex-script-th">Last Run</th>
-                      <th className="murex-script-th">Avg Runtime</th>
                       <th className="murex-script-th">Status</th>
                       <th className="murex-script-th actions-col">Actions</th>
                     </tr>
@@ -1635,7 +1690,7 @@ export function MurexRuntimeTrendsPage() {
                   <tbody className="murex-script-tbody">
                     {filteredManagementScripts.length === 0 ? (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-tertiary)' }}>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-tertiary)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                             <Activity size={32} style={{ opacity: 0.3 }} />
                             <p style={{ fontSize: '14px', margin: 0 }}>No scripts found for the selected time range or category.</p>
@@ -1681,7 +1736,6 @@ export function MurexRuntimeTrendsPage() {
                                 </span>
                               </td>
                             <td className="murex-script-td">{script.lastRun}</td>
-                            <td className="murex-script-td">{script.avgRuntime}</td>
                             <td className="murex-script-td">
                               <span className={`murex-status-badge ${script.status.toLowerCase()}`}>
                                 {script.status}
@@ -1713,7 +1767,7 @@ export function MurexRuntimeTrendsPage() {
                           {/* Expanded Child Row — Master-Detail Heatmap Accordion */}
                           {isExpanded && (
                             <tr className="murex-script-detail-row">
-                              <td colSpan={6}>
+                              <td colSpan={5}>
                                 <div className="murex-detail-accordion-content">
                                   <div className="murex-detail-accordion-header">
                                     <h4 className="murex-detail-title">
