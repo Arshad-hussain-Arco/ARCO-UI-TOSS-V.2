@@ -41,6 +41,7 @@ import { LeaveConfigurationTab } from './LeaveConfigurationTab';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
+import { useEmployeePhotos } from '@hooks/useEmployeePhotos';
 import leaveService from '@services/leaveService';
 import consultantService from '@services/consultantService';
 import httpClient from '@api/httpClient';
@@ -403,38 +404,33 @@ export function LeaveManagementPage() {
   const isManager = Boolean(user?.mySubordinates?.length > 0);
   const canApplyOnBehalf = isManager;
 
-  const [teamPhotosData, setTeamPhotosData] = useState([]);
+  // Resolve the manager's own emp_id (falls back to /auth/user-info/ when
+  // it's not already on `user`) before the photo hook can be scoped.
+  const [resolvedManagerId, setResolvedManagerId] = useState(user?.emp_id ?? null);
 
   useEffect(() => {
+    if (!isManager || user?.emp_id) {
+      setResolvedManagerId(user?.emp_id ?? null);
+      return;
+    }
     let isMounted = true;
-    const fetchPhotos = async () => {
-      if (!isManager) return;
+    (async () => {
       try {
-        let targetEmpId = user?.emp_id;
-
-        if (!targetEmpId) {
-          try {
-            const res = await httpClient.get(endpoints.auth.userInfo);
-            const info = res.data?.userInformation || res.data;
-            targetEmpId = info?.empId || info?.emp_id || info?.employee_id;
-          } catch (err) {
-            console.error("Failed to fetch user-info for team photos", err);
-          }
-        }
-
-        if (!targetEmpId) return;
-
-        const photos = await consultantService.getTeamPhotos(targetEmpId);
-        if (!isMounted) return;
-        
-        setTeamPhotosData(photos || { manager: null, team: [] });
+        const res = await httpClient.get(endpoints.auth.userInfo);
+        const info = res.data?.userInformation || res.data;
+        const empId = info?.empId || info?.emp_id || info?.employee_id;
+        if (isMounted) setResolvedManagerId(empId ?? null);
       } catch (err) {
-        console.error('Failed to fetch team photos', err);
+        console.error("Failed to fetch user-info for team photos", err);
       }
-    };
-    fetchPhotos();
+    })();
     return () => { isMounted = false; };
   }, [isManager, user?.emp_id]);
+
+  const { getPhoto: getTeamPhoto } = useEmployeePhotos({
+    managerId: resolvedManagerId,
+    enabled: isManager && !!resolvedManagerId,
+  });
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -1006,13 +1002,13 @@ export function LeaveManagementPage() {
           </>
         )}
 
-        {activeTab === 'team-requests' && <TeamRequestsTab teamPhotosData={teamPhotosData} />}
+        {activeTab === 'team-requests' && <TeamRequestsTab getPhoto={getTeamPhoto} />}
 
         {false}
 
-        {activeTab === 'team-summary' && <TeamLeaveSummary teamPhotosData={teamPhotosData} />}
+        {activeTab === 'team-summary' && <TeamLeaveSummary getPhoto={getTeamPhoto} />}
 
-        {activeTab === 'leave-config' && <LeaveConfigurationTab teamPhotosData={teamPhotosData} />}
+        {activeTab === 'leave-config' && <LeaveConfigurationTab getPhoto={getTeamPhoto} />}
 
         {activeTab === 'my-leaves-summary' && (
           <MyLeavesSummaryTab

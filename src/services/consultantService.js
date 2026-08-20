@@ -9,9 +9,15 @@ export const consultantService = {
     const response = await httpClient.get(endpoints.consultants.list);
     return response.data;
   },
-  getOrgPhotos: async () => {
-    const response = await httpClient.get(endpoints.consultants.orgPhotos);
-    return response.data;
+  // Unified photo directory. Always resolves to a flat array of
+  // {emp_id, name, photo}.
+  getEmployeePhotos: async ({ managerId, includeInactive } = {}) => {
+    const params = {};
+    if (managerId) params.manager_id = managerId;
+    if (includeInactive) params.include_inactive = 'true';
+    const response = await httpClient.get(endpoints.consultants.photos(params));
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.results || []);
   },
   getConsultantInfo: async (id) => {
     const response = await httpClient.get(endpoints.consultants.info(id));
@@ -163,10 +169,6 @@ export const consultantService = {
   },
   getMyTeam: async (managerId) => {
     const response = await httpClient.get(endpoints.consultants.myTeam(managerId));
-    return response.data;
-  },
-  getTeamPhotos: async (managerId) => {
-    const response = await httpClient.get(endpoints.consultants.teamPhotos(managerId));
     return response.data;
   },
   activateConsultant: async (payload) => {
