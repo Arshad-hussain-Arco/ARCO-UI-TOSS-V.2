@@ -470,14 +470,7 @@ export function MurexOverviewTab() {
         </div>
       </div>
 
-      {isLoadingDay && (
-        <div className="murex-overview-section">
-          <div className="murex-overview-empty-state">
-            <Loader2 size={20} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
-            <span>Loading runtime data for {formattedDate}…</span>
-          </div>
-        </div>
-      )}
+
 
       {!isLoadingDay && loadError && (
         <div className="murex-overview-section">
@@ -491,6 +484,13 @@ export function MurexOverviewTab() {
       {/* 2. Job - Duration Matrix (New Tabular Layout) */}
       <div className="murex-overview-section">
         <div className="murex-overview-chart-card murex-matrix-card-new">
+          {isLoadingDay ? (
+            <div className="murex-overview-empty-state" style={{ minHeight: '300px' }}>
+              <Loader2 size={24} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Loading runtime data for {formattedDate}…</span>
+            </div>
+          ) : (
+            <>
           {(() => {
             // Calculate time lapse using the first job's start and last job's end
             let timeLapseStr = '';
@@ -734,11 +734,13 @@ export function MurexOverviewTab() {
               <span>No EOD job executions recorded for {formattedDate}.</span>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
 
       {/* 3. List of Data-Driven Collapsible EOD Job Timeline Accordions */}
-      {timelineList.length > 0 ? (
+      {!isLoadingDay && timelineList.length > 0 ? (
         timelineList.map((timelineItem) => {
           const isExpanded = !!expandedAccordions[timelineItem.id];
           const chartSpec = buildTimelineChartSpec(timelineItem);

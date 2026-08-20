@@ -58,6 +58,7 @@ export function DashboardPage() {
   const [onLeaveRecords, setOnLeaveRecords] = useState([]);
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
   const [murexData, setMurexData] = useState(null);
+  const [orgPhotos, setOrgPhotos] = useState([]);
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
@@ -83,6 +84,7 @@ export function DashboardPage() {
         dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
         leaveService.listHolidays(),
         murexService.getRuntimeTrends(),
+        consultantService.getOrgPhotos(),
       ];
 
       if (empId) {
@@ -147,8 +149,12 @@ export function DashboardPage() {
       if (results[11]?.status === 'fulfilled') {
         setMurexData(results[11].value);
       }
-      if (empId && results[12]?.status === 'fulfilled') {
+      if (results[12]?.status === 'fulfilled') {
         const data = results[12].value;
+        setOrgPhotos(Array.isArray(data) ? data : data?.results || []);
+      }
+      if (empId && results[13]?.status === 'fulfilled') {
+        const data = results[13].value;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -202,7 +208,7 @@ export function DashboardPage() {
 
     // 3. Runtime Trend
     let runtimeTrend = [];
-    if (murexData && murexData.trend) {
+    if (murexData && murexData.trend && murexData.trend.length > 0) {
       runtimeTrend = murexData.trend.map(t => {
         const d = new Date(t.date);
         const dayStr = isNaN(d.getTime()) ? t.date : d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -216,16 +222,20 @@ export function DashboardPage() {
       if (runtimeTrend.length > 7) {
         runtimeTrend = runtimeTrend.slice(-7);
       }
-    } else {
-      runtimeTrend = [
-        { day: 'Mon', runtime: 85, failed: 0 },
-        { day: 'Tue', runtime: 90, failed: 2 },
-        { day: 'Wed', runtime: 120, failed: 0 },
-        { day: 'Thu', runtime: 95, failed: 0 },
-        { day: 'Fri', runtime: 110, failed: 1 },
-        { day: 'Sat', runtime: 75, failed: 0 },
-        { day: 'Sun', runtime: 80, failed: 0 }
-      ];
+    }
+
+    // If no data is available, populate with 7 days of zero data
+    if (runtimeTrend.length === 0) {
+      const todayDate = new Date();
+      runtimeTrend = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(todayDate);
+        d.setDate(d.getDate() - (6 - i));
+        return {
+          day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          runtime: 0,
+          failed: 0
+        };
+      });
     }
     const allScripts = murexData?.scripts || [];
 
@@ -240,12 +250,8 @@ export function DashboardPage() {
 
     let mostFailedScript = 'N/A';
     if (allScripts.length > 0) {
-      const sortedByFailures = [...allScripts].sort((a, b) => {
-        const aFails = a.history ? a.history.filter(h => h.status === 'error').length : 0;
-        const bFails = b.history ? b.history.filter(h => h.status === 'error').length : 0;
-        return bFails - aFails;
-      });
-      const topFails = sortedByFailures[0].history ? sortedByFailures[0].history.filter(h => h.status === 'error').length : 0;
+      const sortedByFailures = [...allScripts].sort((a, b) => (b.failedRuns || 0) - (a.failedRuns || 0));
+      const topFails = sortedByFailures[0].failedRuns || 0;
       if (topFails > 0) {
         mostFailedScript = `${sortedByFailures[0].name} (${topFails})`;
       }
@@ -281,11 +287,17 @@ export function DashboardPage() {
       const endFmt = r.end_date ? format(new Date(r.end_date), 'MMM dd') : '';
       const dateStr = isSameDate ? startFmt : `${startFmt} - ${endFmt}`;
 
+      const orgPhotoMatch = orgPhotos.find(p => String(p.id || p.emp_id) === String(r.emp_id));
       const employeeMatch = employees.find(e => String(e.id || e.emp_id) === String(r.emp_id));
 
-      let photoUrl = r.photo_url_base64 || r.photo || employeeMatch?.photo_url_base64 || employeeMatch?.photo || null;
-      if (photoUrl && !photoUrl.startsWith('data:image')) {
-        photoUrl = `data:image/jpeg;base64,${photoUrl}`;
+      let photoUrl = orgPhotoMatch?.photo_url_base64 || orgPhotoMatch?.photo || r.photo_url_base64 || r.photo || employeeMatch?.photo_url_base64 || employeeMatch?.photo || null;
+      if (photoUrl) {
+        if (photoUrl.startsWith('ZGF0Y')) {
+          try { photoUrl = atob(photoUrl); } catch (e) {}
+        }
+        if (!photoUrl.startsWith('data:image') && !photoUrl.startsWith('http')) {
+          photoUrl = `data:image/jpeg;base64,${photoUrl}`;
+        }
       }
 
       return {
@@ -343,7 +355,7 @@ export function DashboardPage() {
       alerts,
       quickStats,
     };
-  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees]);
+  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees, orgPhotos]);
 
   // 6. Team Headcount
   const mappedTeams = useMemo(() => {

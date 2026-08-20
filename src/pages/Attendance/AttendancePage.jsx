@@ -39,6 +39,7 @@ import * as XLSX from 'xlsx';
 import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
 import { leaveService } from '@services/leaveService';
+import { consultantService } from '@services/consultantService';
 import { activatable } from '@utils/interactive';
 
 import './AttendancePage.css';
@@ -110,7 +111,10 @@ function getMonthDates(year, month) {
 }
 
 function formatDateKey(date) {
-  return date.toISOString().split('T')[0];
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function calcStats(dates) {
@@ -234,6 +238,25 @@ export function AttendancePage() {
   const { user, hasPermission } = useAuth();
   const canExport = hasPermission('ATTENDANCE_EXPORT');
 
+  const isManager = Boolean(user?.mySubordinates?.length > 0);
+  const [teamPhotosData, setTeamPhotosData] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPhotos = async () => {
+      if (!isManager) return;
+      try {
+        const photos = await consultantService.getTeamPhotos(user?.emp_id);
+        if (!isMounted) return;
+        setTeamPhotosData(photos || { manager: null, team: [] });
+      } catch (err) {
+        console.error('Failed to fetch team photos', err);
+      }
+    };
+    fetchPhotos();
+    return () => { isMounted = false; };
+  }, [isManager, user?.emp_id]);
+
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
   const subTab = searchParams.get('tab') || 'on-duty';
@@ -280,28 +303,25 @@ export function AttendancePage() {
 
   useEffect(() => {
     const managerId = user?.emp_id || user?.id || 1;
-    if (subTab === 'on-duty') {
-      setIsDutyLoading(true);
-      leaveService.getTeamPresentToday(managerId)
-        .then(data => setDutyData(data))
-        .catch(err => console.error(err))
-        .finally(() => setIsDutyLoading(false));
-    }
-    if (subTab === 'on-wfh') {
-      setIsWfhLoading(true);
-      leaveService.getTeamOnWfhToday(managerId)
-        .then(data => setWfhData(data))
-        .catch(err => console.error(err))
-        .finally(() => setIsWfhLoading(false));
-    }
-    if (subTab === 'on-leave') {
-      setIsLeaveLoading(true);
-      leaveService.getTeamOnLeaveToday(managerId)
-        .then(data => setLeaveData(data))
-        .catch(err => console.error(err))
-        .finally(() => setIsLeaveLoading(false));
-    }
-  }, [subTab, user?.emp_id, user?.id]);
+
+    setIsDutyLoading(true);
+    leaveService.getTeamPresentToday(managerId)
+      .then(data => setDutyData(data))
+      .catch(err => console.error(err))
+      .finally(() => setIsDutyLoading(false));
+
+    setIsWfhLoading(true);
+    leaveService.getTeamOnWfhToday(managerId)
+      .then(data => setWfhData(data))
+      .catch(err => console.error(err))
+      .finally(() => setIsWfhLoading(false));
+
+    setIsLeaveLoading(true);
+    leaveService.getTeamOnLeaveToday(managerId)
+      .then(data => setLeaveData(data))
+      .catch(err => console.error(err))
+      .finally(() => setIsLeaveLoading(false));
+  }, [user?.emp_id, user?.id]);
 
   // ── Date filters ──
   const today = useMemo(() => new Date(), []);
@@ -355,21 +375,32 @@ export function AttendancePage() {
   // ── Attendance records (generated from real consultants + selected dates) ──
   const allConsultants = useMemo(() => {
     if (!data?.teamMembers) return [];
+
+    const photoMap = {};
+    if (teamPhotosData) {
+      const allPhotos = [...(teamPhotosData.team || [])];
+      if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
+      allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
+    }
+
     return data.teamMembers
       .filter(m => m.is_active !== false && m.status !== 'inactive' && m.accountStatus !== 'inactive')
-      .map(m => ({
-        id: m.emp_id,
-        name: m.emp_name,
-        team: m.team_name || 'Other',
-        manager: '',
-        location: '',
-        phone: '',
-        email: '',
-        status: 'present',
-        avatar: m.photo_url_base64 || m.photo || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'),
-        designation: m.designation,
-      }));
-  }, [data?.teamMembers]);
+      .map(m => {
+        const pPhoto = photoMap[m.emp_id] || m.photo_url_base64 || m.photo;
+        return {
+          id: m.emp_id,
+          name: m.emp_name,
+          team: m.team_name || 'Other',
+          manager: '',
+          location: '',
+          phone: '',
+          email: '',
+          status: 'present',
+          avatar: pPhoto || (m.emp_name ? m.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?'),
+          designation: m.designation,
+        };
+      });
+  }, [data?.teamMembers, teamPhotosData]);
 
   const attendanceRecords = useMemo(() => {
     if (!allConsultants.length) return [];
@@ -1192,7 +1223,7 @@ export function AttendancePage() {
                 </div>
               </div>
             </div>
-            {filteredOnLeaveList.length === 0 && (
+            {filteredOnLeaveTimeline.length === 0 && (
               <div className="attendance-empty">
                 <Calendar size={48} className="attendance-empty-icon" />
                 <p className="attendance-empty-text">No consultants on leave</p>

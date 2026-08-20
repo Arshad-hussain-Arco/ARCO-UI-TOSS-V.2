@@ -181,7 +181,7 @@ function ImportConfigPanelComponent() {
                 onClick={() => fileInputRefs.woFilePath.current?.click()}
               >
                 <Upload size={14} />
-                Upload
+                {formData.workOrderStatusFilePath ? 'Replace' : 'Upload'}
               </button>
             </div>
           </div>
@@ -220,7 +220,7 @@ function ImportConfigPanelComponent() {
                 onClick={() => fileInputRefs.crFilePath.current?.click()}
               >
                 <Upload size={14} />
-                Upload
+                {formData.changeRequestFilePath ? 'Replace' : 'Upload'}
               </button>
             </div>
           </div>
@@ -259,7 +259,7 @@ function ImportConfigPanelComponent() {
                 onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
               >
                 <Upload size={14} />
-                Upload
+                {formData.runTimeFilePath ? 'Replace' : 'Upload'}
               </button>
             </div>
           </div>

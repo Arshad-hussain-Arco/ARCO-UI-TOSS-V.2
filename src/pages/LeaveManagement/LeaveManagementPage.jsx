@@ -212,6 +212,7 @@ export function LeaveManagementPage() {
   const currentDate = new Date();
   const [calendarYear, setCalendarYear] = useState(currentDate.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(currentDate.getMonth());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { user } = useAuth();
   const [leaveBalances, setLeaveBalances] = useState(null);
@@ -440,11 +441,27 @@ export function LeaveManagementPage() {
     }
   };
 
+  const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
 
   const filteredSortedLeaves = useMemo(() => {
     return leavesWithModRequests.filter(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      return filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+      const matchesStatus = filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
+      
+      let matchesSearch = true;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
+        matchesSearch = [
+          displayType,
+          leave.status_code,
+          leave.leave_reason,
+          leave.start_date,
+          leave.end_date
+        ].some(val => val && String(val).toLowerCase().includes(q));
+      }
+
+      return matchesStatus && matchesSearch;
     }).sort((a, b) => {
       if (!sortField) return 0;
       let aVal = a[sortField];
@@ -465,13 +482,15 @@ export function LeaveManagementPage() {
   }, [leavesWithModRequests, filterStatus, sortField, sortOrder]);
 
   const handleExportCSV = () => {
-    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Status'];
+    const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Leave Reason', 'Status', 'Comments'];
     const rows = filteredSortedLeaves.map(l => [
       l.leave_type || '',
       l.start_date || '',
       l.end_date || '',
       l.business_days || 0,
-      l.status_code || ''
+      l.leave_reason || '',
+      l.status_code || '',
+      l.manager_comment || l.hr_comment || ''
     ]);
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -482,8 +501,8 @@ export function LeaveManagementPage() {
   const handleExportPDF = () => {
     const doc = new jsPDF('landscape');
     autoTable(doc, {
-      head: [['Leave Type', 'Dates', 'Work Days', 'Status']],
-      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.status_code || '']),
+      head: [['Leave Type', 'Dates', 'Work Days', 'Leave Reason', 'Status', 'Comments']],
+      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.manager_comment || l.hr_comment || '']),
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [29, 78, 216] }
@@ -606,7 +625,13 @@ export function LeaveManagementPage() {
             <div className="my-leaves-toolbar">
               <div className="my-leaves-search-wrapper">
                 <Search className="my-leaves-search-icon" />
-                <input type="text" placeholder="Search leaves..." className="my-leaves-search" />
+                <input 
+                  type="text" 
+                  placeholder="Search leaves..." 
+                  className="my-leaves-search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
               <div className="my-leaves-actions">
                 {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category, icon: Icon, color }) => {
@@ -865,7 +890,6 @@ export function LeaveManagementPage() {
                           const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const dateDisplay = leave.start_date === leave.end_date ? startDate : `${startDate} - ${endDate}`;
 
-                          const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
                           const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           const durationText = getDurationDisplay(leave);

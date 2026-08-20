@@ -1,7 +1,6 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { storage } from '@utils/storage';
-import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { jwtDecode } from 'jwt-decode';
 
@@ -51,59 +50,21 @@ export const authService = {
 
       const username = decoded.username || credentials.username;
 
-      // Attempt to fetch full user info from backend
-      try {
-        const userInfoRes = await httpClient.get(endpoints.auth.userInfo, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const fullInfo = userInfoRes.data;
-        const info = fullInfo.userInformation || fullInfo; // Fallback in case backend changes
-
-        user = {
-          id: info.id || decoded.user_id || decoded.sub || 'unknown',
-          emp_id: info.empId || info.emp_id || info.employee_id || decoded.emp_id || decoded.employee_id || 1,
-          username: info.userName || info.username || username,
-          name: info.empName || info.name || info.full_name || decoded.name || decoded.full_name || username,
-          email: info.email || decoded.email || '',
-          role: info.roleName || info.role || decoded.role || 'User',
-          initials: (info.userName || info.username || username).substring(0, 2).toUpperCase(),
-          permissions: info.permissions || decoded.permissions || [],
-          mySubordinates: info.mySubordinates || [],
-          designation: info.designation,
-          designationName: info.designationName,
-          teamName: info.teamName,
-          reportingManager: info.reportingManager,
-          gender: info.gender,
-          work_location: info.work_location,
-          landline: info.landline,
-          pcAvailable: info.physicalPcAvailable,
-          mobile: info.mobile,
-          computerName: info.computerName,
-          computerLocation: info.computerLocation,
-          locationRef: info.computerLocationRef,
-          doj: info.dateOfJoining,
-          theme: info.theme,
-        };
-
-        if (user.emp_id) {
-          const avatar = await resolveAvatarDataUri(user.emp_id, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (avatar) user.avatar = avatar;
-        }
-      } catch (err) {
-        console.warn('Failed to fetch user-info, falling back to token data', err);
-        user = {
-          id: decoded.user_id || decoded.sub || 'unknown',
-          emp_id: decoded.emp_id || decoded.employee_id || 1,
-          username: username,
-          name: decoded.name || decoded.full_name || username,
-          email: decoded.email || '',
-          role: decoded.role || 'User',
-          initials: username.substring(0, 2).toUpperCase(),
-          permissions: decoded.permissions || [],
-        };
-      }
+      // We no longer block the login flow to fetch /user-info or photos.
+      // We extract the absolute minimum required to render the dashboard from the JWT,
+      // and let AuthContext.jsx's initial mount trigger an async refreshUser() to
+      // load the full profile, roles, and avatar in the background without blocking the user.
+      user = {
+        id: decoded.user_id || decoded.sub || 'unknown',
+        emp_id: decoded.emp_id || decoded.employee_id || 1,
+        username: username,
+        name: decoded.name || decoded.full_name || username,
+        email: decoded.email || '',
+        role: decoded.role || 'User',
+        isAdmin: decoded.isAdmin,
+        initials: (username || '').substring(0, 2).toUpperCase(),
+        permissions: decoded.permissions || [],
+      };
     }
 
     return { token, refreshToken, user };
