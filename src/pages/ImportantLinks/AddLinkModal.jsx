@@ -43,7 +43,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
         <span
           style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
-          {value ? selectedLabel : 'Select group (Optional)'}
+          {value ? selectedLabel : 'Select group'}
         </span>
         <ChevronDown size={13} strokeWidth={2} className="il-modal-group-trigger-chevron" style={{ pointerEvents: 'none' }} />
       </button>
@@ -165,6 +165,13 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       } catch {
         errs.url = 'Please enter a valid URL.';
       }
+    }
+
+    if (state.groupMode === 'existing' && !state.selectedGroup?.trim()) {
+      errs.group = 'Please select a group.';
+    }
+    if (state.groupMode === 'new' && !state.newGroupName.trim()) {
+      errs.group = 'Group name is required.';
     }
 
     return errs;
@@ -290,15 +297,14 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
           {/* Group */}
           <div className="il-form-group">
-            <span className="il-label">
+            <span className="il-label il-label-required">
               Group
-              <span className="il-label-optional">(optional)</span>
             </span>
 
             <GroupDropdown
               groups={existingGroups}
               value={state.groupMode === 'new' ? '__new__' : state.selectedGroup}
-              hasError={false}
+              hasError={!!errors.group}
               canCreateGroup={canCreateGroup}
               onSelect={(g) => {
                 set('selectedGroup', g);
@@ -311,14 +317,14 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                 setErrors((prev) => ({ ...prev, group: undefined }));
               }}
             />
+            {errors.group && <span className="il-error-msg">{errors.group}</span>}
           </div>
 
           {/* New Group Name */}
           {state.groupMode === 'new' && (
             <div className="il-new-group-row">
-              <span className="il-label">
+              <span className="il-label il-label-required">
                 New Group Name
-                <span className="il-label-optional">(optional)</span>
               </span>
               <input
                 type="text"
