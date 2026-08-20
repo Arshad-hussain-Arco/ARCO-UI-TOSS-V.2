@@ -496,13 +496,23 @@ export function MurexOverviewTab() {
             let timeLapseStr = '';
 
             if (matrixJobs.length > 0) {
-              const firstJob = matrixJobs[0];
-              const lastJob = matrixJobs[matrixJobs.length - 1];
-              
-              const firstTime = firstJob.rawStartTime?.split(' ').pop() || '';
-              const lastTime = lastJob.rawEndTime?.split(' ').pop() || '';
-              
-              if (firstTime && lastTime) {
+              const times = matrixJobs.map(job => {
+                const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
+                const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
+                return { startMs, endMs };
+              }).filter(t => t.startMs > 0);
+
+              if (times.length > 0) {
+                const globalMinMs = Math.min(...times.map(t => t.startMs));
+                const globalMaxMs = Math.max(...times.map(t => t.endMs));
+                
+                const minTimeObj = new Date(globalMinMs);
+                const maxTimeObj = new Date(globalMaxMs);
+                
+                const pad = (n) => n.toString().padStart(2, '0');
+                const firstTime = `${pad(minTimeObj.getHours())}:${pad(minTimeObj.getMinutes())}:${pad(minTimeObj.getSeconds())}`;
+                const lastTime = `${pad(maxTimeObj.getHours())}:${pad(maxTimeObj.getMinutes())}:${pad(maxTimeObj.getSeconds())}`;
+                
                 timeLapseStr = `${firstTime} — ${lastTime}`;
               }
             }
