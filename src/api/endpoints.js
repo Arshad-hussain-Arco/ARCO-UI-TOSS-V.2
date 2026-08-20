@@ -39,6 +39,7 @@ const endpoints = {
     importFileConfig: '/env-admin/import-file-config/',
     allConfigurations: '/env-admin/all-configs/',
     uploadFile: '/env-admin/upload-file/',
+    uploadTimestamp: '/env-admin/upload-timestamp/',
     crColumns: '/capacity-planning/cr-columns/',
     updateCrColumn: (id) => `/capacity-planning/cr-columns/${id}/update/`,
     woColumns: '/capacity-planning/wo-columns/',
