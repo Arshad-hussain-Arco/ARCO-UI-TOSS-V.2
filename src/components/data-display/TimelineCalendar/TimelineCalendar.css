@@ -94,7 +94,7 @@
   justify-content: center;
   width: 24px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-secondary);
   border: 1px solid var(--border-secondary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -180,6 +180,14 @@
 .tl-day-item.is-holiday {
   background-color: #fef3c7;
   border-color: #fcd34d;
+}
+
+.tl-day-item.is-holiday .tl-day-name {
+  color: #78350f;
+}
+
+.tl-day-item.is-holiday .tl-day-num {
+  color: #451a03;
 }
 
 .tl-day-item.is-today {
