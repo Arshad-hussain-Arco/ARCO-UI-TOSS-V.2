@@ -1310,7 +1310,6 @@ export function MurexRuntimeTrendsPage() {
   return (
     <div className="murex-runtime-page">
 
-
       {/* Tabs */}
       <div className="murex-tabs">
         <div

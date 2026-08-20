@@ -275,7 +275,7 @@
 .cp-hardware-panel,
 .cp-general-info-panel,
 .cp-leave-summary-panel {
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-light, #c8cacc);
   border-radius: 12px;
   background: var(--surface-primary, #ffffff);
   overflow: hidden;
@@ -382,7 +382,7 @@
 
 .cp-asset-divider {
   height: 1px;
-  background: var(--border-light, #f1f5f9);
+  background: var(--border-light, #c8cacc);
   margin: 2px 0;
 }
 
@@ -422,7 +422,7 @@
 
 .cp-info-row-divider {
   height: 1px;
-  background: var(--border-light, #f1f5f9);
+  background: var(--border-light, #c8cacc);
   margin: 1px 0;
 }
 
@@ -573,7 +573,7 @@
   align-items: center;
   font-size: 10.5px;
   color: var(--text-secondary, #475569);
-  border-top: 1px solid var(--border-light, #f1f5f9);
+  border-top: 1px solid var(--border-light, #c8cacc);
   padding-top: 4px;
   margin-top: 2px;
 }

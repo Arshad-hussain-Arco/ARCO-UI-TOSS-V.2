@@ -821,30 +821,32 @@
 /* ── Drill-down Modal overlay ── */
 .cp-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(15, 23, 42, 0.6);
+  inset: 0;
+  background: var(--bg-overlay);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  padding: 16px;
+  animation: am-fade-in 0.15s ease;
 }
 
 .cp-modal-card {
   border: 1px solid var(--border-secondary);
   background: var(--surface-primary);
-  width: 90%;
-  max-width: 1000px;
-  background-color: var(--surface-primary);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 1000px; /* Kept max-width to allow larger drilldown table */
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  max-height: 85vh;
-  animation: modalEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  animation: am-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
 }
 
 @keyframes modalEnter {
@@ -863,8 +865,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-secondary);
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
 }
 
 .cp-modal-title {
@@ -1028,10 +1032,14 @@
 }
 
 .cp-modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-secondary);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .cp-modal-close-btn {

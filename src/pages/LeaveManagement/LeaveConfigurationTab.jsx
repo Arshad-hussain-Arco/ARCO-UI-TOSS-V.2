@@ -53,7 +53,7 @@ function parsePhotoUrl(photoUrl) {
 
 const TYPE_ORDER = ['AL', 'SL', 'CompOff', 'CCompOff', 'WFH', 'WW', 'CWW', 'OW', 'PL', 'ML', 'SLP'];
 
-export function LeaveConfigurationTab({ teamPhotosData }) {
+export function LeaveConfigurationTab({ getPhoto }) {
   const { user } = useAuth();
   const toast = useToast();
   const [employees, setEmployees] = useState([]);
@@ -147,14 +147,13 @@ export function LeaveConfigurationTab({ teamPhotosData }) {
   // Sorted Employees
   const sortedEmployees = useMemo(() => {
     let list = filteredEmployees;
-    if (teamPhotosData && teamPhotosData.team) {
-      const photoMap = {};
-      const allPhotos = [...teamPhotosData.team];
-      if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
-      allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
-      list = list.map(emp => photoMap[emp.id] && photoMap[emp.id] !== emp.photo ? { ...emp, photo: photoMap[emp.id] } : emp);
+    if (getPhoto) {
+      list = list.map(emp => {
+        const photo = getPhoto(emp.emp_id || emp.id);
+        return photo && photo !== emp.photo ? { ...emp, photo } : emp;
+      });
     }
-    
+
     return [...list].sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
@@ -178,7 +177,7 @@ export function LeaveConfigurationTab({ teamPhotosData }) {
       }
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
     });
-  }, [filteredEmployees, sortField, sortOrder, teamPhotosData]);
+  }, [filteredEmployees, sortField, sortOrder, getPhoto]);
 
   const treeData = useMemo(() => {
     if (sortedEmployees.length === 0) return [];

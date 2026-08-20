@@ -102,7 +102,10 @@ function computeDayOfWeek(dateStrVal) {
 }
 
 function dateStr(d) {
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function eachDay(s, e) {
@@ -278,7 +281,10 @@ function combinedFormToPayload(form, isClaimTarget) {
       : [],
     min_notice_days: Number(form.min_notice_days) || 0,
     max_consecutive: numOrNull(form.max_consecutive),
-    accrual_type: form.accrual_type,
+    // Accrual Type only applies to an Actual leave type that isn't itself
+    // credited by a Claim type — its balance already comes from approved
+    // claims, so force the default rather than trust stale form state.
+    accrual_type: isClaimTarget ? 'NONE' : form.accrual_type,
     proration_type: form.proration_type,
     // Carry-forward: Limited-entitlement Actual types, or an Actual type
     // that's a Claim credit target (regardless of mode) — mirrors
@@ -2444,18 +2450,20 @@ export function LeaveConfigurationPage() {
 
               {combinedForm.category === 'ACTUAL' && (
                 <>
-                  <div className="ss-modal-form-group">
-                    <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
-                    <select
-                      id="lt-accrual"
-                      className="ss-input"
-                      value={combinedForm.accrual_type}
-                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
-                    >
-                      <option value="NONE">Grant all at start of year</option>
-                      <option value="MONTHLY">Accrue monthly</option>
-                    </select>
-                  </div>
+                  {!claimTargetCodes.has(combinedForm.code) && (
+                    <div className="ss-modal-form-group">
+                      <label className="ss-modal-label" htmlFor="lt-accrual">Accrual Type</label>
+                      <select
+                        id="lt-accrual"
+                        className="ss-input"
+                        value={combinedForm.accrual_type}
+                        onChange={(e) => setCombinedForm((prev) => ({ ...prev, accrual_type: e.target.value }))}
+                      >
+                        <option value="NONE">Grant all at start of year</option>
+                        <option value="MONTHLY">Accrue monthly</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="ss-modal-form-group">
                     <label className="ss-modal-label" htmlFor="lt-proration">Proration Type</label>
@@ -2467,7 +2475,7 @@ export function LeaveConfigurationPage() {
                     >
                       <option value="NONE">No proration</option>
                       <option value="MONTHLY">By full months worked</option>
-                      <option value="DAILY">By calendar days worked</option>
+                      <option value="MONTHLY_DAYBAND">By join-day band (partial month credit)</option>
                     </select>
                   </div>
                 </>

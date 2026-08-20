@@ -228,16 +228,13 @@ export function ReconciliationPage() {
 
   const goToStep2 = useCallback(() => setStep(2), []);
   const goToStep3 = useCallback(() => setStep(3), []);
-  const runReconciliation = useCallback(async (page = 1) => {
-    setIsReconciling(true);
-    setReconcileError(null);
-    try {
-      const sourceFile = files[0];
-      const destinationFile = files[1];
+  const buildReconcileParams = useCallback((extra = {}) => {
+    const sourceFile = files[0];
+    const destinationFile = files[1];
+    const activeMappings = colMappings.filter((m) => !m.exclude && m.dst && m.dst !== '__skip__');
 
-      const activeMappings = colMappings.filter((m) => !m.exclude && m.dst && m.dst !== '__skip__');
-
-      const resultData = await reconciliationService.reconcileFiles({
+    return {
+      params: {
         sourceFileId: sourceFile?.fileId ?? null,
         destinationFileId: destinationFile?.fileId ?? null,
         sourceFile: sourceFile?.fileObject ?? null,
@@ -262,11 +259,14 @@ export function ReconciliationPage() {
         }, {}),
         columnPathMap1: files[0]?.columnPathMap ?? null,
         columnPathMap2: files[1]?.columnPathMap ?? null,
-        page,
-        pageSize: 50,
-      });
+        ...extra,
+      },
+      activeMappings,
+    };
+  }, [colMappings, files, keyColumns]);
 
-      const transformedResults = {
+  const transformResultData = useCallback((resultData, activeMappings) => {
+    return {
         stats: {
           matched: resultData.matched?.total ?? 0,
           mismatched: resultData.mismatched?.total ?? 0,
@@ -302,6 +302,15 @@ export function ReconciliationPage() {
         activeMappings,
         rawResults: resultData,
       };
+  }, [keyColumns]);
+
+  const runReconciliation = useCallback(async (page = 1) => {
+    setIsReconciling(true);
+    setReconcileError(null);
+    try {
+      const { params, activeMappings } = buildReconcileParams({ page, pageSize: 50 });
+      const resultData = await reconciliationService.reconcileFiles(params);
+      const transformedResults = transformResultData(resultData, activeMappings);
 
       setResults(transformedResults);
       setIsReconciling(false);
@@ -317,7 +326,13 @@ export function ReconciliationPage() {
       setReconcileError(message);
       toast.error(message);
     }
-  }, [colMappings, files, keyColumns, toast]);
+  }, [buildReconcileParams, transformResultData, toast]);
+
+  const fetchFullResultsForExport = useCallback(async () => {
+    const { params, activeMappings } = buildReconcileParams({ exportAll: true });
+    const resultData = await reconciliationService.reconcileFiles(params);
+    return transformResultData(resultData, activeMappings);
+  }, [buildReconcileParams, transformResultData]);
 
   const reset = useCallback(() => {
     setStep(1);
@@ -372,6 +387,7 @@ export function ReconciliationPage() {
             file2Name={files[1]?.name || ''}
             onReset={reset}
             onPageChange={(page) => runReconciliation(page)}
+            fetchFullResults={fetchFullResultsForExport}
           />
         ) : null;
       default:
@@ -389,6 +405,7 @@ export function ReconciliationPage() {
     goToStep2,
     goToStep3,
     runReconciliation,
+    fetchFullResultsForExport,
     reset,
     isReconciling,
     reconcileError,

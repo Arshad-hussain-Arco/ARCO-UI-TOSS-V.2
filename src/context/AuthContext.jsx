@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { storage } from '@utils/storage';
+import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
 import { useTheme } from '@hooks/useTheme';
@@ -95,16 +96,8 @@ export function AuthProvider({ children }) {
 
 
       if (includePhoto && persistedUser.emp_id) {
-        try {
-          const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
-          if (photoRes.data?.photo) {
-            persistedUser.avatar = photoRes.data.photo.startsWith('data:')
-              ? photoRes.data.photo
-              : `data:image/jpeg;base64,${photoRes.data.photo}`;
-          }
-        } catch (err) {
-          console.warn('Failed to fetch user photo', err);
-        }
+        const avatar = await resolveAvatarDataUri(persistedUser.emp_id);
+        if (avatar) persistedUser.avatar = avatar;
       }
 
       storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
@@ -209,19 +202,29 @@ export function AuthProvider({ children }) {
       if (refreshToken) {
         storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       }
+      // Persist the bare JWT-decoded user so refreshUser has a base to merge
+      // onto, but deliberately do NOT setUser() with it here: isAuthenticated
+      // (Boolean(user)) would flip true immediately, and PublicRoute reacts
+      // to that by navigating away right then — mid-flight, with placeholder
+      // role/isAdmin/permissions — racing ahead of the refreshUser() call
+      // below and landing on a 403 or the wrong sidebar. setUser only happens
+      // once, inside refreshUser, once real role/permission data is in hand.
       storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
-      setUser(authenticatedUser);
-      
+
       if (authenticatedUser?.theme) {
         setTheme(authenticatedUser.theme);
       }
+
+      // /auth/user-info/ is intentionally lightweight (no photo/config
+      // payload) so awaiting it here doesn't meaningfully delay login.
+      await refreshUser({ includePhoto: true });
     } catch (caught) {
       setError(caught.message);
       throw caught;
     } finally {
       setIsSubmitting(false);
     }
-  }, [setTheme]);
+  }, [setTheme, refreshUser]);
 
   const logout = useCallback(async () => {
     try {

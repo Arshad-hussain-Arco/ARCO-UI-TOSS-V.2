@@ -39,6 +39,7 @@ const endpoints = {
     importFileConfig: '/env-admin/import-file-config/',
     allConfigurations: '/env-admin/all-configs/',
     uploadFile: '/env-admin/upload-file/',
+    uploadTimestamp: '/env-admin/upload-timestamp/',
     crColumns: '/capacity-planning/cr-columns/',
     updateCrColumn: (id) => `/capacity-planning/cr-columns/${id}/update/`,
     woColumns: '/capacity-planning/wo-columns/',
@@ -195,7 +196,10 @@ const endpoints = {
     update: '/employees/update/',
     delete: '/employees/delete/',
     list: '/employees/full/',
-    orgPhotos: '/employees/org-photos/',
+    photos: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return `/employees/photos/${query ? `?${query}` : ''}`;
+    },
     inactive: '/employees/inactive/',
     activate: '/employees/activate/',
     roles: '/employees/roles/',
@@ -212,7 +216,6 @@ const endpoints = {
     computerLocations: '/employees/computer-locations/',
     computerLocationDetail: (id) => `/employees/computer-locations/${id}/`,
     myTeam: (managerId) => `/employees/my-team/${managerId}/`,
-    teamPhotos: (managerId) => `/employees/team-photos/${managerId}/`,
   },
   documents: {
     list: '/documents/get-documents/',

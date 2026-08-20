@@ -112,7 +112,11 @@ export function getPhotoUrl(photo) {
   return `data:image/jpeg;base64,${photo}`;
 }
 function todayStr() {
-  return /* @__PURE__ */ new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 export function fmtDate(s) {
   if (!s) return '\u2014';
@@ -143,7 +147,10 @@ export function eachDay(s, e) {
   const cur = /* @__PURE__ */ new Date(s + 'T00:00:00'),
     end = /* @__PURE__ */ new Date(e + 'T00:00:00');
   while (cur <= end) {
-    days.push(cur.toISOString().slice(0, 10));
+    const yyyy = cur.getFullYear();
+    const mm = String(cur.getMonth() + 1).padStart(2, '0');
+    const dd = String(cur.getDate()).padStart(2, '0');
+    days.push(`${yyyy}-${mm}-${dd}`);
     cur.setDate(cur.getDate() + 1);
   }
   return days;
@@ -324,7 +331,7 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
   });
 }
 
-export function TeamRequestsTab({ teamPhotosData }) {
+export function TeamRequestsTab({ getPhoto }) {
   const toast = useToast();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -373,21 +380,16 @@ export function TeamRequestsTab({ teamPhotosData }) {
   }, [refetch]);
 
   const mergedRequests = useMemo(() => {
-    if (!teamPhotosData || !teamPhotosData.team) return requests;
-    const photoMap = {};
-    const allPhotos = [...(teamPhotosData.team || [])];
-    if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
-    
-    allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
-    
+    if (!getPhoto) return requests;
     return requests.map(r => {
-      const empId = Number(String(r.employeeId).replace('EMP', ''));
-      if (photoMap[empId] && photoMap[empId] !== r.photo) {
-        return { ...r, photo: photoMap[empId] };
+      const empId = String(r.employeeId).replace('EMP', '');
+      const photo = getPhoto(empId);
+      if (photo && photo !== r.photo) {
+        return { ...r, photo };
       }
       return r;
     });
-  }, [requests, teamPhotosData]);
+  }, [requests, getPhoto]);
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -692,13 +694,13 @@ export function TeamRequestsTab({ teamPhotosData }) {
   const handleExportCSV = () => {
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const rows = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -711,13 +713,13 @@ export function TeamRequestsTab({ teamPhotosData }) {
     const doc = new jsPDF('landscape');
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const body = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     autoTable(doc, {

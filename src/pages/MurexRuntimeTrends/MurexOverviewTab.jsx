@@ -470,14 +470,7 @@ export function MurexOverviewTab() {
         </div>
       </div>
 
-      {isLoadingDay && (
-        <div className="murex-overview-section">
-          <div className="murex-overview-empty-state">
-            <Loader2 size={20} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
-            <span>Loading runtime data for {formattedDate}…</span>
-          </div>
-        </div>
-      )}
+
 
       {!isLoadingDay && loadError && (
         <div className="murex-overview-section">
@@ -491,18 +484,35 @@ export function MurexOverviewTab() {
       {/* 2. Job - Duration Matrix (New Tabular Layout) */}
       <div className="murex-overview-section">
         <div className="murex-overview-chart-card murex-matrix-card-new">
+          {isLoadingDay ? (
+            <div className="murex-overview-empty-state" style={{ minHeight: '300px' }}>
+              <Loader2 size={24} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Loading runtime data for {formattedDate}…</span>
+            </div>
+          ) : (
+            <>
           {(() => {
             // Calculate time lapse using the first job's start and last job's end
             let timeLapseStr = '';
 
             if (matrixJobs.length > 0) {
-              const firstJob = matrixJobs[0];
-              const lastJob = matrixJobs[matrixJobs.length - 1];
-              
-              const firstTime = firstJob.rawStartTime?.split(' ').pop() || '';
-              const lastTime = lastJob.rawEndTime?.split(' ').pop() || '';
-              
-              if (firstTime && lastTime) {
+              const times = matrixJobs.map(job => {
+                const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
+                const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
+                return { startMs, endMs };
+              }).filter(t => t.startMs > 0);
+
+              if (times.length > 0) {
+                const globalMinMs = Math.min(...times.map(t => t.startMs));
+                const globalMaxMs = Math.max(...times.map(t => t.endMs));
+                
+                const minTimeObj = new Date(globalMinMs);
+                const maxTimeObj = new Date(globalMaxMs);
+                
+                const pad = (n) => n.toString().padStart(2, '0');
+                const firstTime = `${pad(minTimeObj.getHours())}:${pad(minTimeObj.getMinutes())}:${pad(minTimeObj.getSeconds())}`;
+                const lastTime = `${pad(maxTimeObj.getHours())}:${pad(maxTimeObj.getMinutes())}:${pad(maxTimeObj.getSeconds())}`;
+                
                 timeLapseStr = `${firstTime} — ${lastTime}`;
               }
             }
@@ -734,11 +744,13 @@ export function MurexOverviewTab() {
               <span>No EOD job executions recorded for {formattedDate}.</span>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
 
       {/* 3. List of Data-Driven Collapsible EOD Job Timeline Accordions */}
-      {timelineList.length > 0 ? (
+      {!isLoadingDay && timelineList.length > 0 ? (
         timelineList.map((timelineItem) => {
           const isExpanded = !!expandedAccordions[timelineItem.id];
           const chartSpec = buildTimelineChartSpec(timelineItem);
