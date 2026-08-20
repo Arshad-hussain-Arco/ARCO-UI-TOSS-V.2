@@ -1099,7 +1099,7 @@
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: var(--surface-primary);
+  background:  #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }

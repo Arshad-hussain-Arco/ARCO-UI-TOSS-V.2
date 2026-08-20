@@ -687,13 +687,13 @@ export function TeamRequestsTab({ getPhoto }) {
   const handleExportCSV = () => {
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const rows = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -706,13 +706,13 @@ export function TeamRequestsTab({ getPhoto }) {
     const doc = new jsPDF('landscape');
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const body = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     autoTable(doc, {
