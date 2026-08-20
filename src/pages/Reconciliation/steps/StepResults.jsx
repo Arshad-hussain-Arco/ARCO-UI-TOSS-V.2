@@ -580,7 +580,7 @@ const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
 // Export folds into RECONCILIATION_VIEW — no separate permission tier,
 // so this is always on unless a future caller explicitly overrides it.
-export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, canExport = true }) {
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, fetchFullResults, canExport = true }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');
@@ -635,7 +635,11 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         const XLSX = await import('xlsx');
         const wb = XLSX.utils.book_new();
 
-        const raw = results.rawResults;
+        let raw = results.rawResults;
+        if (fetchFullResults) {
+          const fullResults = await fetchFullResults();
+          raw = fullResults?.rawResults;
+        }
         if (!raw) {
           toast.error('No raw results available for export.');
           return;
