@@ -636,7 +636,7 @@ export function ImportantLinksPage() {
       >
         <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the group <strong>{deleteGroupTarget?.title}</strong>?
-          Its links will not be deleted — they'll move to "Other Links".
+          Its links will be deleted along with its corresponding files.
         </div>
       </AdminModal>
     </div>
