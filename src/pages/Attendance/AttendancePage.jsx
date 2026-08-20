@@ -939,14 +939,16 @@ export function AttendancePage() {
         {/* On Duty — List */}
         {subTab === 'on-duty' && (
           <div className="attendance-list">
-            {Object.entries(groupedOnDuty).map(([team, consultants]) => (
+            {Object.entries(groupedOnDuty).map(([team, consultants]) => {
+              const isExpanded = expandedTeams.has(team) || Boolean(debouncedSearch.trim());
+              return (
               <div key={team} className="attendance-team-group">
                 <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
-                  {expandedTeams.has(team) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   <span className="attendance-team-name">{team.charAt(0).toUpperCase() + team.slice(1)}</span>
                   <span className="attendance-team-badge">{consultants.length}</span>
                 </button>
-                {expandedTeams.has(team) && (
+                {isExpanded && (
                   <div className="attendance-team-content">
                     {consultants.map(c => (
                       <div key={c.id} className="attendance-consultant-row">
@@ -970,7 +972,8 @@ export function AttendancePage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
             {displayOnDuty.length === 0 && (
               <div className="attendance-empty">
                 <User size={48} className="attendance-empty-icon" />
