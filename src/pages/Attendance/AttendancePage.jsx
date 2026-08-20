@@ -31,6 +31,7 @@ import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { useEmployeePhotos } from '@hooks/useEmployeePhotos';
 import { ExportButton } from '@components/ui/ExportButton';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -39,7 +40,6 @@ import * as XLSX from 'xlsx';
 import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
 import { leaveService } from '@services/leaveService';
-import { consultantService } from '@services/consultantService';
 import { activatable } from '@utils/interactive';
 
 import './AttendancePage.css';
@@ -239,23 +239,10 @@ export function AttendancePage() {
   const canExport = hasPermission('ATTENDANCE_EXPORT');
 
   const isManager = Boolean(user?.mySubordinates?.length > 0);
-  const [teamPhotosData, setTeamPhotosData] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchPhotos = async () => {
-      if (!isManager) return;
-      try {
-        const photos = await consultantService.getTeamPhotos(user?.emp_id);
-        if (!isMounted) return;
-        setTeamPhotosData(photos || { manager: null, team: [] });
-      } catch (err) {
-        console.error('Failed to fetch team photos', err);
-      }
-    };
-    fetchPhotos();
-    return () => { isMounted = false; };
-  }, [isManager, user?.emp_id]);
+  const { getPhoto: getTeamPhoto } = useEmployeePhotos({
+    managerId: user?.emp_id,
+    enabled: isManager && !!user?.emp_id,
+  });
 
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
@@ -376,17 +363,10 @@ export function AttendancePage() {
   const allConsultants = useMemo(() => {
     if (!data?.teamMembers) return [];
 
-    const photoMap = {};
-    if (teamPhotosData) {
-      const allPhotos = [...(teamPhotosData.team || [])];
-      if (teamPhotosData.manager) allPhotos.push(teamPhotosData.manager);
-      allPhotos.forEach(p => { photoMap[p.emp_id || p.id] = p.photo_url_base64 || p.photo; });
-    }
-
     return data.teamMembers
       .filter(m => m.is_active !== false && m.status !== 'inactive' && m.accountStatus !== 'inactive')
       .map(m => {
-        const pPhoto = photoMap[m.emp_id] || m.photo_url_base64 || m.photo;
+        const pPhoto = getTeamPhoto(m.emp_id) || m.photo_url_base64 || m.photo;
         return {
           id: m.emp_id,
           name: m.emp_name,
@@ -400,7 +380,7 @@ export function AttendancePage() {
           designation: m.designation,
         };
       });
-  }, [data?.teamMembers, teamPhotosData]);
+  }, [data?.teamMembers, getTeamPhoto]);
 
   const attendanceRecords = useMemo(() => {
     if (!allConsultants.length) return [];

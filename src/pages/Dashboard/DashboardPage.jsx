@@ -84,7 +84,7 @@ export function DashboardPage() {
         dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
         leaveService.listHolidays(),
         murexService.getRuntimeTrends(),
-        consultantService.getOrgPhotos(),
+        consultantService.getEmployeePhotos({ includeInactive: true }),
       ];
 
       if (empId) {
