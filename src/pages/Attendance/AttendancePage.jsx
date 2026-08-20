@@ -260,18 +260,22 @@ export function AttendancePage() {
   // ── UI state ──
   const [searchParams, setSearchParams] = useSearchParams();
   const subTab = searchParams.get('tab') || 'on-duty';
+
+  const [viewMode, setViewMode] = useState('list');
+  const [onLeaveTimelineFilter, setOnLeaveTimelineFilter] = useState('next30');
+  const [onWfhTimelineFilter, setOnWfhTimelineFilter] = useState('next30');
+  const [selectedTeam, setSelectedTeam] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
   const setSubTab = (tab) => {
     setSearchParams(prev => {
       prev.set('tab', tab);
       return prev;
     });
     setViewMode('list');
+    setSearchQuery('');
   };
-  const [viewMode, setViewMode] = useState('list');
-  const [onLeaveTimelineFilter, setOnLeaveTimelineFilter] = useState('next30');
-  const [onWfhTimelineFilter, setOnWfhTimelineFilter] = useState('next30');
-  const [selectedTeam, setSelectedTeam] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [expandedTeams, setExpandedTeams] = useState(
     new Set(['management', 'frontend', 'backend', 'uiux', 'data']),
