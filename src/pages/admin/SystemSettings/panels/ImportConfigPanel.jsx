@@ -27,13 +27,22 @@ function ImportConfigPanelComponent() {
     changeRequestPassword: '',
   });
 
+  const [uploadedAt, setUploadedAt] = useState({
+    workOrderStatusFilePath_uploadedAt: '',
+    changeRequestFilePath_uploadedAt: '',
+    runTimeFilePath_uploadedAt: '',
+    ImpLinksPath_uploadedAt: '',
+  });
+
+  const [uploadingFields, setUploadingFields] = useState({});
+
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await settingsService.getImportFileConfig();
       if (res) {
         setConfigId(res.id || 1);
@@ -49,12 +58,18 @@ function ImportConfigPanelComponent() {
           changeRequestUsername: res.changeRequestUsername || '',
           changeRequestPassword: res.changeRequestPassword || '',
         });
+        setUploadedAt({
+          workOrderStatusFilePath_uploadedAt: res.workOrderStatusFilePath_uploadedAt || '',
+          changeRequestFilePath_uploadedAt: res.changeRequestFilePath_uploadedAt || '',
+          runTimeFilePath_uploadedAt: res.runTimeFilePath_uploadedAt || '',
+          ImpLinksPath_uploadedAt: res.ImpLinksPath_uploadedAt || '',
+        });
       }
     } catch (error) {
       console.error('Failed to fetch import config:', error);
       toast.error('Failed to load import configuration');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -71,21 +86,47 @@ function ImportConfigPanelComponent() {
   const handleFileUpload = async (field, fileKey, event) => {
     const file = event.target.files?.[0];
     if (file) {
+      setUploadingFields((prev) => ({ ...prev, [field]: true }));
       try {
         const payload = new FormData();
         payload.append('file', file);
         payload.append('fileKey', fileKey);
-        
-        await settingsService.uploadFile(payload);
-        
+
+        const res = await settingsService.uploadFile(payload);
+
         toast.success(`File uploaded successfully: ${file.name}`);
-        // Refresh the path after successful upload
-        await fetchData();
+        // The upload response already carries the authoritative path and
+        // completion timestamp — apply it directly instead of refetching.
+        // A refetch here would overwrite the whole formData/uploadedAt
+        // state wholesale, clobbering another field's just-applied result
+        // if a second upload is running concurrently, and would stamp
+        // uploadedAt a second time with the same value for no reason.
+        if (res?.filePath) {
+          handleChange(field, res.filePath);
+        }
+        if (res?.uploadedAt) {
+          setUploadedAt((prev) => ({ ...prev, [`${field}_uploadedAt`]: res.uploadedAt }));
+        }
       } catch (error) {
         console.error('File upload failed:', error);
         toast.error(`Failed to upload ${file.name}`);
+      } finally {
+        setUploadingFields((prev) => {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        });
+        // Allow re-selecting the same file again later.
+        event.target.value = '';
       }
     }
+  };
+
+  const formatUploadedAt = (isoString) => {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString();
   };
 
   const handleSave = async (e) => {
@@ -179,11 +220,23 @@ function ImportConfigPanelComponent() {
                   border: '1px solid var(--border-primary)',
                 }}
                 onClick={() => fileInputRefs.woFilePath.current?.click()}
+                disabled={uploadingFields.workOrderStatusFilePath}
               >
-                <Upload size={14} />
-                {formData.workOrderStatusFilePath ? 'Replace' : 'Upload'}
+                {uploadingFields.workOrderStatusFilePath ? (
+                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    {formData.workOrderStatusFilePath ? 'Replace' : 'Upload'}
+                  </>
+                )}
               </button>
             </div>
+            {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt) && (
+              <span className="ss-help-text">
+                Last uploaded: {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt)}
+              </span>
+            )}
           </div>
 
           {/* 2. CR FilePath + inline Upload button */}
@@ -218,11 +271,23 @@ function ImportConfigPanelComponent() {
                   border: '1px solid var(--border-primary)',
                 }}
                 onClick={() => fileInputRefs.crFilePath.current?.click()}
+                disabled={uploadingFields.changeRequestFilePath}
               >
-                <Upload size={14} />
-                {formData.changeRequestFilePath ? 'Replace' : 'Upload'}
+                {uploadingFields.changeRequestFilePath ? (
+                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    {formData.changeRequestFilePath ? 'Replace' : 'Upload'}
+                  </>
+                )}
               </button>
             </div>
+            {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt) && (
+              <span className="ss-help-text">
+                Last uploaded: {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt)}
+              </span>
+            )}
           </div>
 
           {/* 3. Runtime-Trends FilePath + inline Upload button */}
@@ -257,11 +322,23 @@ function ImportConfigPanelComponent() {
                   border: '1px solid var(--border-primary)',
                 }}
                 onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
+                disabled={uploadingFields.runTimeFilePath}
               >
-                <Upload size={14} />
-                {formData.runTimeFilePath ? 'Replace' : 'Upload'}
+                {uploadingFields.runTimeFilePath ? (
+                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    {formData.runTimeFilePath ? 'Replace' : 'Upload'}
+                  </>
+                )}
               </button>
             </div>
+            {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt) && (
+              <span className="ss-help-text">
+                Last uploaded: {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt)}
+              </span>
+            )}
           </div>
 
           {/* 4. Important Links FilePath */}
