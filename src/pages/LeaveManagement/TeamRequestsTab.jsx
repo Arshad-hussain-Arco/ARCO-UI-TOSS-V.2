@@ -112,7 +112,11 @@ export function getPhotoUrl(photo) {
   return `data:image/jpeg;base64,${photo}`;
 }
 function todayStr() {
-  return /* @__PURE__ */ new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 export function fmtDate(s) {
   if (!s) return '\u2014';
@@ -143,7 +147,10 @@ export function eachDay(s, e) {
   const cur = /* @__PURE__ */ new Date(s + 'T00:00:00'),
     end = /* @__PURE__ */ new Date(e + 'T00:00:00');
   while (cur <= end) {
-    days.push(cur.toISOString().slice(0, 10));
+    const yyyy = cur.getFullYear();
+    const mm = String(cur.getMonth() + 1).padStart(2, '0');
+    const dd = String(cur.getDate()).padStart(2, '0');
+    days.push(`${yyyy}-${mm}-${dd}`);
     cur.setDate(cur.getDate() + 1);
   }
   return days;
