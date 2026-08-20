@@ -957,7 +957,7 @@
 }
 
 .tr-btn-danger {
-  background: var(--c-danger-light);
+  background:  #A32D2D;
   color:  #ffffff;
   border-color: #fca5a5;
 }
@@ -983,8 +983,8 @@
 .tr-confirm-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(2px);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
