@@ -1040,6 +1040,10 @@
   min-width: 200px;
 }
 
+.rrs-tr {
+  height: 36px;
+}
+
 .rrs-tr:hover {
   background: var(--bg-hover);
 }
@@ -1060,6 +1064,11 @@
   color: var(--text-primary);
   vertical-align: middle;
   white-space: nowrap;
+  height: 36px;
+  box-sizing: border-box;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rrs-td-key {
