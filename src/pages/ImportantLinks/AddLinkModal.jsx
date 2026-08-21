@@ -21,7 +21,7 @@ const TAG_CLASS_MAP = {
 /**
  * In-modal custom group dropdown — matches the app's Select component appearance.
  */
-function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCreateGroup }) {
+function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCreateGroup = true }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   useOnClickOutside(wrapRef, () => setOpen(false), open);
@@ -72,21 +72,25 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
             ))}
           </div>
 
-          <div className="il-modal-group-divider" style={{ margin: '0' }} />
+          {canCreateGroup && (
+            <>
+              <div className="il-modal-group-divider" style={{ margin: '0' }} />
 
-          <div style={{ padding: '4px' }}>
-            <button
-              type="button"
-              className="il-modal-group-action"
-              onClick={() => {
-                onCreateNew();
-                setOpen(false);
-              }}
-            >
-              <Plus size={13} className="il-group-dropdown-action-icon" />
-              Create New Group
-            </button>
-          </div>
+              <div style={{ padding: '4px' }}>
+                <button
+                  type="button"
+                  className="il-modal-group-action"
+                  onClick={() => {
+                    onCreateNew();
+                    setOpen(false);
+                  }}
+                >
+                  <Plus size={13} className="il-group-dropdown-action-icon" />
+                  Create New Group
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
