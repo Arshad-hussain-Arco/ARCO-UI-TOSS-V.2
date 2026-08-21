@@ -723,9 +723,15 @@ export function RoleManagementPage() {
                                 const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                                 const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
 
+                                // Modules with no dedicated View code (e.g. Important Links —
+                                // Groups) have no real "master gate" — each permission stays
+                                // independently toggleable, and the master switch is just a
+                                // bulk allow-all/deny-all shortcut: it reads "on" as long as any
+                                // code is allowed, and only reads "off" once every code is denied.
                                 const isViewAllowed = viewCodeObj
                                   ? role.permissions.includes(viewCodeObj.code)
-                                  : codes.every(c => role.permissions.includes(c.code));
+                                  : codes.some(c => role.permissions.includes(c.code));
+                                const gatesSiblings = !!viewCodeObj;
 
                                 const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -752,7 +758,7 @@ export function RoleManagementPage() {
                                             <div
                                               className="rm-perm-box"
                                               key={code}
-                                              style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                              style={gatesSiblings && !isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                             >
                                               <span className="rm-perm-label" title={label}>
                                                 {label}
@@ -1008,7 +1014,8 @@ export function RoleManagementPage() {
 
                       const isViewAllowed = viewCodeObj
                         ? newRoleCodes.includes(viewCodeObj.code)
-                        : codes.every(c => newRoleCodes.includes(c.code));
+                        : codes.some(c => newRoleCodes.includes(c.code));
+                      const gatesSiblings = !!viewCodeObj;
 
                       const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -1035,7 +1042,7 @@ export function RoleManagementPage() {
                                   <div
                                     className="rm-perm-box"
                                     key={code}
-                                    style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                    style={gatesSiblings && !isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                   >
                                     <span className="rm-perm-label" title={label}>
                                       {label}
