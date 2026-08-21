@@ -271,12 +271,15 @@ export function AttendancePage() {
 
   const [wfhData, setWfhData] = useState(null);
   const [isWfhLoading, setIsWfhLoading] = useState(false);
+  const [wfhError, setWfhError] = useState(null);
 
   const [leaveData, setLeaveData] = useState(null);
   const [isLeaveLoading, setIsLeaveLoading] = useState(false);
+  const [leaveError, setLeaveError] = useState(null);
 
   const [dutyData, setDutyData] = useState(null);
   const [isDutyLoading, setIsDutyLoading] = useState(false);
+  const [dutyError, setDutyError] = useState(null);
 
   // ── Dynamic Tab Indicator ──
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -293,24 +296,28 @@ export function AttendancePage() {
   }, [subTab]);
 
   useEffect(() => {
-    const managerId = user?.emp_id || user?.id || 1;
+    const managerId = user?.emp_id || user?.id;
+    if (!managerId) return;
 
     setIsDutyLoading(true);
+    setDutyError(null);
     leaveService.getTeamPresentToday(managerId)
       .then(data => setDutyData(data))
-      .catch(err => console.error(err))
+      .catch(err => { console.error(err); setDutyError(err); })
       .finally(() => setIsDutyLoading(false));
 
     setIsWfhLoading(true);
+    setWfhError(null);
     leaveService.getTeamOnWfhToday(managerId)
       .then(data => setWfhData(data))
-      .catch(err => console.error(err))
+      .catch(err => { console.error(err); setWfhError(err); })
       .finally(() => setIsWfhLoading(false));
 
     setIsLeaveLoading(true);
+    setLeaveError(null);
     leaveService.getTeamOnLeaveToday(managerId)
       .then(data => setLeaveData(data))
-      .catch(err => console.error(err))
+      .catch(err => { console.error(err); setLeaveError(err); })
       .finally(() => setIsLeaveLoading(false));
   }, [user?.emp_id, user?.id]);
 
@@ -357,7 +364,8 @@ export function AttendancePage() {
     const dates = [...reportDates, ...fetchTimelineDates];
     const minDate = new Date(Math.min(...dates.map(d => new Date(d).getTime())));
     const maxDate = new Date(Math.max(...dates.map(d => new Date(d).getTime())));
-    const managerId = user?.emp_id || user?.id || 1;
+    const managerId = user?.emp_id || user?.id;
+    if (!managerId) return Promise.resolve(null);
     return attendanceService.getAttendance(managerId, format(minDate, 'yyyy-MM-dd'), format(maxDate, 'yyyy-MM-dd'));
   }, [user?.emp_id, user?.id, reportDates, fetchTimelineDates]);
 
@@ -393,8 +401,6 @@ export function AttendancePage() {
       return acc;
     }, {});
 
-    const LABEL_TO_CODE = Object.fromEntries(ATTENDANCE_CODE_MAP.map(c => [c.label, c.code]));
-
     return allConsultants.map(c => {
       const datesObj = {};
       for (const date of reportDates) {
@@ -412,7 +418,7 @@ export function AttendancePage() {
         } else {
           const leaveDetail = dayData.on_leave_details?.find(l => l.emp_id === c.id);
           if (leaveDetail) {
-            datesObj[dateStr] = LABEL_TO_CODE[leaveDetail.leave_type] || 'AL';
+            datesObj[dateStr] = CODE_LOOKUP[leaveDetail.leave_type] ? leaveDetail.leave_type : 'AL';
           } else {
             const wfhDetail = dayData.on_wfh_details?.find(l => l.emp_id === c.id);
             if (wfhDetail) {
@@ -475,7 +481,7 @@ export function AttendancePage() {
           consultantId: c.id,
           consultantName: c.name,
           team: c.team,
-          leaveType: stats.leave_type || 'Leave',
+          leaveType: CODE_LOOKUP[stats.leave_type]?.label || stats.leave_type || 'Leave',
           startDate: stats.startDate,
           endDate: stats.endDate,
           days: stats.days,
@@ -563,7 +569,7 @@ export function AttendancePage() {
         consultantId: d.emp_id,
         consultantName: d.emp_name,
         team: d.team_name || 'Other',
-        leaveType: d.leave_type || 'Leave',
+        leaveType: CODE_LOOKUP[d.leave_type]?.label || d.leave_type || 'Leave',
         startDate: leaveData.date,
         endDate: leaveData.date,
         days: 1,
@@ -923,6 +929,12 @@ export function AttendancePage() {
         {/* On Duty — List */}
         {subTab === 'on-duty' && (
           <div className="attendance-list">
+            {dutyError && (
+              <div className="attendance-inline-error">
+                <AlertCircle size={16} />
+                <span>Could not load today&apos;s live status; showing data from the attendance calendar instead.</span>
+              </div>
+            )}
             {Object.entries(groupedOnDuty).map(([team, consultants]) => {
               const isExpanded = expandedTeams.has(team) || Boolean(debouncedSearch.trim());
               return (
@@ -1075,6 +1087,12 @@ export function AttendancePage() {
         {/* On WFH — List */}
         {subTab === 'on-wfh' && viewMode === 'list' && (
           <div className="attendance-list">
+            {wfhError && (
+              <div className="attendance-inline-error">
+                <AlertCircle size={16} />
+                <span>Could not load today&apos;s WFH status.</span>
+              </div>
+            )}
             {isWfhLoading ? (
               <Loader message="Loading WFH data..." />
             ) : wfhData?.on_wfh_details?.length > 0 ? (
@@ -1222,6 +1240,12 @@ export function AttendancePage() {
         {/* On Leave — List */}
         {subTab === 'on-leave' && viewMode === 'list' && (
           <div className="attendance-list">
+            {leaveError && (
+              <div className="attendance-inline-error">
+                <AlertCircle size={16} />
+                <span>Could not load today&apos;s live leave status; showing data from the attendance calendar instead.</span>
+              </div>
+            )}
             {filteredOnLeaveList.map(leave => (
               <div key={leave.consultantId} className="attendance-leave-card">
                 <div className="attendance-leave-main">
