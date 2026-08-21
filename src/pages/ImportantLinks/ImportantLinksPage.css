@@ -655,6 +655,72 @@
   margin-top: 2px;
 }
 
+/* One-of-three content type (URL / Shared Folder+File / Comments) in AddLinkModal */
+.il-content-type-hint {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  margin: -4px 0 4px 0;
+}
+
+/* Accordion — one section per content type, collapsed by default */
+.il-accordion {
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.il-accordion-error {
+  border-color: var(--c-danger);
+}
+
+.il-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-secondary);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.il-accordion[data-locked='true'] .il-accordion-header {
+  color: var(--text-tertiary);
+}
+
+.il-accordion-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.il-accordion-lock-icon {
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+
+.il-accordion-body {
+  padding: 12px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.il-input:disabled,
+.il-textarea:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.il-upload-zone[data-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ── In-modal Group Dropdown ─────────────────────────────────── */
 .il-modal-group-dropdown {
   position: relative;
@@ -1055,4 +1121,153 @@
 [data-theme="dark"] .il-modal {
   background: var(--surface-secondary);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Link Content Page (full page, not an overlay) ───────────────────────── */
+.il-content-page {
+  padding: 20px;
+}
+
+.il-content-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.il-content-back-btn:hover {
+  background: var(--bg-hover);
+}
+
+.il-content-page-title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Link Content Viewer (used by both the full page above and, previously, a modal) ── */
+.il-content-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+  min-height: 200px;
+}
+
+.il-content-text-block pre {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.il-content-file-block {
+  min-height: 120px;
+}
+
+.il-content-image {
+  max-width: 100%;
+  max-height: 600px;
+  display: block;
+  margin: 0 auto;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.il-content-table-wrap {
+  max-height: 600px;
+  overflow: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+
+.il-content-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+
+.il-content-table td {
+  border: 1px solid var(--border-primary);
+  padding: 6px 10px;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.il-content-docx {
+  max-height: 600px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.il-content-pre {
+  max-height: 600px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-family: monospace;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.il-content-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 24px 0;
+}
+
+.il-content-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.il-content-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.il-content-download-btn:hover {
+  background: var(--bg-hover);
 }

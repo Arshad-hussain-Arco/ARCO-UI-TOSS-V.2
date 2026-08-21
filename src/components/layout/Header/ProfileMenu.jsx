@@ -1,7 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
 
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
+import { ROUTES } from '@constants/routes';
 
 /**
  * Avatar button with the account menu. Closes on outside click or Escape.
@@ -15,6 +17,7 @@ import { useOnClickOutside } from '@hooks/useOnClickOutside';
 export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChangePassword }) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const navigate = useNavigate();
 
   const close = useCallback(() => setIsOpen(false), []);
   useOnClickOutside(wrapperRef, close, isOpen);
@@ -67,7 +70,15 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
 
             <span className="header-profile-menu-text">Change Password</span>
           </button>
-          <button type="button" className="header-profile-menu-item" role="menuitem">
+          <button
+            type="button"
+            className="header-profile-menu-item"
+            role="menuitem"
+            onClick={() => {
+              close();
+              navigate(ROUTES.PREFERENCES);
+            }}
+          >
             <span className="header-profile-menu-text">Preferences</span>
           </button>
 

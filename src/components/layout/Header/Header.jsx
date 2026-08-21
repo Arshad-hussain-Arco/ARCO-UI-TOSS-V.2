@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
+import { ROUTES, buildPath } from '@constants/routes';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useSidebar } from '@hooks/useSidebar';
@@ -29,6 +31,7 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
   const { isDarkMode, toggleTheme } = useTheme();
   const { pinnedLinks } = usePinnedLinks();
   const { user: authUser } = useAuth();
+  const navigate = useNavigate();
   
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -96,19 +99,37 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
                   <ChevronDown size={11} aria-hidden="true" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
                 </button>
                 <div className="header-pinned-dropdown-menu" data-open={isOpen}>
-                  {group.links.map((link) => (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      className="header-pinned-dropdown-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setActiveGroupDropdown(null)}
-                    >
-                      <span>{link.label}</span>
-                      <ExternalLink size={10} style={{ marginLeft: 'auto', opacity: 0.6 }} />
-                    </a>
-                  ))}
+                  {group.links.map((link) =>
+                    link.url ? (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        className="header-pinned-dropdown-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setActiveGroupDropdown(null)}
+                      >
+                        <span>{link.label}</span>
+                        <ExternalLink size={10} style={{ marginLeft: 'auto', opacity: 0.6 }} />
+                      </a>
+                    ) : (
+                      // Shared Folder / Upload File / Comments content type — no
+                      // URL to open, so this navigates in-app to a full page
+                      // instead of a dead/empty anchor.
+                      <button
+                        key={link.id}
+                        type="button"
+                        className="header-pinned-dropdown-link"
+                        style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' }}
+                        onClick={() => {
+                          setActiveGroupDropdown(null);
+                          navigate(buildPath(ROUTES.IMPORTANT_LINKS_CONTENT, { id: link.id }));
+                        }}
+                      >
+                        <span>{link.label}</span>
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             );

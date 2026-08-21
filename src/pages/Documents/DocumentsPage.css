@@ -646,9 +646,34 @@
   background-color: var(--surface-primary);
   margin: 0 auto;
   max-width: 680px;
+  padding: 30px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+/* Rendered .xlsx/.xls/.csv content */
+.doc-table-viewer {
+  max-height: 650px;
+  overflow: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+.doc-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+.doc-table td {
+  border: 1px solid var(--border-primary);
+  padding: 6px 10px;
+  white-space: nowrap;
+  color: var(--text-primary);
 }
 .doc-docx-content {
   padding: 30px;

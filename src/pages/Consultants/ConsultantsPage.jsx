@@ -61,7 +61,7 @@ const emptyForm = {
   visaExpire: '',
   visaRenewal: '',
   nextVisaExit: '',
-  location: 'On Site',
+  location: '',
   remarks: '',
   manager: '',
   gender: '',
@@ -116,15 +116,10 @@ export function ConsultantsPage() {
   const { photoMap, getPhoto } = useEmployeePhotos({ includeInactive: true });
 
   const fetchEmployees = useCallback(async () => {
-    try {
-      const employees = await consultantService.getEmployeesList();
-      if (!employees) throw new Error('No employees data returned');
-      return employees;
-    } catch (err) {
-      toast.error('Failed to load employees list');
-      throw err;
-    }
-  }, [toast]);
+    const employees = await consultantService.getEmployeesList();
+    if (!employees) throw new Error('No employees data returned');
+    return employees;
+  }, []);
 
   const {
     data: employeesData,
@@ -467,6 +462,26 @@ export function ConsultantsPage() {
     if (formData.physicalPcAvailable) {
       if (!formData.computerLocation) return toast.error('Computer Location is required');
     }
+
+    // Duplicate email/mobile check against currently loaded consultants — mirrors the
+    // backend's "already exist with status active" rejection so the user finds out
+    // before submitting instead of after.
+    const currentId = editingTarget?.id || editingTarget?.emp_id;
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const normalizedMobile = formData.mobile.trim();
+    const allConsultants = [
+      ...(Array.isArray(dynamicEmployees) ? dynamicEmployees : []),
+      ...(Array.isArray(rawInactiveData) ? rawInactiveData : rawInactiveData?.results || []),
+    ];
+    const isSelf = (c) => isEditing && String(c.emp_id || c.id) === String(currentId);
+    const emailTaken = allConsultants.some(
+      (c) => !isSelf(c) && (c.email || '').trim().toLowerCase() === normalizedEmail,
+    );
+    if (emailTaken) return toast.error('A consultant with this email address already exists');
+    const mobileTaken = allConsultants.some(
+      (c) => !isSelf(c) && (c.mobile || '').trim() === normalizedMobile,
+    );
+    if (mobileTaken) return toast.error('A consultant with this mobile number already exists');
 
     setIsSaving(true);
     try {
@@ -1010,8 +1025,7 @@ export function ConsultantsPage() {
                               .filter((loc) => loc.name && loc.name.toLowerCase() !== 'hybrid')
                               .map((loc) => {
                                 const isSelected =
-                                  formData.location?.toLowerCase() === loc.name.toLowerCase() ||
-                                  (!formData.location && loc.name.toLowerCase() === 'onsite');
+                                  formData.location?.toLowerCase() === loc.name.toLowerCase();
                                 return (
                                   <button
                                     key={loc.id}

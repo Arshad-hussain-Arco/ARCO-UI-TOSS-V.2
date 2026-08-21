@@ -113,7 +113,7 @@ export const settingsService = {
   deleteHomeData: async (id) => {
     const response = await httpClient.delete(endpoints.systemSettings.deleteHomeData(id), { data: {} });
     return response.data;
-  }
+  },
 };
 
 export default settingsService;

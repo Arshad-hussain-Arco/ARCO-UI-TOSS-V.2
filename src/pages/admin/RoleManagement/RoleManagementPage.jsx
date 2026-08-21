@@ -27,6 +27,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './RoleManagementPage.css';
 
 // Permission catalog — mirrors the codes seeded by
@@ -163,6 +164,7 @@ const PERMISSION_CATALOG = [
       { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
       { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
       { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
+      { code: 'IMPORTANT_LINKS_GROUP_ACCESS_CONTROL', label: 'Manage Group Access' },
     ],
   },
   {
@@ -219,9 +221,11 @@ export function RoleManagementPage() {
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [roleToCancel, setRoleToCancel] = useState(null);
   const [dirtyRoles, setDirtyRoles] = useState(new Set());
+  const [error, setError] = useState(null);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await roleService.getRoles();
       if (response && response.data && response.stats) {
@@ -233,7 +237,7 @@ export function RoleManagementPage() {
         setRoles(response.data.map(mapRole));
       }
     } catch (err) {
-      toast.error('Failed to load roles.');
+      setError(err);
     } finally {
       setIsLoading(false);
     }
@@ -510,6 +514,16 @@ export function RoleManagementPage() {
       })
     );
   };
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Roles could not be loaded"
+        description={error.message}
+        onRetry={fetchRoles}
+      />
+    );
+  }
 
   return (
     <div className="rm-container">

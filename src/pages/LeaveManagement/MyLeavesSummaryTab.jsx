@@ -271,8 +271,8 @@ export function MyLeavesSummaryTab({
             </colgroup>
             <thead className="leave-table-thead">
               <tr className="leave-table-header-row">
-                <th className="leave-table-header" onClick={() => handleSort('leave_type')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leave_type" sortField={sortField} sortOrder={sortOrder} /></div>
+                <th className="leave-table-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE</div>
                 </th>
                 <th className="leave-table-header" onClick={() => handleSort('start_date')} style={{ cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="start_date" sortField={sortField} sortOrder={sortOrder} /></div>

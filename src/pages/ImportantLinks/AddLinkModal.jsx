@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Check, ChevronDown, FileText, Pin, Plus, RotateCcw, Upload, X } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
@@ -98,6 +98,30 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
 }
 
 /**
+ * Collapsible section for one of the 3 mutually-exclusive content types
+ * (URL / Shared Folder+Upload File / Content). Collapsed by default —
+ * expanding one doesn't affect the others; "locked" (another type already
+ * has content) just mutes the header and disables whatever's inside it.
+ */
+function AccordionSection({ title, isOpen, locked, hasError, onToggle, children }) {
+  return (
+    <div className={`il-accordion${hasError ? ' il-accordion-error' : ''}`} data-locked={locked}>
+      <button
+        type="button"
+        className="il-accordion-header"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+      >
+        {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        <span className="il-accordion-title">{title}</span>
+        {locked && <Lock size={11} className="il-accordion-lock-icon" aria-hidden="true" />}
+      </button>
+      {isOpen && <div className="il-accordion-body">{children}</div>}
+    </div>
+  );
+}
+
+/**
  * Add / Edit Link Modal — matches the application's existing modal design language.
  *
  * @param {Object} props
@@ -137,22 +161,53 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     };
   }, [editLink, existingGroups]);
 
+  // Which of the 3 content-type accordions is expanded. Starts open on
+  // whichever type an edited link already uses; closed for a brand-new link.
+  const getInitialOpenSection = useCallback(() => {
+    if (!editLink) return null;
+    if (editLink.url) return 'url';
+    if (editLink.sharedFolder || (editLink.files && editLink.files.length > 0)) return 'resource';
+    if (editLink.comments) return 'content';
+    return null;
+  }, [editLink]);
+
   const [state, setState] = useState(getInitialState);
   const [errors, setErrors] = useState({});
+  const [openSection, setOpenSection] = useState(getInitialOpenSection);
   const fileInputRef = useRef(null);
 
   // Sync state when editLink changes
   useEffect(() => {
     setState(getInitialState());
     setErrors({});
-  }, [editLink, getInitialState]);
+    setOpenSection(getInitialOpenSection());
+  }, [editLink, getInitialState, getInitialOpenSection]);
+
+  const toggleSection = (section) => setOpenSection((prev) => (prev === section ? null : section));
 
   const set = (key, val) => setState((prev) => ({ ...prev, [key]: val }));
 
   const handleReset = useCallback(() => {
     setState(getInitialState());
     setErrors({});
-  }, [getInitialState]);
+    setOpenSection(getInitialOpenSection());
+  }, [getInitialState, getInitialOpenSection]);
+
+  // The link's content can be provided exactly one way: a URL, a
+  // shared-folder-path-and/or-uploaded-file (that pair counts as one way),
+  // or a free-text comment. Whichever one currently has content locks out
+  // the other two — clearing it back to empty unlocks everything again, so
+  // switching types is just "clear, then fill in the other one".
+  const activeContentType = useMemo(() => {
+    if (state.url.trim()) return 'url';
+    if (state.sharedFolder.trim() || state.files.length > 0) return 'resource';
+    if (state.comments.trim()) return 'comments';
+    return null;
+  }, [state.url, state.sharedFolder, state.files, state.comments]);
+
+  const urlLocked = activeContentType !== null && activeContentType !== 'url';
+  const resourceLocked = activeContentType !== null && activeContentType !== 'resource';
+  const commentsLocked = activeContentType !== null && activeContentType !== 'comments';
 
   function validate() {
     const errs = {};
@@ -161,9 +216,9 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       errs.linkName = 'Link name is required.';
     }
 
-    if (!state.url.trim()) {
-      errs.url = 'URL is required.';
-    } else {
+    if (activeContentType === null) {
+      errs.content = 'Provide a URL, a shared folder / uploaded file, or a comment.';
+    } else if (activeContentType === 'url') {
       try {
         new URL(state.url.startsWith('http') ? state.url : `https://${state.url}`);
       } catch {
@@ -185,6 +240,9 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      // Expand whichever accordion the error is actually in, so it's visible.
+      if (errs.url) setOpenSection('url');
+      else if (errs.content) setOpenSection((prev) => prev ?? 'url');
       return;
     }
 
@@ -252,53 +310,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
         {/* ── Body ────────────────────────────────────────────────── */}
         <div className="il-modal-body">
 
-          {/* Link Name */}
-          <div className="il-form-group">
-            <span className="il-label il-label-required">Link Name</span>
-            <input
-              type="text"
-              className={`il-input${errors.linkName ? ' il-input-error' : ''}`}
-              placeholder="e.g. Grafana Dashboards"
-              value={state.linkName}
-              onChange={(e) => {
-                set('linkName', e.target.value);
-                setErrors((prev) => ({ ...prev, linkName: undefined }));
-              }}
-            />
-            {errors.linkName && <span className="il-error-msg">{errors.linkName}</span>}
-          </div>
-
-          {/* URL */}
-          <div className="il-form-group">
-            <span className="il-label il-label-required">URL</span>
-            <input
-              type="url"
-              className={`il-input${errors.url ? ' il-input-error' : ''}`}
-              placeholder="https://"
-              value={state.url}
-              onChange={(e) => {
-                set('url', e.target.value);
-                setErrors((prev) => ({ ...prev, url: undefined }));
-              }}
-            />
-            {errors.url && <span className="il-error-msg">{errors.url}</span>}
-          </div>
-
-          {/* Shared Folder */}
-          <div className="il-form-group">
-            <span className="il-label">
-              Shared Folder
-              <span className="il-label-optional">(optional)</span>
-            </span>
-            <input
-              type="text"
-              className="il-input"
-              placeholder="e.g. \\server\shared\folder or Google Drive link"
-              value={state.sharedFolder}
-              onChange={(e) => set('sharedFolder', e.target.value)}
-            />
-          </div>
-
           {/* Group */}
           <div className="il-form-group">
             <span className="il-label il-label-required">
@@ -343,12 +354,72 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             </div>
           )}
 
-          {/* Upload File */}
+          {/* Link Name */}
           <div className="il-form-group">
-            <span className="il-label">
-              Upload File
-              <span className="il-label-optional">(optional)</span>
-            </span>
+            <span className="il-label il-label-required">Link Name</span>
+            <input
+              type="text"
+              className={`il-input${errors.linkName ? ' il-input-error' : ''}`}
+             
+              value={state.linkName}
+              onChange={(e) => {
+                set('linkName', e.target.value);
+                setErrors((prev) => ({ ...prev, linkName: undefined }));
+              }}
+            />
+            {errors.linkName && <span className="il-error-msg">{errors.linkName}</span>}
+          </div>
+
+          {/* Content type note */}
+          <p className="il-content-type-hint">
+            Provide the link one way: a URL, a shared folder / uploaded file, or a comment.
+          </p>
+          {errors.content && <span className="il-error-msg">{errors.content}</span>}
+
+          {/* URL */}
+          <AccordionSection
+            title="URL"
+            isOpen={openSection === 'url'}
+            locked={urlLocked}
+            hasError={!!errors.url}
+            onToggle={() => toggleSection('url')}
+          >
+            <input
+              type="url"
+              className={`il-input${errors.url ? ' il-input-error' : ''}`}
+              placeholder="https://"
+              value={state.url}
+              disabled={urlLocked}
+              autoFocus
+              onChange={(e) => {
+                set('url', e.target.value);
+                setErrors((prev) => ({ ...prev, url: undefined, content: undefined }));
+              }}
+            />
+            {errors.url && <span className="il-error-msg">{errors.url}</span>}
+          </AccordionSection>
+
+          {/* Shared Folder + Upload File */}
+          <AccordionSection
+            title="Shared Folder Upload File"
+            isOpen={openSection === 'resource'}
+            locked={resourceLocked}
+            onToggle={() => toggleSection('resource')}
+          >
+            <span className="il-label">Shared Folder</span>
+            <input
+              type="text"
+              className="il-input"
+            
+              value={state.sharedFolder}
+              disabled={resourceLocked}
+              onChange={(e) => {
+                set('sharedFolder', e.target.value);
+                setErrors((prev) => ({ ...prev, content: undefined }));
+              }}
+            />
+
+            <span className="il-label" style={{ marginTop: '12px', display: 'block' }}>Upload File</span>
 
             {state.files.length > 0 ? (
               <div className="il-upload-file-list" style={{ marginTop: 0 }}>
@@ -391,11 +462,17 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             ) : (
               <div
                 className="il-upload-zone"
+                data-disabled={resourceLocked}
                 role="button"
-                tabIndex={0}
+                tabIndex={resourceLocked ? -1 : 0}
+                aria-disabled={resourceLocked}
                 aria-label="Choose files to upload"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  if (resourceLocked) return;
+                  fileInputRef.current?.click();
+                }}
                 onKeyDown={(e) => {
+                  if (resourceLocked) return;
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     fileInputRef.current?.click();
@@ -404,8 +481,10 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
+                  if (resourceLocked) return;
                   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     set('files', [e.dataTransfer.files[0]]);
+                    setErrors((prev) => ({ ...prev, content: undefined }));
                   }
                 }}
               >
@@ -423,25 +502,33 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               ref={fileInputRef}
               type="file"
               accept={ACCEPTED_TYPES}
+              disabled={resourceLocked}
               style={{ display: 'none' }}
-              onChange={handleFileChange}
+              onChange={(e) => {
+                handleFileChange(e);
+                setErrors((prev) => ({ ...prev, content: undefined }));
+              }}
             />
-          </div>
+          </AccordionSection>
 
-          {/* Comments */}
-          <div className="il-form-group">
-            <span className="il-label">
-              Comments
-              <span className="il-label-optional">(optional)</span>
-            </span>
+          {/* Content */}
+          <AccordionSection
+            title="Content"
+            isOpen={openSection === 'content'}
+            locked={commentsLocked}
+            onToggle={() => toggleSection('content')}
+          >
             <textarea
               className="il-textarea"
               placeholder="Add any notes or context about this link…"
               value={state.comments}
-              onChange={(e) => set('comments', e.target.value)}
+              disabled={commentsLocked}
+              onChange={(e) => {
+                set('comments', e.target.value);
+                setErrors((prev) => ({ ...prev, content: undefined }));
+              }}
             />
-          </div>
-
+          </AccordionSection>
 
         </div>
 
