@@ -1,17 +1,31 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 
-let categoriesPromise = null;
+// Keyed by scope so a page-scoped request (sees every group, for whoever
+// manages group access) and the header widget's own restricted request
+// never share a cached result with each other.
+const categoriesPromises = {};
 
 export const linkService = {
-  getLinkCategories: () => {
-    if (categoriesPromise) return categoriesPromise;
-    
-    categoriesPromise = (async () => {
+  /**
+   * @param {Object} [opts]
+   * @param {'admin'} [opts.scope] Pass 'admin' from the Important Links
+   *   page so someone with IMPORTANT_LINKS_GROUP_ACCESS_CONTROL sees every
+   *   group (needed to manage access for groups their own role can't
+   *   otherwise see) — ignored server-side for anyone without that
+   *   permission. Never pass this from the header widget: it must always
+   *   show only what the viewer is actually allowed to see.
+   */
+  getLinkCategories: ({ scope } = {}) => {
+    const cacheKey = scope || 'default';
+    if (categoriesPromises[cacheKey]) return categoriesPromises[cacheKey];
+
+    const params = scope ? { scope } : undefined;
+    categoriesPromises[cacheKey] = (async () => {
       try {
         const [groupsRes, linksRes] = await Promise.all([
-          httpClient.get(endpoints.importantLinks.groups.listCreate),
-          httpClient.get(endpoints.importantLinks.links.list),
+          httpClient.get(endpoints.importantLinks.groups.listCreate, { params }),
+          httpClient.get(endpoints.importantLinks.links.list, { params }),
         ]);
 
         const groups = groupsRes.data || [];
@@ -51,11 +65,11 @@ export const linkService = {
         return categories;
       } finally {
         // clear the cache so the next request after this batch fetches fresh data
-        categoriesPromise = null;
+        categoriesPromises[cacheKey] = null;
       }
     })();
-    
-    return categoriesPromise;
+
+    return categoriesPromises[cacheKey];
   },
 
   createGroup: async (name) => {
@@ -70,6 +84,32 @@ export const linkService = {
 
   deleteGroup: async (id) => {
     const res = await httpClient.delete(endpoints.importantLinks.groups.detailUpdateDelete(id));
+    return res.data;
+  },
+
+  // Group access control (which roles may see this group's links, on the
+  // Important Links page and the header widget alike)
+  getGroupAccess: async (id) => {
+    const res = await httpClient.get(endpoints.importantLinks.groups.accessControl(id));
+    return res.data;
+  },
+
+  updateGroupAccess: async (id, roleIds) => {
+    const res = await httpClient.put(endpoints.importantLinks.groups.accessControl(id), { role_ids: roleIds });
+    return res.data;
+  },
+
+  /** A single link's raw backend fields — used by the full-page content viewer. */
+  getLinkDetail: async (id) => {
+    const res = await httpClient.get(endpoints.importantLinks.links.detail(id));
+    return res.data;
+  },
+
+  /** Raw file bytes attached to a link (Upload File content type), for in-page preview. */
+  getLinkContent: async (id) => {
+    const res = await httpClient.get(endpoints.importantLinks.links.content(id), {
+      responseType: 'blob',
+    });
     return res.data;
   },
 

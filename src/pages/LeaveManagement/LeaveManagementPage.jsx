@@ -80,6 +80,7 @@ const LEAVE_ACTION_BUTTONS = [
 
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { getRelativePendingTime } from './TeamRequestsTab';
 
 export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
@@ -222,6 +223,7 @@ export function LeaveManagementPage() {
   const [cancellingModId, setCancellingModId] = useState(null);
   const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [summaryYear, setSummaryYear] = useState(String(currentDate.getFullYear()));
   const [summaryFrom, setSummaryFrom] = useState(null);
@@ -242,6 +244,7 @@ export function LeaveManagementPage() {
       if (activeTab !== 'my-leaves' && activeTab !== 'my-leaves-summary') return;
 
       setIsLoading(true);
+      setError(null);
       try {
         let targetEmpId = user?.emp_id;
 
@@ -299,6 +302,7 @@ export function LeaveManagementPage() {
           setCalendarEvents(userLeaves);
         } catch (e) {
           console.error("Failed to fetch leaves", e);
+          setError(e);
         }
 
         try {
@@ -311,8 +315,9 @@ export function LeaveManagementPage() {
           console.error("Failed to fetch modification requests", e);
         }
 
-      } catch (error) {
-        console.error("Failed to fetch leave data", error);
+      } catch (err) {
+        console.error("Failed to fetch leave data", err);
+        setError(err);
       } finally {
         setIsLoading(false);
       }
@@ -839,7 +844,13 @@ export function LeaveManagementPage() {
                   </div>
                 </div>
 
-                {isLoading ? (
+                {error ? (
+                  <ErrorState
+                    title="Leave requests could not be loaded"
+                    description={error.message}
+                    onRetry={() => setRefreshKey((k) => k + 1)}
+                  />
+                ) : isLoading ? (
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                     <Loader message="Loading your leaves..." />
                   </div>
@@ -858,8 +869,8 @@ export function LeaveManagementPage() {
                       </colgroup>
                       <thead className="leave-table-thead">
                         <tr className="leave-table-header-row">
-                          <th className="leave-table-header" onClick={() => handleSort('leave_type')} style={{ cursor: 'pointer' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE <SortIcon field="leave_type" sortField={sortField} sortOrder={sortOrder} /></div>
+                          <th className="leave-table-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>LEAVE TYPE</div>
                           </th>
                           <th className="leave-table-header" onClick={() => handleSort('start_date')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>DATES <SortIcon field="start_date" sortField={sortField} sortOrder={sortOrder} /></div>
@@ -878,8 +889,8 @@ export function LeaveManagementPage() {
                           <th className="leave-table-header" onClick={() => handleSort('status_code')} style={{ cursor: 'pointer' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>STATUS <SortIcon field="status_code" sortField={sortField} sortOrder={sortOrder} /></div>
                           </th>
-                          <th className="leave-table-header" onClick={() => handleSort('comments')} style={{ cursor: 'pointer' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>COMMENTS <SortIcon field="comments" sortField={sortField} sortOrder={sortOrder} /></div>
+                          <th className="leave-table-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>COMMENTS</div>
                           </th>
                           <th className="leave-table-header">ACTION</th>
                         </tr>
@@ -1010,7 +1021,13 @@ export function LeaveManagementPage() {
 
         {activeTab === 'leave-config' && <LeaveConfigurationTab getPhoto={getTeamPhoto} />}
 
-        {activeTab === 'my-leaves-summary' && (
+        {activeTab === 'my-leaves-summary' && error ? (
+          <ErrorState
+            title="Leave requests could not be loaded"
+            description={error.message}
+            onRetry={() => setRefreshKey((k) => k + 1)}
+          />
+        ) : activeTab === 'my-leaves-summary' && (
           <MyLeavesSummaryTab
             leaves={leavesWithModRequests}
             setViewModalLeave={setViewModalLeave}

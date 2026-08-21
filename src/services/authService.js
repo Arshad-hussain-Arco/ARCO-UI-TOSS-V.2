@@ -117,6 +117,18 @@ export const authService = {
     return response.data;
   },
 
+  // Sidebar Nav Order (Preferences > Sidebar Layout) — the caller's own
+  // personal override, distinct from roleService's per-role admin default.
+  getMySidebarNavOrder: async () => {
+    const response = await httpClient.get(endpoints.auth.mySidebarNavOrder);
+    return response.data;
+  },
+
+  updateMySidebarNavOrder: async (payload) => {
+    const response = await httpClient.put(endpoints.auth.mySidebarNavOrder, payload);
+    return response.data;
+  },
+
   adminUpdatePassword: async (payload) => {
     const response = await httpClient.post(endpoints.auth.adminUpdatePassword, payload);
     return response.data;

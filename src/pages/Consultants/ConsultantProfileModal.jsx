@@ -1,8 +1,9 @@
-import { X, Mail, Phone, MapPin, Monitor, Building2, User, Calendar, RefreshCw, AlertCircle } from 'lucide-react';
+import { X, Mail, Phone, MapPin, Monitor, Building2, User, Calendar } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { Image } from '@components/common/Image/Image';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { dismissBackdrop } from '@utils/interactive';
 import { useCallback } from 'react';
 import { useAuth } from '@hooks/useAuth';
@@ -57,14 +58,11 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
               <X size={16} />
             </button>
           </div>
-          <div className="cp-error-container">
-            <AlertCircle size={36} color="var(--c-danger, #ef4444)" />
-            <h4 className="cp-error-title">Failed to load profile</h4>
-            <p className="cp-error-desc">{error.message}</p>
-            <button className="al-btn al-btn-primary" onClick={refetch} style={{ marginTop: 8 }}>
-              <RefreshCw size={14} /> Retry
-            </button>
-          </div>
+          <ErrorState
+            title="Profile could not be loaded"
+            description={error.message}
+            onRetry={refetch}
+          />
         </div>
       </div>
     );

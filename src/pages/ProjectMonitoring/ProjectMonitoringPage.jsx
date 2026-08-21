@@ -46,6 +46,7 @@ import StatusFilter from './components/StatusFilter';
 import ProjectInfo1Modal from './components/ProjectInfo1Modal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { ExportButton } from '@components/ui/ExportButton';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 
 function formatDateToYMD(date) {
   if (!date || isNaN(date.getTime())) return '';
@@ -338,11 +339,13 @@ export function ProjectMonitoringPage() {
   const [projectsList, setProjectsList] = useState([]);
   const [changeRequestsList, setChangeRequestsList] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch API Data from backend
   const fetchData = useCallback(async () => {
     try {
       setLoadingData(true);
+      setError(null);
       const workOrderRes = await projectService.getWorkOrderStatus();
 
       let rawWO = [];
@@ -363,6 +366,7 @@ export function ProjectMonitoringPage() {
       setChangeRequestsList(mappedCR);
     } catch (err) {
       console.error('Error fetching project monitoring data:', err);
+      setError(err);
     } finally {
       setLoadingData(false);
     }
@@ -568,6 +572,16 @@ export function ProjectMonitoringPage() {
   const deferredCount = useMemo(() => {
     return categoryProjects.filter((p) => p.Status === 'Deferred').length;
   }, [categoryProjects]);
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Projects could not be loaded"
+        description={error.message}
+        onRetry={fetchData}
+      />
+    );
+  }
 
   return (
     <div className="pm-shell">

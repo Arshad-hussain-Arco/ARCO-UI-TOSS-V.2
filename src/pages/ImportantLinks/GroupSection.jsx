@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ExternalLink, Edit, Trash } from 'lucide-react';
+import { ExternalLink, Edit, Eye, Trash, Users } from 'lucide-react';
 
 import './ImportantLinksPage.css';
 
@@ -12,16 +12,32 @@ const TAG_CLASS_MAP = {
 };
 
 /**
- * Single link row rendered inside a group card.
+ * Single link row rendered inside a group card. A link created with the
+ * URL content type opens externally as before; one created with the
+ * Shared Folder / Upload File / Comments content type has no URL to open,
+ * so it opens the in-page content viewer instead.
  */
-function LinkItem({ link, onEdit, onDelete }) {
+function LinkItem({ link, onEdit, onDelete, onViewContent }) {
   const badgeMod = link.tag
     ? (TAG_CLASS_MAP[(link.tag || '').toLowerCase()] ?? 'il-badge-default')
     : null;
+  const hasUrl = !!link.url;
 
   return (
     <div className="il-link-item">
-      <div className="il-link-item-body">
+      <div
+        className="il-link-item-body"
+        role={hasUrl ? undefined : 'button'}
+        tabIndex={hasUrl ? undefined : 0}
+        style={hasUrl ? undefined : { cursor: 'pointer' }}
+        onClick={hasUrl ? undefined : () => onViewContent?.(link)}
+        onKeyDown={hasUrl ? undefined : (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onViewContent?.(link);
+          }
+        }}
+      >
         <span className="il-link-item-name" title={link.label}>{link.label}</span>
         {link.tag && (
           <span className={`il-badge ${badgeMod}`}>{link.tag}</span>
@@ -59,17 +75,32 @@ function LinkItem({ link, onEdit, onDelete }) {
           </button>
         )}
 
-        <a
-          href={link.url}
-          className="action-icon-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Open ${link.label}`}
-          aria-label={`Open ${link.label} in a new tab`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ExternalLink size={12} />
-        </a>
+        {hasUrl ? (
+          <a
+            href={link.url}
+            className="action-icon-btn"
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${link.label}`}
+            aria-label={`Open ${link.label} in a new tab`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink size={12} />
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="action-icon-btn"
+            title={`View ${link.label}`}
+            aria-label={`View content of ${link.label}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewContent?.(link);
+            }}
+          >
+            <Eye size={12} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -86,10 +117,12 @@ function LinkItem({ link, onEdit, onDelete }) {
  * @param {{ id: string, label: string, url: string, description?: string, tag?: string }[]} props.links
  * @param {(link: Object) => void} props.onEditLink   Called when user clicks the edit icon on a link.
  * @param {(link: Object) => void} props.onDeleteLink Called when user clicks the delete icon on a link.
+ * @param {(link: Object) => void} props.onViewContent Called when user clicks a link with no URL (Shared Folder / Upload File / Comments content type).
  * @param {() => void} [props.onRenameGroup]  Called when user clicks the rename-group icon.
  * @param {() => void} [props.onDeleteGroup]  Called when user clicks the delete-group icon.
+ * @param {() => void} [props.onManageAccess] Called when user clicks the manage-access icon.
  */
-function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, canEdit, canDelete, onEditLink, onDeleteLink, onRenameGroup, onDeleteGroup }) {
+function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePinGroup, canEdit, canDelete, onEditLink, onDeleteLink, onViewContent, onRenameGroup, onDeleteGroup, onManageAccess }) {
   return (
     <article className="il-group-card" aria-labelledby={`group-heading-${id}`}>
 
@@ -127,6 +160,17 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
               <Trash size={12} />
             </button>
           )}
+          {onManageAccess && (
+            <button
+              type="button"
+              className="action-icon-btn"
+              title="Manage group access"
+              aria-label={`Manage which roles can see ${title}`}
+              onClick={onManageAccess}
+            >
+              <Users size={12} />
+            </button>
+          )}
         </div>
         {onTogglePinGroup && (
           <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', gap: '8px', flexShrink: 0 }}>
@@ -155,6 +199,7 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
               link={link}
               onEdit={canEdit ? onEditLink : undefined}
               onDelete={canDelete ? onDeleteLink : undefined}
+              onViewContent={onViewContent}
             />
           ))
         )}

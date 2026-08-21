@@ -26,7 +26,7 @@ export function Sidebar() {
   const { user, hasPermission } = useAuth();
 
   const visibleNavigation = useMemo(
-    () => getVisibleNavigation(user, hasPermission),
+    () => getVisibleNavigation(user, hasPermission, user?.sidebarNavOrder),
     [user, hasPermission],
   );
 

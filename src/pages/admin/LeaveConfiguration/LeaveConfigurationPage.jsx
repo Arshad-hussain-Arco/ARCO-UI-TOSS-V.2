@@ -22,6 +22,7 @@ import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
 import { leaveService } from '@services/leaveService';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './LeaveConfigurationPage.css';
 
 // Static Work Schedule options (not sourced from the backend).
@@ -481,6 +482,11 @@ export function LeaveConfigurationPage() {
   const [combinedLeaveTypes, setCombinedLeaveTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Error from the primary Leave Types & Policies fetch — the core dataset
+  // this page can't function without. Other secondary fetches (holidays,
+  // work locations, summary, overlap policies) keep their own toast-only
+  // error handling below.
+  const [leaveTypesError, setLeaveTypesError] = useState(null);
 
   // Overlap Adjustment Policy rules — { id, source_leave_types, source_leave_type_codes,
   // target_leave_types, target_leave_type_codes, is_active, notes }
@@ -600,28 +606,33 @@ export function LeaveConfigurationPage() {
   // Leave Types + Policies Fetch & Search Effect
   const fetchCombinedLeaveTypes = async () => {
     setIsLoading(true);
+    setLeaveTypesError(null);
     try {
       const res = await leaveService.getLeaveTypesWithPolicy();
       setCombinedLeaveTypes(res || []);
     } catch (err) {
       console.error('Failed to load leave types & policies', err);
       toast.error('Error loading leave types & policies');
+      setLeaveTypesError(err);
     } finally {
       setIsLoading(false);
     }
   };
 
   // Fetch Leave Types + Policies — runs once on mount alongside the other tabs' data.
+  // This is the primary/core dataset for this page (Leave Policy Management).
   useEffect(() => {
     let active = true;
     const run = async () => {
       setIsLoading(true);
+      setLeaveTypesError(null);
       try {
         const res = await leaveService.getLeaveTypesWithPolicy();
         if (active) setCombinedLeaveTypes(res || []);
       } catch (err) {
         console.error('Failed to load leave types & policies', err);
         toast.error('Error loading leave types & policies');
+        if (active) setLeaveTypesError(err);
       } finally {
         if (active) setIsLoading(false);
       }
@@ -1197,6 +1208,16 @@ export function LeaveConfigurationPage() {
       (row.code || '').toLowerCase().includes(q)
     );
   });
+
+  if (leaveTypesError) {
+    return (
+      <ErrorState
+        title="Leave policies could not be loaded"
+        description={leaveTypesError.message}
+        onRetry={fetchCombinedLeaveTypes}
+      />
+    );
+  }
 
   return (
     <div className="lc-redesign-container">

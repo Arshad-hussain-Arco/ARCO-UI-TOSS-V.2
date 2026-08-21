@@ -35,6 +35,17 @@ export const roleService = {
     const response = await httpClient.delete(endpoints.roles.delete(id));
     return response?.data;
   },
+
+  // Sidebar Nav Order (Preferences > Sidebar Layout) — per-role, admin only
+  getSidebarNavOrder: async (roleId) => {
+    const response = await httpClient.get(endpoints.roles.sidebarNavOrder(roleId));
+    return response?.data;
+  },
+
+  updateSidebarNavOrder: async (roleId, payload) => {
+    const response = await httpClient.put(endpoints.roles.sidebarNavOrder(roleId), payload);
+    return response?.data;
+  },
 };
 
 export default roleService;
