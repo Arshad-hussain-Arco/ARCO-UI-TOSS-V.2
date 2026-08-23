@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Calendar,
   Users,
@@ -197,9 +198,21 @@ export function LeaveManagementPage() {
     return formatDurationStr(leave.leave_duration);
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewLeaveIdParam = searchParams.get('viewLeaveId');
+  const tabParam = searchParams.get('tab');
+  
   const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam) return tabParam;
     return localStorage.getItem('leaveManagementActiveTab') || 'my-leaves';
   });
+
+  // Update active tab if URL changes while component is already mounted
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const [modalType, setModalType] = useState(null);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
@@ -295,8 +308,35 @@ export function LeaveManagementPage() {
 
           const leavesResponse = await leaveService.getMyLeaves(targetEmpId, leavesParams);
           const userLeaves = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse?.results || []);
+          
+          let calendarHolidays = [];
+          try {
+            const holResponse = await leaveService.listHolidays({ limit: 1000 });
+            const holidaysList = Array.isArray(holResponse) ? holResponse : (holResponse?.results || holResponse?.data || []);
+            
+            calendarHolidays = holidaysList.map(h => {
+              const dates = h.dates || [];
+              const startDate = dates.length > 0 ? dates[0] : null;
+              const endDate = dates.length > 0 ? dates[dates.length - 1] : null;
+              
+              return {
+                ...h,
+                id: `hol_${h.id}`,
+                title: h.holiday_name || h.name,
+                start_date: startDate || h.holiday_date || h.date,
+                end_date: endDate || h.holiday_date || h.date,
+                leave_type: 'Public Holiday',
+                status: 'approved',
+                className: 'rbc-event-holiday' // Optional class for styling
+              };
+            });
+            console.log("mapped calendarHolidays:", calendarHolidays); // DEBUG
+          } catch(e) {
+            console.error("Failed to fetch holidays for calendar", e);
+          }
+
           setLeaves(userLeaves);
-          setCalendarEvents(userLeaves);
+          setCalendarEvents([...userLeaves, ...calendarHolidays]);
         } catch (e) {
           console.error("Failed to fetch leaves", e);
         }
@@ -318,7 +358,25 @@ export function LeaveManagementPage() {
       }
     };
     fetchData();
-  }, [user, calendarYear, calendarMonth, activeTab, refreshKey, summaryYear, summaryFrom, summaryTo]);
+  }, [user, activeTab, refreshKey, summaryYear, summaryFrom, summaryTo]);
+
+  // Handle direct navigation via push notifications
+  useEffect(() => {
+    if (!isLoading && viewLeaveIdParam && leaves.length > 0) {
+      // Find the leave in the employee's own list (my-leaves-summary)
+      const targetLeave = leaves.find(l => String(l.id) === String(viewLeaveIdParam));
+      
+      if (targetLeave) {
+        setViewModalLeave(targetLeave);
+        // Clean up the URL so it doesn't stay there if they refresh
+        searchParams.delete('viewLeaveId');
+        searchParams.delete('tab');
+        setSearchParams(searchParams);
+      }
+      // Note: If it's a team-requests tab, the TeamRequestsTab component will handle parsing
+      // the URL and opening its own internal drawer.
+    }
+  }, [viewLeaveIdParam, leaves, isLoading, searchParams, setSearchParams]);
 
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
