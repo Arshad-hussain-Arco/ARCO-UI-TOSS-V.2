@@ -277,6 +277,10 @@
   content: ' *';
   color: var(--c-danger);
 }
+.ss-help-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
 
 /* Responsive Grid */
 .ss-grid-2col {

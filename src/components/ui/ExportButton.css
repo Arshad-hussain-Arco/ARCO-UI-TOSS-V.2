@@ -53,6 +53,8 @@
 .common-export-icon-chevron {
   flex-shrink: 0;
   color: inherit;
+  width: 16px;
+  height: 16px;
 }
 
 .common-export-dropdown {

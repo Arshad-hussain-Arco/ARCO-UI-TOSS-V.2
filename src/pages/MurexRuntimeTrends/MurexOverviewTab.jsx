@@ -242,19 +242,19 @@ export function MurexOverviewTab() {
     const shapes =
       hoveredTimelineRow != null
         ? [
-            {
-              type: 'rect',
-              xref: 'paper',
-              x0: 0,
-              x1: 1,
-              yref: 'y',
-              y0: hoveredTimelineRow,
-              y1: hoveredTimelineRow,
-              fillcolor: 'rgba(241, 245, 249, 0.75)',
-              line: { width: 0 },
-              layer: 'below',
-            },
-          ]
+          {
+            type: 'rect',
+            xref: 'paper',
+            x0: 0,
+            x1: 1,
+            yref: 'y',
+            y0: hoveredTimelineRow,
+            y1: hoveredTimelineRow,
+            fillcolor: 'rgba(241, 245, 249, 0.75)',
+            line: { width: 0 },
+            layer: 'below',
+          },
+        ]
         : [];
 
     const defaultRange = [`${selectedIsoDate} 00:00:00`, `${selectedIsoDate} 23:59:59`];
@@ -491,249 +491,296 @@ export function MurexOverviewTab() {
             </div>
           ) : (
             <>
-          {(() => {
-            // Calculate time lapse using the first job's start and last job's end
-            let timeLapseStr = '';
+              {(() => {
+                // Calculate time lapse using the first job's start and last job's end
+                let timeLapseNode = null;
 
-            if (matrixJobs.length > 0) {
-              const firstJob = matrixJobs[0];
-              const lastJob = matrixJobs[matrixJobs.length - 1];
-              
-              const firstTime = firstJob.rawStartTime?.split(' ').pop() || '';
-              const lastTime = lastJob.rawEndTime?.split(' ').pop() || '';
-              
-              if (firstTime && lastTime) {
-                timeLapseStr = `${firstTime} — ${lastTime}`;
-              }
-            }
-
-            return (
-              <div className="murex-matrix-card-header" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: '24px' }}>
-                {/* Left Badge: Time lapse */}
-                <div style={{ position: 'absolute', left: '12px', top: '0', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(14, 165, 233, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#0284c7' }}>
-                  <Clock size={12} />
-                  <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2px' }}>
-                    Time lapse: {timeLapseStr || `24h window`}
-                  </span>
-                </div>
-                
-                {/* Right Badge: Total Jobs Count */}
-                <div style={{ position: 'absolute', right: '12px', top: '0', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#059669' }}>
-                  <ListOrdered size={12} />
-                  <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2px' }}>
-                    Total Jobs: {matrixJobs.length}
-                  </span>
-                </div>
-
-                <h3 className="murex-matrix-card-title" style={{ textAlign: 'center', margin: 0, marginBottom: '4px' }}>Job - duration matrix</h3>
-                <div className="murex-matrix-card-subtitle" style={{ textAlign: 'center' }}>
-                  {formattedDate}
-                </div>
-              </div>
-            );
-          })()}
-
-          {matrixJobs.length > 0 ? (
-            <div className="murex-matrix-list-container">
-              {/* Header Row */}
-              <div className="murex-matrix-list-header">
-                <div className="mxl-col mxl-col-job">JOB</div>
-                <div className="mxl-col mxl-col-timeline">TIMELINE</div>
-                <div className="mxl-col mxl-col-duration">DURATION</div>
-                <div className="mxl-col mxl-col-start-end">START &mdash; END</div>
-              </div>
-
-              {/* Data Rows */}
-              <div className="murex-matrix-list-body">
-                {(() => {
-                  // Compute dynamic scale based on actual job times
+                if (matrixJobs.length > 0) {
                   const times = matrixJobs.map(job => {
                     const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
                     const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
                     return { startMs, endMs };
                   }).filter(t => t.startMs > 0);
 
-                  let globalMinMs = Math.min(...times.map(t => t.startMs));
-                  let globalMaxMs = Math.max(...times.map(t => t.endMs));
-                  
-                  // Add 30 minutes padding to both sides
-                  if (globalMinMs && globalMaxMs && globalMaxMs > globalMinMs) {
-                    globalMinMs -= 30 * 60 * 1000;
-                    globalMaxMs += 30 * 60 * 1000;
-                  } else {
-                    // Fallback to 24h
-                    globalMinMs = new Date(`${selectedIsoDate}T00:00:00`).getTime();
-                    globalMaxMs = globalMinMs + (24 * 60 * 60 * 1000);
-                  }
-                  
-                  const totalSpanMs = globalMaxMs - globalMinMs;
+                  if (times.length > 0) {
+                    const globalMinMs = Math.min(...times.map(t => t.startMs));
+                    const globalMaxMs = Math.max(...times.map(t => t.endMs));
 
-                  // Save globally for footer
-                  window.__murexGlobalMinMs = globalMinMs;
-                  window.__murexGlobalMaxMs = globalMaxMs;
+                    const s = new Date(globalMinMs);
+                    const e = new Date(globalMaxMs);
 
-                  return matrixJobs.map((job, idx) => {
-                    const jobStartMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : globalMinMs;
-                    const jobEndMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : jobStartMs;
-                    
-                    const durationMs = Math.max(jobEndMs - jobStartMs, 60 * 1000);
-                    const leftPerc = Math.max(0, Math.min(100, ((jobStartMs - globalMinMs) / totalSpanMs) * 100));
-                    const widthPerc = Math.min(100 - leftPerc, (durationMs / totalSpanMs) * 100);
+                    const pad = (n) => n.toString().padStart(2, '0');
+                    const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-                    const startTimeOnly = job.rawStartTime?.split(' ').pop() || '';
-                    const endTimeOnly = job.rawEndTime?.split(' ').pop() || '';
-                    return (
-                      <div 
-                        key={job.id} 
-                        className="murex-matrix-list-row"
-                        onMouseEnter={() => setHoveredMatrixIdx(idx)}
-                        onMouseLeave={() => setHoveredMatrixIdx(null)}
-                        title={job.rawScriptName}
-                      >
-                        <div className="mxl-col mxl-col-job">
-                          <span className="mxl-job-name">{job.name}</span>
-                        </div>
-                        <div className="mxl-col mxl-col-timeline">
-                          <div className="mxl-timeline-track">
-                            <div 
-                              className="mxl-timeline-bar" 
-                              style={{ 
-                                left: `${leftPerc}%`, 
-                                width: `${Math.max(widthPerc, 0.5)}%` 
-                              }} 
-                            />
-                          </div>
-                        </div>
-                        <div className="mxl-col mxl-col-duration">
-                          <span className="mxl-duration-text">
-                            {job.durationStr?.replace(/m/g, 'm ').replace(/s/g, 's').trim()}
-                          </span>
-                        </div>
-                        <div className="mxl-col mxl-col-start-end">
-                          <span className="mxl-start-end-text">
-                            {startTimeOnly} &mdash; {endTimeOnly}
-                          </span>
-                        </div>
+                    const startDateStr = s.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    const endDateStr = e.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+
+                    const sDateOnly = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+                    const eDateOnly = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+                    const isNextDay = eDateOnly > sDateOnly;
+
+                    timeLapseNode = (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', columnGap: '8px', rowGap: '4px', alignItems: 'center', lineHeight: '1.2' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary, #94a3b8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>START</span>
+                        <span style={{ color: '#0284c7', fontSize: '10px', fontWeight: 600 }}>{startDateStr}</span>
+                        <span style={{ fontSize: '11px', color: 'inherit', fontWeight: 600 }}>{formatTime(s)}</span>
+
+                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary, #94a3b8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>END</span>
+                        <span style={{ color: isNextDay ? '#dc2626' : '#0284c7', fontSize: '10px', fontWeight: 600 }}>{endDateStr}</span>
+                        <span style={{ fontSize: '11px', color: 'inherit', fontWeight: 600 }}>{formatTime(e)}</span>
                       </div>
                     );
-                  });
-                })()}
-              </div>
-
-              {/* Total Duration Row (Always visible) */}
-              {matrixJobs.length > 0 && (() => {
-                const minMs = window.__murexGlobalMinMs;
-                const maxMs = window.__murexGlobalMaxMs;
-                const totalSpanMs = maxMs - minMs;
-                
-                if (!minMs || !maxMs || totalSpanMs <= 0) return null;
-
-                const times = matrixJobs.map(job => {
-                  const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
-                  const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
-                  return { startMs, endMs };
-                }).filter(t => t.startMs > 0);
-
-                const trueMinMs = Math.min(...times.map(t => t.startMs));
-                const trueMaxMs = Math.max(...times.map(t => t.endMs));
-
-                const leftPerc = Math.max(0, ((trueMinMs - minMs) / totalSpanMs) * 100);
-                const widthPerc = Math.min(100 - leftPerc, ((trueMaxMs - trueMinMs) / totalSpanMs) * 100);
-                
-                const diffMs = trueMaxMs - trueMinMs;
-                const h = Math.floor(diffMs / 3600000);
-                const m = Math.floor((diffMs % 3600000) / 60000);
-                const s = Math.floor((diffMs % 60000) / 1000);
-                const durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+                  }
+                }
 
                 return (
-                  <div className="murex-matrix-list-row mxl-total-row" style={{ backgroundColor: 'var(--bg-tertiary, #f8fafc)', borderTop: '2px solid var(--border-secondary, #e2e8f0)', borderBottom: '1px solid var(--border-secondary, #e2e8f0)', fontWeight: 600, padding: '12px 16px' }}>
-                    <div className="mxl-col mxl-col-job" style={{ color: 'var(--text-primary, #0f172a)' }}>
-                      Total Time Duration
-                    </div>
-                    <div className="mxl-col mxl-col-timeline">
-                      <div className="mxl-timeline-track" style={{ backgroundColor: 'transparent' }}>
-                        <div 
-                          className="mxl-timeline-bar" 
-                          style={{ 
-                            left: `${leftPerc}%`, 
-                            width: `${Math.max(widthPerc, 0.5)}%`,
-                            backgroundColor: 'var(--brand-primary, #6366f1)',
-                            opacity: 0.85
-                          }} 
-                        />
+                  <div className="murex-matrix-card-header" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: '32px' }}>
+                    {/* Left Badge: Time lapse */}
+                    <div style={{ position: 'absolute', left: '12px', top: '0', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(14, 165, 233, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#0284c7' }}>
+                      <Clock size={12} style={{ alignSelf: 'flex-start', marginTop: '3px' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px', opacity: 0.8 }}>Time elapsed</span>
+                        {timeLapseNode || <span style={{ fontSize: '11px', fontWeight: 600 }}>24h window</span>}
                       </div>
                     </div>
-                    <div className="mxl-col mxl-col-duration" style={{ color: 'var(--brand-primary, #6366f1)' }}>
-                      <span className="mxl-duration-text">{durationStr}</span>
+
+                    {/* Right Badge: Total Jobs Count */}
+                    <div style={{ position: 'absolute', right: '12px', top: '0', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#059669' }}>
+                      <ListOrdered size={12} />
+                      <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2px' }}>
+                        Total Jobs: {matrixJobs.length}
+                      </span>
                     </div>
-                    <div className="mxl-col mxl-col-start-end">
-                      {/* Left intentionally blank to avoid confusion */}
+
+                    <h3 className="murex-matrix-card-title" style={{ textAlign: 'center', margin: 0, marginBottom: '4px' }}>Job - Execution Timeline </h3>
+                    <div className="murex-matrix-card-subtitle" style={{ textAlign: 'center' }}>
+                      {formattedDate}
                     </div>
                   </div>
                 );
               })()}
 
-              {/* X-Axis Footer */}
-              <div className="murex-matrix-list-footer">
-                <div className="mxl-col mxl-col-job"></div>
-                <div className="mxl-col mxl-col-timeline" style={{ position: 'relative', height: '24px', paddingTop: '4px' }}>
-                  {/* Dynamic background ticks */}
-                  {(() => {
-                    const ticks = [];
-                    const hourMs = 60 * 60 * 1000;
-                    
+              {matrixJobs.length > 0 ? (
+                <div className="murex-matrix-list-container">
+                  {/* Header Row */}
+                  <div className="murex-matrix-list-header">
+                    <div className="mxl-col mxl-col-job">JOB</div>
+                    <div className="mxl-col mxl-col-timeline">TIMELINE</div>
+                    <div className="mxl-col mxl-col-duration">DURATION</div>
+                    <div className="mxl-col mxl-col-start">START</div>
+                    <div className="mxl-col mxl-col-end">END</div>
+                  </div>
+
+                  {/* Data Rows */}
+                  <div className="murex-matrix-list-body">
+                    {(() => {
+                      // Compute dynamic scale based on actual job times
+                      const times = matrixJobs.map(job => {
+                        const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
+                        const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
+                        return { startMs, endMs };
+                      }).filter(t => t.startMs > 0);
+
+                      let globalMinMs = Math.min(...times.map(t => t.startMs));
+                      let globalMaxMs = Math.max(...times.map(t => t.endMs));
+
+                      // Add 30 minutes padding to both sides
+                      if (globalMinMs && globalMaxMs && globalMaxMs > globalMinMs) {
+                        globalMinMs -= 30 * 60 * 1000;
+                        globalMaxMs += 30 * 60 * 1000;
+                      } else {
+                        // Fallback to 24h
+                        globalMinMs = new Date(`${selectedIsoDate}T00:00:00`).getTime();
+                        globalMaxMs = globalMinMs + (24 * 60 * 60 * 1000);
+                      }
+
+                      const totalSpanMs = globalMaxMs - globalMinMs;
+
+                      // Save globally for footer
+                      window.__murexGlobalMinMs = globalMinMs;
+                      window.__murexGlobalMaxMs = globalMaxMs;
+
+                      return matrixJobs.map((job, idx) => {
+                        const jobStartMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : globalMinMs;
+                        const jobEndMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : jobStartMs;
+
+                        const durationMs = Math.max(jobEndMs - jobStartMs, 60 * 1000);
+                        const leftPerc = Math.max(0, Math.min(100, ((jobStartMs - globalMinMs) / totalSpanMs) * 100));
+                        const widthPerc = Math.min(100 - leftPerc, (durationMs / totalSpanMs) * 100);
+
+                        // Formatted dates for Start - End column
+                        const s = new Date(jobStartMs);
+                        const e = new Date(jobEndMs);
+
+                        const pad = (n) => n.toString().padStart(2, '0');
+                        const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+                        const startDateStr = s.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                        const endDateStr = e.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+
+                        const sDateOnly = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+                        const eDateOnly = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+                        const isNextDay = eDateOnly > sDateOnly;
+
+                        return (
+                          <div
+                            key={job.id}
+                            className="murex-matrix-list-row"
+                            onMouseEnter={() => setHoveredMatrixIdx(idx)}
+                            onMouseLeave={() => setHoveredMatrixIdx(null)}
+                            title={job.rawScriptName}
+                          >
+                            <div className="mxl-col mxl-col-job">
+                              <span className="mxl-job-name">{job.name}</span>
+                            </div>
+                            <div className="mxl-col mxl-col-timeline">
+                              <div className="mxl-timeline-track">
+                                <div
+                                  className="mxl-timeline-bar"
+                                  style={{
+                                    left: `${leftPerc}%`,
+                                    width: `${Math.max(widthPerc, 0.5)}%`
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="mxl-col mxl-col-duration">
+                              <span className="mxl-duration-text">
+                                {job.durationStr?.replace(/m/g, 'm ').replace(/s/g, 's').trim()}
+                              </span>
+                            </div>
+                            <div className="mxl-col mxl-col-start">
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', lineHeight: '1.2', fontWeight: 600 }}>
+                                <span style={{ color: '#0284c7', fontSize: '10px' }}>{startDateStr}</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{formatTime(s)}</span>
+                              </div>
+                            </div>
+                            <div className="mxl-col mxl-col-end">
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', lineHeight: '1.2', fontWeight: 600 }}>
+                                <span style={{ color: isNextDay ? '#dc2626' : '#0284c7', fontSize: '10px' }}>{endDateStr}</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{formatTime(e)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  {/* Total Duration Row (Always visible) */}
+                  {matrixJobs.length > 0 && (() => {
                     const minMs = window.__murexGlobalMinMs;
                     const maxMs = window.__murexGlobalMaxMs;
-                    
-                    if (!minMs || !maxMs) return null;
+                    const totalSpanMs = maxMs - minMs;
 
-                    const totalSpanHours = (maxMs - minMs) / hourMs;
-                    let tickIntervalMs = hourMs;
-                    // If span is large, show every 2 or 3 hours to prevent overlapping
-                    if (totalSpanHours > 12) tickIntervalMs = 3 * hourMs;
-                    else if (totalSpanHours > 8) tickIntervalMs = 2 * hourMs;
+                    if (!minMs || !maxMs || totalSpanMs <= 0) return null;
 
-                    let currentTick = Math.ceil(minMs / tickIntervalMs) * tickIntervalMs;
-                    
-                    while (currentTick <= maxMs) {
-                      const leftPerc = ((currentTick - minMs) / (maxMs - minMs)) * 100;
-                      const timeLabel = new Date(currentTick).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-                      
-                      ticks.push(
-                        <div 
-                          key={currentTick} 
-                          style={{ 
-                            position: 'absolute', 
-                            left: `${leftPerc}%`, 
-                            transform: 'translateX(-50%)', 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center',
-                            color: 'var(--text-tertiary, #94a3b8)',
-                            fontSize: '10px',
-                            fontWeight: 500
-                          }}
-                        >
-                          <div style={{ height: '4px', width: '1px', backgroundColor: 'var(--border-primary, #cbd5e1)', marginBottom: '2px' }} />
-                          <span>{timeLabel}</span>
+                    const times = matrixJobs.map(job => {
+                      const startMs = job.start ? new Date(job.start.replace(' ', 'T')).getTime() : 0;
+                      const endMs = job.end ? new Date(job.end.replace(' ', 'T')).getTime() : startMs;
+                      return { startMs, endMs };
+                    }).filter(t => t.startMs > 0);
+
+                    const trueMinMs = Math.min(...times.map(t => t.startMs));
+                    const trueMaxMs = Math.max(...times.map(t => t.endMs));
+
+                    const leftPerc = Math.max(0, ((trueMinMs - minMs) / totalSpanMs) * 100);
+                    const widthPerc = Math.min(100 - leftPerc, ((trueMaxMs - trueMinMs) / totalSpanMs) * 100);
+
+                    const diffMs = trueMaxMs - trueMinMs;
+                    const h = Math.floor(diffMs / 3600000);
+                    const m = Math.floor((diffMs % 3600000) / 60000);
+                    const s = Math.floor((diffMs % 60000) / 1000);
+                    const durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+
+                    return (
+                      <div className="murex-matrix-list-row mxl-total-row" style={{ backgroundColor: 'var(--bg-tertiary, #f8fafc)', borderTop: '2px solid var(--border-secondary, #e2e8f0)', borderBottom: '1px solid var(--border-secondary, #e2e8f0)', fontWeight: 600, padding: '12px 18px 12px 12px' }}>
+                        <div className="mxl-col mxl-col-job" style={{ color: 'var(--text-primary, #0f172a)' }}>
+                          Total Time Duration
                         </div>
-                      );
-                      currentTick += tickIntervalMs;
-                    }
-                    return ticks;
+                        <div className="mxl-col mxl-col-timeline">
+                          <div className="mxl-timeline-track" style={{ backgroundColor: 'transparent' }}>
+                            <div
+                              className="mxl-timeline-bar"
+                              style={{
+                                left: `${leftPerc}%`,
+                                width: `${Math.max(widthPerc, 0.5)}%`,
+                                backgroundColor: 'var(--brand-primary, #6366f1)',
+                                opacity: 0.85
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mxl-col mxl-col-duration" style={{ color: 'var(--brand-primary, #6366f1)' }}>
+                          <span className="mxl-total-duration-text">{durationStr}</span>
+                        </div>
+                        <div className="mxl-col mxl-col-start"></div>
+                        <div className="mxl-col mxl-col-end"></div>
+                      </div>
+                    );
                   })()}
+
+                  {/* X-Axis Footer */}
+                  <div className="murex-matrix-list-footer">
+                    <div className="mxl-col mxl-col-job"></div>
+                    <div className="mxl-col mxl-col-timeline" style={{ position: 'relative', height: '24px', paddingTop: '4px' }}>
+                      {/* Dynamic background ticks */}
+                      {(() => {
+                        const ticks = [];
+                        const hourMs = 60 * 60 * 1000;
+
+                        const minMs = window.__murexGlobalMinMs;
+                        const maxMs = window.__murexGlobalMaxMs;
+
+                        if (!minMs || !maxMs) return null;
+
+                        const totalSpanHours = (maxMs - minMs) / hourMs;
+                        let tickIntervalMs = hourMs;
+                        // If span is large, show every 2 or 3 hours to prevent overlapping
+                        if (totalSpanHours > 12) tickIntervalMs = 3 * hourMs;
+                        else if (totalSpanHours > 8) tickIntervalMs = 2 * hourMs;
+
+                        let currentTick = Math.ceil(minMs / tickIntervalMs) * tickIntervalMs;
+
+                        while (currentTick <= maxMs) {
+                          const leftPerc = ((currentTick - minMs) / (maxMs - minMs)) * 100;
+                          const timeLabel = new Date(currentTick).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+                          ticks.push(
+                            <div
+                              key={currentTick}
+                              style={{
+                                position: 'absolute',
+                                left: `${leftPerc}%`,
+                                transform: 'translateX(-50%)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                color: 'var(--text-tertiary, #94a3b8)',
+                                fontSize: '10px',
+                                fontWeight: 500
+                              }}
+                            >
+                              <div style={{ height: '4px', width: '1px', backgroundColor: 'var(--border-primary, #cbd5e1)', marginBottom: '2px' }} />
+                              <span>{timeLabel}</span>
+                            </div>
+                          );
+                          currentTick += tickIntervalMs;
+                        }
+                        return ticks;
+                      })()}
+                    </div>
+                    <div className="mxl-col mxl-col-duration"></div>
+                    <div className="mxl-col mxl-col-start"></div>
+                    <div className="mxl-col mxl-col-end"></div>
+                  </div>
                 </div>
-                <div className="mxl-col mxl-col-duration"></div>
-                <div className="mxl-col mxl-col-start-end"></div>
-              </div>
-            </div>
-          ) : (
-            <div className="murex-overview-empty-state">
-              <FileQuestion size={28} className="murex-empty-icon" />
-              <span>No EOD job executions recorded for {formattedDate}.</span>
-            </div>
-          )}
+              ) : (
+                <div className="murex-overview-empty-state">
+                  <FileQuestion size={28} className="murex-empty-icon" />
+                  <span>No EOD job executions recorded for {formattedDate}.</span>
+                </div>
+              )}
             </>
           )}
         </div>

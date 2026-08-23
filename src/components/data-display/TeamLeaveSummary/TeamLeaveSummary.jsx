@@ -225,6 +225,13 @@ function TeamLeaveSummary({ getPhoto }) {
     }));
   }, [departmentData, getPhoto]);
 
+  const handleTeamSearchChange = (deptId, value) => {
+    setTeamSearchQueries((prev) => ({
+      ...prev,
+      [deptId]: value,
+    }));
+  };
+
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
       const current = prev[deptId] || { field: null, direction: null };
@@ -696,6 +703,15 @@ function TeamLeaveSummary({ getPhoto }) {
                                     CCompOff: "Claim Compensatory Off",
                                     WFH: "Work From Home"
                                   };
+
+                                  let targetTypes = [];
+                                  if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+                                  else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+                                  else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+                                  else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+                                  else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+                                  else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+                                  else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
 
                                   const relevantLeaves = c.leaveTypes || [];
 

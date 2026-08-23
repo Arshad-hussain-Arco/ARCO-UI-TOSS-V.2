@@ -1,0 +1,177 @@
+/* ─── Preferences Page Styles ───────────────────────────────────────────── */
+
+.pf-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: var(--bg-secondary);
+  font-family: var(--font-family);
+  box-sizing: border-box;
+}
+
+.pf-header {
+  padding: 16px 24px 12px 24px;
+  background-color: var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.pf-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+.pf-tabs-container {
+  display: flex;
+  background-color: var(--surface-primary);
+  border-bottom: 1px solid var(--border-primary);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.pf-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.pf-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.pf-tab.active {
+  color: var(--c-primary, #006633);
+  border-bottom-color: var(--c-primary, #006633);
+}
+
+.pf-tab-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pf-main-content {
+  padding: 16px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Sidebar Layout tab — compact drag-to-reorder lists ──────────────────── */
+.pl-panel-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pl-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 520px;
+}
+
+.pl-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pl-role-select {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pl-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.pl-section-title {
+  margin: 0 0 6px 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-tertiary);
+}
+
+.pl-item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pl-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 5px;
+  background: var(--surface-primary);
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: grab;
+  user-select: none;
+}
+
+.pl-item-row[data-dragging='true'] {
+  opacity: 0.4;
+}
+
+.pl-item-row[data-drop-target='true'] {
+  border-color: var(--c-primary, #006633);
+  background: var(--bg-hover);
+}
+
+.pl-item-grip {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.pl-item-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.pl-item-label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,69 +1,131 @@
-import { getBusinessStageInfo } from './businessLifecycleMap';
+import { mapStatusToIds, PMStatus, PMStatusGroups } from './staticData';
 
 /**
- * Dynamic calculation and data mapping utilities for Project Monitoring
+ * Dynamic calculation and data mapping utilities for Project Monitoring and Breaches
+ * Authoritative implementation matching PROJECT_MONITORING_REQUIREMENTS.md
  */
 
 const NOT_AVAILABLE_LABEL = 'Not Available';
 
 /**
- * Returns the raw Depends_On value for a project.
- * If Depends_On is empty/null in the API, it is treated as 'Not Available'.
- * Every project is always included in Project Monitoring.
+ * Parses date string or returns null
  */
-export function getCategoryKey(p) {
-  const dep = (p.dependsOn || '').trim();
-  return dep || NOT_AVAILABLE_LABEL;
+export function parseDate(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  const str = String(dateVal).trim();
+  if (!str || str.length <= 1) return null;
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
- * Builds pill tab chips dynamically from projectsList.
- * Empty Depends_On → counted under 'Not Available'.
- * The 'All Projects' chip = total of all projects.
- * No hardcoded categories — fully driven by API data.
- *
- * Returns: Array<{ id: string, label: string, count: number }>
+ * Standardizes Work Order API response items (result1)
+ */
+export function mapWorkOrderRecord(wo) {
+  const woIdInt = wo.Wo_Id ? parseInt(wo.Wo_Id, 10) : 0;
+  const statusStr = (wo.Status || '').trim();
+  const { statusId, statusGroup } = mapStatusToIds(statusStr);
+  
+  let dependsOn = (wo.Depends_On || wo.DependsOn || '').trim();
+  if (dependsOn.length <= 1) {
+    dependsOn = NOT_AVAILABLE_LABEL;
+  }
+
+  return {
+    ...wo,
+    Wo_Id: woIdInt,
+    Ipm_Number: wo.Ipm_Number || '',
+    Summary: wo.Summary || '',
+    Work_Order_Type: wo.Work_Order_Type || 'Project',
+    Status: statusStr,
+    StatusId: statusId,
+    StatusGroup: statusGroup,
+    Priority: wo.Priority || 'Medium',
+    IT_Delivery_Lead: wo.IT_Delivery_Lead || 'unassigned',
+    Backup_IT_Delivery_Lead: wo.Backup_IT_Delivery_Lead || 'unassigned',
+    Product_Owner: wo.Product_Owner || 'unassigned',
+    PMO_Project_Manager: wo.PMO_Project_Manager || 'unassigned',
+    Owned_By: wo.Owned_By || 'unassigned',
+    Requestor_Name: wo.Requestor_Name || 'unassigned',
+    Start_Date: wo.Start_Date || '',
+    Due_Date: wo.Due_Date || wo.End_Date || '',
+    Clarity_Planned_Finish_Date: wo.Clarity_Planned_Finish_Date || '',
+    Planned_DEV_completion_Date: wo.Planned_DEV_completion_Date || '',
+    SIT_Received_date: wo.SIT_Received_date || '',
+    UAT_Actual_End_Date: wo.UAT_Actual_End_Date || '',
+    SIT_Lead: wo.SIT_Lead || wo.PMO_Project_Manager || 'unassigned',
+    UAT_Lead: wo.UAT_Lead || 'unassigned',
+    Depends_On: dependsOn,
+    Last_Comment: wo.Last_Comment || '',
+    Description: wo.Description || wo.Summary || '',
+    Assigned_Developer: wo.Assigned_Developer || wo.assignedDeveloper || wo.developer || '',
+    Additional_Developers: wo.Additional_Developers || wo.additionalDevelopers || wo.additionalDev || '',
+  };
+}
+
+/**
+ * Standardizes Change Request API response items (result2)
+ */
+export function mapChangeRequestRecord(cr) {
+  const woIdInt = cr.Wo_Id ? parseInt(cr.Wo_Id, 10) : 0;
+  const statusStr = (cr.Status || '').trim();
+
+  return {
+    ...cr,
+    Id: cr.Id ? parseInt(cr.Id, 10) : 0,
+    Wo_Id: woIdInt,
+    Ipm_Number: cr.Ipm_Number || cr.ipmNumber || '',
+    Summary: cr.Summary || cr.summary || '',
+    Status: statusStr,
+    Priority: cr.Priority || cr.priority || 'Medium',
+    Start_Date: cr.Start_Date || cr.startDate || '',
+    End_Date: cr.End_Date || cr.endDate || cr.Due_Date || cr.dueDate || '',
+    Effort_in_MDs: cr.Effort_in_MDs !== undefined ? String(cr.Effort_in_MDs) : (cr.effortInMds !== undefined ? String(cr.effortInMds) : ''),
+    Assigned_Developer: cr.Assigned_Developer || cr.assignedDeveloper || cr.developer || '',
+    Additional_Developers: cr.Additional_Developers || cr.additionalDevelopers || cr.additionalDev || '',
+    Project: cr.Project || cr.project || '',
+  };
+}
+
+/**
+ * Builds Project Type Radio list from projectData
+ * Returns array of { id: string, label: string, count: number }
  */
 export function calculateCategoryCounts(projectsList = []) {
   const countMap = new Map();
 
   projectsList.forEach((p) => {
-    const key = getCategoryKey(p);
+    const key = p.Depends_On || NOT_AVAILABLE_LABEL;
     countMap.set(key, (countMap.get(key) || 0) + 1);
   });
 
-  // Sort chips: descending by count, then alphabetically
   const sorted = Array.from(countMap.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([id, count]) => ({ id, label: id, count }));
 
   return [
-    { id: 'all', label: 'All Projects', count: projectsList.length },
+    { id: 'All Projects', label: 'All Projects', count: projectsList.length },
     ...sorted,
   ];
 }
 
 /**
- * Filter projects by selected category chip.
- * All projects are shown — empty Depends_On maps to 'Not Available'.
+ * Filters projects by selected Project Type radio option
  */
-export function filterByCategory(project, categoryId) {
-  if (!categoryId || categoryId === 'all') return true;
-  return getCategoryKey(project) === categoryId;
+export function filterByCategory(project, selectedPM) {
+  if (!selectedPM || selectedPM === 'All Projects') return true;
+  return project.Depends_On === selectedPM;
 }
 
 /**
- * SINGLE AUTHORITATIVE Count By Calculation Engine
- * Strictly follows team_breakdown_cards_reverse_engineering.md:
- * - Cards 1-5 (itdl, po, backupItdl, sitLead, uatLead): Evaluate Work Orders payload (result1)
- * - Cards 6-7 (developer, additionalDev): Evaluate Change Requests payload (result2)
- * - Legacy Reduction Formula (myFunc):
- *   grouped[key] = grouped[key] || []
- *   grouped[key].push(item)
- *   count = grouped[key].length
+ * Standardized myFunc Team Role Grouping Engine (Cards 1 to 7)
+ * - Cards 1-5 (itdl, po, backupItdl, sitLead, uatLead): Evaluate Work Orders dataset (result1)
+ * - Cards 6-7 (developer, additionalDev): Evaluate Change Requests payload (result2) or Work Orders fallback
+ * Exact Legacy myFunc reduction logic (No string splitting, raw property keys preserved)
+ * Returns grouped array of { name: string, count: number, records: Array }
  */
 export function calculateTeamRoleCounts(projectsList = [], changeRequestsList = [], roleField = 'itdl') {
-  // Support both 2-arg and 3-arg signatures
   let actualWO = projectsList;
   let actualCR = changeRequestsList;
   let targetField = roleField;
@@ -74,246 +136,396 @@ export function calculateTeamRoleCounts(projectsList = [], changeRequestsList = 
   }
 
   const isCRCard = targetField === 'developer' || targetField === 'additionalDev';
-  const targetCollection = isCRCard ? (Array.isArray(actualCR) ? actualCR : []) : (Array.isArray(actualWO) ? actualWO : []);
+  
+  let targetCollection = [];
+  if (isCRCard) {
+    if (Array.isArray(actualCR) && actualCR.length > 0) {
+      targetCollection = actualCR;
+    } else if (Array.isArray(projectsList) && projectsList.some((p) => p.Assigned_Developer || p.assignedDeveloper || p.developer || p.Additional_Developers || p.additionalDevelopers)) {
+      targetCollection = projectsList;
+    } else if (Array.isArray(actualWO) && actualWO.length > 0) {
+      targetCollection = actualWO;
+    }
+  } else {
+    targetCollection = Array.isArray(actualWO) ? actualWO : [];
+  }
 
-  const grouped = new Map(); // key: display name string, value: array of matching records
+  const grouped = new Map();
 
   targetCollection.forEach((item) => {
     let rawVal = null;
-    if (targetField === 'itdl') rawVal = item.itdl || item.IT_Delivery_Lead;
-    else if (targetField === 'po') rawVal = item.po || item.Product_Owner;
-    else if (targetField === 'backupItdl') rawVal = item.backupItdl || item.Backup_IT_Delivery_Lead;
-    else if (targetField === 'sitLead') rawVal = item.sitLead || item.SIT_Lead;
-    else if (targetField === 'uatLead') rawVal = item.uatLead || item.UAT_Lead;
-    else if (targetField === 'developer') rawVal = item.assignedDeveloper || item.developer || item.Assigned_Developer;
-    else if (targetField === 'additionalDev') {
-      rawVal =
-        item.additionalDevelopers ||
-        item.additionalDev ||
-        item.Additional_Developers ||
-        item.Additional_Developer ||
-        item.Additional_Dev ||
-        item.Additional_Devs ||
-        item.AdditionalDevelopers ||
-        item.additional_developers ||
-        item.additional_developer;
+    if (targetField === 'itdl') rawVal = item.IT_Delivery_Lead || item.itdl;
+    else if (targetField === 'po') rawVal = item.Product_Owner || item.po;
+    else if (targetField === 'backupItdl') rawVal = item.Backup_IT_Delivery_Lead || item.backupItdl;
+    else if (targetField === 'sitLead') rawVal = item.SIT_Lead || item.sitLead;
+    else if (targetField === 'uatLead') rawVal = item.UAT_Lead || item.uatLead;
+    else if (targetField === 'developer') rawVal = item.Assigned_Developer || item.assignedDeveloper || item.developer || item.Developer;
+    else if (targetField === 'additionalDev') rawVal = item.Additional_Developers || item.additionalDevelopers || item.Additional_Developer || item.additionalDev;
+
+    let keyName = '';
+    if (rawVal !== null && rawVal !== undefined) {
+      const s = String(rawVal).trim();
+      if (s && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined') {
+        keyName = s;
+      }
     }
 
-    let namesToGroup = [];
-    if (targetField === 'additionalDev') {
-      if (rawVal && typeof rawVal === 'string') {
-        const parts = rawVal
-          .split(/[,/]/)
-          .map((s) => s.trim())
-          .filter((s) => s && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined' && s !== '—' && s.toLowerCase() !== 'none' && s.toLowerCase() !== 'n/a');
-        if (parts.length > 0) {
-          namesToGroup = parts;
-        }
-      }
-      if (namesToGroup.length === 0) {
-        namesToGroup = ['unassigned'];
-      }
-    } else {
-      let keyName = 'unassigned';
-      if (rawVal && typeof rawVal === 'string') {
-        const trimmed = rawVal.trim();
-        if (trimmed && trimmed.toLowerCase() !== 'null' && trimmed.toLowerCase() !== 'undefined' && trimmed !== '—') {
-          keyName = trimmed;
-        }
-      }
-      namesToGroup = [keyName];
+    if (!grouped.has(keyName)) {
+      grouped.set(keyName, []);
     }
-
-    namesToGroup.forEach((keyName) => {
-      if (!grouped.has(keyName)) {
-        grouped.set(keyName, []);
-      }
-      grouped.get(keyName).push(item);
-    });
+    grouped.get(keyName).push(item);
   });
 
   const result = [];
   grouped.forEach((records, name) => {
     result.push({
-      name,
+      name: name || '',
       count: records.length,
       records,
     });
   });
 
-  // Sort descending by count, then alphabetically by name
-  result.sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return a.name.localeCompare(b.name);
-  });
+  // Sort by count descending, then name ascending
+  result.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
   return result;
 }
 
 /**
- * Helper: Extract latest comment date from Last_Comment string log
+ * Calculates upcoming completion milestone metrics (Cards 8, 9, 10)
+ * Strictly adhering to UPCOMING_COMPLETION_LEGACY_LOGIC.md:
+ * - Card 8 (development): Evaluates Change Requests payload (End_Date)
+ * - Card 9 (testing): Evaluates Work Orders payload (Due_Date)
+ * - Card 10 (delivery): Evaluates Work Orders payload (UAT_Actual_End_Date)
+ * Cumulative buckets: 15, 30, 45, 60 days
  */
-export function extractLatestCommentDate(commentStr) {
-  if (!commentStr || typeof commentStr !== 'string') return null;
-  const datePatterns = [
-    /([A-Z][a-z]{2} \d{1,2}, \d{4})/g,
-    /(\d{1,2}-[A-Z][a-z]{2}-\d{4})/g,
-    /(\d{4}-\d{2}-\d{2})/g,
-    /([A-Z][a-z]{2} \d{1,2} \d{4})/g,
-  ];
-  const dates = [];
-  for (const pattern of datePatterns) {
-    const matches = commentStr.match(pattern);
-    if (matches) {
-      matches.forEach((m) => {
-        const d = new Date(m);
-        if (!isNaN(d.getTime())) dates.push(d);
-      });
+export function calculateUpcomingCompletions(projectsList = [], changeRequestsList = [], type = 'development') {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const getTargetDate = (item) => {
+    if (type === 'development') {
+      return parseDate(item.End_Date || item.endDate || item.Due_Date || item.dueDate);
     }
+    if (type === 'testing') {
+      return parseDate(item.Due_Date || item.dueDate || item.End_Date || item.endDate);
+    }
+    if (type === 'delivery') {
+      return parseDate(item.UAT_Actual_End_Date || item.uatActualEndDate || item.Clarity_Planned_Finish_Date || item.Due_Date || item.dueDate);
+    }
+    return null;
+  };
+
+  let collection = [];
+  if (type === 'development') {
+    if (Array.isArray(changeRequestsList) && changeRequestsList.length > 0) {
+      collection = changeRequestsList;
+    } else {
+      collection = Array.isArray(projectsList) ? projectsList : [];
+    }
+  } else {
+    collection = Array.isArray(projectsList) ? projectsList : [];
   }
-  if (dates.length === 0) return null;
-  dates.sort((a, b) => b.getTime() - a.getTime());
-  return dates[0];
+
+  const buckets = {
+    b15: [],
+    b30: [],
+    b45: [],
+    b60: [],
+  };
+
+  collection.forEach((item) => {
+    const d = getTargetDate(item);
+    if (!d) return;
+
+    const targetCopy = new Date(d);
+    targetCopy.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round((targetCopy.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0) {
+      if (diffDays <= 15) buckets.b15.push(item);
+      if (diffDays <= 30) buckets.b30.push(item);
+      if (diffDays <= 45) buckets.b45.push(item);
+      if (diffDays <= 60) buckets.b60.push(item);
+    }
+  });
+
+  return {
+    b15: { count: buckets.b15.length, records: buckets.b15 },
+    b30: { count: buckets.b30.length, records: buckets.b30 },
+    b45: { count: buckets.b45.length, records: buckets.b45 },
+    b60: { count: buckets.b60.length, records: buckets.b60 },
+  };
 }
 
 /**
- * Calculates dynamic breach metrics for governance cards based on legacy specification (project_breaches_engineering.md)
+ * Extracts latest comment section and checks if days since last comment exceeds threshold.
+ * Exactly matches legacy extractLatestCommentWithDate implementation.
+ */
+export function extractLatestCommentWithDate(commentString, unCommentedForDays = 5) {
+  if (typeof commentString !== 'string' || commentString.trim() === '') {
+    return null;
+  }
+
+  let latestDate = null;
+  let latestComment = null;
+
+  // APPROACH 1: Try numbered comments first (e.g. "1. Oct 12, 2025 ... 2. Nov 05, 2025 ...")
+  const commentSections = commentString.split(/(?:\n|^|\s{2,})(\d+\.)/g);
+
+  if (commentSections.length > 2) {
+    for (let i = 1; i < commentSections.length; i += 2) {
+      if (i + 1 < commentSections.length) {
+        const commentNumber = commentSections[i];
+        const commentContent = commentSections[i + 1];
+        const fullComment = commentNumber + commentContent;
+
+        const dateMatches = commentContent.match(/([A-Z][a-z]{2} \d{1,2}, \d{4})/g);
+        if (dateMatches && dateMatches.length > 0) {
+          dateMatches.forEach((dateStr) => {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              if (!latestDate || date > latestDate) {
+                latestDate = date;
+                latestComment = fullComment.replace(/^\d+\.\s*/, '').trim();
+              }
+            }
+          });
+        }
+      }
+    }
+  }
+
+  // APPROACH 2: Fallback to free-form comment if no numbered comments found
+  if (!latestDate) {
+    const dateMatches = commentString.match(/([A-Z][a-z]{2} \d{1,2}, \d{4})/g);
+    if (dateMatches && dateMatches.length > 0) {
+      dateMatches.forEach((dateStr) => {
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          if (!latestDate || date > latestDate) {
+            latestDate = date;
+            latestComment = commentString.trim();
+          }
+        }
+      });
+    }
+  }
+
+  if (latestDate) {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const todayDate = new Date(todayStr);
+
+    const diffTime = Math.abs(todayDate - latestDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > unCommentedForDays) {
+      return {
+        latestComment: latestComment || commentString,
+        latestDate: latestDate.toISOString().split('T')[0],
+        daysSinceLastComment: diffDays,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Helper: Legacy compatibility wrapper for extractLatestCommentDate
+ */
+export function extractLatestCommentDate(commentStr) {
+  const info = extractLatestCommentWithDate(commentStr, 0);
+  return info && info.latestDate ? new Date(info.latestDate) : null;
+}
+
+/**
+ * Calculates dynamic breach metrics for governance cards (Cards 11, 12, 13)
+ * Strictly adhering to legacy CountsCard.js loadComponentData logic.
  */
 export function calculateBreachMetrics(projectsList = [], changeRequestsList = []) {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayDivisionVal = 24 * 60 * 60 * 1000;
 
-  // SLA & Phase Breaches
-  const sla1Records = [];
-  const sla2Records = [];
-  const sla3Records = []; // Legacy bug BR-003: Always empty (0)
-  const sla4Records = []; // Legacy bug BR-004: Always empty (0)
-  const sla5Records = []; // Legacy bug BR-005: Always empty (0)
-  const sla6Records = []; // Legacy bug BR-006: Always empty (0)
-  const sla7Records = [];
+  // -------------------------------------------------------------------------
+  // CARD 11: PROJECT BREACHES (7 METRICS)
+  // -------------------------------------------------------------------------
+  const unClosedForDays = 60;
+  const testingForDays = 15;
+  const BRDSSDForDays = 14;
+  const unCommentedForDays = 5;
 
-  // Due Dates
-  const dd1Records = [];
-  const dd2Records = [];
-  const dd3Records = []; // Legacy bug BR-010: Always empty (0)
+  // 1. Unclosed Projects Started Before 60 Days
+  const unClosedResult = projectsList.filter((obj) => {
+    if (!obj.Start_Date) return false;
+    const date = new Date(obj.Start_Date);
+    if (isNaN(date.getTime())) return false;
+    const diffTime = Math.abs(today - date);
+    const diffDays = Math.ceil(diffTime / dayDivisionVal);
+    const statusId = obj.StatusId || 0;
+    const status = obj.Status || '';
+    return diffDays > unClosedForDays && statusId !== 16 && statusId !== 17 && status !== 'Deferred';
+  });
 
-  // CR Exceptions
-  const cr1Records = []; // Legacy bug BR-010: Always empty (0)
-  const cr2Records = [];
-  const cr3Records = [];
-  const cr4Records = [];
+  // 2. Project in Testing for more than 15 Days
+  const testingResult = projectsList.filter((obj) => {
+    if (!obj.SIT_Received_date) return false;
+    const date = new Date(obj.SIT_Received_date);
+    if (isNaN(date.getTime())) return false;
+    const diffTime = Math.abs(today - date);
+    const diffDays = Math.ceil(diffTime / dayDivisionVal);
+    const statusId = obj.StatusId || 0;
+    return diffDays > testingForDays && statusId >= 8 && statusId <= 12;
+  });
 
-  // Evaluate Work Order / Project Breaches
-  projectsList.forEach((p) => {
-    const stageLower = (p.stage || '').toLowerCase();
-    const isClosed = stageLower === 'completed' || stageLower === 'deployed' || stageLower === 'closed' || stageLower === 'deferred';
+  // 3. Project in BRD/SSD Stage for more than 14 Days
+  const BRDSSDResult = projectsList.filter((obj) => {
+    if (!obj.Start_Date) return false;
+    const date = new Date(obj.Start_Date);
+    if (isNaN(date.getTime())) return false;
+    const diffTime = Math.abs(today - date);
+    const diffDays = Math.ceil(diffTime / dayDivisionVal);
+    const statusId = obj.StatusId || 0;
+    return diffDays > BRDSSDForDays && (statusId === 2 || statusId === 3);
+  });
 
-    // BR-001: Unclosed Projects Started Before 60 Days
-    if (!isClosed && p.startDate) {
-      const start = new Date(p.startDate);
-      if (!isNaN(start.getTime())) {
-        const diffDays = Math.ceil(Math.abs(now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > 60) {
-          sla1Records.push(p);
-        }
-      }
-    }
+  // 4. Any CR whose due date passed
+  const CRDueDateResult = changeRequestsList.filter((obj) => {
+    if (!obj.End_Date) return false;
+    const CRdueDate = new Date(obj.End_Date);
+    if (isNaN(CRdueDate.getTime())) return false;
+    const status = obj.Status || '';
+    return CRdueDate < today && (status === 'Open' || status === 'Development In Progress');
+  });
 
-    // BR-002: Project in Testing for More Than 15 Days
-    const isTestingStage = stageLower.includes('testing') || stageLower.includes('sit') || stageLower.includes('uat') || stageLower.includes('fat');
-    const sitDateRaw = p.sitReceivedDate || p.sitDate || (isTestingStage ? p.startDate : null);
-    if (isTestingStage && sitDateRaw) {
-      const sitDate = new Date(sitDateRaw);
-      if (!isNaN(sitDate.getTime())) {
-        const diffDays = Math.ceil(Math.abs(now.getTime() - sitDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > 15) {
-          sla2Records.push(p);
-        }
-      }
-    }
-
-    // BR-007: Projects with no comments for more than 5 days
-    if (!isClosed && p.lastComment) {
-      const commentDate = extractLatestCommentDate(p.lastComment);
-      if (commentDate) {
-        const diffDays = Math.ceil(Math.abs(now.getTime() - commentDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays > 5) {
-          sla7Records.push(p);
-        }
-      }
-    }
-
-    // BR-008: Empty Planned Dev Completion in Next 45 Days
-    const plannedDev = (p.plannedDevDate || '').trim();
-    const dueDateRaw = p.endDate || p.dueDate || p.clarityFinishDate;
-    if ((!plannedDev || plannedDev.length <= 1) && dueDateRaw) {
-      const due = new Date(dueDateRaw);
-      if (!isNaN(due.getTime())) {
-        const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays >= 0 && diffDays <= 45) {
-          dd1Records.push(p);
-        }
-      }
-    }
-
-    // BR-009: Due Date - Dev Completion < 2 Weeks (< 15 Days)
-    if (plannedDev && plannedDev.length > 1 && dueDateRaw) {
-      const due = new Date(dueDateRaw);
-      const dev = new Date(plannedDev);
-      if (!isNaN(due.getTime()) && !isNaN(dev.getTime())) {
-        const diffDays = Math.ceil(Math.abs(due.getTime() - dev.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays < 15) {
-          dd2Records.push(p);
-        }
-      }
+  // 5. CR in progress stage, but WO moved to Testing
+  const CRProgessResult = [];
+  const CRProgess = changeRequestsList.filter((obj) => {
+    const status = obj.Status || '';
+    return status === 'Open' || status === 'Development In Progress';
+  });
+  CRProgess.forEach((x) => {
+    const xWoId = parseInt(x.Wo_Id, 10);
+    const matchedWO = projectsList.find((obj) => parseInt(obj.Wo_Id, 10) === xWoId);
+    if (matchedWO && (matchedWO.StatusId || 0) >= 7) {
+      CRProgessResult.push(x);
     }
   });
 
-  // Evaluate Change Request Breaches
-  changeRequestsList.forEach((cr) => {
-    // BR-011: No Man Days in CR
-    const effortStr = (cr.effortInMDs || cr.effort || '').toString().trim();
-    if (!effortStr || effortStr === '0' || parseInt(effortStr, 10) === 0 || isNaN(parseInt(effortStr, 10))) {
-      cr2Records.push(cr);
-    }
-
-    // BR-012: No Start Date in CR
-    const startDate = (cr.startDate || '').trim();
-    if (!startDate || startDate.length <= 1) {
-      cr3Records.push(cr);
-    }
-
-    // BR-013: No Due Date in CR
-    const endDate = (cr.endDate || cr.dueDate || '').trim();
-    if (!endDate || endDate.length <= 1) {
-      cr4Records.push(cr);
+  // 6. CR in Open stage, but WO moved to Development
+  const CROpenResult = [];
+  const CROPen = changeRequestsList.filter((obj) => (obj.Status || '') === 'Open');
+  CROPen.forEach((x) => {
+    const xWoId = parseInt(x.Wo_Id, 10);
+    const matchedWO = projectsList.find((obj) => parseInt(obj.Wo_Id, 10) === xWoId);
+    if (matchedWO && (matchedWO.StatusId || 0) >= 5) {
+      CROpenResult.push(x);
     }
   });
 
-  const sla = [
-    { id: 'sla1', label: 'Unclosed Projects started before 60 Days', count: sla1Records.length, records: sla1Records, isCR: false },
-    { id: 'sla2', label: 'Project in testing for more than 15 Days', count: sla2Records.length, records: sla2Records, isCR: false },
-    { id: 'sla3', label: 'Project in BRD / SSD stage for more than 14 Days', count: sla3Records.length, records: sla3Records, isCR: false },
-    { id: 'sla4', label: 'Any CR whose due date passed', count: sla4Records.length, records: sla4Records, isCR: true },
-    { id: 'sla5', label: 'CR in progress stage, but WO moved to Testing', count: sla5Records.length, records: sla5Records, isCR: true },
-    { id: 'sla6', label: 'CR in Open stage, but WO moved to Development', count: sla6Records.length, records: sla6Records, isCR: true },
-    { id: 'sla7', label: 'Projects with no comments for more than 5 days', count: sla7Records.length, records: sla7Records, isCR: false },
+  // 7. Projects with no comments for more than 5 days
+  const unCommentedProjectsResult = projectsList
+    .map((obj) => {
+      const commentInfo = extractLatestCommentWithDate(obj.Last_Comment, unCommentedForDays);
+      return {
+        ...obj,
+        _tempCommentInfo: commentInfo,
+      };
+    })
+    .filter((obj) => {
+      return (
+        obj._tempCommentInfo !== null &&
+        obj.Last_Comment &&
+        obj.Last_Comment !== '' &&
+        obj.Status !== 'Closed'
+      );
+    })
+    .map((obj) => {
+      const { _tempCommentInfo, ...cleanObj } = obj;
+      return {
+        ...cleanObj,
+        Last_Comment: _tempCommentInfo ? _tempCommentInfo.latestComment : cleanObj.Last_Comment,
+      };
+    });
+
+  // -------------------------------------------------------------------------
+  // CARD 12: PROJECT DUE DATES (2 METRICS)
+  // -------------------------------------------------------------------------
+  const next45D = new Date(today.getTime() + 45 * dayDivisionVal);
+
+  const emptyDev45DaysResult = projectsList.filter((obj) => {
+    if (!obj.Due_Date) return false;
+    const date = new Date(obj.Due_Date);
+    if (isNaN(date.getTime())) return false;
+    const plannedDev = obj.Planned_DEV_completion_Date;
+    const isPlannedDevEmpty = !plannedDev || plannedDev === '' || String(plannedDev).length === 1;
+    return isPlannedDevEmpty && date >= today && date <= next45D;
+  });
+
+  const Dev15DaysResult = projectsList.filter((obj) => {
+    if (!obj.Due_Date) return false;
+    const dueDate = new Date(obj.Due_Date);
+    if (isNaN(dueDate.getTime())) return false;
+    const plannedDev = obj.Planned_DEV_completion_Date;
+    const plDevDate = (!plannedDev || plannedDev === '') ? 0 : new Date(plannedDev);
+    if (plDevDate === 0 || isNaN(plDevDate.getTime())) return false;
+    const diffTime = Math.abs(dueDate - plDevDate);
+    const diffDays = Math.ceil(diffTime / dayDivisionVal);
+    return diffDays < 15;
+  });
+
+  // -------------------------------------------------------------------------
+  // CARD 13: CR EXCEPTIONS (4 METRICS)
+  // -------------------------------------------------------------------------
+  const CRDueDatesResult = changeRequestsList.filter((obj) => {
+    const objWoId = parseInt(obj.Wo_Id, 10);
+    const projectDueDateObj = projectsList.find((pr) => parseInt(pr.Wo_Id, 10) === objWoId);
+    if (!projectDueDateObj || !obj.End_Date || !projectDueDateObj.Due_Date) return false;
+    const crEndDate = new Date(obj.End_Date);
+    const woDueDate = new Date(projectDueDateObj.Due_Date);
+    return !isNaN(crEndDate.getTime()) && !isNaN(woDueDate.getTime()) && crEndDate > woDueDate;
+  });
+
+  const noManDaysResult = changeRequestsList.filter((obj) => {
+    const effort = obj.Effort_in_MDs;
+    return effort === undefined || effort === null || effort === '' || parseInt(effort, 10) === 0 || effort === '0';
+  });
+
+  const noStartDateResult = changeRequestsList.filter((obj) => {
+    const start = obj.Start_Date;
+    return !start || start === '' || String(start).length === 1;
+  });
+
+  const noEndDateResult = changeRequestsList.filter((obj) => {
+    const end = obj.End_Date;
+    return !end || end === '' || String(end).length === 1;
+  });
+
+  const breaches = [
+    { id: 'b1', label: 'Unclosed Projects Started Before 60 Days', count: unClosedResult.length, records: unClosedResult, isCR: false },
+    { id: 'b2', label: 'Project in Testing for more than 15 Days', count: testingResult.length, records: testingResult, isCR: false },
+    { id: 'b3', label: 'Project in BRD/SSD Stage for more than 14 Days', count: BRDSSDResult.length, records: BRDSSDResult, isCR: false },
+    { id: 'b4', label: 'Any CR whose due date passed', count: CRDueDateResult.length, records: CRDueDateResult, isCR: true },
+    { id: 'b5', label: 'CR in progress stage, but WO moved to Testing', count: CRProgessResult.length, records: CRProgessResult, isCR: true },
+    { id: 'b6', label: 'CR in Open stage, but WO moved to Development', count: CROpenResult.length, records: CROpenResult, isCR: true },
+    { id: 'b7', label: 'Projects with no comments for more than 5 days', count: unCommentedProjectsResult.length, records: unCommentedProjectsResult, isCR: false },
   ];
 
-  const dueDate = [
-    { id: 'dd1', label: 'Empty Planned Dev Completion in next 45 days', count: dd1Records.length, records: dd1Records, isCR: false },
-    { id: 'dd2', label: 'Due Date - Dev Completion < 2 Weeks', count: dd2Records.length, records: dd2Records, isCR: false },
-    { id: 'dd3', label: 'CR Due Date > WO Due Date', count: dd3Records.length, records: dd3Records, isCR: true },
+  const dueDates = [
+    { id: 'dd1', label: 'Empty Planned Development Completion in Next 45 Days', count: emptyDev45DaysResult.length, records: emptyDev45DaysResult, isCR: false },
+    { id: 'dd2', label: 'Due Date - Dev Completion < 2 Weeks', count: Dev15DaysResult.length, records: Dev15DaysResult, isCR: false },
   ];
 
-  const cr = [
-    { id: 'cr1', label: 'CR Due Date > WO Due Date', count: cr1Records.length, records: cr1Records, isCR: true },
-    { id: 'cr2', label: 'No Man Days in CR', count: cr2Records.length, records: cr2Records, isCR: true },
-    { id: 'cr3', label: 'No Start in CR', count: cr3Records.length, records: cr3Records, isCR: true },
-    { id: 'cr4', label: 'No Due Date in CR', count: cr4Records.length, records: cr4Records, isCR: true },
+  const crExceptions = [
+    { id: 'cr1', label: 'CR Due Date > WO Due Date', count: CRDueDatesResult.length, records: CRDueDatesResult, isCR: true },
+    { id: 'cr2', label: 'No Man Days in CR', count: noManDaysResult.length, records: noManDaysResult, isCR: true },
+    { id: 'cr3', label: 'No Start in CR', count: noStartDateResult.length, records: noStartDateResult, isCR: true },
+    { id: 'cr4', label: 'No Due Date in CR', count: noEndDateResult.length, records: noEndDateResult, isCR: true },
   ];
 
-  return { sla, dueDate, cr };
+  return { breaches, dueDates, crExceptions };
 }
 
 /**
@@ -324,7 +536,7 @@ export function getDrilldownProjects(projectsList = [], changeRequestsList = [],
 
   const { key, label, type, records: prefilteredRecords, isCR } = stageInfo;
 
-  // If prefiltered records exist on stageInfo object (from calculateBreachMetrics), return them directly
+  // If prefiltered records exist on stageInfo object, return them directly
   if (prefilteredRecords && Array.isArray(prefilteredRecords)) {
     return { records: prefilteredRecords, isCR: Boolean(isCR) };
   }
@@ -335,8 +547,8 @@ export function getDrilldownProjects(projectsList = [], changeRequestsList = [],
   if (type === 'member' && (key === 'developer' || key === 'additionalDev')) {
     const matchingCRs = changeRequestsList.filter((cr) => {
       const raw = key === 'developer'
-        ? (cr.assignedDeveloper || cr.developer || cr.Assigned_Developer || 'unassigned')
-        : (cr.additionalDevelopers || cr.additionalDev || cr.Additional_Developers || 'unassigned');
+        ? (cr.Assigned_Developer || cr.developer || 'unassigned')
+        : (cr.Additional_Developers || 'unassigned');
       
       const cleaned = (raw || '').toString().toLowerCase();
       if (q === 'unassigned') {
@@ -350,45 +562,85 @@ export function getDrilldownProjects(projectsList = [], changeRequestsList = [],
 
   const matchingProjects = projectsList.filter((p) => {
     if (type === 'member') {
-      if (key === 'itdl') return (p.itdl || 'unassigned').trim().toLowerCase().includes(q);
-      if (key === 'po') return (p.po || 'unassigned').trim().toLowerCase().includes(q);
-      if (key === 'backupItdl') return (p.backupItdl || 'unassigned').trim().toLowerCase().includes(q);
-      if (key === 'sitLead') return (p.sitLead || p.pmo || 'unassigned').trim().toLowerCase().includes(q);
-      if (key === 'uatLead') return (p.uatLead || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'itdl') return (p.IT_Delivery_Lead || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'po') return (p.Product_Owner || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'backupItdl') return (p.Backup_IT_Delivery_Lead || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'sitLead') return (p.SIT_Lead || p.PMO_Project_Manager || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'uatLead') return (p.UAT_Lead || 'unassigned').trim().toLowerCase().includes(q);
 
       return (
-        (p.itdl && p.itdl.toLowerCase().trim().includes(q)) ||
-        (p.po && p.po.toLowerCase().trim().includes(q)) ||
-        (p.backupItdl && p.backupItdl.toLowerCase().trim().includes(q)) ||
-        (p.pmo && p.pmo.toLowerCase().trim().includes(q)) ||
-        (p.ownedBy && p.ownedBy.toLowerCase().trim().includes(q))
+        (p.IT_Delivery_Lead && p.IT_Delivery_Lead.toLowerCase().trim().includes(q)) ||
+        (p.Product_Owner && p.Product_Owner.toLowerCase().trim().includes(q)) ||
+        (p.Backup_IT_Delivery_Lead && p.Backup_IT_Delivery_Lead.toLowerCase().trim().includes(q)) ||
+        (p.PMO_Project_Manager && p.PMO_Project_Manager.toLowerCase().trim().includes(q)) ||
+        (p.Owned_By && p.Owned_By.toLowerCase().trim().includes(q))
       );
     }
 
-    if (key === 'testing-blocked') return (p.stage || '').toLowerCase().includes('testing blocked') || (p.stage || '').toLowerCase().includes('blocked');
-    if (key === 'deferred') return (p.stage || '').toLowerCase().includes('deferred');
+    if (key === 'testing-blocked') return (p.Status || '').toLowerCase().includes('testing blocked') || (p.Status || '').toLowerCase().includes('blocked');
+    if (key === 'deferred') return (p.Status || '').toLowerCase().includes('deferred');
 
-    const bizInfo = getBusinessStageInfo(p.stage);
-    if (!bizInfo || !bizInfo.phase) return false;
-    return (
-      bizInfo.phase.key === key ||
-      bizInfo.phase.label.toLowerCase() === (label || '').toLowerCase()
-    );
+    return (p.Status || '').toLowerCase().includes(q) || (p.StatusGroup || 0).toString() === key;
   });
 
   return { records: matchingProjects, isCR: false };
 }
 
 /**
- * Calculates Completed Projects Trends for Project Summary view (Monthly, Quarterly, HalfYearly, Annually)
- * based on completed_projects_trends_engineering.md
+ * Multi-criteria project table search filtering logic (onSearchProject)
+ */
+export function filterProjectGridData(projectsList = [], filters = {}) {
+  const { selectedStatusSearch, IPM_number, ITDLSearch, ProductOwnerSearch, startDateSearch, endDateSearch } = filters;
+
+  const formattedStartDate = startDateSearch ? parseDate(startDateSearch) : null;
+  const formattedEndDate = endDateSearch ? parseDate(endDateSearch) : null;
+
+  return projectsList.filter((x) => {
+    // 1. Status Filter
+    if (selectedStatusSearch && selectedStatusSearch !== 'All' && selectedStatusSearch.name !== 'All') {
+      const targetName = typeof selectedStatusSearch === 'string' ? selectedStatusSearch : selectedStatusSearch.name;
+      if (x.Status !== targetName) return false;
+    }
+
+    // 2. Project Code Search
+    if (IPM_number && typeof IPM_number === 'string' && IPM_number.trim()) {
+      if (!x.Ipm_Number || !x.Ipm_Number.toLowerCase().includes(IPM_number.trim().toLowerCase())) return false;
+    }
+
+    // 3. ITDL Search
+    if (ITDLSearch && typeof ITDLSearch === 'string' && ITDLSearch.trim()) {
+      if (!x.IT_Delivery_Lead || !x.IT_Delivery_Lead.toLowerCase().includes(ITDLSearch.trim().toLowerCase())) return false;
+    }
+
+    // 4. Product Owner Search
+    if (ProductOwnerSearch && typeof ProductOwnerSearch === 'string' && ProductOwnerSearch.trim()) {
+      if (!x.Product_Owner || !x.Product_Owner.toLowerCase().includes(ProductOwnerSearch.trim().toLowerCase())) return false;
+    }
+
+    // 5. Start Date Search
+    if (formattedStartDate) {
+      const prjStart = parseDate(x.Start_Date);
+      if (!prjStart || prjStart.getTime() < formattedStartDate.getTime()) return false;
+    }
+
+    // 6. End Date Search
+    if (formattedEndDate) {
+      const prjEnd = parseDate(x.Due_Date);
+      if (!prjEnd || prjEnd.getTime() > formattedEndDate.getTime()) return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Calculates Completed Projects Trends (Monthly, Quarterly, Half-Yearly, Annual)
  */
 export function calculateCompletedProjectsTrends(projectsList = [], timeframe = 'Monthly') {
   const currentYear = new Date().getFullYear();
 
-  // Filter completed projects (Status === "completed")
   const completedProjects = projectsList.filter((p) => {
-    const stage = (p.stage || p.status || '').toLowerCase();
+    const stage = (p.Status || '').toLowerCase();
     return stage === 'completed';
   });
 
@@ -397,94 +649,66 @@ export function calculateCompletedProjectsTrends(projectsList = [], timeframe = 
     const counts = new Array(12).fill(0);
 
     completedProjects.forEach((p) => {
-      const dateStr = p.endDate || p.dueDate || p.clarityFinishDate;
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          const m = d.getMonth();
-          if (m >= 0 && m < 12) counts[m]++;
-        }
+      const d = parseDate(p.Due_Date);
+      if (d) {
+        const m = d.getMonth();
+        counts[m]++;
       }
     });
 
-    return {
-      labels: months,
-      data: counts,
-      title: 'Monthly Completed Projects Trend',
-    };
+    return { labels: months, counts };
   }
 
   if (timeframe === 'Quarterly') {
-    const quarters = ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'];
+    const quarters = ['Jan - Mar', 'Apr - Jun', 'Jul - Sep', 'Oct - Dec'];
     const counts = [0, 0, 0, 0];
 
     completedProjects.forEach((p) => {
-      const dateStr = p.endDate || p.dueDate || p.clarityFinishDate;
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          const m = d.getMonth();
-          if (m >= 0 && m <= 2) counts[0]++;
-          else if (m >= 3 && m <= 5) counts[1]++;
-          else if (m >= 6 && m <= 8) counts[2]++;
-          else if (m >= 9 && m <= 11) counts[3]++;
-        }
+      const d = parseDate(p.Due_Date);
+      if (d) {
+        const m = d.getMonth();
+        if (m >= 0 && m <= 2) counts[0]++;
+        else if (m >= 3 && m <= 5) counts[1]++;
+        else if (m >= 6 && m <= 8) counts[2]++;
+        else if (m >= 9 && m <= 11) counts[3]++;
       }
     });
 
-    return {
-      labels: quarters,
-      data: counts,
-      title: 'Quarterly Completed Projects Trend',
-    };
+    return { labels: quarters, counts };
   }
 
   if (timeframe === 'HalfYearly') {
-    const periods = ['Jan - Jun', 'Jul - Dec'];
+    const halfYears = ['Jan - Jun', 'Jul - Dec'];
     const counts = [0, 0];
 
     completedProjects.forEach((p) => {
-      const dateStr = p.endDate || p.dueDate || p.clarityFinishDate;
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          const m = d.getMonth();
-          if (m >= 0 && m <= 5) counts[0]++;
-          else if (m >= 6 && m <= 11) counts[1]++;
-        }
+      const d = parseDate(p.Due_Date);
+      if (d) {
+        const m = d.getMonth();
+        if (m >= 0 && m <= 5) counts[0]++;
+        else counts[1]++;
       }
     });
 
-    return {
-      labels: periods,
-      data: counts,
-      title: 'Half-Yearly Completed Projects Trend',
-    };
+    return { labels: halfYears, counts };
   }
 
-  if (timeframe === 'Annually') {
-    const years = [currentYear - 2, currentYear - 1, currentYear];
+  if (timeframe === 'Annual') {
+    const years = [String(currentYear - 2), String(currentYear - 1), String(currentYear)];
     const counts = [0, 0, 0];
 
     completedProjects.forEach((p) => {
-      const dateStr = p.endDate || p.dueDate || p.clarityFinishDate;
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          const y = d.getFullYear();
-          if (y === currentYear - 2) counts[0]++;
-          else if (y === currentYear - 1) counts[1]++;
-          else if (y === currentYear) counts[2]++;
-        }
+      const d = parseDate(p.Due_Date);
+      if (d) {
+        const yr = d.getFullYear();
+        if (yr === currentYear - 2) counts[0]++;
+        else if (yr === currentYear - 1) counts[1]++;
+        else if (yr === currentYear) counts[2]++;
       }
     });
 
-    return {
-      labels: years.map(String),
-      data: counts,
-      title: 'Annual Completed Projects Trend',
-    };
+    return { labels: years, counts };
   }
 
-  return { labels: [], data: [], title: '' };
+  return { labels: [], counts: [] };
 }

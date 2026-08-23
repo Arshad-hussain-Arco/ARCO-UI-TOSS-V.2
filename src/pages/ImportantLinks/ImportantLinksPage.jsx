@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BookOpen, Check, ChevronDown, Code, Loader2, MessageCircle, Plus, Search, Server, Shield, X } from 'lucide-react';
 
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
@@ -12,9 +13,11 @@ import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { linkService } from '@services/linkService';
+import { roleService } from '@services/roleService';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { createId } from '@utils/id';
+import { ROUTES, buildPath } from '@constants/routes';
 
 import { AddLinkModal } from './AddLinkModal';
 import { GroupCard } from './GroupSection';
@@ -121,16 +124,26 @@ export function ImportantLinksPage() {
   const canGroupEdit = hasPermission('IMPORTANT_LINKS_GROUP_EDIT');
   const canGroupDelete = hasPermission('IMPORTANT_LINKS_GROUP_DELETE');
   const canGroupCreate = hasPermission('IMPORTANT_LINKS_GROUP_CREATE');
+  const canGroupAccessControl = hasPermission('IMPORTANT_LINKS_GROUP_ACCESS_CONTROL');
   const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
-  const fetchCategories = useCallback(() => linkService.getLinkCategories(), []);
+  // 'admin' scope: whoever can manage group access needs to see every
+  // group here (to grant/restrict access to groups their own role might
+  // not otherwise see) — the header widget deliberately never requests
+  // this, so it still only shows groups the viewer actually has access to.
+  const fetchCategories = useCallback(
+    () => linkService.getLinkCategories(canGroupAccessControl ? { scope: 'admin' } : undefined),
+    [canGroupAccessControl],
+  );
   const { data: serverCategories, isLoading, error, refetch } = useAsync(fetchCategories);
 
   // ── Filter state ───────────────────────────────────────────────
   const [selectedGroup, setSelectedGroup] = useState('__all__');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+  const navigate = useNavigate();
 
   const [showModal, setShowModal] = useState(false);
   const [editLink, setEditLink] = useState(null); // { ...link, group: 'Group Title' }
@@ -141,6 +154,20 @@ export function ImportantLinksPage() {
   const [renameGroupValue, setRenameGroupValue] = useState('');
   const [isSavingGroup, setIsSavingGroup] = useState(false);
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null); // { id, title }
+
+  const [allRoles, setAllRoles] = useState([]);
+  const [accessTarget, setAccessTarget] = useState(null); // { id, title }
+  const [accessRoleIds, setAccessRoleIds] = useState([]);
+  const [isLoadingAccess, setIsLoadingAccess] = useState(false);
+  const [isSavingAccess, setIsSavingAccess] = useState(false);
+
+  useEffect(() => {
+    if (!canGroupAccessControl) return;
+    roleService.getRoles()
+      .then((res) => setAllRoles(res?.data || []))
+      .catch(() => toast.error('Failed to load roles.'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canGroupAccessControl]);
 
   // ── Merged categories (server + local overrides + locally added) ──
   const mergedCategories = useMemo(() => {
@@ -198,12 +225,21 @@ export function ImportantLinksPage() {
   // ── Handle Add Link ────────────────────────────────────────────
   const handleAddLink = useCallback(
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
-      if (pinToHeader) {
-        const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
-          toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
-          return;
-        }
+      // Pinning is really a group-level concept (GroupCard's own "Pin to
+      // header" toggle flips is_header on every link in the group at
+      // once) — so a link added afterward into an already-pinned group
+      // must inherit is_header=1 too, or it silently never shows up in
+      // the header widget even though its group is pinned. Read pin
+      // status off serverCategories (the same data GroupCard's own toggle
+      // renders from) rather than the separately-fetched pinnedLinks
+      // context, which can lag a beat behind what's actually on screen.
+      const targetGroup = serverCategories?.find((c) => c.title === group);
+      const isGroupAlreadyPinned = targetGroup ? targetGroup.links.some((l) => l.pinToHeader) : false;
+      const effectivePinToHeader = pinToHeader || isGroupAlreadyPinned;
+
+      if (pinToHeader && !isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
+        toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
+        return;
       }
       setIsSaving(true);
       try {
@@ -221,8 +257,8 @@ export function ImportantLinksPage() {
         formData.append('link', label);
         formData.append('url', url);
         formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
-        formData.append('is_header', pinToHeader ? 1 : 0);
-        formData.append('isHeader', pinToHeader ? 1 : 0);
+        formData.append('is_header', effectivePinToHeader ? 1 : 0);
+        formData.append('isHeader', effectivePinToHeader ? 1 : 0);
         if (group) {
           formData.append('group', group);
         }
@@ -250,12 +286,18 @@ export function ImportantLinksPage() {
   // ── Handle Update Link ─────────────────────────────────────────
   const handleUpdateLink = useCallback(
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
-      if (pinToHeader) {
-        const isGroupAlreadyPinned = pinnedLinks.some(p => p.groupTitle === group);
-        if (!isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
-          toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
-          return;
-        }
+      // Same reasoning as handleAddLink: pinning is a group-level toggle,
+      // so a link moved/kept in an already-pinned group must stay
+      // is_header=1 even though the modal never sends pinToHeader=true.
+      // Read pin status off serverCategories, not the separately-fetched
+      // pinnedLinks context (see handleAddLink's comment for why).
+      const targetGroup = serverCategories?.find((c) => c.title === group);
+      const isGroupAlreadyPinned = targetGroup ? targetGroup.links.some((l) => l.pinToHeader) : false;
+      const effectivePinToHeader = pinToHeader || isGroupAlreadyPinned;
+
+      if (pinToHeader && !isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
+        toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
+        return;
       }
       setIsSaving(true);
       try {
@@ -270,8 +312,8 @@ export function ImportantLinksPage() {
           payload.append('link', label);
           payload.append('url', url);
           payload.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
-          payload.append('is_header', pinToHeader ? 1 : 0);
-          payload.append('isHeader', pinToHeader ? 1 : 0);
+          payload.append('is_header', effectivePinToHeader ? 1 : 0);
+          payload.append('isHeader', effectivePinToHeader ? 1 : 0);
           if (group) payload.append('group', group);
           payload.append('file', files[0]);
         } else {
@@ -279,8 +321,8 @@ export function ImportantLinksPage() {
             link: label,
             url: url,
             content: [sharedFolder, comments].filter(Boolean).join(' · ') || '',
-            is_header: pinToHeader ? 1 : 0,
-            isHeader: pinToHeader ? 1 : 0,
+            is_header: effectivePinToHeader ? 1 : 0,
+            isHeader: effectivePinToHeader ? 1 : 0,
           };
           if (group) payload.group = group;
 
@@ -425,6 +467,38 @@ export function ImportantLinksPage() {
     }
   };
 
+  // ── Manage Group Access ─────────────────────────────────────────
+  const handleManageAccessClick = useCallback((category) => {
+    setAccessTarget({ id: category.id, title: category.title });
+    setIsLoadingAccess(true);
+    linkService.getGroupAccess(category.id)
+      .then((data) => setAccessRoleIds(data?.role_ids || []))
+      .catch(() => toast.error('Failed to load group access.'))
+      .finally(() => setIsLoadingAccess(false));
+  }, [toast]);
+
+  const toggleAccessRole = useCallback((roleId) => {
+    setAccessRoleIds((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId],
+    );
+  }, []);
+
+  const executeSaveAccess = async () => {
+    if (!accessTarget) return;
+    setIsSavingAccess(true);
+    try {
+      await linkService.updateGroupAccess(accessTarget.id, accessRoleIds);
+      toast.success('Group access updated successfully');
+      window.dispatchEvent(new Event('pinned-links:refresh'));
+      setAccessTarget(null);
+    } catch (err) {
+      console.error('Failed to update group access:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to update group access');
+    } finally {
+      setIsSavingAccess(false);
+    }
+  };
+
   return (
     <div className="il-page">
 
@@ -505,8 +579,10 @@ export function ImportantLinksPage() {
                 canDelete={canDelete}
                 onEditLink={handleEditLink}
                 onDeleteLink={handleDeleteLink}
+                onViewContent={(link) => navigate(buildPath(ROUTES.IMPORTANT_LINKS_CONTENT, { id: link.id }))}
                 onRenameGroup={canGroupEdit ? () => handleRenameGroupClick(category) : undefined}
                 onDeleteGroup={canGroupDelete ? () => handleDeleteGroupClick(category) : undefined}
+                onManageAccess={canGroupAccessControl ? () => handleManageAccessClick(category) : undefined}
               />
             );
           })}
@@ -636,7 +712,67 @@ export function ImportantLinksPage() {
       >
         <div style={{ padding: '16px 0', fontSize: '14px', color: 'var(--text-primary)' }}>
           Are you sure you want to delete the group <strong>{deleteGroupTarget?.title}</strong>?
-          Its links will not be deleted — they'll move to "Other Links".
+          Its links will be deleted along with its corresponding files.
+        </div>
+      </AdminModal>
+
+      {/* Manage Group Access Modal */}
+      <AdminModal
+        isOpen={!!accessTarget}
+        onClose={() => setAccessTarget(null)}
+        title={`Manage Access — ${accessTarget?.title ?? ''}`}
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="tv-btn cancel"
+              style={{ padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: 'var(--font-family)' }}
+              onClick={() => setAccessTarget(null)}
+              disabled={isSavingAccess}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="tv-btn save"
+              style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', backgroundColor: ' #006633', color: '#ffffff', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onClick={executeSaveAccess}
+              disabled={isSavingAccess || isLoadingAccess}
+            >
+              {isSavingAccess ? <><Loader2 size={16} className="spin-animation" /> Saving...</> : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '16px 0' }}>
+          <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+            Choose which roles can see this group's links, on this page and in the header
+            widget. Leave everything unchecked to keep this group visible to every role.
+          </p>
+          {isLoadingAccess ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <Loader2 size={14} className="spin-animation" /> Loading…
+            </div>
+          ) : allRoles.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>No roles found.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
+              {allRoles.map((role) => (
+                <label
+                  key={role.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={accessRoleIds.includes(role.id)}
+                    onChange={() => toggleAccessRole(role.id)}
+                  />
+                  {role.role_name}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </AdminModal>
     </div>

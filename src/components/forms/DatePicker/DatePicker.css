@@ -54,15 +54,21 @@
 .dp-clear {
   color: var(--text-tertiary);
   border-radius: 4px;
-  padding: 2px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
   margin-left: auto;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
 }
 
 .dp-clear:hover {
+  height:30px;
   background-color: var(--bg-active);
   color: var(--text-primary);
 }

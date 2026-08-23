@@ -141,19 +141,51 @@ export const SIDEBAR_NAVIGATION = [
 ];
 
 /**
- * Filters SIDEBAR_NAVIGATION down to items the given user may see. Items with
- * no `permission`/`admin` gate are always visible to an authenticated user.
+ * Reorders `items` (each with an `id`) per `order`, a list of ids. Items not
+ * named in `order` keep their catalog-relative order and are appended after
+ * the ones `order` does name — so an item added to SIDEBAR_NAVIGATION after
+ * an admin last saved an override doesn't vanish, it just lands at the end
+ * until they explicitly reorder again.
+ *
+ * @param {{id: string}[]} items
+ * @param {string[]} [order]
+ */
+export function applyOrder(items, order) {
+  if (!Array.isArray(order) || order.length === 0) return items;
+  const rank = new Map(order.map((id, i) => [id, i]));
+  return [...items].sort((a, b) => {
+    const ra = rank.has(a.id) ? rank.get(a.id) : Infinity;
+    const rb = rank.has(b.id) ? rank.get(b.id) : Infinity;
+    return ra - rb;
+  });
+}
+
+/**
+ * Filters SIDEBAR_NAVIGATION down to items the given user may see, then
+ * applies their role's configured display order (Preferences > Sidebar
+ * Layout, edited per-role by an admin). Items with no `permission`/`admin`
+ * gate are always visible to an authenticated user. `navOrder` is the raw
+ * {order, adminChildrenOrder} shape carried on `user.sidebarNavOrder` (set
+ * from the role's stored config by /auth/user-info/) — omit it (or pass
+ * empty arrays) to fall back to the hardcoded catalog order.
  *
  * @param {{ isAdmin?: boolean }} user
  * @param {(code: string) => boolean} hasPermission
+ * @param {{ order?: string[], adminChildrenOrder?: string[] }} [navOrder]
  */
-export function getVisibleNavigation(user, hasPermission) {
-  return SIDEBAR_NAVIGATION.filter((item) => {
+export function getVisibleNavigation(user, hasPermission, navOrder) {
+  const visible = SIDEBAR_NAVIGATION.filter((item) => {
     if (item.admin) return Boolean(user?.isAdmin);
     if (item.permissions) return item.permissions.some((code) => hasPermission(code));
     if (item.permission) return hasPermission(item.permission);
     return true;
-  });
+  }).map((item) =>
+    item.children
+      ? { ...item, children: applyOrder(item.children, navOrder?.adminChildrenOrder) }
+      : item,
+  );
+
+  return applyOrder(visible, navOrder?.order);
 }
 
 /** Secondary links rendered in the header. */

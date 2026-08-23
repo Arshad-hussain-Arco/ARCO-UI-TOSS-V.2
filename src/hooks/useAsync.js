@@ -52,9 +52,16 @@ export function useAsync(asyncFn, { immediate = true, initialData = null } = {})
     }
   }, [asyncFn]);
 
+  // Only depend on `immediate` here, not `run` — if a caller's asyncFn identity
+  // changes on every render (e.g. it closes over a value that updates on error),
+  // depending on `run` would refire this effect and re-trigger the fetch in a loop.
+  const runRef = useRef(run);
+  runRef.current = run;
+
   useEffect(() => {
-    if (immediate) run();
-  }, [immediate, run]);
+    if (immediate) runRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immediate]);
 
   return { data, isLoading, error, refetch: run, setData };
 }

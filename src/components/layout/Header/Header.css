@@ -229,6 +229,9 @@
   z-index: 1000;
   flex-direction: column;
   gap: 2px;
+  /* Fixed height fitting ~6 rows (38px row incl. gap + 12px container padding), scroll beyond that */
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .header-pinned-dropdown-menu[data-open="true"] {

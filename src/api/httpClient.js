@@ -34,6 +34,14 @@ httpClient.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+
+    // Let the browser set multipart/form-data + boundary itself.
+    // The instance-level 'application/json' default would otherwise
+    // override this for every FormData request (file uploads).
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error),

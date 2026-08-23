@@ -67,6 +67,10 @@ const ImportantLinksPage = lazyPage(
   () => import('@pages/ImportantLinks/ImportantLinksPage'),
   'ImportantLinksPage',
 );
+const LinkContentPage = lazyPage(
+  () => import('@pages/ImportantLinks/LinkContentPage'),
+  'LinkContentPage',
+);
 const DocumentsPage = lazyPage(() => import('@pages/Documents/DocumentsPage'), 'DocumentsPage');
 const RoleManagementPage = lazyPage(
   () => import('@pages/admin/RoleManagement/RoleManagementPage'),
@@ -79,6 +83,10 @@ const LeaveConfigurationPage = lazyPage(
 const SystemSettingsPage = lazyPage(
   () => import('@pages/admin/SystemSettings/SystemSettingsPage'),
   'SystemSettingsPage',
+);
+const PreferencesPage = lazyPage(
+  () => import('@pages/Preferences/PreferencesPage'),
+  'PreferencesPage',
 );
 
 /**
@@ -139,6 +147,7 @@ export const routes = [
               // Open to every authenticated user — no permission gate.
               { path: ROUTES.HOME, element: <HomePage /> },
               { path: ROUTES.LEAVE_MANAGEMENT, element: <LeaveManagementPage /> },
+              { path: ROUTES.PREFERENCES, element: <PreferencesPage /> },
 
               {
                 path: ROUTES.ENVIRONMENT_DASHBOARD,
@@ -223,6 +232,19 @@ export const routes = [
                 element: (
                   <RequirePermission code="IMPORTANT_LINKS_VIEW">
                     <ImportantLinksPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                // Reachable from the Important Links page itself AND the
+                // header's pinned-links widget — the latter is reachable
+                // via SHOW_HEADER/PIN_HEADER alone (no IMPORTANT_LINKS_VIEW),
+                // so this route accepts any of the same three codes as the
+                // link list itself (see LinkDataListView's docstring).
+                path: ROUTES.IMPORTANT_LINKS_CONTENT,
+                element: (
+                  <RequirePermission codes={['IMPORTANT_LINKS_VIEW', 'IMPORTANT_LINKS_PIN_HEADER', 'IMPORTANT_LINKS_SHOW_HEADER']}>
+                    <LinkContentPage />
                   </RequirePermission>
                 ),
               },

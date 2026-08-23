@@ -52,6 +52,11 @@ export const settingsService = {
     return response.data;
   },
 
+  getUploadTimestamp: async (fileKey) => {
+    const response = await httpClient.get(endpoints.systemSettings.uploadTimestamp, { params: { fileKey } });
+    return response.data;
+  },
+
   // CR File Matching Columns
   getCrColumns: async () => {
     const response = await httpClient.get(endpoints.systemSettings.crColumns);
@@ -108,7 +113,7 @@ export const settingsService = {
   deleteHomeData: async (id) => {
     const response = await httpClient.delete(endpoints.systemSettings.deleteHomeData(id), { data: {} });
     return response.data;
-  }
+  },
 };
 
 export default settingsService;
