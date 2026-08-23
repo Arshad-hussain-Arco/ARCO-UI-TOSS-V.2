@@ -45,7 +45,7 @@ function CircularStatusBar({ percentage = 0, color = '#046a38', size = 110, stro
         />
       </svg>
       <div className="absolute text-center">
-        <span className="text-xl font-bold text-slate-800">
+        <span className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
           {typeof percentage === 'number' ? `${percentage}%` : percentage}
         </span>
       </div>

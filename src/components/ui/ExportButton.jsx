@@ -80,7 +80,7 @@ export function ExportButton({
 
         <ChevronDown
           className="common-export-icon-chevron"
-          size={18}
+          size={16}
         />
       </button>
 

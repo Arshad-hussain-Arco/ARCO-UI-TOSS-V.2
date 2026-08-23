@@ -9,6 +9,7 @@ export function ProgressTooltip({
   position,
   targetRect,
   visible,
+  placement = 'top',
   onMouseEnter,
   onMouseLeave,
 }) {
@@ -27,13 +28,20 @@ export function ProgressTooltip({
     let y = 0;
 
     if (targetRect) {
-      // Default: center horizontally relative to the target, position above the target
       x = targetRect.left + (targetRect.width - w) / 2;
-      y = targetRect.top - h - 8;
 
-      // Vertical space check: if it goes above the viewport, render below the target instead
-      if (y < 10) {
+      if (placement === 'bottom') {
         y = targetRect.bottom + 8;
+        // flip to top if there isn't enough space below
+        if (y + h > window.innerHeight - 10) {
+          y = targetRect.top - h - 8;
+        }
+      } else {
+        y = targetRect.top - h - 8;
+        // flip to bottom if there isn't enough space above
+        if (y < 10) {
+          y = targetRect.bottom + 8;
+        }
       }
 
       // Horizontal boundary check: keep within viewport limits

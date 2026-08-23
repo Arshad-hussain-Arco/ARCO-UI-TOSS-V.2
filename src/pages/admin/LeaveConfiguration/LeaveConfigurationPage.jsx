@@ -1872,7 +1872,6 @@ export function LeaveConfigurationPage() {
             <button
               type="button"
               className="lc-ghost-btn"
-              style={{ padding: '0 16px', width: 'auto' }}
               onClick={() => setIsHolidayModalOpen(false)}
               disabled={isSaving}
             >
