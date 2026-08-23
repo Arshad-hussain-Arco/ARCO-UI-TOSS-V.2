@@ -4,6 +4,7 @@ import { storage } from '@utils/storage';
 import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
+import { pushNotificationService } from '@services/pushNotificationService';
 import { useTheme } from '@hooks/useTheme';
 
 /**
@@ -147,6 +148,9 @@ export function AuthProvider({ children }) {
   // a user is most likely to notice a role change an admin just made).
   useEffect(() => {
     if (!user) return undefined;
+
+    // Register and subscribe for push notifications
+    pushNotificationService.registerAndSubscribe();
 
     const interval = setInterval(refreshUser, USER_INFO_REFRESH_INTERVAL_MS);
 

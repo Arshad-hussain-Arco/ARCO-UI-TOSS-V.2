@@ -11,6 +11,10 @@ const endpoints = {
     adminUpdatePassword: '/auth/admin-update-password/',
     updatePassword: '/auth/update-password/',
   },
+  pushNotifications: {
+    vapidPublicKey: '/notifications/vapid-public-key/',
+    subscribe: '/notifications/subscribe/',
+  },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
     reconcile: '/reconciliation/reconciliation/reconcile/',

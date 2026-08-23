@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   List,
@@ -338,6 +339,10 @@ export function TeamRequestsTab({ getPhoto }) {
   const [isLoading, setIsLoading] = useState(true);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
+  const [calendarHolidays, setCalendarHolidays] = useState([]);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewLeaveIdParam = searchParams.get('viewLeaveId');
 
   const refetch = React.useCallback(async () => {
     try {
@@ -366,6 +371,30 @@ export function TeamRequestsTab({ getPhoto }) {
           return [];
         });
 
+      let holList = [];
+      try {
+        const holResponse = await leaveService.listHolidays({ limit: 1000 });
+        const holidaysData = Array.isArray(holResponse) ? holResponse : (holResponse?.results || holResponse?.data || []);
+        holList = holidaysData.map(h => {
+          const dates = h.dates || [];
+          const startDate = dates.length > 0 ? dates[0] : null;
+          const endDate = dates.length > 0 ? dates[dates.length - 1] : null;
+          return {
+            id: `hol_${h.id}`,
+            title: h.holiday_name || h.name,
+            type: 'Public Holiday',
+            leave_type: 'Public Holiday',
+            startDate: startDate || h.holiday_date || h.date,
+            endDate: endDate || h.holiday_date || h.date,
+            status: 'approved',
+            className: 'rbc-event-holiday'
+          };
+        });
+        setCalendarHolidays(holList);
+      } catch(e) {
+        console.error("Failed to fetch holidays", e);
+      }
+
       const combined = [...mappedLeaves, ...mappedModRequests];
       setRequests(combined);
     } catch (error) {
@@ -378,6 +407,23 @@ export function TeamRequestsTab({ getPhoto }) {
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  // Handle direct navigation via push notifications
+  useEffect(() => {
+    if (!isLoading && requests.length > 0 && viewLeaveIdParam) {
+      const targetReq = requests.find(r => String(r.id) === String(viewLeaveIdParam));
+      if (targetReq) {
+        setDrawerReq(targetReq);
+        setDrawerAction('view');
+        setDrawerOpen(true);
+        
+        // Clean up the URL so it doesn't stay open if they refresh
+        searchParams.delete('viewLeaveId');
+        searchParams.delete('tab');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [isLoading, requests, viewLeaveIdParam, searchParams, setSearchParams]);
 
   const mergedRequests = useMemo(() => {
     if (!getPhoto) return requests;
@@ -646,16 +692,26 @@ export function TeamRequestsTab({ getPhoto }) {
     return p <= 10 ? 'danger' : p <= 30 ? 'warn' : '';
   }
   const liveReq = drawerReq ? (requests.find((r) => r.id === drawerReq.id) ?? drawerReq) : null;
-  const calEvents = useMemo(
-    () =>
-      filtered.map((r) => ({
-        date: /* @__PURE__ */ new Date(r.startDate + 'T00:00:00').getDate(),
-        title: r.employeeName,
-        type: 'leave',
-        status: 'approved',
-      })),
-    [filtered],
-  );
+  const calEvents = useMemo(() => {
+    const regularEvents = filtered.map((r) => ({
+      ...r,
+      date: r.startDate ? new Date(r.startDate + 'T00:00:00').getDate() : null,
+      type: r.type,
+      start_date: r.startDate,
+      end_date: r.endDate,
+      title: r.employeeName ? `${r.type} - ${r.employeeName}` : r.type,
+    }));
+    
+    // Convert calendarHolidays to the format expected by LeaveCalendar
+    const holidayEvents = calendarHolidays.map(h => ({
+      ...h,
+      date: h.startDate ? new Date(h.startDate + 'T00:00:00').getDate() : null,
+      start_date: h.startDate,
+      end_date: h.endDate
+    }));
+    
+    return [...regularEvents, ...holidayEvents];
+  }, [filtered, calendarHolidays]);
 
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = requests.filter(l => l.status === 'pending');
