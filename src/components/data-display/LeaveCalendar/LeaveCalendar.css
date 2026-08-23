@@ -566,3 +566,8 @@
   color: #0f766e !important;
   font-weight: 600 !important;
 }
+
+/* Fix for current day background in dark theme */
+.rbc-day-bg.rbc-today {
+  background-color: var(--c-info-light) !important;
+}
