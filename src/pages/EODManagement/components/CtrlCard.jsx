@@ -282,7 +282,7 @@ export function CtrlCard({ env, onStart, onPause, onStop, canExecute, canViewLog
               {/* Live Timer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '4px', borderTop: '1px dashed rgba(0,0,0,0.1)' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>Elapsed Time:</span>
-                <span className="eod-ctrl-exec-time" style={{ fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                <span className="eod-ctrl-exec-time" style={{ display: 'flex', alignItems: 'center', fontWeight: 600, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
                   <Clock size={11} style={{ verticalAlign: '-1px', marginRight: '4px', opacity: 0.7 }} />
                   {displayTime}
                 </span>
