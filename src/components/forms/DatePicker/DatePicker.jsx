@@ -43,6 +43,7 @@ export function DatePicker({
   placeholder = 'Select date',
   disabled = false,
   className = '',
+  style = {},
   width = 'auto',
   showClear = true,
   isLoading = false,
@@ -122,8 +123,8 @@ export function DatePicker({
       <Popover.Trigger asChild disabled={disabled}>
         <button
           className={`dp-trigger ${className} ${!value ? 'dp-trigger-empty' : ''}`}
-
           type="button"
+          style={{ width, ...style }}
         >
           <CalendarIcon size={14} className="dp-icon-left" />
           <span className="dp-value">{displayValue()}</span>

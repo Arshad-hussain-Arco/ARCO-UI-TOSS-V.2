@@ -1947,6 +1947,13 @@ export function LeaveConfigurationPage() {
               minDate={new Date()}
               placeholder="Select start date"
               width="100%"
+              style={{
+                padding: '0 12px',
+                height: '38px',
+                border: '1px solid var(--border-secondary)',
+                borderRadius: '6px',
+                fontSize: '13px'
+              }}
               showClear={false}
             />
           </div>
@@ -1965,9 +1972,16 @@ export function LeaveConfigurationPage() {
                   endDate: dateStrVal
                 }));
               }}
-              minDate={parseDateValue(holidayForm.startDate) || undefined}
+              minDate={parseDateValue(holidayForm.startDate) || new Date()}
               placeholder="Select end date"
               width="100%"
+              style={{
+                padding: '0 12px',
+                height: '38px',
+                border: '1px solid var(--border-secondary)',
+                borderRadius: '6px',
+                fontSize: '13px'
+              }}
               showClear={false}
             />
           </div>
