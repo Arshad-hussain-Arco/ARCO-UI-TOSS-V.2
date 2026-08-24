@@ -896,7 +896,7 @@
 .al-sum-header {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border-primary);
-  background: var(--c-primary);
+  background: #006633;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -905,12 +905,12 @@
 .al-sum-header-icon {
   width: 13px;
   height: 13px;
-  color: var(--text-inverse);
+  color: #fff;
 }
 .al-sum-header-title {
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-inverse);
+  color: #ffffff;
   margin: 0;
   letter-spacing: 0.3px;
 }
@@ -1156,7 +1156,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 16px;
+  padding: 4px 16px;
   border-radius: 5px;
   font-size: 12px;
   font-weight: 600;
