@@ -157,7 +157,7 @@ export function RoleSidebarDefaultsPanel() {
     setIsSaving(true);
     try {
       await roleService.updateSidebarNavOrder(selectedRoleId, EMPTY_ORDER);
-      toast.success('Sidebar layout reset to default.');
+      toast.success("Sidebar layout reset to the developer's default.");
       loadOrderForRole(selectedRoleId, roles);
       if (String(selectedRoleId) === String(user?.roleId)) refreshUser();
     } catch (err) {
@@ -187,7 +187,7 @@ export function RoleSidebarDefaultsPanel() {
             ))}
           </select>
           <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToDefault} disabled={isSaving || !selectedRoleId}>
-            Reset
+            Default
           </Button>
           <Button
             variant="primary"

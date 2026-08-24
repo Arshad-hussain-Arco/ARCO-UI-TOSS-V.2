@@ -149,7 +149,7 @@ export function MySidebarLayoutPanel() {
         </p>
         <div className="pl-header-actions">
           <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToRoleDefault} disabled={isSaving}>
-            Reset
+            Default
           </Button>
           <Button
             variant="primary"

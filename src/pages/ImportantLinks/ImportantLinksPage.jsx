@@ -7,7 +7,6 @@ import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
-import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useAsync } from '@hooks/useAsync';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -22,9 +21,6 @@ import { ROUTES, buildPath } from '@constants/routes';
 import { AddLinkModal } from './AddLinkModal';
 import { GroupCard } from './GroupSection';
 import './ImportantLinksPage.css';
-
-/** Max number of groups that can be pinned to the header. */
-const MAX_PINNED_GROUPS = 4;
 
 /** Canonical icon mapping for server-supplied categories */
 const CATEGORY_ICONS = {
@@ -125,7 +121,6 @@ export function ImportantLinksPage() {
   const canGroupDelete = hasPermission('IMPORTANT_LINKS_GROUP_DELETE');
   const canGroupCreate = hasPermission('IMPORTANT_LINKS_GROUP_CREATE');
   const canGroupAccessControl = hasPermission('IMPORTANT_LINKS_GROUP_ACCESS_CONTROL');
-  const { pinnedLinks, pinLink, unpinLink, updatePinnedLink } = usePinnedLinks();
 
   // ── Remote data ────────────────────────────────────────────────
   // 'admin' scope: whoever can manage group access needs to see every
@@ -225,22 +220,6 @@ export function ImportantLinksPage() {
   // ── Handle Add Link ────────────────────────────────────────────
   const handleAddLink = useCallback(
     async ({ id, group, isNewGroup, label, url, sharedFolder, comments, pinToHeader, files }) => {
-      // Pinning is really a group-level concept (GroupCard's own "Pin to
-      // header" toggle flips is_header on every link in the group at
-      // once) — so a link added afterward into an already-pinned group
-      // must inherit is_header=1 too, or it silently never shows up in
-      // the header widget even though its group is pinned. Read pin
-      // status off serverCategories (the same data GroupCard's own toggle
-      // renders from) rather than the separately-fetched pinnedLinks
-      // context, which can lag a beat behind what's actually on screen.
-      const targetGroup = serverCategories?.find((c) => c.title === group);
-      const isGroupAlreadyPinned = targetGroup ? targetGroup.links.some((l) => l.pinToHeader) : false;
-      const effectivePinToHeader = pinToHeader || isGroupAlreadyPinned;
-
-      if (pinToHeader && !isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
-        toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
-        return;
-      }
       setIsSaving(true);
       try {
         let groupId;
@@ -257,8 +236,11 @@ export function ImportantLinksPage() {
         formData.append('link', label);
         formData.append('url', url);
         formData.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
-        formData.append('is_header', effectivePinToHeader ? 1 : 0);
-        formData.append('isHeader', effectivePinToHeader ? 1 : 0);
+        // Pinning to the header is a separate, per-role action (GroupCard's
+        // "Pin to header" toggle → linkService.togglePin) — it no longer
+        // rides on this per-link is_header flag.
+        formData.append('is_header', pinToHeader ? 1 : 0);
+        formData.append('isHeader', pinToHeader ? 1 : 0);
         if (group) {
           formData.append('group', group);
         }
@@ -280,25 +262,12 @@ export function ImportantLinksPage() {
         setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, refetch, handleCloseModal, toast, pinnedLinks],
+    [serverCategories, refetch, handleCloseModal, toast],
   );
 
   // ── Handle Update Link ─────────────────────────────────────────
   const handleUpdateLink = useCallback(
     async ({ id, group, label, url, sharedFolder, comments, pinToHeader, files }) => {
-      // Same reasoning as handleAddLink: pinning is a group-level toggle,
-      // so a link moved/kept in an already-pinned group must stay
-      // is_header=1 even though the modal never sends pinToHeader=true.
-      // Read pin status off serverCategories, not the separately-fetched
-      // pinnedLinks context (see handleAddLink's comment for why).
-      const targetGroup = serverCategories?.find((c) => c.title === group);
-      const isGroupAlreadyPinned = targetGroup ? targetGroup.links.some((l) => l.pinToHeader) : false;
-      const effectivePinToHeader = pinToHeader || isGroupAlreadyPinned;
-
-      if (pinToHeader && !isGroupAlreadyPinned && pinnedLinks.length >= MAX_PINNED_GROUPS) {
-        toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
-        return;
-      }
       setIsSaving(true);
       try {
         const existingGroup = serverCategories?.find((c) => c.title === group);
@@ -312,8 +281,8 @@ export function ImportantLinksPage() {
           payload.append('link', label);
           payload.append('url', url);
           payload.append('content', [sharedFolder, comments].filter(Boolean).join(' · ') || '');
-          payload.append('is_header', effectivePinToHeader ? 1 : 0);
-          payload.append('isHeader', effectivePinToHeader ? 1 : 0);
+          payload.append('is_header', pinToHeader ? 1 : 0);
+          payload.append('isHeader', pinToHeader ? 1 : 0);
           if (group) payload.append('group', group);
           payload.append('file', files[0]);
         } else {
@@ -321,8 +290,8 @@ export function ImportantLinksPage() {
             link: label,
             url: url,
             content: [sharedFolder, comments].filter(Boolean).join(' · ') || '',
-            is_header: effectivePinToHeader ? 1 : 0,
-            isHeader: effectivePinToHeader ? 1 : 0,
+            is_header: pinToHeader ? 1 : 0,
+            isHeader: pinToHeader ? 1 : 0,
           };
           if (group) payload.group = group;
 
@@ -344,7 +313,7 @@ export function ImportantLinksPage() {
         setIsSaving(false);
       }
     },
-    [serverCategories, pinLink, unpinLink, refetch, handleCloseModal, toast, pinnedLinks],
+    [serverCategories, refetch, handleCloseModal, toast],
   );
 
   // ── Handle Delete Link ─────────────────────────────────────────
@@ -369,46 +338,28 @@ export function ImportantLinksPage() {
     }
   };
 
-  // ── Toggle Pin Group ───────────────────────────────────────────
+  // ── Toggle Pin Group ─────────────────────────────────────────────
+  // Pins/unpins the group to the header for EVERY role it is currently
+  // assigned to via Manage Access — not just the current user's own role.
+  // The backend enforces both the per-role 4-group cap (for each assigned
+  // role) and that the group must be assigned to at least one role before
+  // it can be pinned. Both failure messages come straight from the API
+  // response.
   const handleTogglePinGroup = useCallback(async (groupId, currentPinnedStatus) => {
-    const category = mergedCategories.find(c => c.id === groupId);
-    if (!category) return;
-
-    if (!currentPinnedStatus && pinnedLinks.length >= MAX_PINNED_GROUPS && !pinnedLinks.some(p => p.groupId === groupId)) {
-      toast.error(`Only ${MAX_PINNED_GROUPS} group${MAX_PINNED_GROUPS === 1 ? '' : 's'} can be pinned to the header. Please unpin an existing group first to pin this new group.`);
-      return;
-    }
-
     const newPinStatus = !currentPinnedStatus;
     setIsSaving(true);
     try {
-      await Promise.all(category.links.map(link => {
-        if (link.pinToHeader !== newPinStatus) {
-          const formData = new FormData();
-          formData.append('link', link.label || '');
-          formData.append('url', link.url || '');
-          if (link.description) {
-            formData.append('content', link.description);
-          }
-          if (category.title) {
-            formData.append('group', category.title);
-          }
-          formData.append('is_header', newPinStatus ? 1 : 0);
-          formData.append('isHeader', newPinStatus ? 1 : 0);
-          return linkService.updateLink(link.id, formData);
-        }
-        return Promise.resolve();
-      }));
+      await linkService.togglePin(groupId, newPinStatus);
       refetch();
       window.dispatchEvent(new Event('pinned-links:refresh'));
       toast.success(newPinStatus ? 'Group pinned to header' : 'Group unpinned from header');
     } catch (err) {
       console.error('Failed to update group pin status:', err);
-      toast.error('Failed to update group pin status');
+      toast.error(err.response?.data?.message || 'Failed to update group pin status');
     } finally {
       setIsSaving(false);
     }
-  }, [mergedCategories, pinnedLinks, refetch, toast]);
+  }, [refetch, toast]);
 
   // ── Open edit modal ────────────────────────────────────────────
   const handleEditLink = useCallback(
@@ -565,7 +516,6 @@ export function ImportantLinksPage() {
       ) : (
         <div className="il-groups-grid">
           {filteredCategories.map((category) => {
-            const isPinned = category.links.some(l => l.pinToHeader);
             return (
               <GroupCard
                 key={category.id}
@@ -573,7 +523,7 @@ export function ImportantLinksPage() {
                 title={category.title}
                 icon={CATEGORY_ICONS[category.iconKey] ?? null}
                 links={category.links}
-                isPinned={isPinned}
+                isPinned={category.isPinned}
                 onTogglePinGroup={canPinHeader ? (status) => handleTogglePinGroup(category.id, status) : undefined}
                 canEdit={canEdit}
                 canDelete={canDelete}
@@ -748,7 +698,8 @@ export function ImportantLinksPage() {
         <div style={{ padding: '16px 0' }}>
           <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
             Choose which roles can see this group's links, on this page and in the header
-            widget. Leave everything unchecked to keep this group visible to every role.
+            widget. Leave everything unchecked to hide this group from all roles (it will
+            still be visible here to anyone who can manage access).
           </p>
           {isLoadingAccess ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
