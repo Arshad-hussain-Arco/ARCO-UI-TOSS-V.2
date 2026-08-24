@@ -250,11 +250,11 @@
 
 .al-cal-day-sel-start,
 .al-cal-day-sel-end {
-  background: var(--c-primary) !important;
+  background: #006633 !important;
 }
 .al-cal-day-sel-start .al-cal-day-num,
 .al-cal-day-sel-end .al-cal-day-num {
-  color: var(--text-inverse) !important;
+  color: #ffffff !important;
 }
 
 .al-cal-day-num {

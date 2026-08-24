@@ -395,11 +395,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
+  padding: 8px 12px;
   border-radius: 4px;
   font-family: var(--font-family);
   font-size: 10.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .tr-type-leave {
@@ -425,14 +426,18 @@
 /* ─── Status Badge ────────────────────────────────────────────────── */
 
 .tr-status-badge {
+  flex-shrink: 0;
+  width: 90px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 2px 8px;
   border-radius: 10px;
   font-family: var(--font-family);
   font-size: 10.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .tr-status-pending {
@@ -475,8 +480,11 @@
 /* ─── Action Buttons (in table) ───────────────────────────────────── */
 
 .tr-actions {
+  flex-shrink: 0;
+  width: 90px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 
@@ -1391,11 +1399,11 @@
 }
 
 .tr-sdl-emp-row {
-  display: grid;
-  grid-template-columns: 34px 1fr 120px 80px 100px 90px 160px;
+  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 12px;
-  padding: 9px 12px;
+  padding: 12px;
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
@@ -1413,10 +1421,10 @@
 }
 
 .tr-sdl-emp-avatar {
+  flex-shrink: 0;
   width: 34px;
   height: 34px;
   font-size: 11px;
-  flex-shrink: 0;
 }
 
 .tr-sdl-emp-identity {
@@ -1426,23 +1434,26 @@
 
 .tr-sdl-emp-type {
   flex-shrink: 0;
+  width: 140px;
+  display: flex;
+  align-items: center;
 }
 
 .tr-sdl-emp-dur {
+  flex-shrink: 0;
+  width: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-shrink: 0;
-  min-width: 64px;
   gap: 1px;
 }
 
 .tr-sdl-emp-dates {
+  flex-shrink: 0;
+  width: 100px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  flex-shrink: 0;
-  min-width: 72px;
   gap: 1px;
 }
 
