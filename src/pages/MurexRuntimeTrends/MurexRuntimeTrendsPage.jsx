@@ -1588,6 +1588,9 @@ export function MurexRuntimeTrendsPage() {
                     onDragOver={(e) => {
                       if (category.id !== null && canEditCategory) e.preventDefault();
                     }}
+                    onDragEnter={(e) => {
+                      if (category.id !== null && canEditCategory) e.preventDefault();
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
                       if (!canEditCategory) return;
@@ -1899,6 +1902,7 @@ export function MurexRuntimeTrendsPage() {
                 className="murex-script-list-scroll murex-form-input"
                 style={{ height: '250px', overflowY: 'auto', padding: '8px' }}
                 onDragOver={(e) => e.preventDefault()}
+                onDragEnter={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
                   const scriptName = e.dataTransfer.getData('text/plain');
@@ -1915,9 +1919,11 @@ export function MurexRuntimeTrendsPage() {
                       key={script.id}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', script.script_name)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={(e) => e.preventDefault()}
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
                     >
-                      <span>{script.script_name}</span>
+                      <span style={{ pointerEvents: 'none' }}>{script.script_name}</span>
                       <button onClick={() => toggleScriptAssignment(script.script_name, true)} style={{ background: 'var(--c-success)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
                     </div>
                   ))
@@ -1948,6 +1954,7 @@ export function MurexRuntimeTrendsPage() {
                 className="murex-script-list-scroll murex-form-input"
                 style={{ height: '250px', overflowY: 'auto', padding: '8px' }}
                 onDragOver={(e) => e.preventDefault()}
+                onDragEnter={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
                   const scriptName = e.dataTransfer.getData('text/plain');
@@ -1964,9 +1971,11 @@ export function MurexRuntimeTrendsPage() {
                       key={script.id}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData('text/plain', script.script_name)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDragEnter={(e) => e.preventDefault()}
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem', cursor: 'grab' }}
                     >
-                      <span>{script.script_name}</span>
+                      <span style={{ pointerEvents: 'none' }}>{script.script_name}</span>
                       <button
                         onClick={() => toggleScriptAssignment(script.script_name, false)}
                         style={{ background: 'var(--c-danger)', color: 'white', border: 'none', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}

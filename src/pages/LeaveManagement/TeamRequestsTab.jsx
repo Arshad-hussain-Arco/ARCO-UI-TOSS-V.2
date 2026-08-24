@@ -1018,6 +1018,12 @@ export function TeamRequestsTab({ getPhoto }) {
                       ) : (
                         filtered.map((req) => {
                           const TC = TYPE_CONFIG[req.type];
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const startDateObj = new Date(req.startDate);
+                          startDateObj.setHours(0, 0, 0, 0);
+                          const isApprovedPastOrPresent = req.status === 'approved' && startDateObj <= today;
+                          const canModify = !isApprovedPastOrPresent;
                           return (
                             <tr key={req.id} className="tr-row" data-selected={liveReq?.id === req.id}>
                               <td className="tr-td">
@@ -1118,7 +1124,7 @@ export function TeamRequestsTab({ getPhoto }) {
                                       </button>
                                     </>
                                   )}
-                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                                     <>
                                       <button
                                         className="tr-act-btn"
@@ -1288,6 +1294,12 @@ export function TeamRequestsTab({ getPhoto }) {
                   ) : (
                     sdlEmployees.map((req) => {
                       const TC = TYPE_CONFIG[req.type];
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const startDateObj = new Date(req.startDate);
+                      startDateObj.setHours(0, 0, 0, 0);
+                      const isApprovedPastOrPresent = req.status === 'approved' && startDateObj <= today;
+                      const canModify = !isApprovedPastOrPresent;
                       return (
                         <div
                           key={req.id}
@@ -1406,7 +1418,7 @@ export function TeamRequestsTab({ getPhoto }) {
                                 </button>
                               </>
                             )}
-                            {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                            {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                               <>
                                 <button
                                   className="tr-act-btn"

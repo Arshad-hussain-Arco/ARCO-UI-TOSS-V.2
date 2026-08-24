@@ -168,7 +168,7 @@ export function ConsultantsPage() {
       throw err;
     }
   }, []);
-  const { data: rawInactiveData, setData: setInactiveData, isLoading: isInactiveLoading, error: inactiveError, refetch: loadInactive } = useAsync(fetchInactive, { immediate: false });
+  const { data: rawInactiveData, setData: setInactiveData, isLoading: isInactiveLoading, error: inactiveError, refetch: loadInactive } = useAsync(fetchInactive, { immediate: true });
   const inactiveCount = Array.isArray(rawInactiveData)
     ? rawInactiveData.length
     : rawInactiveData?.results?.length || 0;

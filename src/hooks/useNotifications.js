@@ -26,6 +26,9 @@ export const NOTIF_CONFIG = {
   OW_EXCESS_REQUESTED:     { emoji: '⏱️', color: '#f59e0b', label: 'OW Excess Req.' },
   OW_EXCESS_APPROVED:      { emoji: '⏰', color: '#10b981', label: 'OW Excess OK' },
   OW_EXCESS_REJECTED:      { emoji: '⛔', color: '#ef4444', label: 'OW Excess Denied' },
+  HOLIDAY_ADDED:           { emoji: '🎉', color: '#3b82f6', label: 'Holiday Added' },
+  HOLIDAY_REMOVED:         { emoji: '🗑️', color: '#ef4444', label: 'Holiday Removed' },
+  HOLIDAY_MODIFIED:        { emoji: '✏️', color: '#f59e0b', label: 'Holiday Modified' },
   default:                 { emoji: '📣', color: '#6b7280', label: 'Notification' },
 };
 

@@ -1384,6 +1384,7 @@ export function LeaveConfigurationPage() {
                                       date: toDateInputValue(value),
                                     }))
                                   }
+                                  minDate={new Date()}
                                   placeholder="Select date"
                                   width="100%"
                                   showClear={false}
@@ -1475,22 +1476,36 @@ export function LeaveConfigurationPage() {
                               </div>
                             ) : (
                               <div style={{ display: 'inline-flex', gap: '4px' }}>
-                                <button
-                                  type="button"
-                                  className="action-icon-btn edit"
-                                  title="Edit Holiday"
-                                  onClick={() => startHolidayInlineEdit(h)}
-                                >
-                                  <Edit size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="action-icon-btn delete"
-                                  title="Delete Holiday"
-                                  onClick={() => handleDeleteHoliday(h)}
-                                >
-                                  <Trash size={15} />
-                                </button>
+                                {(() => {
+                                  const targetDates = h.dates && h.dates.length > 0 ? h.dates : h.date ? [h.date] : [];
+                                  const stat = computeStatus(targetDates);
+                                  const canModify = stat === 'Upcoming';
+                                  
+                                  return canModify ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="action-icon-btn edit"
+                                        title="Edit Holiday"
+                                        onClick={() => startHolidayInlineEdit(h)}
+                                      >
+                                        <Edit size={15} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="action-icon-btn delete"
+                                        title="Delete Holiday"
+                                        onClick={() => handleDeleteHoliday(h)}
+                                      >
+                                        <Trash size={15} />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic', paddingLeft: '4px' }}>
+                                      No Modification
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             )}
                           </td>
@@ -1929,6 +1944,7 @@ export function LeaveConfigurationPage() {
                   return updated;
                 });
               }}
+              minDate={new Date()}
               placeholder="Select start date"
               width="100%"
               showClear={false}
