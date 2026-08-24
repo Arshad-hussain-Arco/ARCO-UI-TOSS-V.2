@@ -49,7 +49,13 @@ export const linkService = {
           id: g.id,
           title: g.name,
           iconKey: null,
-          links: uiLinks.filter(l => l.groupId === g.id)
+          links: uiLinks.filter(l => l.groupId === g.id),
+          // Whether this group is pinned to the header — group-wide, not
+          // per-viewer (see GroupSerializer.is_pinned). Since this list is
+          // already restricted to groups visible to the caller's role
+          // (or, with scope=admin, every group), a pinned group here is
+          // pinned for whichever role(s) it's actually assigned to.
+          isPinned: !!g.is_pinned,
         }));
 
         const unassignedLinks = uiLinks.filter(l => !l.groupId);
@@ -59,6 +65,7 @@ export const linkService = {
             title: 'Other Links',
             iconKey: null,
             links: unassignedLinks,
+            isPinned: false,
           });
         }
 
@@ -96,6 +103,19 @@ export const linkService = {
 
   updateGroupAccess: async (id, roleIds) => {
     const res = await httpClient.put(endpoints.importantLinks.groups.accessControl(id), { role_ids: roleIds });
+    return res.data;
+  },
+
+  /**
+   * Pins/unpins a group to the header for every role it's currently
+   * assigned to via Manage Access (max 4 pinned groups per role —
+   * enforced server-side for each assigned role). Rejects with a
+   * backend-supplied message (err.response.data.message) when any
+   * assigned role is already at its cap, or the group isn't assigned to
+   * any role yet.
+   */
+  togglePin: async (id, pinned) => {
+    const res = await httpClient.post(endpoints.importantLinks.groups.pin(id), { pinned });
     return res.data;
   },
 

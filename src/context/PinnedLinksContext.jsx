@@ -30,14 +30,19 @@ export function PinnedLinksProvider({ children }) {
     }
     linkService.getLinkCategories()
       .then(categories => {
+        // A group shows here only if IT (not any individual link inside
+        // it) is pinned to the header AND is assigned to the viewer's
+        // role — getLinkCategories() already restricts the group list to
+        // groups assigned to the viewer's role, so any group in this list
+        // with isPinned=true is pinned for this viewer (see
+        // GroupSerializer.is_pinned and Group.pin_enabled).
         const grouped = [];
         categories.forEach(cat => {
-          const linksInGroup = cat.links.filter(link => link.pinToHeader);
-          if (linksInGroup.length > 0) {
+          if (cat.isPinned && cat.links.length > 0) {
             grouped.push({
               groupId: cat.id,
               groupTitle: cat.title,
-              links: linksInGroup.map(link => ({
+              links: cat.links.map(link => ({
                 id: link.id,
                 label: link.label,
                 url: link.url
