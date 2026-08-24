@@ -150,19 +150,35 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
 
           {isNavMenuOpen && pinnedLinks.length > 0 ? (
             <div className="header-mobile-nav-menu" role="menu">
-              {pinnedLinks.map((link) => (
-                <a
-                  key={link.id}
-                  href={link.url}
-                  className="header-mobile-nav-item"
-                  role="menuitem"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={closeNavMenu}
-                >
-                  {link.label}
-                </a>
-              ))}
+              {pinnedLinks.flatMap(g => g.links).map((link) => 
+                link.url ? (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    className="header-mobile-nav-item"
+                    role="menuitem"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={closeNavMenu}
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <button
+                    key={link.id}
+                    type="button"
+                    className="header-mobile-nav-item"
+                    role="menuitem"
+                    style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', padding: '12px 16px' }}
+                    onClick={() => {
+                      closeNavMenu();
+                      navigate(buildPath(ROUTES.IMPORTANT_LINKS_CONTENT, { id: link.id }));
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                )
+              )}
             </div>
           ) : null}
         </div>
