@@ -57,6 +57,13 @@ export const pushNotificationService = {
 
       const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
+      // Unsubscribe any existing subscription to clear old/invalid VAPID keys
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        await existingSubscription.unsubscribe();
+        console.log('Unsubscribed existing push subscription.');
+      }
+
       // 5. Subscribe using PushManager
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
