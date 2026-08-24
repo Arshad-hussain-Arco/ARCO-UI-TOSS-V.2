@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bell, BellOff, Check, CheckCheck, X,
   CalendarClock, CheckCircle2, XCircle, CalendarX,
@@ -23,6 +24,9 @@ const TYPE_MAP = {
   OW_EXCESS_REQUESTED:     { Icon: Timer,          hue: 'amber'  },
   OW_EXCESS_APPROVED:      { Icon: Hourglass,      hue: 'emerald' },
   OW_EXCESS_REJECTED:      { Icon: XCircle,        hue: 'red'    },
+  HOLIDAY_ADDED:           { Icon: CalendarClock,  hue: 'blue'   },
+  HOLIDAY_REMOVED:         { Icon: CalendarX,      hue: 'red'    },
+  HOLIDAY_MODIFIED:        { Icon: FileEdit,       hue: 'amber'  },
 };
 
 const HUES = {
@@ -56,6 +60,7 @@ function timeAgo(d) {
 export function NotificationsDropdown({
   isOpen, onClose, notifications, unreadCount, wsStatus, onMarkRead, onMarkAllRead,
 }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('all'); // 'all' | 'unread'
   const panelRef = useRef(null);
 
@@ -160,9 +165,25 @@ export function NotificationsDropdown({
                   key={n.id}
                   className={`nd-item${unread ? ' nd-item--ur' : ''}`}
                   role="listitem"
-                  onClick={() => unread && onMarkRead(n.id)}
+                  onClick={() => {
+                    if (unread) onMarkRead(n.id);
+                    const url = n.url || n.action_url || n.link;
+                    if (url) {
+                      navigate(url);
+                      onClose();
+                    }
+                  }}
                   tabIndex={unread ? 0 : -1}
-                  onKeyDown={(e) => e.key === 'Enter' && unread && onMarkRead(n.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (unread) onMarkRead(n.id);
+                      const url = n.url || n.action_url || n.link;
+                      if (url) {
+                        navigate(url);
+                        onClose();
+                      }
+                    }
+                  }}
                 >
                   {/* Left stripe */}
                   {unread && (

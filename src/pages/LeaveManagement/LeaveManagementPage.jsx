@@ -963,6 +963,13 @@ export function LeaveManagementPage() {
                           const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
                           const durationText = getDurationDisplay(leave);
 
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const startDateObj = new Date(leave.start_date);
+                          startDateObj.setHours(0, 0, 0, 0);
+                          const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
+                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent;
+
                           return (
                             <tr key={leave.id} className="leave-table-row">
                               <td className="leave-table-cell" data-label="Leave Type">
@@ -1023,26 +1030,27 @@ export function LeaveManagementPage() {
                                     >
                                       <X className="leave-table-action-icon" />
                                     </button>
+                                  ) : canModify ? (
+                                    <>
+                                      <button
+                                        className="tr-act-btn tr-act-edit"
+                                        title="Edit Request"
+                                        onClick={() => setEditModalLeave(leave)}
+                                      >
+                                        <Edit className="leave-table-action-icon" />
+                                      </button>
+                                      <button
+                                        className="tr-act-btn tr-act-reject"
+                                        title="Cancel Request"
+                                        onClick={() => setCancelModalLeave(leave)}
+                                      >
+                                        <X className="leave-table-action-icon" />
+                                      </button>
+                                    </>
                                   ) : (
-                                    statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && (
-                                      <>
-
-                                        <button
-                                          className="tr-act-btn tr-act-edit"
-                                          title="Edit Request"
-                                          onClick={() => setEditModalLeave(leave)}
-                                        >
-                                          <Edit className="leave-table-action-icon" />
-                                        </button>
-                                        <button
-                                          className="tr-act-btn tr-act-reject"
-                                          title="Cancel Request"
-                                          onClick={() => setCancelModalLeave(leave)}
-                                        >
-                                          <X className="leave-table-action-icon" />
-                                        </button>
-                                      </>
-                                    )
+                                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic', paddingLeft: '4px' }}>
+                                      No Modification
+                                    </span>
                                   )}
                                 </div>
                               </td>
