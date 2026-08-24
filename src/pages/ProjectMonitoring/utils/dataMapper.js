@@ -54,7 +54,7 @@ export function mapWorkOrderRecord(wo) {
     Planned_DEV_completion_Date: wo.Planned_DEV_completion_Date || '',
     SIT_Received_date: wo.SIT_Received_date || '',
     UAT_Actual_End_Date: wo.UAT_Actual_End_Date || '',
-    SIT_Lead: wo.SIT_Lead || wo.PMO_Project_Manager || 'unassigned',
+    SIT_Lead: wo.SIT_Lead || 'unassigned',
     UAT_Lead: wo.UAT_Lead || 'unassigned',
     Depends_On: dependsOn,
     Last_Comment: wo.Last_Comment || '',
@@ -565,7 +565,7 @@ export function getDrilldownProjects(projectsList = [], changeRequestsList = [],
       if (key === 'itdl') return (p.IT_Delivery_Lead || 'unassigned').trim().toLowerCase().includes(q);
       if (key === 'po') return (p.Product_Owner || 'unassigned').trim().toLowerCase().includes(q);
       if (key === 'backupItdl') return (p.Backup_IT_Delivery_Lead || 'unassigned').trim().toLowerCase().includes(q);
-      if (key === 'sitLead') return (p.SIT_Lead || p.PMO_Project_Manager || 'unassigned').trim().toLowerCase().includes(q);
+      if (key === 'sitLead') return (p.SIT_Lead || 'unassigned').trim().toLowerCase().includes(q);
       if (key === 'uatLead') return (p.UAT_Lead || 'unassigned').trim().toLowerCase().includes(q);
 
       return (

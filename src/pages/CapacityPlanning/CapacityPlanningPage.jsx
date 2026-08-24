@@ -7,11 +7,12 @@ import {
   Users,
   Eye,
   Star,
-  UserCheck,
   PlusCircle,
   CheckSquare,
   FileSpreadsheet,
   FileText,
+  FolderKanban,
+  GanttChart,
   X,
   Info,
   AlertTriangle
@@ -28,6 +29,8 @@ import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { capacityService } from '@services/capacityService';
 import { settingsService } from '@services/settingsService';
+import { leaveService } from '@services/leaveService';
+import { consultantService } from '@services/consultantService';
 import toast from 'react-hot-toast';
 
 import {
@@ -36,6 +39,7 @@ import {
   parseDate,
   calculateProratedEffort
 } from './capacityCalculations';
+import { PMStatusGroups, PMStatus, mapStatusToIds } from '../ProjectMonitoring/utils/staticData';
 import {
   exportToExcel,
   exportToPDF
@@ -69,26 +73,88 @@ export function CapacityPlanningPage() {
   const [activeTeamTab, setActiveTeamTab] = useState('');
   const [collapsedTeams, setCollapsedTeams] = useState(new Set());
   const [weekendIndices, setWeekendIndices] = useState([5, 6]); // Default to Friday/Saturday
+  const [holidaySet, setHolidaySet] = useState(() => new Set());
+  const [teamPercentMap, setTeamPercentMap] = useState(() => new Map());
   const [teamViewSubMode, setTeamViewSubMode] = useState('utilization');
+
+  // Project View state
+  const [collapsedProjects, setCollapsedProjects] = useState(new Set());
+  const [projectViewTimeframe, setProjectViewTimeframe] = useState(30);
+
+  // Gantt View — SDLC (7-stage) vs Tech (17-stage) lifecycle, same toggle
+  // concept as Project Monitoring, reusing its actual PMStatusGroups/PMStatus
+  // stage definitions rather than a separate guessed color mapping.
+  const [ganttLifecycleMode, setGanttLifecycleMode] = useState('business');
+
 
 
   // Drill-down Modal State
   const [selectedDrillConsultant, setSelectedDrillConsultant] = useState(null);
   const [selectedDrillTimeframe, setSelectedDrillTimeframe] = useState(null);
 
-  // Fetch weekend configuration
+  // Fetch the org's actual weekend days from employee work schedules, rather
+  // than the standalone System Settings weekend config — employees can be on
+  // a CUSTOM schedule with their own weekend days, and that's what actually
+  // governs availability. Falls back to Friday/Saturday if nobody is on a
+  // CUSTOM schedule (custom_weekend_days is only populated for that group).
   useEffect(() => {
-    const loadWeekendConfig = async () => {
+    const loadWeekendDays = async () => {
       try {
-        const res = await settingsService.getWeekendConfig();
-        if (res && res.weekendDays) {
-          setWeekendIndices(res.weekendDays);
+        const res = await leaveService.getWorkScheduleSummary();
+        const groups = res?.results || [];
+        const customGroups = groups.filter(g => Array.isArray(g.custom_weekend_days) && g.custom_weekend_days.length > 0);
+        if (customGroups.length > 0) {
+          const largest = customGroups.reduce((a, b) => (b.employee_count > a.employee_count ? b : a));
+          setWeekendIndices(largest.custom_weekend_days);
         }
       } catch (err) {
-        console.error('Failed to load weekend configuration, using Friday/Saturday defaults', err);
+        console.error('Failed to load employee work schedules, using Friday/Saturday defaults', err);
       }
     };
-    loadWeekendConfig();
+    loadWeekendDays();
+  }, []);
+
+  // Fetch public holidays so they're excluded from business-day counts the
+  // same way weekends are — a holiday inside an assignment's window
+  // shouldn't count as available/occupied capacity.
+  useEffect(() => {
+    const loadHolidays = async () => {
+      try {
+        const holidays = await leaveService.listHolidays();
+        const dates = new Set();
+        (Array.isArray(holidays) ? holidays : []).forEach(h => {
+          if (!h.is_active) return;
+          (h.dates || []).forEach(d => dates.add(d));
+        });
+        setHolidaySet(dates);
+      } catch (err) {
+        console.error('Failed to load holidays, proceeding without holiday exclusions', err);
+      }
+    };
+    loadHolidays();
+  }, []);
+
+  // Fetch each team's configured primary/additional developer contribution
+  // split (Teams screen) so the 70/30 split isn't a fixed constant — teams
+  // with no percentages configured fall back to 70/30 inside calculateDeveloperMDs.
+  useEffect(() => {
+    const loadTeamPercentages = async () => {
+      try {
+        const teams = await consultantService.getTeams();
+        const map = new Map();
+        (Array.isArray(teams) ? teams : teams?.results || []).forEach(t => {
+          const pri = Number(t.pri_dev_contr_per);
+          const add = Number(t.add_dev_contr_per);
+          if (Number.isFinite(pri) && Number.isFinite(add)) {
+            map.set(t.id, { pri: pri / 100, add: add / 100 });
+          }
+        });
+        setTeamPercentMap(map);
+      } catch (err) {
+        console.error('Failed to load team contribution percentages, using 70/30 defaults', err);
+      }
+    };
+    loadTeamPercentages();
   }, []);
 
 
@@ -130,8 +196,8 @@ export function CapacityPlanningPage() {
   const processedConsultants = useMemo(() => {
     const apiResult = data?.result || data || [];
     if (!Array.isArray(apiResult)) return [];
-    return processCapacityData(apiResult, weekendIndices, referenceDate);
-  }, [data, weekendIndices, referenceDate]);
+    return processCapacityData(apiResult, weekendIndices, referenceDate, holidaySet, teamPercentMap);
+  }, [data, weekendIndices, referenceDate, holidaySet, teamPercentMap]);
 
   // Retrieve unique team names for team filter and team tabs
   const allTeams = useMemo(() => {
@@ -175,6 +241,157 @@ export function CapacityPlanningPage() {
     return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
   }, [filteredConsultants]);
 
+  // Group every developer's assignments by Project, for Project View — shows
+  // who's Primary vs Additional on a given project and each person's own
+  // prorated MDs share for the selected timeframe, reusing the same
+  // per-assignment `effort` share (already split by team percentage) that
+  // backs the Summary/Team views and the drill-down modal.
+  const projectGroups = useMemo(() => {
+    const groups = new Map();
+
+    processedConsultants.forEach(c => {
+      c.assignments.forEach(a => {
+        const groupKey = a.project ? a.project.trim() : `${a.summary}_${a.startDate}_${a.endDate}`;
+        if (!groups.has(groupKey)) {
+          groups.set(groupKey, {
+            key: groupKey,
+            project: a.project || '',
+            summary: a.summary,
+            status: a.status,
+            startDate: a.startDate,
+            endDate: a.endDate,
+            developers: [],
+          });
+        }
+
+        const proratedEffort = calculateProratedEffort(
+          a.startDate, a.endDate, Number(a.effort) || 0,
+          projectViewTimeframe, referenceDate, weekendIndices, holidaySet
+        );
+
+        groups.get(groupKey).developers.push({
+          empId: c.id,
+          name: c.name,
+          teamName: c.teamName,
+          isAssignedProgrammer: a.isAssignedProgrammer,
+          isUnmatchedDeveloper: a.isUnmatchedDeveloper,
+          effort: Number(a.effort) || 0,
+          proratedEffort,
+        });
+      });
+    });
+
+    // Whether this project's own span overlaps a given N-day window at all
+    // (calendar-day overlap, same formula as the drill-down modal's filter —
+    // not a business-day count, just "is this project active in this window").
+    const overlapsWindow = (startDate, endDate, windowDays) => {
+      const s = parseDate(startDate);
+      const e = parseDate(endDate);
+      const ref = parseDate(referenceDate);
+      if (!s || !e || !ref) return false;
+      const windowEnd = new Date(ref);
+      windowEnd.setDate(windowEnd.getDate() + windowDays - 1);
+      const overlapStart = new Date(Math.max(ref.getTime(), s.getTime()));
+      const overlapEnd = new Date(Math.min(e.getTime(), windowEnd.getTime()));
+      return overlapStart <= overlapEnd;
+    };
+
+    const result = Array.from(groups.values()).map(g => ({
+      ...g,
+      // Primary developer(s) first, then additional, each group sorted by name
+      developers: g.developers.sort((a, b) => {
+        if (a.isAssignedProgrammer !== b.isAssignedProgrammer) return a.isAssignedProgrammer ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      }),
+      totalProratedEffort: g.developers.reduce((sum, d) => sum + d.proratedEffort, 0),
+      overlaps7: overlapsWindow(g.startDate, g.endDate, 7),
+      overlaps30: overlapsWindow(g.startDate, g.endDate, 30),
+      overlaps90: overlapsWindow(g.startDate, g.endDate, 90),
+    }));
+
+    const q = debouncedSearchQuery.toLowerCase().trim();
+    const filtered = q
+      ? result.filter(g =>
+          g.project.toLowerCase().includes(q) ||
+          g.summary.toLowerCase().includes(q) ||
+          g.developers.some(d => d.name.toLowerCase().includes(q))
+        )
+      : result;
+
+    return filtered.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
+  }, [processedConsultants, debouncedSearchQuery, projectViewTimeframe, referenceDate, weekendIndices, holidaySet]);
+
+  // Count of distinct projects (from the currently searched/filtered set)
+  // whose own span overlaps each window — independent of the 7/30/90 toggle,
+  // so all three counts are visible together in the Project View stats strip.
+  const projectCountsByWindow = useMemo(() => ({
+    next7: projectGroups.filter(g => g.overlaps7).length,
+    next30: projectGroups.filter(g => g.overlaps30).length,
+    next90: projectGroups.filter(g => g.overlaps90).length,
+  }), [projectGroups]);
+
+  const toggleProjectCollapse = (key) => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Gantt View — reuses the same project grouping as Project View, laid out
+  // on a shared timeline so each project's bar position/width reflects its
+  // actual Start/End Date relative to every other visible project.
+  const ganttData = useMemo(() => {
+    const projects = projectGroups
+      .map(g => ({ ...g, startObj: parseDate(g.startDate), endObj: parseDate(g.endDate) }))
+      .filter(g => g.startObj && g.endObj && g.endObj >= g.startObj)
+      .sort((a, b) => a.startObj - b.startObj);
+
+    if (projects.length === 0) {
+      return { projects: [], todayPct: null, monthTicks: [] };
+    }
+
+    const ref = parseDate(referenceDate);
+    const minStart = new Date(Math.min(...projects.map(p => p.startObj.getTime()), ref.getTime()));
+    const maxEnd = new Date(Math.max(...projects.map(p => p.endObj.getTime()), ref.getTime()));
+
+    const rangeStart = new Date(minStart);
+    rangeStart.setDate(rangeStart.getDate() - 3);
+    const rangeEnd = new Date(maxEnd);
+    rangeEnd.setDate(rangeEnd.getDate() + 3);
+    const totalMs = rangeEnd.getTime() - rangeStart.getTime();
+    const pct = (d) => totalMs > 0 ? ((d.getTime() - rangeStart.getTime()) / totalMs) * 100 : 0;
+
+    const projectsWithBars = projects.map(p => {
+      const left = pct(p.startObj);
+      const right = pct(p.endObj);
+      const { statusId, statusGroup } = mapStatusToIds(p.status);
+      const stage = ganttLifecycleMode === 'development'
+        ? PMStatus.find(s => s.id === statusId)
+        : PMStatusGroups.find(g => g.id === statusGroup);
+      return {
+        ...p,
+        leftPct: Math.max(0, left),
+        widthPct: Math.max(0.6, right - left),
+        stageName: stage ? stage.name : 'Unmapped',
+        stageColor: stage ? stage.color : '#9ca3af',
+      };
+    });
+
+    const monthTicks = [];
+    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+    while (cursor <= rangeEnd) {
+      monthTicks.push({
+        label: cursor.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        leftPct: pct(cursor),
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return { projects: projectsWithBars, todayPct: pct(ref), monthTicks };
+  }, [projectGroups, referenceDate, ganttLifecycleMode]);
+
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
@@ -203,15 +420,15 @@ export function CapacityPlanningPage() {
 
     const end7 = new Date(ref);
     end7.setDate(end7.getDate() + 6);
-    const biz7 = countBusinessDays(ref, end7, weekendIndices);
+    const biz7 = countBusinessDays(ref, end7, weekendIndices, holidaySet);
 
     const end30 = new Date(ref);
     end30.setDate(end30.getDate() + 29);
-    const biz30 = countBusinessDays(ref, end30, weekendIndices);
+    const biz30 = countBusinessDays(ref, end30, weekendIndices, holidaySet);
 
     const end90 = new Date(ref);
     end90.setDate(end90.getDate() + 89);
-    const biz90 = countBusinessDays(ref, end90, weekendIndices);
+    const biz90 = countBusinessDays(ref, end90, weekendIndices, holidaySet);
 
     let totalOccupied7 = 0;
     let totalAvailable7 = 0;
@@ -241,7 +458,7 @@ export function CapacityPlanningPage() {
       totalOccupied90,
       totalAvailable90
     };
-  }, [filteredConsultants, referenceDate, weekendIndices]);
+  }, [filteredConsultants, referenceDate, weekendIndices, holidaySet]);
 
   // Export handlers
   const handleExportExcel = () => {
@@ -277,7 +494,7 @@ export function CapacityPlanningPage() {
     const ref = parseDate(referenceDate);
     const windowDays = selectedDrillTimeframe || 30;
     const windowEnd = new Date(ref);
-    windowEnd.setDate(windowEnd.getDate() + windowDays); // [today, today + N days] inclusive
+    windowEnd.setDate(windowEnd.getDate() + windowDays - 1); // matches calculateProratedEffort's window
 
     // 1. Filter assignments first
     const filtered = selectedDrillConsultant.assignments.map((alloc, idx) => {
@@ -286,19 +503,38 @@ export function CapacityPlanningPage() {
 
       if (!start || !end) return null;
 
-      // Filter status: in status "Open" or "FAT Testing"
-      const statusLower = (alloc.status || '').toLowerCase().trim();
-      const isStatusMatch = statusLower === 'open' || statusLower === 'fat testing';
-      if (!isStatusMatch) return null;
+      // Show any assignment that overlaps this window at all, using the
+      // same overlap math as calculateProratedEffort — so the modal always
+      // shows exactly the assignments that contributed to the Occupied MDs
+      // figure. Previously this required End_Date to fall inside the
+      // window AND Status to be "Open"/"FAT Testing", which silently hid
+      // assignments that ran past the window or had any other status even
+      // though they were counted in the Occupied total.
+      const overlapStart = new Date(Math.max(ref.getTime(), start.getTime()));
+      const overlapEnd = new Date(Math.min(end.getTime(), windowEnd.getTime()));
+      if (overlapStart > overlapEnd) return null;
 
-      // Filter End_Date falling within [today, today + N days]
-      const isEndInRange = end >= ref && end <= windowEnd;
-      if (!isEndInRange) return null;
+      // The portion of this assignment's own effort that actually falls
+      // inside this window — same math that produced the Occupied MDs
+      // figure the user clicked, so the modal can show why the two numbers
+      // differ instead of just asserting a total.
+      const proratedEffort = calculateProratedEffort(
+        alloc.startDate, alloc.endDate, Number(alloc.effort) || 0,
+        windowDays, referenceDate, weekendIndices, holidaySet
+      );
+
+      // Expose the actual business-day ratio behind that proration (e.g.
+      // "4/72 biz days") so the modal shows the math, not just the result.
+      const totalBizDays = countBusinessDays(start, end, weekendIndices, holidaySet);
+      const overlapBizDays = countBusinessDays(overlapStart, overlapEnd, weekendIndices, holidaySet);
 
       return {
         ...alloc,
         startDateObj: start,
         endDateObj: end,
+        proratedEffort,
+        totalBizDays,
+        overlapBizDays,
       };
     }).filter(Boolean);
 
@@ -315,11 +551,17 @@ export function CapacityPlanningPage() {
         grouped.set(groupKey, {
           ...alloc,
           effort: Number(alloc.effort) || 0,
+          proratedEffort: alloc.proratedEffort,
+          totalBizDays: alloc.totalBizDays,
+          overlapBizDays: alloc.overlapBizDays,
           isInvalidRange
         });
       } else {
         const existing = grouped.get(groupKey);
         existing.effort += (Number(alloc.effort) || 0);
+        existing.proratedEffort += alloc.proratedEffort;
+        existing.totalBizDays += alloc.totalBizDays;
+        existing.overlapBizDays += alloc.overlapBizDays;
         if (alloc.isUnmatchedDeveloper) {
           existing.isUnmatchedDeveloper = true;
         }
@@ -346,6 +588,9 @@ export function CapacityPlanningPage() {
         completedPercent: Math.round((1 - alloc.remainingPercent) * 100),
         remainingPercent: Math.round(alloc.remainingPercent * 100),
         effort: alloc.effort,
+        proratedEffort: alloc.proratedEffort,
+        totalBizDays: alloc.totalBizDays,
+        overlapBizDays: alloc.overlapBizDays,
         project: alloc.project,
         assignedDeveloper: alloc.assignedDeveloper,
         additionalDevelopers: alloc.additionalDevelopers,
@@ -354,7 +599,7 @@ export function CapacityPlanningPage() {
         isInvalidRange: alloc.isInvalidRange
       };
     });
-  }, [selectedDrillConsultant, selectedDrillTimeframe, referenceDate]);
+  }, [selectedDrillConsultant, selectedDrillTimeframe, referenceDate, weekendIndices, holidaySet]);
 
   const totalWindowMDs = useMemo(() => {
     if (!selectedDrillConsultant) return 0;
@@ -410,6 +655,7 @@ export function CapacityPlanningPage() {
     return 'color-success';
   };
 
+
   const getRoleIcon = (role) => {
     switch (role) {
       case 'Primary':
@@ -448,6 +694,22 @@ export function CapacityPlanningPage() {
           <Users className="capacity-planning-tab-icon" />
           <span className="capacity-planning-tab-label">Team View</span>
         </button>
+        <button
+          onClick={() => setViewMode('project')}
+          className="capacity-planning-tab"
+          data-active={viewMode === 'project'}
+        >
+          <FolderKanban className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Project View</span>
+        </button>
+        <button
+          onClick={() => setViewMode('gantt')}
+          className="capacity-planning-tab"
+          data-active={viewMode === 'gantt'}
+        >
+          <GanttChart className="capacity-planning-tab-icon" />
+          <span className="capacity-planning-tab-label">Gantt View</span>
+        </button>
       </div>
 
       <div className="capacity-planning-content">
@@ -485,7 +747,7 @@ export function CapacityPlanningPage() {
                   )}
                 </div>
               </>
-            ) : (
+            ) : viewMode === 'team' ? (
               <>
                 <SearchInput
                   value={searchQuery}
@@ -522,6 +784,64 @@ export function CapacityPlanningPage() {
                       onPdfExport={handleExportPDF}
                     />
                   )}
+                </div>
+              </>
+            ) : viewMode === 'project' ? (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search projects, summary, or developer..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div className="team-view-switcher">
+                    {[7, 30, 90].map(days => (
+                      <button
+                        key={days}
+                        type="button"
+                        className={`switcher-btn ${projectViewTimeframe === days ? 'active' : ''}`}
+                        onClick={() => setProjectViewTimeframe(days)}
+                      >
+                        Next {days} Days
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search projects, summary, or developer..."
+                  classNames={{
+                    wrapper: 'cp-search-wrapper',
+                    icon: 'cp-search-icon',
+                    input: 'cp-search-input'
+                  }}
+                />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div className="team-view-switcher">
+                    <button
+                      type="button"
+                      className={`switcher-btn ${ganttLifecycleMode === 'business' ? 'active' : ''}`}
+                      onClick={() => setGanttLifecycleMode('business')}
+                    >
+                      SDLC View (7 Stages)
+                    </button>
+                    <button
+                      type="button"
+                      className={`switcher-btn ${ganttLifecycleMode === 'development' ? 'active' : ''}`}
+                      onClick={() => setGanttLifecycleMode('development')}
+                    >
+                      Tech View (17 Stages)
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -857,6 +1177,194 @@ export function CapacityPlanningPage() {
             </div>
           </div>
         )}
+
+        {/* ── VIEW 3: Project View — Primary/Additional developers per project ── */}
+        {viewMode === 'project' && (
+          <div className="cp-table-card">
+            <div style={{ display: 'flex', gap: '10px', padding: '14px 16px 0' }}>
+              <span className="team-size-badge">Next 7 Days: {projectCountsByWindow.next7} project{projectCountsByWindow.next7 === 1 ? '' : 's'}</span>
+              <span className="team-size-badge">Next 30 Days: {projectCountsByWindow.next30} project{projectCountsByWindow.next30 === 1 ? '' : 's'}</span>
+              <span className="team-size-badge">Next 90 Days: {projectCountsByWindow.next90} project{projectCountsByWindow.next90 === 1 ? '' : 's'}</span>
+            </div>
+            <div className="cp-table-wrapper">
+              <table className="cp-data-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Start / End Date</th>
+                    <th className="text-center">{`Next ${projectViewTimeframe} Days (Total)`}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectGroups.flatMap(group => {
+                    const isCollapsed = collapsedProjects.has(group.key);
+                    const rows = [
+                      <tr
+                        key={`project-${group.key}`}
+                        className="cp-team-subheader-row"
+                        onClick={() => toggleProjectCollapse(group.key)}
+                      >
+                        <td className="cp-team-subheader-cell">
+                          <div className="cp-team-subheader-content">
+                            <div className="cp-team-subheader-left">
+                              {isCollapsed ? <ChevronRight size={14} className="cp-team-chevron" /> : <ChevronDown size={14} className="cp-team-chevron" />}
+                              <span className="team-name-label">
+                                <ProjectText projectStr={group.project} /> — {group.summary}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${(group.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
+                            {group.status || 'N/A'}
+                          </span>
+                        </td>
+                        <td>{formatDateDMY(group.startDate)} - {formatDateDMY(group.endDate)}</td>
+                        <td className="text-center">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <span className="team-size-badge">{group.developers.length} developer{group.developers.length === 1 ? '' : 's'}</span>
+                            <span className="team-size-badge">{group.totalProratedEffort.toFixed(1)} MDs</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ];
+
+                    if (!isCollapsed) {
+                      rows.push(
+                        <tr key={`project-${group.key}-header`} className="cp-member-row" style={{ background: 'var(--surface-secondary)' }}>
+                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Developer</td>
+                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Role</td>
+                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Team</td>
+                          <td className="text-center" style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Effort (Raw → Prorated)</td>
+                        </tr>
+                      );
+                      group.developers.forEach((d, idx) => (
+                        rows.push(
+                          <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
+                            <td className="member-name-cell">
+                              {d.name}
+                              {d.isUnmatchedDeveloper && (
+                                <AlertTriangle
+                                  size={12}
+                                  style={{ color: '#d97706', marginLeft: '6px', cursor: 'help', verticalAlign: 'middle' }}
+                                  title="This developer's name could not be matched to a known employee record."
+                                />
+                              )}
+                            </td>
+                            <td>
+                              <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
+                                {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
+                                <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
+                              </div>
+                            </td>
+                            <td>{d.teamName || 'Unassigned Team'}</td>
+                            <td className="text-center">
+                              {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
+                            </td>
+                          </tr>
+                        )
+                      ));
+                    }
+                    return rows;
+                  })}
+                  {projectGroups.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="cp-empty-state">
+                        No projects found matching the criteria
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── VIEW 4: Gantt View — project timeline ── */}
+        {viewMode === 'gantt' && (
+          <div className="cp-table-card">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '14px 16px 0' }}>
+              {(ganttLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
+                <span key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: stage.color, display: 'inline-block' }} />
+                  {stage.name}
+                </span>
+              ))}
+            </div>
+            {ganttData.projects.length === 0 ? (
+              <div className="cp-empty-state">No projects found matching the criteria</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ minWidth: '900px' }}>
+                  {/* Month axis header */}
+                  <div style={{ display: 'flex', borderBottom: '2px solid var(--border-primary)' }}>
+                    <div style={{ width: '280px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                      Project
+                    </div>
+                    <div style={{ flex: 1, position: 'relative', height: '34px' }}>
+                      {ganttData.monthTicks.map((tick, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            position: 'absolute', left: `${tick.leftPct}%`, top: 0, bottom: 0,
+                            borderLeft: '1px solid var(--border-primary)', paddingLeft: '4px',
+                            fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)',
+                            textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center',
+                          }}
+                        >
+                          {tick.label}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Project rows */}
+                  {ganttData.projects.map(p => (
+                    <div key={p.key} className="cp-member-row" style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: '280px', flexShrink: 0, padding: '10px 14px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.summary}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                          {p.developers.length} developer{p.developers.length === 1 ? '' : 's'} · {p.totalProratedEffort.toFixed(1)} MDs
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, position: 'relative', height: '32px' }}>
+                        {ganttData.todayPct !== null && (
+                          <div
+                            style={{
+                              position: 'absolute', left: `${ganttData.todayPct}%`, top: 0, bottom: 0,
+                              width: '2px', background: '#ef4444', zIndex: 2,
+                            }}
+                            title="Today"
+                          />
+                        )}
+                        <div
+                          style={{
+                            position: 'absolute', left: `${p.leftPct}%`, width: `${p.widthPct}%`, top: '8px', height: '16px',
+                            borderRadius: '4px', background: p.stageColor, minWidth: '4px', zIndex: 1,
+                          }}
+                          title={`${p.summary} — ${p.status} (${p.stageName}) (${formatDateDMY(p.startDate)} - ${formatDateDMY(p.endDate)})`}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute', left: `calc(${p.leftPct + p.widthPct}% + 8px)`, top: 0, bottom: 0,
+                            display: 'flex', alignItems: 'center',
+                            fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+                          }}
+                          title={`${p.status} → ${p.stageName}`}
+                        >
+                          {p.stageName}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Drill-down Assignments Modal Dialog ── */}
@@ -961,7 +1469,17 @@ export function CapacityPlanningPage() {
                                 )}
                               </span>
                             </td>
-                            <td>{Number(alloc.effort).toFixed(1)} MDs</td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span>{Number(alloc.effort).toFixed(1)} MDs</span>
+                                <span
+                                  style={{ fontSize: '11px', color: 'var(--text-secondary)' }}
+                                  title={`Only the portion of this assignment's ${Number(alloc.effort).toFixed(1)} MDs that falls within the next ${selectedDrillTimeframe} days counts toward the window total: ${Number(alloc.effort).toFixed(1)} x (${alloc.overlapBizDays}/${alloc.totalBizDays} business days) = ${alloc.proratedEffort.toFixed(1)}.`}
+                                >
+                                  → {alloc.proratedEffort.toFixed(1)} MDs in window ({alloc.overlapBizDays}/{alloc.totalBizDays} biz days)
+                                </span>
+                              </div>
+                            </td>
                             {idx === 0 && (
                               <td rowSpan={drillAllocations.length} className="total-window-cell">
                                 {totalWindowMDs.toFixed(1)} MDs
