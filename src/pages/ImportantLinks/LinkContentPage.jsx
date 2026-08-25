@@ -66,10 +66,15 @@ export function LinkContentPage() {
       ) : error ? (
         <ErrorState title="Could not load link" description={error} />
       ) : (
-        <>
-          <h1 className="il-content-page-title">{link.link}</h1>
-          <LinkContentViewer link={viewerLink} />
-        </>
+        <div className="il-content-page-card">
+          <div className="il-content-page-header">
+            <h1 className="il-content-page-title">{link.link}</h1>
+            <span className="il-content-page-meta">Important Links • Document Viewer</span>
+          </div>
+          <div className="il-content-page-body">
+            <LinkContentViewer link={viewerLink} />
+          </div>
+        </div>
       )}
     </div>
   );
