@@ -146,6 +146,7 @@ function TeamLeaveSummary({ getPhoto }) {
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
   const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+  const [teamSearchQueries, setTeamSearchQueries] = useState({});
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -224,6 +225,13 @@ function TeamLeaveSummary({ getPhoto }) {
     }));
   }, [departmentData, getPhoto]);
 
+  const handleTeamSearchChange = (deptId, value) => {
+    setTeamSearchQueries((prev) => ({
+      ...prev,
+      [deptId]: value,
+    }));
+  };
+
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
       const current = prev[deptId] || { field: null, direction: null };
@@ -294,9 +302,28 @@ function TeamLeaveSummary({ getPhoto }) {
         return { ...dept, consultants: activeConsultants };
       }).filter(dept => dept.consultants.length > 0);
     }
+    
+    const q = globalSearchQuery?.trim().toLowerCase();
+    if (q) {
+      depts = depts.map(dept => {
+        const matched = (dept.consultants || []).filter(c => 
+          c.name.toLowerCase().includes(q) ||
+          (c.designation && c.designation.toLowerCase().includes(q))
+        );
+        return { ...dept, consultants: matched };
+      }).filter(dept => dept.consultants.length > 0);
+    }
 
     return depts;
-  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod]);
+  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod, globalSearchQuery]);
+
+  useEffect(() => {
+    if (globalSearchQuery?.trim() !== '') {
+      const allFilteredDeptIds = filteredDepartments.map(d => d.id);
+      setExpandedDepts(new Set(allFilteredDeptIds));
+      setExpandedAnalyticsDepts(new Set(allFilteredDeptIds));
+    }
+  }, [globalSearchQuery, filteredDepartments]);
   const getSortedConsultants = (deptId, consultants) => {
     let filtered = consultants;
     const q = globalSearchQuery.trim().toLowerCase();
@@ -677,6 +704,15 @@ function TeamLeaveSummary({ getPhoto }) {
                                     WFH: "Work From Home"
                                   };
 
+                                  let targetTypes = [];
+                                  if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+                                  else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+                                  else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+                                  else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+                                  else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+                                  else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+                                  else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
+
                                   const relevantLeaves = c.leaveTypes || [];
 
                                   return (
@@ -829,21 +865,7 @@ function TeamLeaveSummary({ getPhoto }) {
 
                             <div className="tsa-dept-kpi-sep" />
 
-                            <div className="team-summary-search-wrapper" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
-                              <Search className="team-summary-search-icon" size={13} />
-                              <input
-                                type="text"
-                                placeholder="Search employee..."
-                                className="team-summary-search-input"
-                                value={teamSearchQueries[dept.id] || ''}
-                                onChange={(e) => handleTeamSearchChange(dept.id, e.target.value)}
-                                style={{ paddingRight: '32px' }} />
-                              {teamSearchQueries[dept.id] && (
-                                <button type="button" className="search-clear-btn" onClick={() => handleTeamSearchChange(dept.id, '')}>
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
+
                           </div>
                         </div>
 

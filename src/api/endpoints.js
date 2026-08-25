@@ -11,6 +11,10 @@ const endpoints = {
     adminUpdatePassword: '/auth/admin-update-password/',
     updatePassword: '/auth/update-password/',
   },
+  pushNotifications: {
+    vapidPublicKey: '/notifications/vapid-public-key/',
+    subscribe: '/notifications/subscribe/',
+  },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
     reconcile: '/reconciliation/reconciliation/reconcile/',
@@ -27,6 +31,7 @@ const endpoints = {
       listCreate: '/important-links/groups/',
       detailUpdateDelete: (id) => `/important-links/groups/${id}/`,
       accessControl: (id) => `/important-links/groups/${id}/access-control/`,
+      pin: (id) => `/important-links/groups/${id}/pin/`,
     },
     links: {
       list: '/important-links/link-data/',

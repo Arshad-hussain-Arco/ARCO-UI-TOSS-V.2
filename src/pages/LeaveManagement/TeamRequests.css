@@ -896,13 +896,22 @@
   margin-bottom: 6px;
   font-family: var(--font-family);
   font-size: 11.5px;
-  color: #ffffff;
+  color: #9a3412; /* Dark amber text for readability on light theme yellow */
 }
 
 .tr-conflict-card.info {
   background: var(--c-info-light);
   border-color: #93c5fd;
   color: #1e40af;
+}
+
+/* Preserve original white color for Dark Theme */
+[data-theme='dark'] .tr-conflict-card {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .tr-conflict-card.info {
+  color: #ffffff;
 }
 
 /* ─── Drawer Footer ───────────────────────────────────────────────── */
@@ -958,8 +967,7 @@
 
 .tr-btn-danger {
   background:  #A32D2D;
-  color:  #ffffff;
-  border-color: #fca5a5;
+  color:  #ffffff; 
 }
 
 

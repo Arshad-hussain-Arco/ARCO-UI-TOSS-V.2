@@ -24,6 +24,7 @@ import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
+import ProgressTooltip from '../ProjectMonitoring/components/ProgressTooltip';
 import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -103,6 +104,7 @@ export function CapacityPlanningPage() {
   // Drill-down Modal State
   const [selectedDrillConsultant, setSelectedDrillConsultant] = useState(null);
   const [selectedDrillTimeframe, setSelectedDrillTimeframe] = useState(null);
+  const [activeTooltip, setActiveTooltip] = useState(null);
 
   // Fetch the org's actual weekend days from employee work schedules, rather
   // than the standalone System Settings weekend config — employees can be on
@@ -1512,7 +1514,16 @@ export function CapacityPlanningPage() {
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <div className={devRole.class} title={devRole.tooltip} style={{ cursor: 'help' }}>
+                                <div
+                                  className={devRole.class}
+                                  style={{ cursor: 'help' }}
+                                  onMouseEnter={(e) => setActiveTooltip({
+                                    title: devRole.tooltip,
+                                    state: 'current',
+                                    targetRect: e.currentTarget.getBoundingClientRect()
+                                  })}
+                                  onMouseLeave={() => setActiveTooltip(null)}
+                                >
                                   {devRole.icon}
                                   <span>{devRole.label}</span>
                                 </div>
@@ -1557,9 +1568,15 @@ export function CapacityPlanningPage() {
                                   <span
                                     className="dev-badge dev-tester"
                                     style={{ display: 'inline-flex', gap: '4px', cursor: 'help' }}
-                                    title="This developer's name could not be matched to a known employee record, so these numbers may be unreliable."
+                                    onMouseEnter={(e) => setActiveTooltip({
+                                      title: 'Unmatched Developer',
+                                      description: "This developer's name could not be matched to a known employee record, so these numbers may be unreliable.",
+                                      state: 'current',
+                                      targetRect: e.currentTarget.getBoundingClientRect()
+                                    })}
+                                    onMouseLeave={() => setActiveTooltip(null)}
                                   >
-                                    <AlertTriangle size={12} style={{ color: '#d97706' }} />
+                                    <AlertTriangle size={14} style={{ color: '#d97706' }} />
                                     Unmatched developer
                                   </span>
                                 ) : (
@@ -1593,6 +1610,14 @@ export function CapacityPlanningPage() {
           </div>
         </div>
       )}
+      <ProgressTooltip
+        title={activeTooltip?.title}
+        description={activeTooltip?.description}
+        state={activeTooltip?.state}
+        targetRect={activeTooltip?.targetRect}
+        visible={!!activeTooltip}
+        placement="bottom"
+      />
     </div>
   );
 }

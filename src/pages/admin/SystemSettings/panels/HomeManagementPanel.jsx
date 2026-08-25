@@ -123,7 +123,7 @@ function HomeManagementPanelComponent() {
     setPersonBio('');
     setPersonFile(null);
     if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+      try { URL.revokeObjectURL(personPreviewUrl); } catch { }
     }
     setPersonPreviewUrl(null);
     setPersonExistingVideoUrl(null);
@@ -148,7 +148,7 @@ function HomeManagementPanelComponent() {
     setPersonBio('');
     setPersonFile(null);
     if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+      try { URL.revokeObjectURL(personPreviewUrl); } catch { }
     }
     setPersonPreviewUrl(null);
     setPersonExistingVideoUrl(null);
@@ -538,7 +538,7 @@ function HomeManagementPanelComponent() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-                        try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+                        try { URL.revokeObjectURL(personPreviewUrl); } catch { }
                       }
                       setPersonFile(null);
                       setPersonPreviewUrl(null);

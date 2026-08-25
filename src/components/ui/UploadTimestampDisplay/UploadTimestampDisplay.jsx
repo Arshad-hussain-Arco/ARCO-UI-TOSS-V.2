@@ -58,7 +58,13 @@ export function UploadTimestampDisplay({ fileKey, label, configs, useRawTime }) 
 
         const dateObj = new Date(uploadedAt);
         const pad = (n) => n.toString().padStart(2, '0');
-        const customFormattedTime = `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}-${pad(dateObj.getMinutes())}-${pad(dateObj.getSeconds())}`;
+        
+        let hours = dateObj.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        
+        const customFormattedTime = `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()}, ${hours}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())} ${ampm}`;
 
         const displayLabel = item.label.trim().endsWith(':') ? item.label : `${item.label}:`;
 

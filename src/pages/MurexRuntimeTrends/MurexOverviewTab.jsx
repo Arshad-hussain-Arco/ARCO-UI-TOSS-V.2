@@ -694,7 +694,7 @@ export function MurexOverviewTab() {
                     const durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
 
                     return (
-                      <div className="murex-matrix-list-row mxl-total-row" style={{ backgroundColor: 'var(--bg-tertiary, #f8fafc)', borderTop: '2px solid var(--border-secondary, #e2e8f0)', borderBottom: '1px solid var(--border-secondary, #e2e8f0)', fontWeight: 600, padding: '12px 16px' }}>
+                      <div className="murex-matrix-list-row mxl-total-row" style={{ backgroundColor: 'var(--bg-tertiary, #f8fafc)', borderTop: '2px solid var(--border-secondary, #e2e8f0)', borderBottom: '1px solid var(--border-secondary, #e2e8f0)', fontWeight: 600, padding: '12px 18px 12px 12px' }}>
                         <div className="mxl-col mxl-col-job" style={{ color: 'var(--text-primary, #0f172a)' }}>
                           Total Time Duration
                         </div>

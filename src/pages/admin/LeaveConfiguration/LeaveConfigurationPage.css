@@ -376,9 +376,11 @@
 
 /* Action Ghost Icon Buttons */
 .lc-ghost-btn {
-      height: 36px;
+    height: 36px;
+    display: flex;
     padding: 0px 20px;
     font-size: 13px;
+    align-items: center; 
     font-weight: 600;
     color: var(--text-primary);
     background: transparent;
@@ -386,6 +388,7 @@
     border-radius: 6px;
     cursor: pointer;
     transition: 0.15s;
+    gap:6px;
 }
 
  

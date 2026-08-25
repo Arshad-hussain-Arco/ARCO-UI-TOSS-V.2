@@ -1,5 +1,5 @@
 import { memo, useRef, useState, useEffect } from 'react';
-import { Eye, EyeOff, Save, Upload, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Save, Upload, Loader2, FileSpreadsheet, CircleCheck } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 
@@ -126,14 +126,28 @@ function ImportConfigPanelComponent() {
     if (!isoString) return null;
     const date = new Date(isoString);
     if (Number.isNaN(date.getTime())) return null;
-    return date.toLocaleString();
+    
+    const pad = (n) => n.toString().padStart(2, '0');
+    const DD = pad(date.getDate());
+    const MM = pad(date.getMonth() + 1);
+    const YYYY = date.getFullYear();
+    
+    let hours = date.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    const mm = pad(date.getMinutes());
+    const ss = pad(date.getSeconds());
+    
+    return `${DD}-${MM}-${YYYY}, ${hours}:${mm}:${ss} ${ampm}`;
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
-      
+
       // update-config is a full replace of config_json, and
       // getEnvironmentConfig()/getImportFileConfig() only return their own
       // ~8-key whitelist each — merging just those two silently drops any
@@ -190,155 +204,236 @@ function ImportConfigPanelComponent() {
         <div className="ss-grid-2col">
           {/* 1. WO FilePath + inline Upload button */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="imp-wo-filepath">
-              WO FilePath
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                id="imp-wo-filepath"
-                type="text"
-                className="ss-input"
-                value={formData.workOrderStatusFilePath}
-                onChange={(e) => handleChange('workOrderStatusFilePath', e.target.value)}
-              />
-              <input
-                type="file"
-                ref={fileInputRefs.woFilePath}
-                style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('workOrderStatusFilePath', 'wofilePath', e)}
-              />
-              <button
-                type="button"
-                className="ss-btn-update"
-                style={{
-                  height: '36px',
-                  padding: '0 14px',
-                  fontSize: '12px',
-                  whiteSpace: 'nowrap',
-                  background: 'var(--surface-primary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-primary)',
-                }}
-                onClick={() => fileInputRefs.woFilePath.current?.click()}
-                disabled={uploadingFields.workOrderStatusFilePath}
-              >
-                {uploadingFields.workOrderStatusFilePath ? (
-                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <>
-                    <Upload size={14} />
-                    {formData.workOrderStatusFilePath ? 'Replace' : 'Upload'}
-                  </>
-                )}
-              </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
+                  <label className="ss-modal-label" htmlFor="imp-wo-filepath" style={{ marginBottom: 0 }}>
+                    WO FilePath
+                  </label>
+                  {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt) && (
+                    <div
+                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#15803d',
+                        backgroundColor: '#dcfce7',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #bbf7d0',
+                        boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 2px'
+                      }}
+                    >
+                      <FileSpreadsheet size={12} color="#22c55e" style={{ flexShrink: 0 }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Last uploaded on:</span>
+                        <span style={{ fontWeight: 700 }}>{formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt)}</span>
+                      </span>
+                      <CircleCheck size={12} color="#22c55e" style={{ marginLeft: '2px', opacity: 0.8 }} />
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="imp-wo-filepath"
+                  type="text"
+                  className="ss-input"
+                  style={{ width: '100%' }}
+                  value={formData.workOrderStatusFilePath}
+                  onChange={(e) => handleChange('workOrderStatusFilePath', e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRefs.woFilePath}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload('workOrderStatusFilePath', 'wofilePath', e)}
+                />
+                <button
+                  type="button"
+                  className="ss-btn-update"
+                  style={{
+                    height: '36px',
+                    padding: '0 14px',
+                    fontSize: '12px',
+                    whiteSpace: 'nowrap',
+                    background: 'var(--surface-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-primary)',
+                  }}
+                  onClick={() => fileInputRefs.woFilePath.current?.click()}
+                  disabled={uploadingFields.workOrderStatusFilePath}
+                >
+                  {uploadingFields.workOrderStatusFilePath ? (
+                    <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <>
+                      <Upload size={14} />
+                      {formData.workOrderStatusFilePath ? 'Replace' : 'Upload'}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-            {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt) && (
-              <span className="ss-help-text">
-                Last uploaded: {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt)}
-              </span>
-            )}
           </div>
 
           {/* 2. CR FilePath + inline Upload button */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="imp-cr-filepath">
-              CR FilePath
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                id="imp-cr-filepath"
-                type="text"
-                className="ss-input"
-                value={formData.changeRequestFilePath}
-                onChange={(e) => handleChange('changeRequestFilePath', e.target.value)}
-              />
-              <input
-                type="file"
-                ref={fileInputRefs.crFilePath}
-                style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('changeRequestFilePath', 'crfilePath', e)}
-              />
-              <button
-                type="button"
-                className="ss-btn-update"
-                style={{
-                  height: '36px',
-                  padding: '0 14px',
-                  fontSize: '12px',
-                  whiteSpace: 'nowrap',
-                  background: 'var(--surface-primary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-primary)',
-                }}
-                onClick={() => fileInputRefs.crFilePath.current?.click()}
-                disabled={uploadingFields.changeRequestFilePath}
-              >
-                {uploadingFields.changeRequestFilePath ? (
-                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <>
-                    <Upload size={14} />
-                    {formData.changeRequestFilePath ? 'Replace' : 'Upload'}
-                  </>
-                )}
-              </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
+                  <label className="ss-modal-label" htmlFor="imp-cr-filepath" style={{ marginBottom: 0 }}>
+                    CR FilePath
+                  </label>
+                  {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt) && (
+                    <div
+                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#15803d',
+                        backgroundColor: '#dcfce7',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #bbf7d0',
+                        boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 2px'
+                      }}
+                    >
+                      <FileSpreadsheet size={12} color="#22c55e" style={{ flexShrink: 0 }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Last uploaded on:</span>
+                        <span style={{ fontWeight: 700 }}>{formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt)}</span>
+                      </span>
+                      <CircleCheck size={12} color="#22c55e" style={{ marginLeft: '2px', opacity: 0.8 }} />
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="imp-cr-filepath"
+                  type="text"
+                  className="ss-input"
+                  style={{ width: '100%' }}
+                  value={formData.changeRequestFilePath}
+                  onChange={(e) => handleChange('changeRequestFilePath', e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRefs.crFilePath}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload('changeRequestFilePath', 'crfilePath', e)}
+                />
+                <button
+                  type="button"
+                  className="ss-btn-update"
+                  style={{
+                    height: '36px',
+                    padding: '0 14px',
+                    fontSize: '12px',
+                    whiteSpace: 'nowrap',
+                    background: 'var(--surface-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-primary)',
+                  }}
+                  onClick={() => fileInputRefs.crFilePath.current?.click()}
+                  disabled={uploadingFields.changeRequestFilePath}
+                >
+                  {uploadingFields.changeRequestFilePath ? (
+                    <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <>
+                      <Upload size={14} />
+                      {formData.changeRequestFilePath ? 'Replace' : 'Upload'}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-            {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt) && (
-              <span className="ss-help-text">
-                Last uploaded: {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt)}
-              </span>
-            )}
           </div>
 
           {/* 3. Runtime-Trends FilePath + inline Upload button */}
           <div className="ss-modal-form-group">
-            <label className="ss-modal-label" htmlFor="imp-runtime-filepath">
-              Runtime-Trends FilePath
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                id="imp-runtime-filepath"
-                type="text"
-                className="ss-input"
-                value={formData.runTimeFilePath}
-                onChange={(e) => handleChange('runTimeFilePath', e.target.value)}
-              />
-              <input
-                type="file"
-                ref={fileInputRefs.runtimeTrendsFilePath}
-                style={{ display: 'none' }}
-                onChange={(e) => handleFileUpload('runTimeFilePath', 'runTimeFilePath', e)}
-              />
-              <button
-                type="button"
-                className="ss-btn-update"
-                style={{
-                  height: '36px',
-                  padding: '0 14px',
-                  fontSize: '12px',
-                  whiteSpace: 'nowrap',
-                  background: 'var(--surface-primary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-primary)',
-                }}
-                onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
-                disabled={uploadingFields.runTimeFilePath}
-              >
-                {uploadingFields.runTimeFilePath ? (
-                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <>
-                    <Upload size={14} />
-                    {formData.runTimeFilePath ? 'Replace' : 'Upload'}
-                  </>
-                )}
-              </button>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
+                  <label className="ss-modal-label" htmlFor="imp-runtime-filepath" style={{ marginBottom: 0 }}>
+                    Runtime-Trends FilePath
+                  </label>
+                  {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt) && (
+                    <div
+                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt)}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#15803d',
+                        backgroundColor: '#dcfce7',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #bbf7d0',
+                        boxShadow: 'rgba(0, 0, 0, 0.02) 0px 1px 2px'
+                      }}
+                    >
+                      <FileSpreadsheet size={12} color="#22c55e" style={{ flexShrink: 0 }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>Last uploaded on:</span>
+                        <span style={{ fontWeight: 700 }}>{formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt)}</span>
+                      </span>
+                      <CircleCheck size={12} color="#22c55e" style={{ marginLeft: '2px', opacity: 0.8 }} />
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="imp-runtime-filepath"
+                  type="text"
+                  className="ss-input"
+                  style={{ width: '100%' }}
+                  value={formData.runTimeFilePath}
+                  onChange={(e) => handleChange('runTimeFilePath', e.target.value)}
+                />
+              </div>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRefs.runtimeTrendsFilePath}
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFileUpload('runTimeFilePath', 'runTimeFilePath', e)}
+                />
+                <button
+                  type="button"
+                  className="ss-btn-update"
+                  style={{
+                    height: '36px',
+                    padding: '0 14px',
+                    fontSize: '12px',
+                    whiteSpace: 'nowrap',
+                    background: 'var(--surface-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-primary)',
+                  }}
+                  onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
+                  disabled={uploadingFields.runTimeFilePath}
+                >
+                  {uploadingFields.runTimeFilePath ? (
+                    <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <>
+                      <Upload size={14} />
+                      {formData.runTimeFilePath ? 'Replace' : 'Upload'}
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-            {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt) && (
-              <span className="ss-help-text">
-                Last uploaded: {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt)}
-              </span>
-            )}
           </div>
 
           {/* 4. Important Links FilePath */}
