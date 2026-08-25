@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Folder, Pencil } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Pencil, Bold, Italic, List as ListIcon, Heading1, Underline, ListOrdered, Code } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
@@ -92,6 +92,81 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
             </>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Extra brace removed
+function SimpleRichTextEditor({ value, onChange, hasError }) {
+  const editorRef = useRef(null);
+  const [showSource, setShowSource] = useState(false);
+
+  useEffect(() => {
+    if (!showSource && editorRef.current && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value, showSource]);
+
+  const exec = (command, val = null) => {
+    if (showSource) return;
+    if (command === 'createLink') {
+      const url = prompt('Enter link URL:', 'https://');
+      if (!url) return;
+      val = url;
+    }
+    document.execCommand(command, false, val);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleSourceChange = (e) => {
+    onChange(e.target.value);
+  };
+
+  return (
+    <div className={`il-rte-container ${hasError ? 'il-input-error' : ''}`} style={{ border: '1px solid var(--border-primary)', borderRadius: '6px', overflow: 'hidden' }}>
+      <div className="il-rte-toolbar" style={{ display: 'flex', gap: '4px', padding: '6px 8px', background: 'var(--surface-secondary)', borderBottom: '1px solid var(--border-primary)', flexWrap: 'wrap', alignItems: 'center' }}>
+        <button type="button" onClick={() => exec('bold')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Bold"><Bold size={14} /></button>
+        <button type="button" onClick={() => exec('italic')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Italic"><Italic size={14} /></button>
+        <button type="button" onClick={() => exec('underline')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Underline"><Underline size={14} /></button>
+        <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 4px' }} />
+        <button type="button" onClick={() => exec('formatBlock', 'H3')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Heading"><Heading1 size={14} /></button>
+        <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 4px' }} />
+        <button type="button" onClick={() => exec('insertUnorderedList')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Bullet List"><ListIcon size={14} /></button>
+        <button type="button" onClick={() => exec('insertOrderedList')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Numbered List"><ListOrdered size={14} /></button>
+        <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 4px' }} />
+        {/* <button type="button" onClick={() => exec('createLink')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Insert Link"><Link2 size={14} /></button> */}
+        
+        <div style={{ flex: 1 }} />
+        <button type="button" onClick={() => setShowSource(!showSource)} style={{ padding: '4px 8px', borderRadius: '4px', background: showSource ? 'var(--bg-hover)' : 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600 }} title="Source Code">
+          <Code size={14} /> Source
+        </button>
+      </div>
+      
+      {showSource ? (
+        <textarea
+          value={value}
+          onChange={handleSourceChange}
+          className="il-rte-content"
+          style={{ width: '100%', minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', border: 'none', resize: 'vertical', fontFamily: 'monospace' }}
+        />
+      ) : (
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleInput}
+          style={{ minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', overflowY: 'auto' }}
+          className="il-rte-content"
+        />
       )}
     </div>
   );
@@ -360,17 +435,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
               </button>
               <button
                 type="button"
-                className={`il-segmented-btn ${errors.folder ? 'il-segmented-btn-error' : ''}`}
-                data-active={linkType === 'folder'}
-                onClick={() => {
-                  setLinkType('folder');
-                  setErrors((prev) => ({ ...prev, folder: undefined }));
-                }}
-              >
-                <Folder size={15} /> Shared Folder
-              </button>
-              <button
-                type="button"
                 className={`il-segmented-btn ${errors.file ? 'il-segmented-btn-error' : ''}`}
                 data-active={linkType === 'file'}
                 onClick={() => {
@@ -411,24 +475,6 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                   }}
                 />
                 {errors.url && <span className="il-error-msg">{errors.url}</span>}
-              </div>
-            )}
-
-            {linkType === 'folder' && (
-              <div className="il-form-group">
-                <span className="il-label il-label-required">Shared Folder</span>
-                <input
-                  type="text"
-                  className={`il-input${errors.folder ? ' il-input-error' : ''}`}
-                  placeholder="e.g. \\server\share\folder"
-                  value={state.sharedFolder}
-                  autoFocus
-                  onChange={(e) => {
-                    set('sharedFolder', e.target.value);
-                    setErrors((prev) => ({ ...prev, folder: undefined }));
-                  }}
-                />
-                {errors.folder && <span className="il-error-msg">{errors.folder}</span>}
               </div>
             )}
 
@@ -524,15 +570,13 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             {linkType === 'content' && (
               <div className="il-form-group">
                 <span className="il-label il-label-required">Text Content</span>
-                <textarea
-                  className={`il-textarea${errors.content ? ' il-input-error' : ''}`}
-                  placeholder="Enter your content here..."
+                <SimpleRichTextEditor
                   value={state.comments}
-                  autoFocus
-                  onChange={(e) => {
-                    set('comments', e.target.value);
+                  onChange={(val) => {
+                    set('comments', val);
                     setErrors((prev) => ({ ...prev, content: undefined }));
                   }}
+                  hasError={!!errors.content}
                 />
                 {errors.content && <span className="il-error-msg">{errors.content}</span>}
               </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { AlertCircle, Download, FileText } from 'lucide-react';
+import { useToast } from '@hooks/useToast';
 
 import { Loader } from '@components/feedback/Loader/Loader';
 import { PDFViewer } from '@pages/Documents/components/PDFViewer';
@@ -53,6 +54,7 @@ export function LinkContentViewer({ link }) {
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null); // { kind, ...data }
 
+  const toast = useToast();
   const file = link?.files?.[0];
 
   useEffect(() => {
@@ -131,12 +133,23 @@ export function LinkContentViewer({ link }) {
     document.body.removeChild(a);
   };
 
+  const handleContentClick = (e) => {
+    const copyTarget = e.target.closest('[data-copy]');
+    if (copyTarget) {
+      const textToCopy = copyTarget.getAttribute('data-copy');
+      if (textToCopy) {
+        navigator.clipboard.writeText(textToCopy);
+        toast.success('Path copied!');
+      }
+    }
+  };
+
   return (
     <div className="il-content-viewer">
-      {/* Shared Folder path / Comments text — always plain, never fetched */}
+      {/* Rich Text Comments / Description */}
       {link?.description && (
-        <div className="il-content-text-block">
-          <pre>{link.description}</pre>
+        <div className="il-content-text-block" onClick={handleContentClick}>
+          <div className="il-rte-viewer" dangerouslySetInnerHTML={{ __html: link.description }} />
         </div>
       )}
 

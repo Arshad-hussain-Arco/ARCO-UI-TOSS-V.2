@@ -665,7 +665,8 @@
 /* Segmented Control for Link Types */
 .il-segmented-control {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3
+  , 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -1131,33 +1132,69 @@
 
 /* ── Link Content Page (full page, not an overlay) ───────────────────────── */
 .il-content-page {
-  padding: 20px;
+  padding: 16px 20px;
+  animation: fadeIn 0.4s ease-out;
+  min-height: calc(100vh - 64px);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
 }
 
 .il-content-back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 16px;
-  padding: 6px 12px;
+  margin-bottom: 20px;
+  padding: 8px 14px;
   border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface-primary);
-  color: var(--text-primary);
-  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .il-content-back-btn:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.il-content-page-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.il-content-page-header {
+  padding: 16px 20px;
+  background: linear-gradient(180deg, var(--surface-secondary) 0%, var(--surface-primary) 100%);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .il-content-page-title {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 6px 0;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.il-content-page-meta {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.il-content-page-body {
+  padding: 12px 20px 20px 20px;
+  background: var(--surface-primary);
 }
 
 /* ── Link Content Viewer (used by both the full page above and, previously, a modal) ── */
