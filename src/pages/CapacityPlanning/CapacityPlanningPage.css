@@ -246,6 +246,7 @@
   border-right: 2px solid var(--border-primary);
   border-bottom: 2px solid var(--border-primary);
   position: sticky;
+  top: 0;
   z-index: 10;
 }
 
@@ -260,6 +261,11 @@
   font-weight: 600;
   padding: 6px 14px;
   background-color: var(--bg-secondary);
+  /* Stacks below the first (group) header row instead of overlapping it —
+     the group-header row's own rendered height, so both rows stay stuck
+     correctly when scrolling. */
+  top: 37px;
+  z-index: 9;
 }
 
 .cp-data-table td {

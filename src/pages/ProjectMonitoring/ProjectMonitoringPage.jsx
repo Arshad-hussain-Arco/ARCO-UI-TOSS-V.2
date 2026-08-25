@@ -719,15 +719,18 @@ export function ProjectMonitoringPage() {
     return projectsList.filter((p) => filterByCategory(p, selectedCategory));
   }, [projectsList, selectedCategory]);
 
-  // Filter CRs matching category projects (robust String/Number comparison & fallback)
+  // Filter CRs matching category projects. Only "All Projects" (no real
+  // filter selected) returns the full unfiltered list — a specific category
+  // with zero WO-Id matches must return zero CRs, not silently fall back to
+  // everyone else's CRs (that previously made Cards 6/7 ignore the selected
+  // category whenever the CR->WO Id linkage found no matches).
   const categoryCRs = useMemo(() => {
     if (!changeRequestsList || changeRequestsList.length === 0) return [];
-    if (!categoryProjects || categoryProjects.length === 0) return changeRequestsList;
+    if (!selectedCategory || selectedCategory === 'All Projects') return changeRequestsList;
 
     const activeWoIds = new Set(categoryProjects.map((p) => String(p.Wo_Id || '')));
-    const matched = changeRequestsList.filter((cr) => activeWoIds.has(String(cr.Wo_Id || '')));
-    return matched.length > 0 ? matched : changeRequestsList;
-  }, [changeRequestsList, categoryProjects]);
+    return changeRequestsList.filter((cr) => activeWoIds.has(String(cr.Wo_Id || '')));
+  }, [changeRequestsList, categoryProjects, selectedCategory]);
 
   // 2. Team Role Breakdown Cards (Cards 1 to 7)
   const teamCardsData = useMemo(() => {
@@ -872,6 +875,10 @@ export function ProjectMonitoringPage() {
         onRetry={fetchData}
       />
     );
+  }
+
+  if (loadingData) {
+    return <Loader message="Loading project monitoring report..." />;
   }
 
   return (
@@ -1279,16 +1286,7 @@ export function ProjectMonitoringPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loadingData ? (
-                    <tr>
-                      <td colSpan={4}>
-                        <div className="pm-empty-state">
-                          <RefreshCw size={28} className="spinning" color="var(--c-primary)" />
-                          <p>Loading project records...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredProjects.length === 0 ? (
+                  {filteredProjects.length === 0 ? (
                     <tr>
                       <td colSpan={4}>
                         <div className="pm-empty-state">

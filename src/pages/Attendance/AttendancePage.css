@@ -1256,6 +1256,18 @@
 }
 
 /* Empty State */
+.attendance-inline-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--color-warning-bg, #fff7e6);
+  color: var(--color-warning-text, #a15c00);
+  font-size: 13px;
+}
+
 .attendance-empty {
   display: flex;
   flex-direction: column;
