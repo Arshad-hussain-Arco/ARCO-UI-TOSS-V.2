@@ -37,7 +37,7 @@ export function UploadTimestampDisplay({ fileKey, label, configs, useRawTime }) 
         let borderColor = 'transparent';
 
         if (item.fileKey === 'runTimeFilePath') {
-          Icon = Database;
+          Icon = FileSpreadsheet;
           colorClass = '#0369a1';
           bgClass = '#e0f2fe';
           iconColor = '#0ea5e9';

@@ -702,8 +702,8 @@ export function ImportantLinksPage() {
             still be visible here to anyone who can manage access).
           </p>
           {isLoadingAccess ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <Loader2 size={14} className="spin-animation" /> Loading…
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+              <Loader message="Loading roles..." />
             </div>
           ) : allRoles.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>No roles found.</p>

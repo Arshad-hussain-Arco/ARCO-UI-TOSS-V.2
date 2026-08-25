@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ListOrdered, ShieldCheck } from 'lucide-react';
+import { ListOrdered, ShieldCheck, Settings } from 'lucide-react';
 
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -33,7 +33,13 @@ export function PreferencesPage() {
   return (
     <div className="pf-container">
       <div className="pf-header">
-        <h2 className="pf-title">Preferences</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <Settings size={22} className="pf-header-icon" style={{ color: 'var(--c-primary, #006633)' }} />
+          <h2 className="pf-title">Preferences</h2>
+        </div>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+          Manage your personal account settings and layout preferences.
+        </p>
       </div>
 
       <div className="pf-tabs-container" role="tablist" aria-label="Preferences Navigation">

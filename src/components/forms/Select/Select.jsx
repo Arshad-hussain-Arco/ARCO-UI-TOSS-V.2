@@ -12,7 +12,6 @@ function Select({
   disabled = false,
   width,
 }) {
-  const [open, setOpen] = useState(false);
 
   const PREDEFINED_WIDTHS = {
     department: '280px',
@@ -38,18 +37,11 @@ function Select({
       value={radixValue}
       onValueChange={onChange}
       disabled={disabled}
-      open={open}
-      onOpenChange={setOpen}
     >
       <RadixSelect.Trigger
         className={`cs-trigger${className ? ` ${className}` : ''}`}
         style={{ width: resolvedWidth, minWidth: resolvedWidth, maxWidth: resolvedWidth }}
         aria-label={placeholder}
-        onPointerDown={(e) => {
-          if (!disabled && !open) {
-            setOpen(true);
-          }
-        }}
       >
         <RadixSelect.Value placeholder={placeholder} />
         <RadixSelect.Icon asChild style={{ pointerEvents: 'none' }}>

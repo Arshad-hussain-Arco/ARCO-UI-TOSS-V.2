@@ -208,6 +208,8 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
               className="ss-input"
               value={editCode}
               onChange={(e) => setEditCode(e.target.value)}
+              disabled
+              style={{ opacity: 0.7, cursor: 'not-allowed' }}
             />
           </div>
           <div className="ss-modal-form-group">

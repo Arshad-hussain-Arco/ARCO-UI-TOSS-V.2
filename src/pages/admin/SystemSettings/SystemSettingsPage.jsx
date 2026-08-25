@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  AlignLeft,
   Calendar,
   FileSpreadsheet,
   LayoutDashboard,
@@ -24,9 +23,9 @@ import './SystemSettingsPage.css';
 
 const TABS = [
   { id: 'env-config', label: 'Environment Config', icon: Server },
-  { id: 'import-config', label: 'ImportFileConfig', icon: UploadCloud },
+  { id: 'import-config', label: 'Import File Config', icon: UploadCloud },
   { id: 'cr-columns', label: 'CR File Matching Columns', icon: FileSpreadsheet },
-  { id: 'wo-columns', label: 'WO File Matching Columns', icon: AlignLeft },
+  { id: 'wo-columns', label: 'WO File Matching Columns', icon: FileSpreadsheet },
   { id: 'home-management', label: 'Home Management', icon: LayoutDashboard },
 ];
 
@@ -53,7 +52,7 @@ export function SystemSettingsPage() {
       return SYSTEM_SETTINGS;
     }
   }, []);
-  
+
   const { isLoading, error, refetch } = useAsync(fetchSettings);
 
   const updateEnvironmentField = useCallback((name, value) => {

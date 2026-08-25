@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GripVertical, RotateCcw, Save } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
+import { Select } from '@components/forms/Select/Select';
+import { Loader } from '@components/feedback/Loader/Loader';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { getVisibleNavigation, applyOrder } from '@constants/navigation';
@@ -177,15 +179,14 @@ export function RoleSidebarDefaultsPanel() {
           Sidebar Layout) will keep seeing their own order instead of this default.
         </p>
         <div className="pl-header-actions">
-          <select
+          <Select
             className="pl-role-select"
-            value={selectedRoleId ?? ''}
-            onChange={(e) => setSelectedRoleId(e.target.value)}
-          >
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>{role.role_name}</option>
-            ))}
-          </select>
+            value={roles.length > 0 ? (selectedRoleId ?? '') : ''}
+            onChange={(val) => setSelectedRoleId(val)}
+            options={roles.map(r => ({ value: r.id, label: r.role_name }))}
+            placeholder={roles.length === 0 ? 'Loading roles...' : 'Select a role...'}
+            disabled={roles.length === 0}
+          />
           <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToDefault} disabled={isSaving || !selectedRoleId}>
             Default
           </Button>
@@ -203,7 +204,7 @@ export function RoleSidebarDefaultsPanel() {
       </div>
 
       {isLoadingOrder ? (
-        <p className="pl-subtitle">Loading…</p>
+        <Loader size="md" message="Loading role defaults..." />
       ) : (
         <div className="pl-panels">
           <section className="pl-section">
