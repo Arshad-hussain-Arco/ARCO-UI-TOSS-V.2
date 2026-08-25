@@ -877,10 +877,6 @@ export function ProjectMonitoringPage() {
     );
   }
 
-  if (loadingData) {
-    return <Loader message="Loading project monitoring report..." />;
-  }
-
   return (
     <div className="pm-shell" style={{ position: 'relative' }}>
       <div className="pm-tabs-nav" role="tablist" aria-label="Project tabs">
