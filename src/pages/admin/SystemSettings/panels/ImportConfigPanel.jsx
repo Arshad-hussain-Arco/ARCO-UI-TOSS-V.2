@@ -356,7 +356,7 @@ function ImportConfigPanelComponent() {
           </div>
 
           {/* 5. Documents FilePath */}
-          <div className="ss-modal-form-group">
+          {/* <div className="ss-modal-form-group">
             <label className="ss-modal-label" htmlFor="imp-real-docs-filepath">
               Documents FilePath
             </label>
@@ -367,7 +367,7 @@ function ImportConfigPanelComponent() {
               value={formData.documentfilePath}
               onChange={(e) => handleChange('documentfilePath', e.target.value)}
             />
-          </div>
+          </div> */}
 
           {/* 5. CR Server IP */}
           <div className="ss-modal-form-group">

@@ -113,7 +113,12 @@ export function ConsultantsPage() {
 
   const [activeFilteredCount, setActiveFilteredCount] = useState(null);
   const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
-  const { photoMap, getPhoto } = useEmployeePhotos({ includeInactive: true });
+  const { photoMap, getPhoto, refetch: refetchPhotos } = useEmployeePhotos({ includeInactive: true });
+  // Optimistic per-employee photo state set right after an upload/delete, so
+  // that consultant's row shows the new image immediately — before the
+  // shared photo directory (GET /employees/photos/) has refetched. Keyed by
+  // emp_id; value is the new base64 photo, or '' to mean "just removed".
+  const [photoOverrides, setPhotoOverrides] = useState({});
 
   const fetchEmployees = useCallback(async () => {
     const employees = await consultantService.getEmployeesList();
@@ -177,21 +182,32 @@ export function ConsultantsPage() {
     if (!employeesData) return employeesData;
     const empList = Array.isArray(employeesData) ? employeesData : (employeesData.results || []);
     const merged = empList.map(e => {
-      const photo = getPhoto(e.emp_id || e.id);
+      const id = e.emp_id || e.id;
+      // An optimistic override (set right after upload/delete) always wins,
+      // even when it's '' (just removed) — otherwise a stale cached photo
+      // from the directory would flash back in until it refetches.
+      if (Object.prototype.hasOwnProperty.call(photoOverrides, id)) {
+        return { ...e, photo: photoOverrides[id] };
+      }
+      const photo = getPhoto(id);
       return photo ? { ...e, photo } : e;
     });
     return Array.isArray(employeesData) ? merged : { ...employeesData, results: merged };
-  }, [employeesData, photoMap, getPhoto]);
+  }, [employeesData, photoMap, getPhoto, photoOverrides]);
 
   const inactiveData = useMemo(() => {
     if (!rawInactiveData) return rawInactiveData;
     const empList = Array.isArray(rawInactiveData) ? rawInactiveData : (rawInactiveData.results || []);
     const merged = empList.map(e => {
-      const photo = getPhoto(e.emp_id || e.id);
+      const id = e.emp_id || e.id;
+      if (Object.prototype.hasOwnProperty.call(photoOverrides, id)) {
+        return { ...e, photo: photoOverrides[id] };
+      }
+      const photo = getPhoto(id);
       return photo ? { ...e, photo } : e;
     });
     return Array.isArray(rawInactiveData) ? merged : { ...rawInactiveData, results: merged };
-  }, [rawInactiveData, photoMap, getPhoto]);
+  }, [rawInactiveData, photoMap, getPhoto, photoOverrides]);
 
   const pageTabs = useMemo(
     () => ALL_PAGE_TABS.filter((t) => hasPermission(t.permission)),
@@ -373,21 +389,16 @@ export function ConsultantsPage() {
       });
 
       // If we are editing an existing consultant, upload immediately
-      if (editingTarget?.id) {
+      const editingId = editingTarget?.id || editingTarget?.emp_id;
+      if (editingId) {
         try {
-          await consultantService.uploadPhoto(editingTarget.id, rawBase64);
+          await consultantService.uploadPhoto(editingId, rawBase64);
           toast.success('Photo uploaded successfully');
-          // Update locally to guarantee UI reflects the change even if fetch is cached
-          setEmployeesData((prev) => {
-            const list = prev?.results || prev || [];
-            const mapped = list.map((c) =>
-              (c.emp_id || c.id) === editingTarget.id
-                ? { ...c, photo: rawBase64, avatar: rawBase64 }
-                : c,
-            );
-            return prev?.results ? { ...prev, results: mapped } : mapped;
-          });
+          // Show the new photo for this consultant right away — don't wait
+          // on the shared photo directory to refetch.
+          setPhotoOverrides((prev) => ({ ...prev, [editingId]: rawBase64 }));
           loadEmployees(); // Background refresh
+          refetchPhotos(); // Keep the shared photo directory (other pages) in sync
         } catch (err) {
           toast.error('Failed to upload photo instantly');
         }
@@ -400,19 +411,17 @@ export function ConsultantsPage() {
     patch({ avatar: null, photoUploadBase64: null, photo: null, photoDeleteFlag: true });
 
     // If we are editing an existing consultant, delete immediately
-    if (editingTarget?.id) {
+    const editingId = editingTarget?.id || editingTarget?.emp_id;
+    if (editingId) {
       try {
-        await consultantService.deletePhoto(editingTarget.id);
+        await consultantService.deletePhoto(editingId);
         toast.success('Photo removed successfully');
-        // Update locally to guarantee UI reflects the change
-        setEmployeesData((prev) => {
-          const list = prev?.results || prev || [];
-          const mapped = list.map((c) =>
-            (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: null, avatar: null } : c,
-          );
-          return prev?.results ? { ...prev, results: mapped } : mapped;
-        });
+        // Clear the photo for this consultant right away — don't wait on the
+        // shared photo directory to refetch (and don't let its stale cache
+        // flash the old photo back in).
+        setPhotoOverrides((prev) => ({ ...prev, [editingId]: '' }));
         loadEmployees(); // Background refresh
+        refetchPhotos(); // Keep the shared photo directory (other pages) in sync
       } catch (err) {
         toast.error('Failed to remove photo instantly');
       }
