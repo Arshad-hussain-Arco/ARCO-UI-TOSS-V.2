@@ -47,6 +47,7 @@ import ProjectInfo1Modal from './components/ProjectInfo1Modal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { ExportButton } from '@components/ui/ExportButton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
+import { Loader } from '@components/feedback/Loader/Loader';
 
 function formatDateToYMD(date) {
   if (!date || isNaN(date.getTime())) return '';
@@ -586,6 +587,10 @@ export function ProjectMonitoringPage() {
     );
   }
 
+  if (loadingData) {
+    return <Loader message="Loading project monitoring report..." />;
+  }
+
   return (
     <div className="pm-shell">
       {/* RESTORED 3-TAB NAVIGATION BAR */}
@@ -988,16 +993,7 @@ export function ProjectMonitoringPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loadingData ? (
-                    <tr>
-                      <td colSpan={4}>
-                        <div className="pm-empty-state">
-                          <RefreshCw size={28} className="spinning" color="var(--c-primary)" />
-                          <p>Loading project records...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredProjects.length === 0 ? (
+                  {filteredProjects.length === 0 ? (
                     <tr>
                       <td colSpan={4}>
                         <div className="pm-empty-state">

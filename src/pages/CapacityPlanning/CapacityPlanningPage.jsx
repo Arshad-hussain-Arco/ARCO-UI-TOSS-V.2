@@ -67,8 +67,16 @@ export function CapacityPlanningPage() {
     return localStorage.getItem('capacity_view_mode') || 'summary';
   });
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  // Each tab keeps its own independent search text — switching tabs must
+  // not clear or share what was typed in another tab's search box.
+  const [summarySearchQuery, setSummarySearchQuery] = useState('');
+  const debouncedSummarySearchQuery = useDebounce(summarySearchQuery, 500);
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const debouncedTeamSearchQuery = useDebounce(teamSearchQuery, 500);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const debouncedProjectSearchQuery = useDebounce(projectSearchQuery, 500);
+  const [ganttSearchQuery, setGanttSearchQuery] = useState('');
+  const debouncedGanttSearchQuery = useDebounce(ganttSearchQuery, 500);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [activeTeamTab, setActiveTeamTab] = useState('');
   const [collapsedTeams, setCollapsedTeams] = useState(new Set());
@@ -80,6 +88,10 @@ export function CapacityPlanningPage() {
   // Project View state
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
   const [projectViewTimeframe, setProjectViewTimeframe] = useState(30);
+  // SDLC (7-stage) vs Tech (17-stage) lifecycle — same toggle concept as
+  // Gantt View / Project Monitoring, kept independent so switching one
+  // tab's mode doesn't affect the other.
+  const [projectViewLifecycleMode, setProjectViewLifecycleMode] = useState('business');
 
   // Gantt View — SDLC (7-stage) vs Tech (17-stage) lifecycle, same toggle
   // concept as Project Monitoring, reusing its actual PMStatusGroups/PMStatus
@@ -143,6 +155,11 @@ export function CapacityPlanningPage() {
         const teams = await consultantService.getTeams();
         const map = new Map();
         (Array.isArray(teams) ? teams : teams?.results || []).forEach(t => {
+          // Number(null) === 0 in JS, which Number.isFinite would wrongly
+          // accept as "configured to 0%" — an unconfigured team (Engineering
+          // has pri/add === null) must fall back to the 70/30 default, not
+          // silently zero out everyone's effort. Reject null/undefined first.
+          if (t.pri_dev_contr_per == null || t.add_dev_contr_per == null) return;
           const pri = Number(t.pri_dev_contr_per);
           const add = Number(t.add_dev_contr_per);
           if (Number.isFinite(pri) && Number.isFinite(add)) {
@@ -168,29 +185,12 @@ export function CapacityPlanningPage() {
   }, [viewMode]);
 
   // Determine baseline reference date dynamically (from mock data in Feb 2026 or real-time Today)
-  const referenceDate = useMemo(() => {
-    const apiResult = data?.result || data || [];
-    if (!Array.isArray(apiResult) || apiResult.length === 0) return new Date();
-
-    const today = new Date();
-    const hasFutureDates = apiResult.some(item => {
-      if (!item.End_Date) return false;
-      const end = new Date(item.End_Date);
-      return !isNaN(end.getTime()) && end >= today;
-    });
-
-    if (hasFutureDates) {
-      return today;
-    } else {
-      const startDates = apiResult
-        .map(item => item.Start_Date ? new Date(item.Start_Date) : null)
-        .filter(d => d && !isNaN(d.getTime()));
-      if (startDates.length > 0) {
-        return new Date(Math.min(...startDates.map(d => d.getTime())));
-      }
-      return new Date('2026-02-03'); // Fallback to mock base date
-    }
-  }, [data]);
+  // Next 7/30/90 Days is always measured from today, full stop — there is
+  // no fallback to an "earliest start date" anchor. If every project in the
+  // dataset is dated entirely in the past, that correctly means zero
+  // occupied MDs (nothing overlaps a future window), not a silently
+  // rewound "today" that would make stale data look active.
+  const referenceDate = useMemo(() => new Date(), [data]);
 
   // Run calculation helpers to process and aggregate data
   const processedConsultants = useMemo(() => {
@@ -218,12 +218,12 @@ export function CapacityPlanningPage() {
   // Filters application
   const filteredConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        c.teamName.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedSummarySearchQuery.toLowerCase()) ||
+        c.teamName.toLowerCase().includes(debouncedSummarySearchQuery.toLowerCase());
       const matchesTeam = selectedTeamFilter === 'all' || c.teamName === selectedTeamFilter;
       return matchesSearch && matchesTeam;
     });
-  }, [processedConsultants, debouncedSearchQuery, selectedTeamFilter]);
+  }, [processedConsultants, debouncedSummarySearchQuery, selectedTeamFilter]);
 
   // Group consultants by team for Summary View
   const groupedTeams = useMemo(() => {
@@ -241,12 +241,14 @@ export function CapacityPlanningPage() {
     return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
   }, [filteredConsultants]);
 
-  // Group every developer's assignments by Project, for Project View — shows
-  // who's Primary vs Additional on a given project and each person's own
-  // prorated MDs share for the selected timeframe, reusing the same
+  // Group every developer's assignments by Project — shared base data for
+  // both Project View and Gantt View, each of which applies its own
+  // independent search filter on top (see projectGroups / ganttData below).
+  // Shows who's Primary vs Additional on a given project and each person's
+  // own prorated MDs share for the selected timeframe, reusing the same
   // per-assignment `effort` share (already split by team percentage) that
   // backs the Summary/Team views and the drill-down modal.
-  const projectGroups = useMemo(() => {
+  const allProjectGroups = useMemo(() => {
     const groups = new Map();
 
     processedConsultants.forEach(c => {
@@ -309,17 +311,34 @@ export function CapacityPlanningPage() {
       overlaps90: overlapsWindow(g.startDate, g.endDate, 90),
     }));
 
-    const q = debouncedSearchQuery.toLowerCase().trim();
+    return result;
+  }, [processedConsultants, projectViewTimeframe, referenceDate, weekendIndices, holidaySet]);
+
+  // Project View's own filtered (by its own search box) + sorted list.
+  const projectGroups = useMemo(() => {
+    const q = debouncedProjectSearchQuery.toLowerCase().trim();
     const filtered = q
-      ? result.filter(g =>
+      ? allProjectGroups.filter(g =>
           g.project.toLowerCase().includes(q) ||
           g.summary.toLowerCase().includes(q) ||
           g.developers.some(d => d.name.toLowerCase().includes(q))
         )
-      : result;
+      : allProjectGroups;
 
-    return filtered.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
-  }, [processedConsultants, debouncedSearchQuery, projectViewTimeframe, referenceDate, weekendIndices, holidaySet]);
+    const withStage = filtered.map(g => {
+      const { statusId, statusGroup } = mapStatusToIds(g.status);
+      const stage = projectViewLifecycleMode === 'development'
+        ? PMStatus.find(s => s.id === statusId)
+        : PMStatusGroups.find(sg => sg.id === statusGroup);
+      return {
+        ...g,
+        stageName: stage ? stage.name : 'Unmapped',
+        stageColor: stage ? stage.color : '#9ca3af',
+      };
+    });
+
+    return withStage.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
+  }, [allProjectGroups, debouncedProjectSearchQuery, projectViewLifecycleMode]);
 
   // Count of distinct projects (from the currently searched/filtered set)
   // whose own span overlaps each window — independent of the 7/30/90 toggle,
@@ -339,11 +358,21 @@ export function CapacityPlanningPage() {
     });
   };
 
-  // Gantt View — reuses the same project grouping as Project View, laid out
-  // on a shared timeline so each project's bar position/width reflects its
-  // actual Start/End Date relative to every other visible project.
+  // Gantt View — reuses the same base project grouping as Project View
+  // (allProjectGroups), filtered by its OWN independent search box, laid
+  // out on a shared timeline so each project's bar position/width reflects
+  // its actual Start/End Date relative to every other visible project.
   const ganttData = useMemo(() => {
-    const projects = projectGroups
+    const q = debouncedGanttSearchQuery.toLowerCase().trim();
+    const searched = q
+      ? allProjectGroups.filter(g =>
+          g.project.toLowerCase().includes(q) ||
+          g.summary.toLowerCase().includes(q) ||
+          g.developers.some(d => d.name.toLowerCase().includes(q))
+        )
+      : allProjectGroups;
+
+    const projects = searched
       .map(g => ({ ...g, startObj: parseDate(g.startDate), endObj: parseDate(g.endDate) }))
       .filter(g => g.startObj && g.endObj && g.endObj >= g.startObj)
       .sort((a, b) => a.startObj - b.startObj);
@@ -390,16 +419,16 @@ export function CapacityPlanningPage() {
     }
 
     return { projects: projectsWithBars, todayPct: pct(ref), monthTicks };
-  }, [projectGroups, referenceDate, ganttLifecycleMode]);
+  }, [allProjectGroups, debouncedGanttSearchQuery, referenceDate, ganttLifecycleMode]);
 
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
     return processedConsultants.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+      const matchesSearch = c.name.toLowerCase().includes(debouncedTeamSearchQuery.toLowerCase());
       const matchesActiveTab = c.teamName === activeTeamTab;
       return matchesSearch && matchesActiveTab;
     });
-  }, [processedConsultants, debouncedSearchQuery, activeTeamTab]);
+  }, [processedConsultants, debouncedTeamSearchQuery, activeTeamTab]);
 
   // Collapsing handlers
   const toggleTeamCollapse = (teamName) => {
@@ -721,8 +750,8 @@ export function CapacityPlanningPage() {
             {viewMode === 'summary' ? (
               <>
                 <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
+                  value={summarySearchQuery}
+                  onChange={setSummarySearchQuery}
                   placeholder="Search consultants..."
                   classNames={{
                     wrapper: 'cp-search-wrapper',
@@ -750,8 +779,8 @@ export function CapacityPlanningPage() {
             ) : viewMode === 'team' ? (
               <>
                 <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
+                  value={teamSearchQuery}
+                  onChange={setTeamSearchQuery}
                   placeholder="Search consultants..."
                   classNames={{
                     wrapper: 'cp-search-wrapper',
@@ -789,8 +818,8 @@ export function CapacityPlanningPage() {
             ) : viewMode === 'project' ? (
               <>
                 <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
+                  value={projectSearchQuery}
+                  onChange={setProjectSearchQuery}
                   placeholder="Search projects, summary, or developer..."
                   classNames={{
                     wrapper: 'cp-search-wrapper',
@@ -811,13 +840,29 @@ export function CapacityPlanningPage() {
                       </button>
                     ))}
                   </div>
+                  <div className="team-view-switcher">
+                    <button
+                      type="button"
+                      className={`switcher-btn ${projectViewLifecycleMode === 'business' ? 'active' : ''}`}
+                      onClick={() => setProjectViewLifecycleMode('business')}
+                    >
+                      SDLC View (7 Stages)
+                    </button>
+                    <button
+                      type="button"
+                      className={`switcher-btn ${projectViewLifecycleMode === 'development' ? 'active' : ''}`}
+                      onClick={() => setProjectViewLifecycleMode('development')}
+                    >
+                      Tech View (17 Stages)
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
               <>
                 <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
+                  value={ganttSearchQuery}
+                  onChange={setGanttSearchQuery}
                   placeholder="Search projects, summary, or developer..."
                   classNames={{
                     wrapper: 'cp-search-wrapper',
@@ -1186,12 +1231,20 @@ export function CapacityPlanningPage() {
               <span className="team-size-badge">Next 30 Days: {projectCountsByWindow.next30} project{projectCountsByWindow.next30 === 1 ? '' : 's'}</span>
               <span className="team-size-badge">Next 90 Days: {projectCountsByWindow.next90} project{projectCountsByWindow.next90 === 1 ? '' : 's'}</span>
             </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px 16px 0' }}>
+              {(projectViewLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
+                <span key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: stage.color, display: 'inline-block' }} />
+                  {stage.name}
+                </span>
+              ))}
+            </div>
             <div className="cp-table-wrapper">
               <table className="cp-data-table">
                 <thead>
                   <tr>
                     <th>Project</th>
-                    <th>Status</th>
+                    <th>Stage</th>
                     <th>Start / End Date</th>
                     <th className="text-center">{`Next ${projectViewTimeframe} Days (Total)`}</th>
                   </tr>
@@ -1216,8 +1269,14 @@ export function CapacityPlanningPage() {
                           </div>
                         </td>
                         <td>
-                          <span className={`status-badge ${(group.status || '').toLowerCase().replace(/\s+/g, '-')}`}>
-                            {group.status || 'N/A'}
+                          <span
+                            style={{
+                              display: 'inline-block', padding: '2px 10px', borderRadius: '12px',
+                              fontSize: '11px', fontWeight: 600, color: '#fff', background: group.stageColor,
+                            }}
+                            title={`Status: ${group.status || 'N/A'}`}
+                          >
+                            {group.stageName}
                           </span>
                         </td>
                         <td>{formatDateDMY(group.startDate)} - {formatDateDMY(group.endDate)}</td>
@@ -1295,10 +1354,17 @@ export function CapacityPlanningPage() {
             {ganttData.projects.length === 0 ? (
               <div className="cp-empty-state">No projects found matching the criteria</div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="cp-table-wrapper">
                 <div style={{ minWidth: '900px' }}>
-                  {/* Month axis header */}
-                  <div style={{ display: 'flex', borderBottom: '2px solid var(--border-primary)' }}>
+                  {/* Month axis header — sticky within cp-table-wrapper's own
+                      scroll so it stays visible while scrolling through a
+                      long project list, same as the other views' tables. */}
+                  <div
+                    style={{
+                      display: 'flex', borderBottom: '2px solid var(--border-primary)',
+                      position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-secondary)',
+                    }}
+                  >
                     <div style={{ width: '280px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
                       Project
                     </div>
