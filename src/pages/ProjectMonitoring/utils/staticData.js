@@ -2,6 +2,7 @@
  * Static Data definitions for Project Monitoring and Project Breaches
  * Single Source of Truth based on authoritative legacy specification
  */
+import { getDevelopmentStageInfo } from './developmentLifecycleMap';
 
 export const PMStatusGroups = [
   { id: 1, name: 'Inception', value: 20, color: '#49c8ee', stageScope: 'Open stage' },
@@ -48,12 +49,40 @@ export function getPMStatusByName(statusName) {
 }
 
 /**
- * Maps raw status string to StatusId and StatusGroup
+ * Maps raw status string to StatusId and StatusGroup.
+ *
+ * Tries an exact (case-insensitive) name match first — this is the fast,
+ * zero-ambiguity path and must win whenever it applies (e.g. the real-world
+ * status "UAT InProgress" has no space and only matches PMStatus's own
+ * "UAT InProgress" entry exactly; getDevelopmentStageInfo's fuzzy matcher
+ * expects "UAT In Progress" with a space and would otherwise fall through
+ * to the wrong stage).
+ *
+ * Only when no exact match exists does this fall back to
+ * getDevelopmentStageInfo's fuzzy substring matching (same matcher already
+ * used for the visual stage pills/labels) — PMStatus and DEVELOPMENT_PHASES
+ * are the same 17 stages in the same order, so `index + 1` is exactly the
+ * PMStatus id. This closes the gap where a real status string like
+ * "Development In Progress" displayed correctly (fuzzy match on "in dev")
+ * but was silently excluded from Tab 2 and every pipeline stage count
+ * (exact match only recognized "In Development").
+ *
+ * Deferred/Testing Blocked are deliberately excluded here (StatusId 0) —
+ * they're surfaced via their own exception badges, not the 17-stage
+ * pipeline — matching statusMapper.getStageInfo's exception handling.
  */
 export function mapStatusToIds(statusName) {
-  const matched = getPMStatusByName(statusName);
-  if (matched) {
-    return { statusId: matched.id, statusGroup: matched.groupid };
-  }
-  return { statusId: 0, statusGroup: 0 };
+  if (!statusName || typeof statusName !== 'string') return { statusId: 0, statusGroup: 0 };
+  const lower = statusName.trim().toLowerCase();
+  if (!lower) return { statusId: 0, statusGroup: 0 };
+  if (lower.includes('deferred') || lower.includes('blocked')) return { statusId: 0, statusGroup: 0 };
+
+  const exact = getPMStatusByName(statusName);
+  if (exact) return { statusId: exact.id, statusGroup: exact.groupid };
+
+  const { index } = getDevelopmentStageInfo(statusName);
+  if (index < 0 || index >= PMStatus.length) return { statusId: 0, statusGroup: 0 };
+
+  const matched = PMStatus[index];
+  return { statusId: matched.id, statusGroup: matched.groupid };
 }
