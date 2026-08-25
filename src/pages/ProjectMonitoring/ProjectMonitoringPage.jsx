@@ -47,6 +47,8 @@ import ProjectInfo1Modal from './components/ProjectInfo1Modal';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { ExportButton } from '@components/ui/ExportButton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
+import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 
 function formatDateToYMD(date) {
   if (!date || isNaN(date.getTime())) return '';
@@ -296,6 +298,295 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function ProjectMonitoringSkeleton({ activeTab }) {
+  if (activeTab === 'summary') {
+    const mockStages = [
+      { label: 'INCEPTION', cls: 'pm-stage-inception' },
+      { label: 'PLANNING', cls: 'pm-stage-planning' },
+      { label: 'BUILDING', cls: 'pm-stage-building' },
+      { label: 'TESTING', cls: 'pm-stage-testing' },
+      { label: 'RELEASE PROCESS', cls: 'pm-stage-release' },
+      { label: 'DEPLOYED', cls: 'pm-stage-deployed' },
+      { label: 'COMPLETED', cls: 'pm-stage-completed' },
+    ];
+    const mockMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const teamRoles = ['IT Delivery Lead', 'Product Owner', 'Backup ITDL', 'SIT Lead', 'UAT Lead', 'Developer', 'Additional Developer'];
+
+    return (
+      <div className="pm-tab-content">
+        {/* Lifecycle Pipeline Overview Card */}
+        <div className="pm-pipeline-card">
+          <div className="pm-pipeline-card-header">
+            <h3 className="pm-card-title">
+              <Layers size={14} /> LIFECYCLE PIPELINE OVERVIEW
+            </h3>
+            <button type="button" className="pm-refresh-text-btn" disabled>
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
+
+          <div className="pm-pipeline-chips-container">
+             <button className="pm-chip active" type="button" disabled>
+               All Projects <Skeleton width={16} height={16} style={{ borderRadius: '8px', marginLeft: '6px' }} />
+             </button>
+          </div>
+
+          <div className="pm-pipeline-track">
+            {mockStages.map((s, i) => (
+              <div key={i} className="pm-pipeline-stage">
+                <div className={`pm-pipeline-block ${s.cls}`}>
+                  <span className="pm-stage-label">{s.label}</span>
+                  <span className="pm-stage-count">
+                     <Skeleton width={36} height={36} style={{ borderRadius: '6px', margin: '0 auto' }} />
+                  </span>
+                  <div className="pm-stage-bar" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pm-pipeline-badges">
+             <span className="pm-special-badge pm-badge-blocked" style={{ gap: 0 }}>
+                Testing Blocked — <span style={{ background: 'var(--border-secondary)', color: 'transparent', borderRadius: '4px', display: 'inline-block', marginLeft: '4px' }}>00</span>
+             </span>
+             <span className="pm-special-badge pm-badge-deferred" style={{ gap: 0 }}>
+                Deferred — <span style={{ background: 'var(--border-secondary)', color: 'transparent', borderRadius: '4px', display: 'inline-block', marginLeft: '4px' }}>00</span>
+             </span>
+          </div>
+        </div>
+
+        {/* Completed Projects Trends Chart Card */}
+        <div className="pm-charts-row">
+          <div className="pm-chart-card pm-chart-card--velocity" style={{ width: '100%' }}>
+            <div className="pm-velocity-header">
+              <h3 className="pm-card-title" style={{ margin: 0 }}>
+                <CheckCircle size={14} color="var(--c-success)" /> COMPLETED PROJECTS TRENDS
+              </h3>
+              <div className="pm-timeframe-controls">
+                {['Monthly', 'Quarterly', 'HalfYearly', 'Annual'].map((tf, i) => (
+                  <button key={i} type="button" className={`pm-tf-btn ${i === 0 ? 'active' : ''}`} disabled>
+                    {tf}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="pm-velocity-chart-wrap" style={{ minHeight: '180px' }}>
+              <div className="pm-bar-chart">
+                {mockMonths.map((lbl, i) => (
+                  <div key={i} className="pm-bar-col">
+                    <span className="pm-bar-value">
+                      <Skeleton width={16} height={12} />
+                    </span>
+                    <div className="pm-bar-inner">
+                      <div
+                        className="pm-bar completed-bar"
+                        style={{ height: `${Math.max(10, (i * 17) % 80 + 20)}%`, opacity: 0.5 }}
+                      />
+                    </div>
+                    <span className="pm-bar-label">{lbl}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Team Role Breakdown Cards Grid */}
+        <div className="pm-section-subtitle" style={{ marginTop: 10 }}>TEAM ROLE SUMMARY BREAKDOWN CARDS</div>
+        <div className="pm-itdl-grid">
+          {teamRoles.map((role, i) => (
+            <div key={i} className="pm-itdl-card">
+              <div className="pm-itdl-card-header">
+                <span className="pm-itdl-card-type-label">
+                  <Users size={13} className="pm-itdl-card-icon" /> COUNT BY {role.toUpperCase()}
+                </span>
+                <span className="pm-chip-badge">
+                   <Skeleton width={12} height={12} style={{ display: 'inline-block' }} />
+                </span>
+              </div>
+              <div className="pm-itdl-divider" />
+              <div className="pm-itdl-member-list">
+                {Array(3).fill(0).map((_, j) => (
+                  <div key={j} className="pm-itdl-member-row" style={{ cursor: 'default' }}>
+                    <span className="pm-itdl-member-name"><Skeleton width={`${Math.random() * 40 + 40}%`} height={14} /></span>
+                    <span className="pm-itdl-member-count"><Skeleton width={16} height={14} /></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Upcoming Completion Milestone Cards */}
+        <div className="pm-upcoming-completions-section">
+          <div className="pm-upcoming-grid">
+            {[
+              'Development Completion In Upcoming Days',
+              'Testing Completion In Upcoming Days',
+              'Release / Delivery In Upcoming Days'
+            ].map((title, i) => (
+              <div key={i} className="pm-upcoming-card">
+                <div className="pm-upcoming-card-header">
+                  <Clock size={15} className="pm-upcoming-header-icon" />
+                  <h3 className="pm-upcoming-card-title">{title}</h3>
+                </div>
+                <div className="pm-upcoming-tiles-grid">
+                  {['15 Days', '30 Days', '45 Days', '60 Days'].map((label, j) => (
+                    <div key={j} className="pm-upcoming-tile">
+                      <span className="pm-upcoming-tile-count">
+                        <Skeleton width={20} height={20} style={{ margin: '0 auto' }} />
+                      </span>
+                      <span className="pm-upcoming-tile-label">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'monitoring') {
+    return (
+      <div className="pm-tab-content">
+        {/* Controls & Filter Card Skeleton */}
+        <div className="pm-filter-card">
+          <div className="pm-toolbar">
+            <div className="pm-search-wrap" style={{ flex: 1, minWidth: 240, border: '1px solid var(--border-secondary)', padding: '8px 12px', borderRadius: '6px' }}>
+               <Skeleton width="100%" height={20} />
+            </div>
+            <div style={{ width: '160px', border: '1px solid var(--border-secondary)', padding: '8px 12px', borderRadius: '6px' }}>
+               <Skeleton width="100%" height={20} />
+            </div>
+            <div style={{ width: '130px', border: '1px solid var(--border-secondary)', padding: '8px 12px', borderRadius: '6px' }}>
+               <Skeleton width="100%" height={20} />
+            </div>
+            <div style={{ width: '130px', border: '1px solid var(--border-secondary)', padding: '8px 12px', borderRadius: '6px' }}>
+               <Skeleton width="100%" height={20} />
+            </div>
+            <Skeleton width={60} height={32} style={{ borderRadius: '6px' }} />
+            <Skeleton width={140} height={32} style={{ borderRadius: '6px', marginLeft: 'auto' }} />
+          </div>
+        </div>
+
+        {/* Main Master Table Skeleton */}
+        <div className="pm-table-card">
+          <div className="pm-table-container">
+            <table className="pm-master-table">
+              <thead>
+                <tr>
+                  <th className="pm-col-code pm-sticky-col pm-sticky-col-1">Project Code</th>
+                  <th className="pm-col-summary pm-sticky-col pm-sticky-col-2">Summary</th>
+                  <th className="pm-col-owner pm-sticky-col pm-sticky-col-3">IT Delivery Lead</th>
+                  <th className="pm-col-lifecycle">Lifecycle Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array(6).fill(0).map((_, i) => (
+                  <tr key={i} className="pm-project-row mode-business">
+                    <td className="pm-col-code pm-sticky-col pm-sticky-col-1">
+                      <div className="pm-code-cell">
+                        <span className="pm-expand-icon">
+                          <ChevronRight size={13} color="var(--text-secondary)" />
+                        </span>
+                        <span className="pm-project-code">
+                          <Skeleton width={80} height={14} />
+                        </span>
+                      </div>
+                    </td>
+                    <td className="pm-col-summary pm-sticky-col pm-sticky-col-2">
+                       <Skeleton width={`${Math.random() * 20 + 70}%`} height={14} className="mb-1" />
+                       <Skeleton width={`${Math.random() * 20 + 40}%`} height={12} />
+                    </td>
+                    <td className="pm-col-owner pm-sticky-col pm-sticky-col-3">
+                       <span className="pm-owner-text">
+                          <Skeleton width={120} height={14} />
+                       </span>
+                    </td>
+                    <td className="pm-col-lifecycle">
+                       <div className="pm-lifecycle-wrapper" style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '600px', height: '40px', gap: '4px' }}>
+                          {['Inception', 'Planning', 'Building', 'Testing', 'Release Process', 'Deployed', 'Completed'].map((step, j) => (
+                             <div key={j} style={{ flex: 1, height: '6px', background: 'var(--border-secondary)', borderRadius: '3px' }} />
+                          ))}
+                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Breaches Tab Skeleton
+  return (
+    <div className="pm-tab-content pm-tab-content--breaches">
+      <div className="pm-breaches-banner">
+        <div className="pm-breaches-banner-pills">
+          <div className="pm-banner-pill pill-red">
+            <span className="pill-dot" />
+            <span className="pill-label">SLA Breaches</span>
+            <span className="pill-val"><Skeleton width={20} height={16} /></span>
+          </div>
+          <div className="pm-banner-pill pill-amber">
+            <span className="pill-dot" />
+            <span className="pill-label">Due Date Alerts</span>
+            <span className="pill-val"><Skeleton width={20} height={16} /></span>
+          </div>
+          <div className="pm-banner-pill pill-emerald">
+            <span className="pill-dot" />
+            <span className="pill-label">CR Exceptions</span>
+            <span className="pill-val"><Skeleton width={20} height={16} /></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="pm-governance-grid">
+        {[
+          { title: 'SLA & Operational Breaches', sub: 'Card 11 (7 Rule Categories)', icon: <AlertTriangle size={16} />, color: 'red' },
+          { title: 'Due Date Thresholds', sub: 'Card 12 (2 Rule Categories)', icon: <Calendar size={16} />, color: 'amber' },
+          { title: 'CR Governance Exceptions', sub: 'Card 13 (4 Rule Categories)', icon: <ShieldCheck size={16} />, color: 'emerald' }
+        ].map((panel, i) => (
+          <div key={i} className={`pm-gov-card pm-gov-card--${panel.color}`}>
+            <div className="pm-gov-card-header">
+              <div className="pm-gov-header-left">
+                <div className={`pm-gov-icon-badge badge-${panel.color}`}>
+                  {panel.icon}
+                </div>
+                <div className="pm-gov-title-block">
+                  <h3 className="pm-card-title">{panel.title}</h3>
+                  <span className="pm-card-subtitle">{panel.sub}</span>
+                </div>
+              </div>
+              <span className={`pm-gov-total-badge badge-${panel.color}`}>
+                <Skeleton width={16} height={16} />
+              </span>
+            </div>
+            <div className="pm-gov-card-body">
+              {Array(i === 0 ? 7 : i === 1 ? 2 : 4).fill(0).map((_, j) => (
+                <button key={j} type="button" className="pm-breach-metric disabled-metric">
+                  <div className="pm-breach-metric-left">
+                    <span className="pm-metric-dot dot-muted" />
+                    <span className="pm-breach-label"><Skeleton width={160 + Math.random() * 60} height={14} /></span>
+                  </div>
+                  <div className="pm-breach-metric-right">
+                    <Skeleton width={20} height={20} style={{ borderRadius: '4px' }} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -584,8 +875,7 @@ export function ProjectMonitoringPage() {
   }
 
   return (
-    <div className="pm-shell">
-      {/* RESTORED 3-TAB NAVIGATION BAR */}
+    <div className="pm-shell" style={{ position: 'relative' }}>
       <div className="pm-tabs-nav" role="tablist" aria-label="Project tabs">
         <button
           type="button"
@@ -616,11 +906,15 @@ export function ProjectMonitoringPage() {
         </button>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-         TAB 1: PROJECT SUMMARY
-         ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'summary' && (
-        <div className="pm-tab-content">
+      {loadingData ? (
+        <ProjectMonitoringSkeleton activeTab={activeTab} />
+      ) : (
+        <>
+          {/* ═══════════════════════════════════════════════════════════════════════
+             TAB 1: PROJECT SUMMARY
+             ═══════════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'summary' && (
+            <div className="pm-tab-content">
           {/* Lifecycle Pipeline Overview Card */}
           <div className="pm-pipeline-card">
             <div className="pm-pipeline-card-header">
@@ -1188,6 +1482,8 @@ export function ProjectMonitoringPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* Dynamic Drilldown Modal Overlay */}

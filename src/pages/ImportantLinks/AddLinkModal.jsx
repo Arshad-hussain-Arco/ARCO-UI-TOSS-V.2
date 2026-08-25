@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Folder, Pencil } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
@@ -97,29 +97,7 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
   );
 }
 
-/**
- * Collapsible section for one of the 3 mutually-exclusive content types
- * (URL / Shared Folder+Upload File / Content). Collapsed by default —
- * expanding one doesn't affect the others; "locked" (another type already
- * has content) just mutes the header and disables whatever's inside it.
- */
-function AccordionSection({ title, isOpen, locked, hasError, onToggle, children }) {
-  return (
-    <div className={`il-accordion${hasError ? ' il-accordion-error' : ''}`} data-locked={locked}>
-      <button
-        type="button"
-        className="il-accordion-header"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-      >
-        {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        <span className="il-accordion-title">{title}</span>
-        {locked && <Lock size={11} className="il-accordion-lock-icon" aria-hidden="true" />}
-      </button>
-      {isOpen && <div className="il-accordion-body">{children}</div>}
-    </div>
-  );
-}
+// Removed AccordionSection in favor of segmented controls
 
 /**
  * Add / Edit Link Modal — matches the application's existing modal design language.
@@ -161,53 +139,34 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     };
   }, [editLink, existingGroups]);
 
-  // Which of the 3 content-type accordions is expanded. Starts open on
-  // whichever type an edited link already uses; closed for a brand-new link.
-  const getInitialOpenSection = useCallback(() => {
-    if (!editLink) return null;
+  const getInitialLinkType = useCallback(() => {
+    if (!editLink) return 'url';
     if (editLink.url) return 'url';
-    if (editLink.sharedFolder || (editLink.files && editLink.files.length > 0)) return 'resource';
+    if (editLink.sharedFolder) return 'folder';
+    if (editLink.files && editLink.files.length > 0) return 'file';
     if (editLink.comments) return 'content';
-    return null;
+    return 'url';
   }, [editLink]);
 
   const [state, setState] = useState(getInitialState);
   const [errors, setErrors] = useState({});
-  const [openSection, setOpenSection] = useState(getInitialOpenSection);
+  const [linkType, setLinkType] = useState(getInitialLinkType);
   const fileInputRef = useRef(null);
 
   // Sync state when editLink changes
   useEffect(() => {
     setState(getInitialState());
     setErrors({});
-    setOpenSection(getInitialOpenSection());
-  }, [editLink, getInitialState, getInitialOpenSection]);
-
-  const toggleSection = (section) => setOpenSection((prev) => (prev === section ? null : section));
+    setLinkType(getInitialLinkType());
+  }, [editLink, getInitialState, getInitialLinkType]);
 
   const set = (key, val) => setState((prev) => ({ ...prev, [key]: val }));
 
   const handleReset = useCallback(() => {
     setState(getInitialState());
     setErrors({});
-    setOpenSection(getInitialOpenSection());
-  }, [getInitialState, getInitialOpenSection]);
-
-  // The link's content can be provided exactly one way: a URL, a
-  // shared-folder-path-and/or-uploaded-file (that pair counts as one way),
-  // or a free-text comment. Whichever one currently has content locks out
-  // the other two — clearing it back to empty unlocks everything again, so
-  // switching types is just "clear, then fill in the other one".
-  const activeContentType = useMemo(() => {
-    if (state.url.trim()) return 'url';
-    if (state.sharedFolder.trim() || state.files.length > 0) return 'resource';
-    if (state.comments.trim()) return 'comments';
-    return null;
-  }, [state.url, state.sharedFolder, state.files, state.comments]);
-
-  const urlLocked = activeContentType !== null && activeContentType !== 'url';
-  const resourceLocked = activeContentType !== null && activeContentType !== 'resource';
-  const commentsLocked = activeContentType !== null && activeContentType !== 'comments';
+    setLinkType(getInitialLinkType());
+  }, [getInitialState, getInitialLinkType]);
 
   function validate() {
     const errs = {};
@@ -216,13 +175,27 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
       errs.linkName = 'Link name is required.';
     }
 
-    if (activeContentType === null) {
-      errs.content = 'Provide a URL, a shared folder / uploaded file, or a comment.';
-    } else if (activeContentType === 'url') {
-      try {
-        new URL(state.url.startsWith('http') ? state.url : `https://${state.url}`);
-      } catch {
-        errs.url = 'Please enter a valid URL.';
+    if (linkType === 'url') {
+      if (!state.url.trim()) {
+        errs.url = 'Please enter a URL.';
+      } else {
+        try {
+          new URL(state.url.startsWith('http') ? state.url : `https://${state.url}`);
+        } catch {
+          errs.url = 'Please enter a valid URL.';
+        }
+      }
+    } else if (linkType === 'folder') {
+      if (!state.sharedFolder.trim()) {
+        errs.folder = 'Please enter a shared folder path.';
+      }
+    } else if (linkType === 'file') {
+      if (state.files.length === 0) {
+        errs.file = 'Please upload a file.';
+      }
+    } else if (linkType === 'content') {
+      if (!state.comments.trim()) {
+        errs.content = 'Please enter text content.';
       }
     }
 
@@ -240,27 +213,27 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      // Expand whichever accordion the error is actually in, so it's visible.
-      if (errs.url) setOpenSection('url');
-      else if (errs.content) setOpenSection((prev) => prev ?? 'url');
       return;
     }
 
     const finalGroup =
       state.groupMode === 'new' ? state.newGroupName.trim() : state.selectedGroup?.trim() || '';
-    let finalUrl = state.url.trim();
-    if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
-      finalUrl = `https://${finalUrl}`;
+    let finalUrl = '';
+    if (linkType === 'url') {
+      finalUrl = state.url.trim();
+      if (finalUrl && !/^https?:\/\//i.test(finalUrl)) {
+        finalUrl = `https://${finalUrl}`;
+      }
     }
 
     const payload = {
       id: editLink?.id ?? createId('link'),
       label: state.linkName.trim(),
       url: finalUrl,
-      sharedFolder: state.sharedFolder.trim() || '',
-      comments: state.comments.trim() || '',
+      sharedFolder: linkType === 'folder' ? state.sharedFolder.trim() : '',
+      comments: linkType === 'content' ? state.comments.trim() : '',
       pinToHeader: state.pinToHeader,
-      files: state.files,
+      files: linkType === 'file' ? state.files : [],
     };
 
     if (finalGroup) {
@@ -370,165 +343,201 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             {errors.linkName && <span className="il-error-msg">{errors.linkName}</span>}
           </div>
 
-          {/* Content type note */}
-          <p className="il-content-type-hint">
-            Provide the link one way: a URL, a shared folder / uploaded file, or a comment.
-          </p>
-          {errors.content && <span className="il-error-msg">{errors.content}</span>}
-
-          {/* URL */}
-          <AccordionSection
-            title="URL"
-            isOpen={openSection === 'url'}
-            locked={urlLocked}
-            hasError={!!errors.url}
-            onToggle={() => toggleSection('url')}
-          >
-            <input
-              type="url"
-              className={`il-input${errors.url ? ' il-input-error' : ''}`}
-              placeholder="https://"
-              value={state.url}
-              disabled={urlLocked}
-              autoFocus
-              onChange={(e) => {
-                set('url', e.target.value);
-                setErrors((prev) => ({ ...prev, url: undefined, content: undefined }));
-              }}
-            />
-            {errors.url && <span className="il-error-msg">{errors.url}</span>}
-          </AccordionSection>
-
-          {/* Shared Folder + Upload File */}
-          <AccordionSection
-            title="Shared Folder Upload File"
-            isOpen={openSection === 'resource'}
-            locked={resourceLocked}
-            onToggle={() => toggleSection('resource')}
-          >
-            <span className="il-label">Shared Folder</span>
-            <input
-              type="text"
-              className="il-input"
-            
-              value={state.sharedFolder}
-              disabled={resourceLocked}
-              onChange={(e) => {
-                set('sharedFolder', e.target.value);
-                setErrors((prev) => ({ ...prev, content: undefined }));
-              }}
-            />
-
-            <span className="il-label" style={{ marginTop: '12px', display: 'block' }}>Upload File</span>
-
-            {state.files.length > 0 ? (
-              <div className="il-upload-file-list" style={{ marginTop: 0 }}>
-                {state.files.map((f, i) => (
-                  <div key={i} className="il-upload-file-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', overflow: 'hidden' }}>
-                      <FileText className="il-upload-file-icon" aria-hidden="true" style={{ marginTop: '2px' }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span className="il-upload-file-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-                          {f.size && <span className="il-upload-file-size" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{(f.size / 1024).toFixed(0)} KB</span>}
-                        </div>
-                        <span className="il-upload-zone-hint" style={{ margin: 0, textAlign: 'left', fontSize: '11px', lineHeight: '1.2' }}>PDF, Word, Excel, Images, ZIP — max 10 MB</span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          fileInputRef.current?.click();
-                        }}
-                        style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}
-                      >
-                        Replace
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(i)}
-                        style={{ padding: '4px 8px', fontSize: '12px', height: 'auto', color: 'var(--c-danger)' }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="il-upload-zone"
-                data-disabled={resourceLocked}
-                role="button"
-                tabIndex={resourceLocked ? -1 : 0}
-                aria-disabled={resourceLocked}
-                aria-label="Choose files to upload"
+          {/* Link Type Segmented Control */}
+          <div className="il-form-group" style={{ marginBottom: '4px' }}>
+            <span className="il-label il-label-required">Link Type</span>
+            <div className="il-segmented-control">
+              <button
+                type="button"
+                className={`il-segmented-btn ${errors.url ? 'il-segmented-btn-error' : ''}`}
+                data-active={linkType === 'url'}
                 onClick={() => {
-                  if (resourceLocked) return;
-                  fileInputRef.current?.click();
-                }}
-                onKeyDown={(e) => {
-                  if (resourceLocked) return;
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    fileInputRef.current?.click();
-                  }
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (resourceLocked) return;
-                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    set('files', [e.dataTransfer.files[0]]);
-                    setErrors((prev) => ({ ...prev, content: undefined }));
-                  }
+                  setLinkType('url');
+                  setErrors((prev) => ({ ...prev, url: undefined }));
                 }}
               >
-                <Upload className="il-upload-zone-icon" aria-hidden="true" />
-                <div className="il-upload-zone-text-wrap">
-                  <p className="il-upload-zone-text">
-                    <strong>Click to upload</strong> or drag &amp; drop
-                  </p>
-                  <p className="il-upload-zone-hint">PDF, Word, Excel, Images, ZIP — max 10 MB</p>
-                </div>
+                <Link2 size={15} /> URL
+              </button>
+              <button
+                type="button"
+                className={`il-segmented-btn ${errors.folder ? 'il-segmented-btn-error' : ''}`}
+                data-active={linkType === 'folder'}
+                onClick={() => {
+                  setLinkType('folder');
+                  setErrors((prev) => ({ ...prev, folder: undefined }));
+                }}
+              >
+                <Folder size={15} /> Shared Folder
+              </button>
+              <button
+                type="button"
+                className={`il-segmented-btn ${errors.file ? 'il-segmented-btn-error' : ''}`}
+                data-active={linkType === 'file'}
+                onClick={() => {
+                  setLinkType('file');
+                  setErrors((prev) => ({ ...prev, file: undefined }));
+                }}
+              >
+                <FileText size={15} /> Upload File
+              </button>
+              <button
+                type="button"
+                className={`il-segmented-btn ${errors.content ? 'il-segmented-btn-error' : ''}`}
+                data-active={linkType === 'content'}
+                onClick={() => {
+                  setLinkType('content');
+                  setErrors((prev) => ({ ...prev, content: undefined }));
+                }}
+              >
+                <Pencil size={15} /> Text Content
+              </button>
+            </div>
+          </div>
+
+          {/* Active Content Container */}
+          <div className="il-active-content-container">
+            {linkType === 'url' && (
+              <div className="il-form-group">
+                <span className="il-label il-label-required">URL</span>
+                <input
+                  type="url"
+                  className={`il-input${errors.url ? ' il-input-error' : ''}`}
+                  placeholder="https://"
+                  value={state.url}
+                  autoFocus
+                  onChange={(e) => {
+                    set('url', e.target.value);
+                    setErrors((prev) => ({ ...prev, url: undefined }));
+                  }}
+                />
+                {errors.url && <span className="il-error-msg">{errors.url}</span>}
               </div>
             )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_TYPES}
-              disabled={resourceLocked}
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                handleFileChange(e);
-                setErrors((prev) => ({ ...prev, content: undefined }));
-              }}
-            />
-          </AccordionSection>
+            {linkType === 'folder' && (
+              <div className="il-form-group">
+                <span className="il-label il-label-required">Shared Folder</span>
+                <input
+                  type="text"
+                  className={`il-input${errors.folder ? ' il-input-error' : ''}`}
+                  placeholder="e.g. \\server\share\folder"
+                  value={state.sharedFolder}
+                  autoFocus
+                  onChange={(e) => {
+                    set('sharedFolder', e.target.value);
+                    setErrors((prev) => ({ ...prev, folder: undefined }));
+                  }}
+                />
+                {errors.folder && <span className="il-error-msg">{errors.folder}</span>}
+              </div>
+            )}
 
-          {/* Content */}
-          <AccordionSection
-            title="Content"
-            isOpen={openSection === 'content'}
-            locked={commentsLocked}
-            onToggle={() => toggleSection('content')}
-          >
-            <textarea
-              className="il-textarea"
-              placeholder="Add any notes or context about this link…"
-              value={state.comments}
-              disabled={commentsLocked}
-              onChange={(e) => {
-                set('comments', e.target.value);
-                setErrors((prev) => ({ ...prev, content: undefined }));
-              }}
-            />
-          </AccordionSection>
+            {linkType === 'file' && (
+              <div className="il-form-group">
+                <span className="il-label il-label-required">Upload File</span>
+                {state.files.length > 0 ? (
+                  <div className="il-upload-file-list" style={{ marginTop: 0 }}>
+                    {state.files.map((f, i) => (
+                      <div key={i} className="il-upload-file-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border-primary)', borderRadius: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', overflow: 'hidden' }}>
+                          <FileText className="il-upload-file-icon" aria-hidden="true" style={{ marginTop: '2px' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span className="il-upload-file-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                              {f.size && <span className="il-upload-file-size" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{(f.size / 1024).toFixed(0)} KB</span>}
+                            </div>
+                            <span className="il-upload-zone-hint" style={{ margin: 0, textAlign: 'left', fontSize: '11px', lineHeight: '1.2' }}>PDF, Word, Excel, Images, ZIP — max 10 MB</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              fileInputRef.current?.click();
+                            }}
+                            style={{ padding: '4px 8px', fontSize: '12px', height: 'auto' }}
+                          >
+                            Replace
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(i)}
+                            style={{ padding: '4px 8px', fontSize: '12px', height: 'auto', color: 'var(--c-danger)' }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className="il-upload-zone"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Choose files to upload"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        set('files', [e.dataTransfer.files[0]]);
+                        setErrors((prev) => ({ ...prev, file: undefined }));
+                      }
+                    }}
+                  >
+                    <Upload className="il-upload-zone-icon" aria-hidden="true" />
+                    <div className="il-upload-zone-text-wrap">
+                      <p className="il-upload-zone-text">
+                        <strong>Click to upload</strong> or drag &amp; drop
+                      </p>
+                      <p className="il-upload-zone-hint">PDF, Word, Excel, Images, ZIP — max 10 MB</p>
+                    </div>
+                  </div>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_TYPES}
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    handleFileChange(e);
+                    setErrors((prev) => ({ ...prev, file: undefined }));
+                  }}
+                />
+                {errors.file && <span className="il-error-msg">{errors.file}</span>}
+              </div>
+            )}
+
+            {linkType === 'content' && (
+              <div className="il-form-group">
+                <span className="il-label il-label-required">Text Content</span>
+                <textarea
+                  className={`il-textarea${errors.content ? ' il-input-error' : ''}`}
+                  placeholder="Enter your content here..."
+                  value={state.comments}
+                  autoFocus
+                  onChange={(e) => {
+                    set('comments', e.target.value);
+                    setErrors((prev) => ({ ...prev, content: undefined }));
+                  }}
+                />
+                {errors.content && <span className="il-error-msg">{errors.content}</span>}
+              </div>
+            )}
+          </div>
 
         </div>
 
