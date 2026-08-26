@@ -170,6 +170,7 @@ function emptyCombinedForm() {
     description: '',
     category: 'ACTUAL',
     payment_type: 'PAID',
+    counts_as_present: false,
     display_order: 0,
     notes: '',
     policy_notes: '',
@@ -210,6 +211,7 @@ function combinedRowToForm(row) {
     description: lt.description || '',
     category: lt.category || 'ACTUAL',
     payment_type: lt.payment_type || 'PAID',
+    counts_as_present: lt.counts_as_present ?? false,
     display_order: lt.display_order ?? 0,
     notes: lt.notes || '',
     policy_notes: p.notes || '',
@@ -246,12 +248,20 @@ function combinedFormToPayload(form, isClaimTarget) {
   const carryForwardEligible = (
     form.category === 'ACTUAL' && ((!form.is_unlimited && !form.is_flexible) || isClaimTarget)
   );
+  // Counts as Present / Payment Type only apply to Nominal leave types, or
+  // Actual leave types with no Claim Category relation — mirrors the
+  // backend's LeaveTypeCreateSerializer.validate(). Force the safe defaults
+  // rather than trust stale form state left over from a prior category.
+  const presentPaymentEligible = (
+    form.category === 'NOMINAL' || (form.category === 'ACTUAL' && !isClaimTarget)
+  );
   return {
     code: form.code.trim().toUpperCase(),
     name: form.name.trim(),
     description: form.description,
     category: form.category,
-    payment_type: form.payment_type,
+    payment_type: presentPaymentEligible ? form.payment_type : 'PAID',
+    counts_as_present: presentPaymentEligible ? form.counts_as_present : false,
     display_order: Number(form.display_order) || 0,
     notes: form.notes,
     policy_notes: form.policy_notes,
@@ -2225,6 +2235,9 @@ export function LeaveConfigurationPage() {
                       // included within ACTUAL, unlike advance-leave above —
                       // this reset is purely about category, not mode).
                       ...(category !== 'ACTUAL' ? { allow_year_spanning: true } : {}),
+                      // Payment Type / Counts as Present never apply to Claim
+                      // leave types — reset so a hidden, stale value doesn't ship.
+                      ...(category === 'CLAIM' ? { payment_type: 'PAID', counts_as_present: false } : {}),
                     }));
                   }}
                 >
@@ -2234,18 +2247,42 @@ export function LeaveConfigurationPage() {
                 </select>
               </div>
 
-              <div className="ss-modal-form-group">
-                <label className="ss-modal-label" htmlFor="lt-payment">Payment Type</label>
-                <select
-                  id="lt-payment"
-                  className="ss-input"
-                  value={combinedForm.payment_type}
-                  onChange={(e) => setCombinedForm((prev) => ({ ...prev, payment_type: e.target.value }))}
-                >
-                  <option value="PAID">Paid</option>
-                  <option value="UNPAID">Unpaid</option>
-                </select>
-              </div>
+              {/* Payment Type / Counts as Present only apply to Nominal leave
+                  types, or Actual leave types with no Claim Category relation
+                  — mirrors the backend's LeaveTypeCreateSerializer.validate(). */}
+              {(combinedForm.category === 'NOMINAL'
+                || (combinedForm.category === 'ACTUAL' && !claimTargetCodes.has(combinedForm.code))) && (
+                <>
+                  <div className="ss-modal-form-group">
+                    <label className="ss-modal-label" htmlFor="lt-payment">Payment Type</label>
+                    <select
+                      id="lt-payment"
+                      className="ss-input"
+                      value={combinedForm.payment_type}
+                      onChange={(e) => setCombinedForm((prev) => ({ ...prev, payment_type: e.target.value }))}
+                    >
+                      <option value="PAID">Paid</option>
+                      <option value="UNPAID">Unpaid</option>
+                    </select>
+                  </div>
+
+                  <div className="lc-toggle-field">
+                    <div>
+                      <div className="lc-toggle-field-label">Counts as Present</div>
+                      <div className="lc-toggle-field-hint">
+                        An approved leave of this type still counts the employee as present for
+                        attendance purposes (e.g. Work From Home, Offshore Work) instead of
+                        showing as &quot;on leave&quot;.
+                      </div>
+                    </div>
+                    <Toggle
+                      checked={combinedForm.counts_as_present}
+                      onChange={(v) => setCombinedForm((prev) => ({ ...prev, counts_as_present: v }))}
+                      ariaLabel="Counts as Present"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="ss-modal-form-group">
                 <label className="ss-modal-label" htmlFor="lt-order">Display Order</label>

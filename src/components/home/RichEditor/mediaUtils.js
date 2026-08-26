@@ -141,7 +141,7 @@ export function assertWithinSizeLimit(file, maxMb) {
  */
 export function toAbsoluteMediaUrl(path) {
   if (!path || !path.startsWith('/')) return path;
-  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
+  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001/api')
     .replace(/\/api\/?$/, '');
   return `${apiOrigin}${path}`;
 }

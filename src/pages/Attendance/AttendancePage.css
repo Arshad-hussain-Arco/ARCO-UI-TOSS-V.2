@@ -580,6 +580,16 @@
   color: #a5b4fc;
 }
 
+.att-status-wfh {
+  background-color: #ecfeff;
+  color: #0e7490;
+}
+
+[data-theme='dark'] .att-status-wfh {
+  background-color: #164e63;
+  color: #67e8f9;
+}
+
 /* Timeline Filters - Match Leave Management Tabs */
 .att-timeline-folder-tabs {
   display: flex;
@@ -1882,6 +1892,7 @@
   font-size: 9.5px;
   color: var(--text-tertiary);
 }
+
 
 /* ═══════════════════════════════════════════════
    RESPONSIVE OVERRIDES

@@ -215,8 +215,16 @@ function StatusBadge({ code, variant = 'solid' }) {
   );
 }
 
-function InlineLegend() {
-  const items = ATTENDANCE_CODE_MAP;
+// Fallback color palette for a leave type code that has no static entry in
+// ATTENDANCE_CODE_MAP (e.g. a new counts_as_present type HR just added) —
+// cycles deterministically by code so it's at least visually consistent.
+const LEGEND_FALLBACK_COLORS = ['#0891b2', '#7c3aed', '#d97706', '#ec4899', '#0ea5e9', '#65a30d'];
+function fallbackColorFor(code) {
+  const idx = String(code).split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % LEGEND_FALLBACK_COLORS.length;
+  return LEGEND_FALLBACK_COLORS[idx];
+}
+
+function InlineLegend({ items = ATTENDANCE_CODE_MAP }) {
   return (
     <div className="att-inline-legend">
       {items.map(({ code, label, color }) => (
@@ -226,6 +234,27 @@ function InlineLegend() {
           <span className="att-legend-desc">{label}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Reference legend of leave type names, styled like the Full Report tab's
+ * InlineLegend, shown below the calendar/timeline on the "Remote / Other
+ * Present" and "On Leave" tabs — so managers can see every leave type HR
+ * has configured for that bucket, not just the ones with someone on them
+ * today.
+ */
+function LeaveTypeNameLegend({ leaveTypes }) {
+  if (!leaveTypes.length) return null;
+  const items = leaveTypes.map(lt => ({
+    code: lt.code,
+    label: lt.name,
+    color: CODE_LOOKUP[lt.code]?.color || fallbackColorFor(lt.code),
+  }));
+  return (
+    <div style={{ borderTop: '1px solid var(--border-primary)', marginTop: '12px' }}>
+      <InlineLegend items={items} />
     </div>
   );
 }
@@ -281,6 +310,11 @@ export function AttendancePage() {
   const [isDutyLoading, setIsDutyLoading] = useState(false);
   const [dutyError, setDutyError] = useState(null);
 
+  // All active leave types, for the "Remote / Other Present" and "On Leave"
+  // tab legends — split by counts_as_present so the legend reflects
+  // whatever HR has configured, not a hardcoded WFH/Offshore pair.
+  const [leaveTypesReference, setLeaveTypesReference] = useState([]);
+
   // ── Dynamic Tab Indicator ──
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const tabsRef = useRef({});
@@ -319,7 +353,20 @@ export function AttendancePage() {
       .then(data => setLeaveData(data))
       .catch(err => { console.error(err); setLeaveError(err); })
       .finally(() => setIsLeaveLoading(false));
+
+    leaveService.getLeaveTypesReference()
+      .then(data => setLeaveTypesReference(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
   }, [user?.emp_id, user?.id]);
+
+  const presentTypeNames = useMemo(
+    () => leaveTypesReference.filter(lt => lt.counts_as_present),
+    [leaveTypesReference],
+  );
+  const leaveOnlyTypeNames = useMemo(
+    () => leaveTypesReference.filter(lt => !lt.counts_as_present),
+    [leaveTypesReference],
+  );
 
   // ── Date filters ──
   const today = useMemo(() => new Date(), []);
@@ -518,17 +565,35 @@ export function AttendancePage() {
   const filteredOnDuty = useMemo(() => {
     let source = onDutyConsultants;
     if (dutyData?.present_details) {
-      source = dutyData.present_details.map(d => ({
-        id: d.emp_id,
-        name: d.emp_name,
-        team: d.team_name || 'Other',
-        status: d.working_mode === 'WFH' ? 'remote' : 'present',
-        manager: d.designation || 'Manager',
-        location: d.working_mode === 'WFH' ? 'Remote' : 'Office',
-        phone: 'N/A',
-        email: 'N/A',
-        avatar: d.photo_url_base64 || d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
-      }));
+      source = dutyData.present_details.map(d => {
+        // working_mode is either "REMOTE"/"OFFICE" (default profile
+        // location) or the actual leave type code the employee is on today
+        // (e.g. "WFH", "OW") — whatever leave types HR has flagged
+        // counts_as_present, not a hardcoded pair. WFH gets its own status
+        // for styling; every other present-type code (Offshore Work, or
+        // any future one) falls under the generic "offshore" bucket. This
+        // still drives the Remote/Other Present KPI count and tab filters.
+        const status = d.working_mode === 'WFH' ? 'wfh'
+          : d.working_mode === 'REMOTE' ? 'remote'
+          : d.working_mode === 'OFFICE' ? 'present'
+          : 'offshore';
+        // The On Duty list's location/badge shows where the employee
+        // normally works (their profile's work_location), not today's
+        // specific leave type — so it never shows "Work From Home" here,
+        // just Office/Off-site based on that profile setting.
+        const location = d.work_location === 'REMOTE' ? 'Off-site' : 'Office';
+        return {
+          id: d.emp_id,
+          name: d.emp_name,
+          team: d.team_name || 'Other',
+          status,
+          manager: d.designation || 'Manager',
+          location,
+          phone: d.mobile || 'N/A',
+          email: d.email || 'N/A',
+          avatar: d.photo_url_base64 || d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
+        };
+      });
     }
 
     return source
@@ -619,7 +684,7 @@ export function AttendancePage() {
     if (activeKPI === 'present') {
       source = filteredOnDuty.filter(c => c.status === 'present');
     } else if (activeKPI === 'wfh') {
-      source = filteredOnDuty.filter(c => c.status === 'remote');
+      source = filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore');
     } else if (activeKPI === 'leave') {
       source = filteredOnLeaveList.map(l => ({
         id: l.consultantId,
@@ -701,10 +766,20 @@ export function AttendancePage() {
     return map[type] || '#d1d5db';
   }, []);
 
-  const getStatusBadgeClass = useCallback(status => {
-    const map = { present: 'att-status-present', remote: 'att-status-remote', offshore: 'att-status-offshore' };
-    return map[status] || '';
-  }, []);
+
+  // ── On Duty KPI: Total / Absent ──
+  // Present + On Leave should always add up to the full team, since every
+  // active team member is classified as one or the other. When no team/
+  // search filter is active, trust the backend's authoritative team_size
+  // instead of re-deriving it from the two (independently-fetched) lists —
+  // that way a real mismatch (e.g. one of the three API calls lagging
+  // behind, or a status change mid-session) actually shows up as "Absent"
+  // instead of always reading 0.
+  const isUnfiltered = selectedTeam === 'all' && !debouncedSearch.trim();
+  const kpiTotalConsultants = isUnfiltered && dutyData?.team_size != null
+    ? dutyData.team_size
+    : filteredOnDuty.length + filteredOnLeaveList.length;
+  const kpiAbsentCount = Math.max(kpiTotalConsultants - filteredOnDuty.length - filteredOnLeaveList.length, 0);
 
   const isWeekend = useCallback(date => {
     const d = new Date(date);
@@ -790,7 +865,7 @@ export function AttendancePage() {
             {id === 'report' && <FileText className="attendance-subtab-icon" />}
             <span className="attendance-subtab-label">
               {id === 'on-duty' && 'On Duty'}
-              {id === 'on-wfh' && 'WFH'}
+              {id === 'on-wfh' && 'Remote / Other Present'}
               {id === 'on-leave' && 'On Leave'}
               {id === 'report' && 'Full Report'}
             </span>
@@ -901,12 +976,12 @@ export function AttendancePage() {
       {subTab === 'on-duty' && (
         <div className="attendance-kpi-section">
           {[
-            { key: 'total', icon: <Users size={20} />, color: 'blue', count: filteredOnDuty.length + filteredOnLeaveList.length, label: 'Total Consultants' },
+            { key: 'total', icon: <Users size={20} />, color: 'blue', count: kpiTotalConsultants, label: 'Total Consultants' },
             { key: 'present', icon: <Building2 size={20} />, color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
-            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'remote').length, label: 'Work From Home' },
+            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore').length, label: 'Remote / Other Present' },
             { key: 'leave', icon: <Clock size={20} />, color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
-            { key: 'absent', icon: <AlertCircle size={20} />, color: 'red', count: 0, label: 'Absent / Not Marked' },
-            { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(filteredOnDuty.length + filteredOnLeaveList.length, 1) * 100)}%`, label: 'Attendance %' },
+            { key: 'absent', icon: <AlertCircle size={20} />, color: 'red', count: kpiAbsentCount, label: 'Absent / Not Marked' },
+            { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(kpiTotalConsultants, 1) * 100)}%`, label: 'Attendance %' },
           ].map(({ key, icon, color, count, label }) => (
             <div
               key={key}
@@ -960,8 +1035,11 @@ export function AttendancePage() {
                           <div className="attendance-detail-item"><Phone size={12} className="attendance-detail-icon" /><span>{c.phone}</span></div>
                           <div className="attendance-detail-item"><Mail size={12} className="attendance-detail-icon" /><span>{c.email}</span></div>
                         </div>
-                        <div className={`attendance-status-badge ${getStatusBadgeClass(c.status)}`}>
-                          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+                        {/* On Duty badge mirrors the location text above — Office/Off-site
+                            based on the employee's profile work location, never today's
+                            specific leave type (e.g. Work From Home, Offshore Work). */}
+                        <div className={`attendance-status-badge ${c.location === 'Off-site' ? 'att-status-remote' : 'att-status-present'}`}>
+                          {c.location}
                         </div>
                       </div>
                     ))}
@@ -1054,14 +1132,19 @@ export function AttendancePage() {
                               const dayData = data?.calendar?.find(d => d.date === dateStr);
                               const wfhDetail = dayData?.on_wfh_details?.find(l => l.emp_id === leave.consultantId);
                               const inLeave = !!wfhDetail;
+                              // Any present-type leave HR configures beyond WFH itself —
+                              // look up its real code/label instead of assuming Offshore Work.
+                              const presentType = CODE_LOOKUP[wfhDetail?.leave_type];
+                              const pillLabel = wfhDetail?.leave_type === 'WFH' ? 'WFH' : (presentType?.code || wfhDetail?.leave_type || 'WFH');
+                              const pillColor = wfhDetail?.leave_type === 'WFH' ? '#06b6d4' : (presentType?.color || '#0ea5e9');
                               return (
                                 <div
                                   key={idx}
                                   className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
                                 >
                                   {inLeave && (
-                                    <div title={`WFH – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                      <span className="attendance-timeline-leave-pill" style={{ color: '#06b6d4', border: '1px solid #06b6d4', backgroundColor: 'transparent', width: 'auto', padding: '2px 8px', height: 'auto', minHeight: '22px' }}>WFH</span>
+                                    <div title={`${presentType?.label || pillLabel} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                      <span className="attendance-timeline-leave-pill" style={{ color: pillColor, border: `1px solid ${pillColor}`, backgroundColor: 'transparent', width: 'auto', padding: '2px 8px', height: 'auto', minHeight: '22px' }}>{pillLabel}</span>
                                     </div>
                                   )}
                                 </div>
@@ -1078,9 +1161,10 @@ export function AttendancePage() {
             {filteredOnWfhTimeline.length === 0 && (
               <div className="attendance-empty">
                 <Briefcase size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on WFH</p>
+                <p className="attendance-empty-text">No consultants on WFH/Offshore Work</p>
               </div>
             )}
+            <LeaveTypeNameLegend leaveTypes={presentTypeNames} />
           </div>
         )}
 
@@ -1090,16 +1174,20 @@ export function AttendancePage() {
             {wfhError && (
               <div className="attendance-inline-error">
                 <AlertCircle size={16} />
-                <span>Could not load today&apos;s WFH status.</span>
+                <span>Could not load today&apos;s WFH/Offshore Work status.</span>
               </div>
             )}
             {isWfhLoading ? (
-              <Loader message="Loading WFH data..." />
+              <Loader message="Loading WFH/Offshore Work data..." />
             ) : wfhData?.on_wfh_details?.length > 0 ? (
               <div className="attendance-team-content" style={{ marginTop: '20px' }}>
                 {wfhData.team_members
                   .filter(c => wfhData.on_wfh_details.some(d => d.emp_id === c.emp_id))
-                  .map(c => (
+                  .map(c => {
+                    const detail = wfhData.on_wfh_details.find(d => d.emp_id === c.emp_id);
+                    const isWfh = detail?.leave_type === 'WFH';
+                    const presentTypeLabel = CODE_LOOKUP[detail?.leave_type]?.label || detail?.leave_type;
+                    return (
                     <div key={c.emp_id} className="attendance-consultant-row">
                       <div className="attendance-consultant-main">
                         <div className="attendance-consultant-avatar">
@@ -1115,18 +1203,20 @@ export function AttendancePage() {
                           <span>{c.team_name}</span>
                         </div>
                       </div>
-                      <div className="attendance-status-badge att-status-remote">
-                        Working From Home
+                      <div className={`attendance-status-badge ${isWfh ? 'att-status-remote' : 'att-status-offshore'}`}>
+                        {isWfh ? 'Working From Home' : (presentTypeLabel || 'Remote (Other)')}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
             ) : (
               <div className="attendance-empty">
                 <Home size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on WFH today</p>
+                <p className="attendance-empty-text">No consultants on WFH/Offshore Work today</p>
               </div>
             )}
+            <LeaveTypeNameLegend leaveTypes={presentTypeNames} />
           </div>
         )}
 
@@ -1234,6 +1324,7 @@ export function AttendancePage() {
                 <p className="attendance-empty-text">No consultants on leave</p>
               </div>
             )}
+            <LeaveTypeNameLegend leaveTypes={leaveOnlyTypeNames} />
           </div>
         )}
 
@@ -1274,6 +1365,7 @@ export function AttendancePage() {
                 <p className="attendance-empty-text">No consultants on leave</p>
               </div>
             )}
+            <LeaveTypeNameLegend leaveTypes={leaveOnlyTypeNames} />
           </div>
         )}
 
