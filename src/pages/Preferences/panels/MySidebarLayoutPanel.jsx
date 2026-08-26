@@ -77,6 +77,7 @@ export function MySidebarLayoutPanel() {
   const toast = useToast();
   const { user, hasPermission, refreshUser } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   // Only items this user can actually see — same filter the live sidebar
@@ -127,7 +128,7 @@ export function MySidebarLayoutPanel() {
   };
 
   const handleResetToRoleDefault = async () => {
-    setIsSaving(true);
+    setIsResetting(true);
     try {
       await authService.updateMySidebarNavOrder(EMPTY_ORDER);
       toast.success('Sidebar layout reset to your role\'s default.');
@@ -135,7 +136,7 @@ export function MySidebarLayoutPanel() {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to reset sidebar layout.');
     } finally {
-      setIsSaving(false);
+      setIsResetting(false);
     }
   };
 
@@ -148,7 +149,7 @@ export function MySidebarLayoutPanel() {
           still controlled by Roles &amp; Permissions).
         </p>
         <div className="pl-header-actions">
-          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToRoleDefault} disabled={isSaving}>
+          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToRoleDefault} disabled={isSaving || isResetting} isLoading={isResetting}>
             Default
           </Button>
           <Button
@@ -156,7 +157,7 @@ export function MySidebarLayoutPanel() {
             size="sm"
             leadingIcon={isSaving ? undefined : Save}
             onClick={handleSave}
-            disabled={isSaving || !isDirty}
+            disabled={isSaving || isResetting || !isDirty}
             isLoading={isSaving}
           >
             Save

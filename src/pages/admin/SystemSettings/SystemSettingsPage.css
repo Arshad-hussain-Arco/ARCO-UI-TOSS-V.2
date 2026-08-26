@@ -209,6 +209,7 @@
   font-size: 13px;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
+  background: transparent;
   outline: none;
 }
 .ss-panel-toolbar .ss-search-input:focus {

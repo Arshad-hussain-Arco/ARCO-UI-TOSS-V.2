@@ -202,6 +202,8 @@ const RunCard = ({ run, index }) => {
 };
 
 export const ScriptRunMonitor = ({ script, cellDetails }) => {
+  const { isDarkMode } = useTheme();
+  
   // If cellDetails are provided (from heatmap click), we use its runs. Otherwise, use full script.history.
   const history = useMemo(() => {
     if (cellDetails && cellDetails.runs) {
@@ -321,8 +323,16 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      y: { title: { display: true, text: 'Seconds' }, grid: { color: '#E4E2DA' }, min: 0 },
-      x: { grid: { display: false } }
+      y: { 
+        title: { display: true, text: 'Seconds', color: isDarkMode ? '#94a3b8' : '#64748b' }, 
+        grid: { color: isDarkMode ? '#334155' : '#e2e8f0' }, 
+        ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' },
+        min: 0 
+      },
+      x: { 
+        grid: { display: false },
+        ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' }
+      }
     }
   };
 
@@ -341,7 +351,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     plugins: { 
       legend: { 
         position: 'bottom', 
-        labels: { boxWidth: 10, font: { size: 10.5 }, padding: 14 } 
+        labels: { boxWidth: 10, font: { size: 10.5 }, padding: 14, color: isDarkMode ? '#f8fafc' : '#1e293b' } 
       } 
     },
     layout: {
@@ -415,9 +425,33 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         {isBottleneck && <div className="bottleneck-tag">SLOWEST</div>}
                       </div>
                       <div className="step-track">
-                        <div className="step-seg" style={{ left: 0, width: `${(widthPct * idlePct) / 100}%`, background: '#CBD5E1' }}></div>
-                        <div className="step-seg" style={{ left: `${(widthPct * idlePct) / 100}%`, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}></div>
-                        <div className="step-seg" style={{ left: `${(widthPct * (idlePct + cpuPct)) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}></div>
+                        <div className="step-seg" style={{ left: 0, width: `${(widthPct * idlePct) / 100}%`, background: '#CBD5E1' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#CBD5E1' }}></span>
+                              Idle / Wait: {fmtSec(stepAggregation.avgIdle[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="step-seg" style={{ left: `${(widthPct * idlePct) / 100}%`, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#B5790C' }}></span>
+                              CPU time: {fmtSec(stepAggregation.avgCpu[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="step-seg" style={{ left: `${(widthPct * (idlePct + cpuPct)) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#0F6E56' }}></span>
+                              DB time: {fmtSec(stepAggregation.avgDb[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div className="step-total">{fmtSec(stepAggregation.avgElapsed[i])}</div>
                     </div>
@@ -440,7 +474,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           <span className="section-note">Expand a run for its step-by-step CPU / DB waterfall</span>
         </div>
         <div id="runLog">
-          {history.map((run, i) => (
+          {[...history].reverse().map((run, i) => (
             <RunCard key={i} run={run} index={i} />
           ))}
         </div>

@@ -216,7 +216,6 @@
   height: 20px;
   background: #F1F0EB;
   border-radius: 4px;
-  overflow: hidden;
 }
 
 .run-monitor-wrap .step-seg {
@@ -441,4 +440,66 @@
   .run-monitor-wrap .two-col {
     grid-template-columns: 1fr;
   }
+}
+
+/* Custom Rich HTML Tooltips for Pipeline Gantt Chart */
+.step-track {
+  position: relative;
+}
+
+.step-seg-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.step-seg-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.85);
+}
+
+.step-seg:hover .step-seg-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-title {
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.tooltip-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e2e8f0;
+}
+
+.tooltip-color-box {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border-radius: 2px;
 }

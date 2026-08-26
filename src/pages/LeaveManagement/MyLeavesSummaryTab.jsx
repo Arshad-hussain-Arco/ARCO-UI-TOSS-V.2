@@ -186,8 +186,8 @@ export function MyLeavesSummaryTab({
       <div className="leave-filters-section" style={{ marginBottom: '16px', background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
         
         {/* Filters Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', alignContent: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '0 0 auto' }}>
             <button className="leave-filter-chip" data-active={filterStatus === 'all'} onClick={() => setFilterStatus('all')}>
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
@@ -204,9 +204,9 @@ export function MyLeavesSummaryTab({
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
             {/* Date Filters */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div style={{ width: '130px' }}>
                 <Select 
                   value={selectedMonth} 

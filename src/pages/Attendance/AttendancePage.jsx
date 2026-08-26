@@ -293,9 +293,7 @@ export function AttendancePage() {
   };
 
   const debouncedSearch = useDebounce(searchQuery, 500);
-  const [expandedTeams, setExpandedTeams] = useState(
-    new Set(['management', 'frontend', 'backend', 'uiux', 'data']),
-  );
+  const [collapsedTeams, setCollapsedTeams] = useState(new Set());
   const [activeKPI, setActiveKPI] = useState(null);
 
   const [wfhData, setWfhData] = useState(null);
@@ -486,9 +484,11 @@ export function AttendancePage() {
     const todayStr = formatDateKey(today);
     const todayData = (data?.calendar || []).find(d => d.date === todayStr);
 
-    // For Duty/WFH (which is strictly 'Today')
-    const todayLeaveIds = new Set(todayData?.on_leave_details?.map(l => l.emp_id) || []);
-    const wfhIds = new Set(todayData?.on_wfh_details?.map(l => l.emp_id) || []);
+    const activeTodayLeaveList = leaveData?.on_leave_details?.length > 0 ? leaveData.on_leave_details : (leaveData?.team_members || todayData?.on_leave_details || []);
+    const todayLeaveIds = new Set(activeTodayLeaveList.map(l => l.emp_id));
+
+    const activeTodayWfhList = wfhData?.on_wfh_details?.length > 0 ? wfhData.on_wfh_details : (wfhData?.team_members?.length > 0 ? wfhData.team_members : (todayData?.on_wfh_details || []));
+    const wfhIds = new Set(activeTodayWfhList.map(l => l.emp_id));
 
     // For Leaves (which should show any leave in the current calendar month)
     const allLeaveEmpIds = new Set();
@@ -496,26 +496,40 @@ export function AttendancePage() {
     const allWfhEmpIds = new Set();
     const wfhStatsForEmp = {};
 
+    const processLeave = (l, date) => {
+      allLeaveEmpIds.add(l.emp_id);
+      if (!leaveStatsForEmp[l.emp_id]) {
+        leaveStatsForEmp[l.emp_id] = { ...l, startDate: date, endDate: date, days: 1 };
+      } else {
+        leaveStatsForEmp[l.emp_id].days += 1;
+        leaveStatsForEmp[l.emp_id].endDate = date; // Track latest date
+      }
+    };
+
+    const processWfh = (l, date) => {
+      allWfhEmpIds.add(l.emp_id);
+      if (!wfhStatsForEmp[l.emp_id]) {
+        wfhStatsForEmp[l.emp_id] = { ...l, startDate: date, endDate: date, days: 1 };
+      } else {
+        wfhStatsForEmp[l.emp_id].days += 1;
+        wfhStatsForEmp[l.emp_id].endDate = date;
+      }
+    };
+
     (data?.calendar || []).forEach(day => {
-      day.on_leave_details?.forEach(l => {
-        allLeaveEmpIds.add(l.emp_id);
-        if (!leaveStatsForEmp[l.emp_id]) {
-          leaveStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
-        } else {
-          leaveStatsForEmp[l.emp_id].days += 1;
-          leaveStatsForEmp[l.emp_id].endDate = day.date; // Track latest date
-        }
-      });
-      day.on_wfh_details?.forEach(l => {
-        allWfhEmpIds.add(l.emp_id);
-        if (!wfhStatsForEmp[l.emp_id]) {
-          wfhStatsForEmp[l.emp_id] = { ...l, startDate: day.date, endDate: day.date, days: 1 };
-        } else {
-          wfhStatsForEmp[l.emp_id].days += 1;
-          wfhStatsForEmp[l.emp_id].endDate = day.date;
-        }
-      });
+      const isToday = day.date === todayStr;
+      const leaveList = isToday ? activeTodayLeaveList : (day.on_leave_details || []);
+      const wfhList = isToday ? activeTodayWfhList : (day.on_wfh_details || []);
+
+      leaveList.forEach(l => processLeave(l, day.date));
+      wfhList.forEach(l => processWfh(l, day.date));
     });
+
+    // If today is not in calendar, process it anyway from live data
+    if (!todayData) {
+      activeTodayLeaveList.forEach(l => processLeave(l, todayStr));
+      activeTodayWfhList.forEach(l => processWfh(l, todayStr));
+    }
 
     const onDuty = [];
     const onLeave = [];
@@ -559,7 +573,7 @@ export function AttendancePage() {
     });
 
     return { onDutyConsultants: onDuty, onLeaveConsultants: onLeave, onWfhConsultants: onWfhAll };
-  }, [allConsultants, data?.calendar, today]);
+  }, [allConsultants, data?.calendar, today, leaveData, wfhData]);
 
   // ── Filtered data ──
   const filteredOnDuty = useMemo(() => {
@@ -601,6 +615,24 @@ export function AttendancePage() {
       .filter(c => c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
   }, [onDutyConsultants, dutyData, selectedTeam, debouncedSearch, allConsultants]);
 
+  const getLeaveDetailsForDate = useCallback((dateStr) => {
+    const todayStr = formatDateKey(today);
+    if (dateStr === todayStr && leaveData) {
+      return leaveData.on_leave_details?.length > 0 ? leaveData.on_leave_details : (leaveData.team_members || []);
+    }
+    const dayData = data?.calendar?.find(d => d.date === dateStr);
+    return dayData?.on_leave_details || [];
+  }, [today, leaveData, data?.calendar]);
+
+  const getWfhDetailsForDate = useCallback((dateStr) => {
+    const todayStr = formatDateKey(today);
+    if (dateStr === todayStr && wfhData) {
+      return wfhData.on_wfh_details?.length > 0 ? wfhData.on_wfh_details : (wfhData.team_members?.length > 0 ? wfhData.team_members : (wfhData.on_wfh_details || []));
+    }
+    const dayData = data?.calendar?.find(d => d.date === dateStr);
+    return dayData?.on_wfh_details || [];
+  }, [today, wfhData, data?.calendar]);
+
   const filteredOnLeaveTimeline = useMemo(() => {
     return onLeaveConsultants.filter(l => {
       if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
@@ -608,11 +640,11 @@ export function AttendancePage() {
 
       return timelineDates.some(date => {
         const dateStr = formatDateKey(date);
-        const dayData = data?.calendar?.find(d => d.date === dateStr);
-        return dayData?.on_leave_details?.some(leave => leave.emp_id === l.consultantId);
+        const details = getLeaveDetailsForDate(dateStr);
+        return details.some(leave => leave.emp_id === l.consultantId);
       });
     });
-  }, [onLeaveConsultants, selectedTeam, debouncedSearch, timelineDates, data?.calendar]);
+  }, [onLeaveConsultants, selectedTeam, debouncedSearch, timelineDates, getLeaveDetailsForDate]);
 
   const filteredOnWfhTimeline = useMemo(() => {
     return onWfhConsultants.filter(l => {
@@ -621,16 +653,41 @@ export function AttendancePage() {
 
       return timelineDates.some(date => {
         const dateStr = formatDateKey(date);
-        const dayData = data?.calendar?.find(d => d.date === dateStr);
-        return dayData?.on_wfh_details?.some(wfh => wfh.emp_id === l.consultantId);
+        const details = getWfhDetailsForDate(dateStr);
+        return details.some(wfh => wfh.emp_id === l.consultantId);
       });
     });
-  }, [onWfhConsultants, selectedTeam, debouncedSearch, timelineDates, data?.calendar]);
+  }, [onWfhConsultants, selectedTeam, debouncedSearch, timelineDates, getWfhDetailsForDate]);
+
+  const filteredOnLeaveTimelineNext30Count = useMemo(() => {
+    return onLeaveConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      return fetchTimelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const details = getLeaveDetailsForDate(dateStr);
+        return details.some(leave => leave.emp_id === l.consultantId);
+      });
+    }).length;
+  }, [onLeaveConsultants, selectedTeam, debouncedSearch, fetchTimelineDates, getLeaveDetailsForDate]);
+
+  const filteredOnWfhTimelineNext30Count = useMemo(() => {
+    return onWfhConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      return fetchTimelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const details = getWfhDetailsForDate(dateStr);
+        return details.some(wfh => wfh.emp_id === l.consultantId);
+      });
+    }).length;
+  }, [onWfhConsultants, selectedTeam, debouncedSearch, fetchTimelineDates, getWfhDetailsForDate]);
 
   const filteredOnLeaveList = useMemo(() => {
     let source = [];
-    if (leaveData?.on_leave_details) {
-      source = leaveData.on_leave_details.map(d => ({
+    const activeLeaveList = leaveData?.on_leave_details?.length > 0 ? leaveData.on_leave_details : leaveData?.team_members;
+    if (activeLeaveList && activeLeaveList.length > 0) {
+      source = activeLeaveList.map(d => ({
         consultantId: d.emp_id,
         consultantName: d.emp_name,
         team: d.team_name || 'Other',
@@ -640,6 +697,8 @@ export function AttendancePage() {
         days: 1,
         avatar: d.photo_url_base64 || d.photo || allConsultants.find(c => c.id === d.emp_id)?.avatar || (d.emp_name ? d.emp_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?')
       }));
+    } else if (leaveData && leaveData.team_members?.length === 0) {
+      source = [];
     } else {
       const todayStr = formatDateKey(today);
       source = onLeaveConsultants.filter(l => l.startDate === todayStr);
@@ -684,7 +743,7 @@ export function AttendancePage() {
     if (activeKPI === 'present') {
       source = filteredOnDuty.filter(c => c.status === 'present');
     } else if (activeKPI === 'wfh') {
-      source = filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore');
+      source = filteredOnDuty.filter(c => c.status === 'remote' || c.status === 'wfh' || c.status === 'offshore');
     } else if (activeKPI === 'leave') {
       source = filteredOnLeaveList.map(l => ({
         id: l.consultantId,
@@ -697,7 +756,7 @@ export function AttendancePage() {
         email: 'N/A',
         avatar: l.avatar
       }));
-    } else if (activeKPI === 'total' || activeKPI === 'attendance') {
+    } else if (activeKPI === 'teamSize' || activeKPI === 'consultants' || activeKPI === 'attendance' || activeKPI === 'absent') {
       const leaveSource = filteredOnLeaveList.map(l => ({
         id: l.consultantId,
         name: l.consultantName,
@@ -709,12 +768,44 @@ export function AttendancePage() {
         email: 'N/A',
         avatar: l.avatar
       }));
-      source = [...filteredOnDuty, ...leaveSource];
-    } else if (activeKPI === 'absent') {
-      source = [];
+      
+      const combined = [...filteredOnDuty, ...leaveSource];
+      const combinedMap = new Map();
+      combined.forEach(c => {
+         // Prefer present/remote over leave if duplicates exist due to mock data
+         if (!combinedMap.has(c.id) || (combinedMap.get(c.id).status === 'leave' && c.status !== 'leave')) {
+             combinedMap.set(c.id, c);
+         }
+      });
+      
+      const absentSource = [];
+      if (allConsultants) {
+         allConsultants.forEach(c => {
+            if (!combinedMap.has(c.id)) {
+               absentSource.push({
+                 id: c.id,
+                 name: c.name,
+                 team: c.team || 'Other',
+                 status: 'absent',
+                 manager: 'Manager',
+                 location: 'Unknown',
+                 phone: 'N/A',
+                 email: 'N/A',
+                 avatar: c.avatar
+               });
+            }
+         });
+      }
+
+      if (activeKPI === 'absent') {
+        source = absentSource.filter(c => (selectedTeam === 'all' || c.team === selectedTeam) && c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
+      } else {
+        const fullTeam = [...Array.from(combinedMap.values()), ...absentSource];
+        source = fullTeam.filter(c => (selectedTeam === 'all' || c.team === selectedTeam) && c.name.toLowerCase().includes(debouncedSearch.toLowerCase()));
+      }
     }
     return source;
-  }, [filteredOnDuty, filteredOnLeaveList, activeKPI]);
+  }, [filteredOnDuty, filteredOnLeaveList, activeKPI, allConsultants, selectedTeam, debouncedSearch]);
 
   const groupedOnDuty = useMemo(() => groupByTeam(displayOnDuty), [displayOnDuty, groupByTeam]);
 
@@ -747,7 +838,7 @@ export function AttendancePage() {
     return [{ value: 'all', label: 'All Teams' }, ...teamList];
   }, [allConsultants, dutyData, wfhData, leaveData]);
   const toggleTeam = useCallback(teamId => {
-    setExpandedTeams(prev => {
+    setCollapsedTeams(prev => {
       const next = new Set(prev);
       next.has(teamId) ? next.delete(teamId) : next.add(teamId);
       return next;
@@ -978,7 +1069,10 @@ export function AttendancePage() {
           {[
             { key: 'total', icon: <Users size={20} />, color: 'blue', count: kpiTotalConsultants, label: 'Total Consultants' },
             { key: 'present', icon: <Building2 size={20} />, color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
-            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore').length, label: 'Remote / Other Present' },
+            // 'remote' (profile work location = Remote, no leave today) belongs in this
+            // bucket too — it was previously omitted, silently dropping those consultants
+            // from every KPI card even though they're counted in Total/Attendance %.
+            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'remote' || c.status === 'wfh' || c.status === 'offshore').length, label: 'Remote / Other Present' },
             { key: 'leave', icon: <Clock size={20} />, color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
             { key: 'absent', icon: <AlertCircle size={20} />, color: 'red', count: kpiAbsentCount, label: 'Absent / Not Marked' },
             { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(kpiTotalConsultants, 1) * 100)}%`, label: 'Attendance %' },
@@ -1011,7 +1105,7 @@ export function AttendancePage() {
               </div>
             )}
             {Object.entries(groupedOnDuty).map(([team, consultants]) => {
-              const isExpanded = expandedTeams.has(team) || Boolean(debouncedSearch.trim());
+              const isExpanded = !collapsedTeams.has(team) || Boolean(debouncedSearch.trim());
               return (
               <div key={team} className="attendance-team-group">
                 <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
@@ -1067,7 +1161,7 @@ export function AttendancePage() {
                 onClick={() => setOnWfhTimelineFilter('next30')}
               >
                 <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnWfhTimeline.length}</span>
+                <span className="att-folder-tab-badge">{filteredOnWfhTimelineNext30Count}</span>
               </button>
               <button
                 className="att-folder-tab"
@@ -1129,8 +1223,8 @@ export function AttendancePage() {
                           <div className="attendance-timeline-bars">
                             {timelineDates.map((date, idx) => {
                               const dateStr = formatDateKey(date);
-                              const dayData = data?.calendar?.find(d => d.date === dateStr);
-                              const wfhDetail = dayData?.on_wfh_details?.find(l => l.emp_id === leave.consultantId);
+                              const wfhDetails = getWfhDetailsForDate(dateStr);
+                              const wfhDetail = wfhDetails.find(l => l.emp_id === leave.consultantId);
                               const inLeave = !!wfhDetail;
                               // Any present-type leave HR configures beyond WFH itself —
                               // look up its real code/label instead of assuming Offshore Work.
@@ -1231,7 +1325,7 @@ export function AttendancePage() {
                 onClick={() => setOnLeaveTimelineFilter('next30')}
               >
                 <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnLeaveTimeline.length}</span>
+                <span className="att-folder-tab-badge">{filteredOnLeaveTimelineNext30Count}</span>
               </button>
               <button
                 className="att-folder-tab"
@@ -1293,8 +1387,8 @@ export function AttendancePage() {
                           <div className="attendance-timeline-bars">
                             {timelineDates.map((date, idx) => {
                               const dateStr = formatDateKey(date);
-                              const dayData = data?.calendar?.find(d => d.date === dateStr);
-                              const leaveDetail = dayData?.on_leave_details?.find(l => l.emp_id === leave.consultantId);
+                              const leaveDetails = getLeaveDetailsForDate(dateStr);
+                              const leaveDetail = leaveDetails.find(l => l.emp_id === leave.consultantId);
                               const inLeave = !!leaveDetail;
                               const lType = leaveDetail?.leave_type || leave.leaveType;
                               return (

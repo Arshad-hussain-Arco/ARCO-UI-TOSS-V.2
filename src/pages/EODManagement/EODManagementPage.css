@@ -617,7 +617,7 @@
   padding: 0 24px 0 28px;
   border-radius: 6px;
   border: 1px solid var(--border-secondary);
-  background: var(--surface-primary);
+  background: transparent;
   color: var(--text-primary);
   font-size: 12px;
   font-family: var(--font-family);

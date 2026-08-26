@@ -478,8 +478,7 @@
 
 
 /* New Tabular Job - Duration Matrix Layout */
-.murex-matrix-card-new {
-  /* Inherits background and border from .murex-overview-chart-card */
+.murex-matrix-card-new { 
   padding: 16px 20px;
 }
 
@@ -488,8 +487,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding-bottom: 16px;
+  gap: 4px; 
   width: 100%;
 }
 
@@ -1217,7 +1215,6 @@
 .murex-search-wrapper {
   position: relative;
   flex: 1;
-  max-width: 280px;
 }
 
 .murex-search-icon {
@@ -1236,7 +1233,7 @@
   border-radius: 3px;
   font-size: 10px;
   color: var(--text-primary);
-  background: var(--surface-primary);
+  background: transparent;
   transition: all 0.15s ease;
   box-sizing: border-box;
 }
