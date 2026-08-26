@@ -1233,10 +1233,10 @@ export function CapacityPlanningPage() {
               <span className="team-size-badge">Next 30 Days: {projectCountsByWindow.next30} project{projectCountsByWindow.next30 === 1 ? '' : 's'}</span>
               <span className="team-size-badge">Next 90 Days: {projectCountsByWindow.next90} project{projectCountsByWindow.next90 === 1 ? '' : 's'}</span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '10px 16px 0' }}>
+            <div className="cp-legend-container" style={{ paddingTop: '10px' }}>
               {(projectViewLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
-                <span key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: stage.color, display: 'inline-block' }} />
+                <span key={stage.id} className="cp-legend-item">
+                  <span className="cp-legend-indicator" style={{ background: stage.color }} />
                   {stage.name}
                 </span>
               ))}
@@ -1345,10 +1345,10 @@ export function CapacityPlanningPage() {
         {/* ── VIEW 4: Gantt View — project timeline ── */}
         {viewMode === 'gantt' && (
           <div className="cp-table-card">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '14px 16px 0' }}>
+            <div className="cp-legend-container">
               {(ganttLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
-                <span key={stage.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: stage.color, display: 'inline-block' }} />
+                <span key={stage.id} className="cp-legend-item">
+                  <span className="cp-legend-indicator" style={{ background: stage.color }} />
                   {stage.name}
                 </span>
               ))}
