@@ -1888,14 +1888,13 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                 )}
 
                 {/* Approval flow */}
-                {startDate && (
+                {startDate && applyFor === 'self' && (
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Approval Flow</p>
                     <div className="al-approval-steps">
                       {[
-                        { label: activeEmp.name, role: 'Applicant', done: true },
-                        { label: activeEmp.manager, role: 'Reporting Manager', done: false },
-                        { label: 'HR Department', role: 'Final Approval', done: false },
+                        { label: user?.name || activeEmp.name, role: 'Applicant', done: true },
+                        { label: user?.reportingManager || activeEmp.manager || 'Manager', role: 'Reporting Manager', done: false },
                       ].map((s, i) => (
                         <div key={i} className="al-approval-step">
                           <div className={`al-approval-dot ${s.done ? 'done' : 'pending'}`}>

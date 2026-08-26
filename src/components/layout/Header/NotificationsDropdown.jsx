@@ -167,7 +167,16 @@ export function NotificationsDropdown({
                   role="listitem"
                   onClick={() => {
                     if (unread) onMarkRead(n.id);
-                    const url = n.url || n.action_url || n.link;
+                    let url = n.url || n.action_url || n.link;
+                    
+                    // Smart routing for leave notifications to open the drawer
+                    const isLeaveType = n.notification_type?.startsWith('LEAVE_') || n.notification_type?.startsWith('MOD_');
+                    const targetId = n.leave_id || n.entity_id || n.related_id;
+                    if (isLeaveType && targetId) {
+                      const isManagerAction = n.notification_type === 'LEAVE_APPLIED' || n.notification_type === 'MOD_REQUESTED';
+                      url = `/leave-management?tab=${isManagerAction ? 'team-requests' : 'my-leaves-summary'}&viewLeaveId=${targetId}`;
+                    }
+
                     if (url) {
                       navigate(url);
                       onClose();
@@ -177,7 +186,16 @@ export function NotificationsDropdown({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       if (unread) onMarkRead(n.id);
-                      const url = n.url || n.action_url || n.link;
+                      let url = n.url || n.action_url || n.link;
+                      
+                      // Smart routing for leave notifications to open the drawer
+                      const isLeaveType = n.notification_type?.startsWith('LEAVE_') || n.notification_type?.startsWith('MOD_');
+                      const targetId = n.leave_id || n.entity_id || n.related_id;
+                      if (isLeaveType && targetId) {
+                        const isManagerAction = n.notification_type === 'LEAVE_APPLIED' || n.notification_type === 'MOD_REQUESTED';
+                        url = `/leave-management?tab=${isManagerAction ? 'team-requests' : 'my-leaves-summary'}&viewLeaveId=${targetId}`;
+                      }
+
                       if (url) {
                         navigate(url);
                         onClose();
