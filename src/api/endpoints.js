@@ -142,6 +142,7 @@ const endpoints = {
     teamPresentToday: (id) => `/leaves/manager/${id}/team-present-today/`,
     teamOnLeaveToday: (id) => `/leaves/manager/${id}/team-on-leave-today/`,
     teamOnWfhToday: (id) => `/leaves/manager/${id}/team-on-wfh-today/`,
+    leaveTypesReference: '/leaves/manager/leave-types-reference/',
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',

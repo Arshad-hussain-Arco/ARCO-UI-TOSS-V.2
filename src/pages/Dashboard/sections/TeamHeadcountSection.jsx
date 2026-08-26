@@ -1,10 +1,11 @@
 import { memo } from 'react';
 
 /**
- * Per-team headcount cards showing Active / On Leave / WFH / Total.
+ * Per-team headcount cards showing Active / On Leave / Remote (any
+ * counts_as_present leave type, e.g. WFH, Offshore Work) / Total.
  *
  * @param {Object} props
- * @param {{ team_id: number, team_name: string, active: number, on_leave: number, wfh: number, total: number }[]} props.teams
+ * @param {{ team_id: number, team_name: string, active: number, on_leave: number, wfh: number, present_other?: number, total: number }[]} props.teams
  */
 function TeamHeadcountSectionComponent({ teams }) {
   // Filter out teams with 0 total employees
@@ -43,8 +44,8 @@ function TeamHeadcountSectionComponent({ teams }) {
                   <span className="thc-stat-label">ON LEAVE</span>
                 </div>
                 <div className="thc-stat thc-stat--wfh">
-                  <span className="thc-stat-value">{team.wfh}</span>
-                  <span className="thc-stat-label">WFH</span>
+                  <span className="thc-stat-value">{team.present_other ?? team.wfh}</span>
+                  <span className="thc-stat-label">REMOTE</span>
                 </div>
               </div>
             </div>

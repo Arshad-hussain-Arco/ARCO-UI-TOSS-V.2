@@ -273,6 +273,10 @@ export const leaveService = {
     const response = await httpClient.get(endpoints.manager.teamOnWfhToday(managerId));
     return response.data;
   },
+  getLeaveTypesReference: async () => {
+    const response = await httpClient.get(endpoints.manager.leaveTypesReference);
+    return response.data;
+  },
 
   // --- HR / Policy / Reports Endpoints ---
   getLeaveTypes: async (params) => {

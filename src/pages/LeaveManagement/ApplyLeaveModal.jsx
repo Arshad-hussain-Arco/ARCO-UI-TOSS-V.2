@@ -565,6 +565,8 @@ function buildLeaveTypeItem(entry, balances) {
       ? 'Requires manager approval per organization policy.'
       : 'Does not require manager approval.',
     gender: entry.gender_restriction || undefined,
+    // 'PAID' | 'UNPAID' — from LMSLeaveType.payment_type.
+    paymentType: entry.payment_type || null,
   };
 }
 // `canApplyOnBehalf`: whether this user may apply leave for a subordinate,
@@ -1335,6 +1337,11 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                   {leaveType?.description && (
                     <p className="al-policy-hint">{leaveType.description}</p>
                   )}
+                  {leaveType?.paymentType && (
+                    <p className="al-policy-hint">
+                      Payment Type: {leaveType.paymentType === 'PAID' ? 'Paid' : 'Unpaid'}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1919,6 +1926,9 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Policy</p>
                     {[
+                      ...(effectiveLeaveType.paymentType
+                        ? [['Payment', effectiveLeaveType.paymentType === 'PAID' ? 'Paid' : 'Unpaid']]
+                        : []),
                       ['Notice', effectiveLeaveType.noticePeriod],
                       [
                         'Max consec.',

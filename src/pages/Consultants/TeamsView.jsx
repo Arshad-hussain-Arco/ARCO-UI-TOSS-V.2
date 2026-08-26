@@ -486,8 +486,8 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
                     <span className="tv-sc-lbl">On Leave</span>
                   </div>
                   <div className="tv-sc-stat">
-                    <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
-                    <span className="tv-sc-lbl">WFH</span>
+                    <span className="tv-sc-val wfh">{hc ? (hc.present_other ?? hc.wfh) : '--'}</span>
+                    <span className="tv-sc-lbl">Remote<strong>/</strong><br />Other Present</span>
                   </div>
                   <div className="tv-sc-stat total">
                     <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
