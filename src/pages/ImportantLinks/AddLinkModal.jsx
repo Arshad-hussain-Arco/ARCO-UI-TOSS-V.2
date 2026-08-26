@@ -1,11 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Pencil, Bold, Italic, List as ListIcon, Heading1, Underline, ListOrdered, Code } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Pencil, Bold, Italic, List as ListIcon, Heading1, Underline, ListOrdered, Code, Table as TableIcon, Rows, Columns, Trash2, Maximize, Minimize } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
 import { createId } from '@utils/id';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
+import { useToast } from '@hooks/useToast';
+import { insertTable, deleteTable, insertRowAfter, deleteRow, insertColumnAfter, deleteColumn, findAncestorTable, findAncestorCell, getRowIndex, getColIndex } from '@components/home/RichEditor/TableHandler';
 
+import '@components/home/RichEditor/RichEditor.css';
 import './ImportantLinksPage.css';
 
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip,.txt';
@@ -100,7 +103,14 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
 // Extra brace removed
 function SimpleRichTextEditor({ value, onChange, hasError }) {
   const editorRef = useRef(null);
+  const popoverRef = useRef(null);
   const [showSource, setShowSource] = useState(false);
+  const [openPopover, setOpenPopover] = useState(null); // 'table-insert' | 'table-ops' | null
+  const [gridHover, setGridHover] = useState({ rows: 0, cols: 0 });
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const toast = useToast();
+
+  useOnClickOutside(popoverRef, () => setOpenPopover(null));
 
   useEffect(() => {
     if (!showSource && editorRef.current && editorRef.current.innerHTML !== value) {
@@ -132,9 +142,60 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
     onChange(e.target.value);
   };
 
+  const handleInsertTable = (rows, cols) => {
+    if (showSource) return;
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+
+    const table = insertTable(rows, cols);
+    const sel = window.getSelection();
+
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        range.insertNode(table);
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        table.parentNode.insertBefore(p, table.nextSibling);
+
+        const newRange = document.createRange();
+        newRange.setStart(p, 0);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      } else {
+        editorRef.current.appendChild(table);
+        const p = document.createElement('p');
+        p.innerHTML = '<br>';
+        editorRef.current.appendChild(p);
+      }
+      onChange(editorRef.current.innerHTML);
+    }
+    setOpenPopover(null);
+  };
+
+  const withTableAndCell = (action) => {
+    if (showSource) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const cell = findAncestorCell(range.startContainer);
+
+    if (!cell || !editorRef.current.contains(cell)) {
+      toast?.error?.('Place the cursor inside a table first.');
+      return;
+    }
+    const table = findAncestorTable(cell);
+    action(table, cell);
+    onChange(editorRef.current.innerHTML);
+  };
+
   return (
-    <div className={`il-rte-container ${hasError ? 'il-input-error' : ''}`} style={{ border: '1px solid var(--border-primary)', borderRadius: '6px', overflow: 'hidden' }}>
-      <div className="il-rte-toolbar" style={{ display: 'flex', gap: '4px', padding: '6px 8px', background: 'var(--surface-secondary)', borderBottom: '1px solid var(--border-primary)', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className={`il-rte-container ${hasError ? 'il-input-error' : ''}`} style={isFullScreen ? { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column' } : { border: '1px solid var(--border-primary)', borderRadius: '6px', display: 'flex', flexDirection: 'column' }}>
+      <div className="il-rte-toolbar" style={{ display: 'flex', gap: '4px', padding: '6px 8px', background: 'var(--surface-secondary)', borderBottom: '1px solid var(--border-primary)', flexWrap: 'wrap', alignItems: 'center', borderTopLeftRadius: isFullScreen ? 0 : '5px', borderTopRightRadius: isFullScreen ? 0 : '5px' }}>
         <button type="button" onClick={() => exec('bold')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Bold"><Bold size={14} /></button>
         <button type="button" onClick={() => exec('italic')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Italic"><Italic size={14} /></button>
         <button type="button" onClick={() => exec('underline')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Underline"><Underline size={14} /></button>
@@ -144,27 +205,88 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
         <button type="button" onClick={() => exec('insertUnorderedList')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Bullet List"><ListIcon size={14} /></button>
         <button type="button" onClick={() => exec('insertOrderedList')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Numbered List"><ListOrdered size={14} /></button>
         <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 4px' }} />
-        {/* <button type="button" onClick={() => exec('createLink')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Insert Link"><Link2 size={14} /></button> */}
-        
+        {/* Table Insert Popover */}
+        <div className="rte-tb-popover-wrap" ref={openPopover === 'table-insert' ? popoverRef : null}>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setOpenPopover(p => p === 'table-insert' ? null : 'table-insert')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: openPopover === 'table-insert' ? 'var(--bg-hover)' : 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)' }} title="Insert table"><TableIcon size={14} /></button>
+
+          {openPopover === 'table-insert' && !showSource && (
+            <div className="rte-popover rte-table-grid-popover rte-popover-right" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 10 }}>
+              <div className="rte-table-grid" onMouseLeave={() => setGridHover({ rows: 0, cols: 0 })}>
+                {Array.from({ length: 8 }).map((_, r) => (
+                  <div key={r} className="rte-table-grid-row">
+                    {Array.from({ length: 8 }).map((__, c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`rte-table-grid-cell ${r < gridHover.rows && c < gridHover.cols ? 'rte-table-grid-cell-active' : ''}`}
+                        aria-label={`Insert ${r + 1} by ${c + 1} table`}
+                        onMouseEnter={() => setGridHover({ rows: r + 1, cols: c + 1 })}
+                        onClick={() => handleInsertTable(r + 1, c + 1)}
+                        onMouseDown={(e) => e.preventDefault()}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="rte-table-grid-label">
+                {gridHover.rows > 0 ? `${gridHover.rows} x ${gridHover.cols}` : 'Insert table'}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Table Ops Popover */}
+        <div className="rte-tb-popover-wrap" ref={openPopover === 'table-ops' ? popoverRef : null}>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setOpenPopover(p => p === 'table-ops' ? null : 'table-ops')} disabled={showSource} style={{ padding: '4px', borderRadius: '4px', background: openPopover === 'table-ops' ? 'var(--bg-hover)' : 'transparent', border: 'none', cursor: showSource ? 'not-allowed' : 'pointer', color: showSource ? 'var(--text-disabled)' : 'var(--text-primary)', display: 'flex', alignItems: 'center' }} title="Table operations"><ChevronDown size={14} /></button>
+
+          {openPopover === 'table-ops' && !showSource && (
+            <div className="rte-popover rte-table-ops-popover rte-popover-right" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 10 }}>
+              <button type="button" className="rte-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={() => { withTableAndCell((t, c) => insertRowAfter(t, getRowIndex(t, c))); setOpenPopover(null); }}>
+                <Rows size={14} /> Add row below
+              </button>
+              <button type="button" className="rte-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={() => { withTableAndCell((t, c) => deleteRow(t, getRowIndex(t, c))); setOpenPopover(null); }}>
+                <Rows size={14} /> Delete row
+              </button>
+              <button type="button" className="rte-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={() => { withTableAndCell((t, c) => insertColumnAfter(t, getColIndex(t, c))); setOpenPopover(null); }}>
+                <Columns size={14} /> Add column right
+              </button>
+              <button type="button" className="rte-menu-item" onMouseDown={(e) => e.preventDefault()} onClick={() => { withTableAndCell((t, c) => deleteColumn(t, getColIndex(t, c))); setOpenPopover(null); }}>
+                <Columns size={14} /> Delete column
+              </button>
+              <button type="button" className="rte-menu-item rte-menu-item-danger" onMouseDown={(e) => e.preventDefault()} onClick={() => { withTableAndCell((t) => deleteTable(t)); setOpenPopover(null); }}>
+                <Trash2 size={14} /> Delete table
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{ flex: 1 }} />
-        <button type="button" onClick={() => setShowSource(!showSource)} style={{ padding: '4px 8px', borderRadius: '4px', background: showSource ? 'var(--bg-hover)' : 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600 }} title="Source Code">
-          <Code size={14} /> Source
+        <button type="button" onClick={() => setIsFullScreen(!isFullScreen)} style={{ padding: '4px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', marginRight: '4px' }} title={isFullScreen ? "Exit Full Screen" : "Full Screen"}>
+          {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />}
         </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--surface-primary)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-primary)' }}>
+          <button type="button" onClick={() => setShowSource(true)} style={{ padding: '4px 10px', borderRadius: '4px', background: showSource ? '#006633' : 'transparent', border: 'none', cursor: 'pointer', color: showSource ? '#ffffff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: showSource ? 600 : 500 }} title="Source Code">
+            <Code size={14} /> Source
+          </button>
+          <button type="button" onClick={() => setShowSource(false)} style={{ padding: '4px 10px', borderRadius: '4px', background: !showSource ? '#006633' : 'transparent', border: 'none', cursor: 'pointer', color: !showSource ? '#ffffff' : 'var(--text-secondary)', fontSize: '11px', fontWeight: !showSource ? 600 : 500 }} title="Preview">
+            Preview
+          </button>
+        </div>
       </div>
-      
+
       {showSource ? (
         <textarea
           value={value}
           onChange={handleSourceChange}
           className="il-rte-content"
-          style={{ width: '100%', minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', border: 'none', resize: 'vertical', fontFamily: 'monospace' }}
+          style={{ flex: 1, width: '100%', minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', border: 'none', resize: isFullScreen ? 'none' : 'vertical', fontFamily: 'monospace', borderBottomLeftRadius: isFullScreen ? 0 : '5px', borderBottomRightRadius: isFullScreen ? 0 : '5px' }}
         />
       ) : (
         <div
           ref={editorRef}
           contentEditable
           onInput={handleInput}
-          style={{ minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', overflowY: 'auto' }}
+          style={{ flex: 1, minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', overflowY: 'auto', borderBottomLeftRadius: isFullScreen ? 0 : '5px', borderBottomRightRadius: isFullScreen ? 0 : '5px' }}
           className="il-rte-content"
         />
       )}
@@ -408,7 +530,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
             <input
               type="text"
               className={`il-input${errors.linkName ? ' il-input-error' : ''}`}
-             
+
               value={state.linkName}
               onChange={(e) => {
                 set('linkName', e.target.value);
@@ -453,7 +575,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                   setErrors((prev) => ({ ...prev, content: undefined }));
                 }}
               >
-                <Pencil size={15} /> Text Content
+                <Pencil size={15} /> Content
               </button>
             </div>
           </div>
@@ -552,7 +674,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                     </div>
                   </div>
                 )}
-                
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -569,7 +691,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
 
             {linkType === 'content' && (
               <div className="il-form-group">
-                <span className="il-label il-label-required">Text Content</span>
+                <span className="il-label il-label-required"> Content</span>
                 <SimpleRichTextEditor
                   value={state.comments}
                   onChange={(val) => {
