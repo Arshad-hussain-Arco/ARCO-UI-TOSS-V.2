@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ListOrdered, ShieldCheck, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ListOrdered, ShieldCheck, Settings, ArrowLeft } from 'lucide-react';
 
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
+import { Button } from '@components/ui/Button/Button';
 
 import { MySidebarLayoutPanel } from './panels/MySidebarLayoutPanel';
 import { RoleSidebarDefaultsPanel } from './panels/RoleSidebarDefaultsPanel';
@@ -17,6 +19,7 @@ import './PreferencesPage.css';
 export function PreferencesPage() {
   useDocumentTitle('Preferences');
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const TABS = useMemo(
     () => [
@@ -34,6 +37,15 @@ export function PreferencesPage() {
     <div className="pf-container">
       <div className="pf-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            leadingIcon={ArrowLeft}
+            style={{ color: 'var(--text-secondary)', marginRight: '8px' }}
+          >
+            Back
+          </Button>
           <Settings size={22} className="pf-header-icon" style={{ color: 'var(--c-primary, #006633)' }} />
           <h2 className="pf-title">Preferences</h2>
         </div>

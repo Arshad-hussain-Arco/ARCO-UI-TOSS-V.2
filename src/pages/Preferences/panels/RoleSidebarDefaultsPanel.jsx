@@ -90,6 +90,7 @@ export function RoleSidebarDefaultsPanel() {
   const [selectedRoleId, setSelectedRoleId] = useState(user?.roleId ?? null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   const [topLevel, setTopLevel] = useState([]);
@@ -156,7 +157,7 @@ export function RoleSidebarDefaultsPanel() {
   };
 
   const handleResetToDefault = async () => {
-    setIsSaving(true);
+    setIsResetting(true);
     try {
       await roleService.updateSidebarNavOrder(selectedRoleId, EMPTY_ORDER);
       toast.success("Sidebar layout reset to the developer's default.");
@@ -165,7 +166,7 @@ export function RoleSidebarDefaultsPanel() {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to reset sidebar layout.');
     } finally {
-      setIsSaving(false);
+      setIsResetting(false);
     }
   };
 
@@ -187,7 +188,7 @@ export function RoleSidebarDefaultsPanel() {
             placeholder={roles.length === 0 ? 'Loading roles...' : 'Select a role...'}
             disabled={roles.length === 0}
           />
-          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToDefault} disabled={isSaving || !selectedRoleId}>
+          <Button variant="outline" size="sm" leadingIcon={RotateCcw} onClick={handleResetToDefault} disabled={isSaving || isResetting || !selectedRoleId} isLoading={isResetting}>
             Default
           </Button>
           <Button
@@ -195,7 +196,7 @@ export function RoleSidebarDefaultsPanel() {
             size="sm"
             leadingIcon={isSaving ? undefined : Save}
             onClick={handleSave}
-            disabled={isSaving || !isDirty || !selectedRoleId}
+            disabled={isSaving || isResetting || !isDirty || !selectedRoleId}
             isLoading={isSaving}
           >
             Save

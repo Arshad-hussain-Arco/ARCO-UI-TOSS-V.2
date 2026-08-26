@@ -1236,7 +1236,7 @@
   border-radius: 3px;
   font-size: 10px;
   color: var(--text-primary);
-  background: var(--surface-primary);
+  background: transparent;
   transition: all 0.15s ease;
   box-sizing: border-box;
 }

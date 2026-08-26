@@ -50,6 +50,7 @@
   font-family: var(--font-family);
   font-size: 12px;
   color: var(--text-primary);
+  background: transparent;
   outline: none;
   transition: border-color 0.15s;
 }

@@ -187,14 +187,14 @@
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
   outline: none;
-  background-color: var(--bg-secondary);
+  background-color: transparent;
   transition: all 0.2s ease;
   color: var(--text-primary);
 }
 
 .cp-search-input:focus {
   border-color: var(--c-primary);
-  background-color: var(--surface-primary);
+  background-color: transparent;
   box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.15);
 }
 

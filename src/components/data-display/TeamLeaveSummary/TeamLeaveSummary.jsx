@@ -491,8 +491,8 @@ function TeamLeaveSummary({ getPhoto }) {
       {!loading && (
         <>
           {/* ── Shared Filter Bar ── */}
-          <div className="team-summary-filter-bar">
-            <div className="team-summary-filters-left">
+          <div className="team-summary-filter-bar" style={{ alignContent: 'flex-start', justifyContent: 'space-between' }}>
+            <div className="team-summary-filters-left" style={{ flex: '0 0 auto' }}>
               <div className="team-summary-filter-group">
                 <Select
                   value={summaryDepartment}
@@ -568,7 +568,7 @@ function TeamLeaveSummary({ getPhoto }) {
               </div>
             </div>
 
-            <div className="team-summary-filters-right">
+            <div className="team-summary-filters-right" style={{ marginLeft: 0 }}>
               <div className="team-summary-view-switcher">
                 <button
                   className="team-summary-view-btn"
