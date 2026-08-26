@@ -1314,3 +1314,24 @@
 .il-content-download-btn:hover {
   background: var(--bg-hover);
 }
+
+/* ── Rich Text Editor Table Styles ───────────────────────────────────────── */
+.il-rte-content table,
+.il-rte-viewer table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+.il-rte-content table th,
+.il-rte-content table td,
+.il-rte-viewer table th,
+.il-rte-viewer table td {
+  border: 1px solid var(--border-primary);
+  padding: 8px;
+  min-width: 40px;
+  height: 30px;
+}
+.il-rte-content table th,
+.il-rte-viewer table th {
+  background: var(--surface-secondary);
+}
