@@ -227,6 +227,7 @@
   overflow-y: auto;
   overflow-x: auto;
   flex: 1;
+  padding-top: 10px;
 }
 
 .cp-data-table {
@@ -1132,4 +1133,43 @@
 [data-theme="dark"] .cp-modal-card {
   background: var(--surface-secondary);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced Legend Styles */
+.cp-legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 16px 0;
+}
+
+.cp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.cp-legend-item:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.cp-legend-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
 }
