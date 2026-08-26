@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Sun } from 'lucide-react';
+import { Bell, ChevronDown, ExternalLink, Menu, Moon, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
@@ -33,10 +33,7 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
   const { user: authUser } = useAuth();
   const navigate = useNavigate();
   
-  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-
-  const navMenuRef = useRef(null);
 
   const empId = authUser?.emp_id ?? null;
 
@@ -48,10 +45,7 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
     markAllRead,
   } = useNotifications(empId);
 
-  const closeNavMenu = useCallback(() => setIsNavMenuOpen(false), []);
   const closeNotif   = useCallback(() => setIsNotifOpen(false), []);
-
-  useOnClickOutside(navMenuRef, closeNavMenu, isNavMenuOpen);
 
   const [activeGroupDropdown, setActiveGroupDropdown] = useState(null);
 
@@ -136,52 +130,7 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
           })}
         </nav>
 
-        <div className="header-mobile-nav-wrapper" ref={navMenuRef}>
-          <button
-            type="button"
-            onClick={() => setIsNavMenuOpen((open) => !open)}
-            className="header-icon-button"
-            aria-haspopup="menu"
-            aria-expanded={isNavMenuOpen}
-            aria-label="More links"
-          >
-            <MoreVertical className="header-icon" aria-hidden="true" />
-          </button>
 
-          {isNavMenuOpen && pinnedLinks.length > 0 ? (
-            <div className="header-mobile-nav-menu" role="menu">
-              {pinnedLinks.flatMap(g => g.links).map((link) => 
-                link.url ? (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    className="header-mobile-nav-item"
-                    role="menuitem"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={closeNavMenu}
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <button
-                    key={link.id}
-                    type="button"
-                    className="header-mobile-nav-item"
-                    role="menuitem"
-                    style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', padding: '12px 16px' }}
-                    onClick={() => {
-                      closeNavMenu();
-                      navigate(buildPath(ROUTES.IMPORTANT_LINKS_CONTENT, { id: link.id }));
-                    }}
-                  >
-                    {link.label}
-                  </button>
-                )
-              )}
-            </div>
-          ) : null}
-        </div>
 
         <div className="header-divider" />
 

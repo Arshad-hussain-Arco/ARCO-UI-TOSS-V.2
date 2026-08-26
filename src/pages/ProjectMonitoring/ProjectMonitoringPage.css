@@ -822,14 +822,14 @@
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
   outline: none;
-  background: var(--bg-secondary);
+  background: transparent;
   transition: border-color 0.15s ease, background-color 0.15s ease;
   box-sizing: border-box;
 }
 
 .pm-search-input:focus {
   border-color: var(--c-primary);
-  background: var(--surface-primary);
+  background: transparent;
 }
 
 .pm-clear-btn {

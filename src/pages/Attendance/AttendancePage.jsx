@@ -264,9 +264,7 @@ export function AttendancePage() {
   };
 
   const debouncedSearch = useDebounce(searchQuery, 500);
-  const [expandedTeams, setExpandedTeams] = useState(
-    new Set(['management', 'frontend', 'backend', 'uiux', 'data']),
-  );
+  const [collapsedTeams, setCollapsedTeams] = useState(new Set());
   const [activeKPI, setActiveKPI] = useState(null);
 
   const [wfhData, setWfhData] = useState(null);
@@ -562,6 +560,30 @@ export function AttendancePage() {
     });
   }, [onWfhConsultants, selectedTeam, debouncedSearch, timelineDates, data?.calendar]);
 
+  const filteredOnLeaveTimelineNext30Count = useMemo(() => {
+    return onLeaveConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      return fetchTimelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const dayData = data?.calendar?.find(d => d.date === dateStr);
+        return dayData?.on_leave_details?.some(leave => leave.emp_id === l.consultantId);
+      });
+    }).length;
+  }, [onLeaveConsultants, selectedTeam, debouncedSearch, fetchTimelineDates, data?.calendar]);
+
+  const filteredOnWfhTimelineNext30Count = useMemo(() => {
+    return onWfhConsultants.filter(l => {
+      if (selectedTeam !== 'all' && l.team !== selectedTeam) return false;
+      if (!l.consultantName.toLowerCase().includes(debouncedSearch.toLowerCase())) return false;
+      return fetchTimelineDates.some(date => {
+        const dateStr = formatDateKey(date);
+        const dayData = data?.calendar?.find(d => d.date === dateStr);
+        return dayData?.on_wfh_details?.some(wfh => wfh.emp_id === l.consultantId);
+      });
+    }).length;
+  }, [onWfhConsultants, selectedTeam, debouncedSearch, fetchTimelineDates, data?.calendar]);
+
   const filteredOnLeaveList = useMemo(() => {
     let source = [];
     if (leaveData?.on_leave_details) {
@@ -682,7 +704,7 @@ export function AttendancePage() {
     return [{ value: 'all', label: 'All Teams' }, ...teamList];
   }, [allConsultants, dutyData, wfhData, leaveData]);
   const toggleTeam = useCallback(teamId => {
-    setExpandedTeams(prev => {
+    setCollapsedTeams(prev => {
       const next = new Set(prev);
       next.has(teamId) ? next.delete(teamId) : next.add(teamId);
       return next;
@@ -936,7 +958,7 @@ export function AttendancePage() {
               </div>
             )}
             {Object.entries(groupedOnDuty).map(([team, consultants]) => {
-              const isExpanded = expandedTeams.has(team) || Boolean(debouncedSearch.trim());
+              const isExpanded = !collapsedTeams.has(team) || Boolean(debouncedSearch.trim());
               return (
               <div key={team} className="attendance-team-group">
                 <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
@@ -989,7 +1011,7 @@ export function AttendancePage() {
                 onClick={() => setOnWfhTimelineFilter('next30')}
               >
                 <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnWfhTimeline.length}</span>
+                <span className="att-folder-tab-badge">{filteredOnWfhTimelineNext30Count}</span>
               </button>
               <button
                 className="att-folder-tab"
@@ -1141,7 +1163,7 @@ export function AttendancePage() {
                 onClick={() => setOnLeaveTimelineFilter('next30')}
               >
                 <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnLeaveTimeline.length}</span>
+                <span className="att-folder-tab-badge">{filteredOnLeaveTimelineNext30Count}</span>
               </button>
               <button
                 className="att-folder-tab"
