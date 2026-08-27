@@ -182,7 +182,11 @@ export function MurexOverviewTab() {
     return (job.name && job.name.toLowerCase().includes(q)) ||
       (job.rawScriptName && job.rawScriptName.toLowerCase().includes(q));
   });
-  const timelineList = dayData.timelineList || [];
+  const timelineList = (dayData.timelineList || []).filter(timelineItem => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return timelineItem.jobInfo?.title?.toLowerCase().includes(q);
+  });
 
 
 

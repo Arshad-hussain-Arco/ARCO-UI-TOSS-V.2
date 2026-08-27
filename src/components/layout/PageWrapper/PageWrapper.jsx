@@ -22,17 +22,20 @@ export function PageWrapper({ breadcrumbItems, children }) {
 
   let rightElement = null;
   if (pathname === ROUTES.MUREX_RUNTIME) {
-    rightElement = <UploadTimestampDisplay fileKey="runTimeFilePath" label="Last uploaded on" />;
+    rightElement = <UploadTimestampDisplay fileKey="runTimeFilePath" label="Runtime File Last Updated on" />;
   } else if (pathname === ROUTES.PROJECT_MONITORING) {
     rightElement = (
       <UploadTimestampDisplay configs={[
-        { fileKey: 'wofilePath', label: 'Last uploaded on' },
-        { fileKey: 'crfilePath', label: 'Last uploaded on' }
+        { fileKey: 'wofilePath', label: 'WO File Last Updated on' },
+        { fileKey: 'crfilePath', label: 'CR File Last Updated on' }
       ]} />
     );
   } else if (pathname === ROUTES.CAPACITY_PLANNING) {
     rightElement = (
-      <UploadTimestampDisplay fileKey="crfilePath" label="Last uploaded on" />
+      <UploadTimestampDisplay configs={[
+        { fileKey: 'wofilePath', label: 'WO File Last Updated on' },
+        { fileKey: 'crfilePath', label: 'CR File Last Updated on' }
+      ]} />
     );
   }
 
