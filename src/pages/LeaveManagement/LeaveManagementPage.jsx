@@ -531,8 +531,8 @@ export function LeaveManagementPage() {
       let bVal = b[sortField];
 
       if (sortField === 'comments') {
-        aVal = a.comments || a.approval_reason || a.rejected_reason || '';
-        bVal = b.comments || b.approval_reason || b.rejected_reason || '';
+        aVal = a.comments || (a.status_code === 'REJECTED' ? a.rejected_reason : a.approval_reason) || a.rejected_reason || a.approval_reason || '';
+        bVal = b.comments || (b.status_code === 'REJECTED' ? b.rejected_reason : b.approval_reason) || b.rejected_reason || b.approval_reason || '';
       }
 
       if (aVal === bVal) return 0;
@@ -553,7 +553,7 @@ export function LeaveManagementPage() {
       l.business_days || 0,
       l.leave_reason || '',
       l.status_code || '',
-      l.manager_comment || l.hr_comment || ''
+      l.comments || (l.status_code === 'REJECTED' ? l.rejected_reason : l.approval_reason) || l.rejected_reason || l.approval_reason || ''
     ]);
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -565,7 +565,7 @@ export function LeaveManagementPage() {
     const doc = new jsPDF('landscape');
     autoTable(doc, {
       head: [['Leave Type', 'Dates', 'Work Days', 'Leave Reason', 'Status', 'Comments']],
-      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.manager_comment || l.hr_comment || '']),
+      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.comments || (l.status_code === 'REJECTED' ? l.rejected_reason : l.approval_reason) || l.rejected_reason || l.approval_reason || '']),
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [29, 78, 216] }
@@ -1013,7 +1013,13 @@ export function LeaveManagementPage() {
                                   className="leave-table-action-button"
                                   style={{ color: '#64748b' }}
                                   title="View Comments"
-                                  onClick={() => setCommentsModalText(leave.comments || leave.approval_reason || leave.rejected_reason || 'No comments available')}
+                                  onClick={() => setCommentsModalText(
+                                    leave.comments
+                                      || (leave.status_code === 'REJECTED' ? leave.rejected_reason : leave.approval_reason)
+                                      || leave.rejected_reason
+                                      || leave.approval_reason
+                                      || 'No comments available'
+                                  )}
                                 >
                                   <FileCheck />
                                 </button>

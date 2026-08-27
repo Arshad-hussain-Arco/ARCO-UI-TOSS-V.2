@@ -1106,23 +1106,23 @@ export function TeamRequestsTab({ getPhoto }) {
                               )}
                               <td className="tr-td">
                                 <div className="tr-actions">
-                                  {req.status === 'pending' && (
-                                    <>
-                                      <button
-                                        className="tr-act-btn tr-act-approve"
-                                        title="Approve"
-                                        onClick={() => openDrawer(req, 'approve')}
-                                      >
-                                        <Check size={10} />
-                                      </button>
-                                      <button
-                                        className="tr-act-btn tr-act-reject"
-                                        title="Reject"
-                                        onClick={() => openDrawer(req, 'reject')}
-                                      >
-                                        <X size={10} />
-                                      </button>
-                                    </>
+                                  {(req.status === 'pending' || req.status === 'rejected') && (
+                                    <button
+                                      className="tr-act-btn tr-act-approve"
+                                      title="Approve"
+                                      onClick={() => openDrawer(req, 'approve')}
+                                    >
+                                      <Check size={10} />
+                                    </button>
+                                  )}
+                                  {(req.status === 'pending' || req.status === 'approved') && (
+                                    <button
+                                      className="tr-act-btn tr-act-reject"
+                                      title="Reject"
+                                      onClick={() => openDrawer(req, 'reject')}
+                                    >
+                                      <X size={10} />
+                                    </button>
                                   )}
                                   {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                                     <>
@@ -1133,13 +1133,13 @@ export function TeamRequestsTab({ getPhoto }) {
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                       </button>
-                                      <button
+                                      {/* <button
                                         className="tr-act-btn"
                                         title="Cancel on behalf"
                                         onClick={() => setCancelModalLeave(req.raw)}
                                       >
                                         <Ban size={10} />
-                                      </button>
+                                      </button> */}
                                     </>
                                   )}
                                   <button
@@ -1400,24 +1400,24 @@ export function TeamRequestsTab({ getPhoto }) {
 
                           {/* Actions */}
                           <div className="tr-actions">
-                            {req.status === 'pending' && (
-                              <>
-                                <button
-                                  className="tr-act-btn tr-act-approve"
-                                  title="Approve"
-                                  onClick={() => openDrawer(req, 'approve')}
-                                >
-                                  <Check size={10} />
-                                </button>
-                                <button
-                                  className="tr-act-btn tr-act-reject"
-                                  title="Reject"
-                                  onClick={() => openDrawer(req, 'reject')}
-                                >
-                                  <X size={10} />
-                                </button>
-                              </>
-                            )}
+                                  {(req.status === 'pending' || req.status === 'rejected') && (
+                                    <button
+                                      className="tr-act-btn tr-act-approve"
+                                      title="Approve"
+                                      onClick={() => openDrawer(req, 'approve')}
+                                    >
+                                      <Check size={10} />
+                                    </button>
+                                  )}
+                                  {(req.status === 'pending' || req.status === 'approved') && (
+                                    <button
+                                      className="tr-act-btn tr-act-reject"
+                                      title="Reject"
+                                      onClick={() => openDrawer(req, 'reject')}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  )}
                             {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                               <>
                                 <button
@@ -1427,13 +1427,13 @@ export function TeamRequestsTab({ getPhoto }) {
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                 </button>
-                                <button
+                                {/* <button
                                   className="tr-act-btn"
                                   title="Cancel on behalf"
                                   onClick={() => setCancelModalLeave(req.raw)}
                                 >
                                   <Ban size={10} />
-                                </button>
+                                </button> */}
                               </>
                             )}
                             <button
@@ -1484,7 +1484,7 @@ export function TeamRequestsTab({ getPhoto }) {
           }}
         />
       )}
-      {cancelModalLeave && (
+      {/* {cancelModalLeave && (
         <CancelLeaveModal
           leave={cancelModalLeave}
           onClose={() => setCancelModalLeave(null)}
@@ -1493,7 +1493,7 @@ export function TeamRequestsTab({ getPhoto }) {
             refetch();
           }}
         />
-      )}
+      )} */}
     </div>
   );
 }

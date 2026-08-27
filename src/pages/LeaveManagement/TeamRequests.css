@@ -846,8 +846,8 @@
 }
 
 .tr-tl-dot.active {
-  background: var(--c-warning);
-  color: var(--surface-primary);
+  background: #f59e0b;
+  color: #fff;
 }
 
 .tr-tl-dot.waiting {
