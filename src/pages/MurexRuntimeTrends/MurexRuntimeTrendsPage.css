@@ -393,20 +393,24 @@
 }
 
 .murex-overview-job-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary);
   margin: 0;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.3px;
 }
 
 .murex-overview-job-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary, #64748b);
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-primary);
 }
 
 .murex-meta-dot {
@@ -414,8 +418,8 @@
 }
 
 .murex-overview-chart-card {
-  background: var(--surface-primary, #ffffff);
-  border: 1px solid var(--border-primary, #e2e8f0);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   padding: 16px 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -644,55 +648,64 @@
 .murex-timeline-accordion-card {
   background: var(--surface-primary, #ffffff);
   border: 1px solid var(--border-primary, #e2e8f0);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 12px;
+}
+
+.murex-timeline-accordion-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 .murex-timeline-accordion-card.is-expanded {
-  border-color: var(--border-secondary, #cbd5e1);
+  border-color: var(--c-primary);
+  box-shadow: 0 8px 24px rgba(0, 90, 54, 0.1);
 }
 
 .murex-timeline-accordion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
+  padding: 16px 24px;
   cursor: pointer;
-  background: var(--surface-primary, #ffffff);
+  background: linear-gradient(180deg, var(--surface-primary) 0%, var(--bg-secondary) 100%);
   user-select: none;
-  transition: background-color 0.15s ease;
+  transition: all 0.25s ease;
 }
 
 .murex-timeline-accordion-header:hover {
-  background-color: var(--bg-hover, #f8fafc);
+  background: linear-gradient(180deg, var(--bg-hover, #f8fafc) 0%, var(--bg-primary, #f1f5f9) 100%);
 }
 
 .murex-timeline-accordion-header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .murex-timeline-accordion-chevron-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--bg-primary, #f8fafc);
-  border: 1px solid var(--border-primary, #e2e8f0);
-  border-radius: 6px;
-  color: var(--text-secondary, #64748b);
+  width: 36px;
+  height: 36px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 50%;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .murex-timeline-accordion-header:hover .murex-timeline-accordion-chevron-btn {
-  background: var(--bg-hover, #f1f5f9);
-  color: var(--c-primary, #005A36);
-  border-color: var(--border-secondary, #cbd5e1);
+  background: var(--bg-hover);
+  color: var(--c-primary);
+  border-color: var(--c-primary);
+  transform: scale(1.05);
 }
 
 .murex-timeline-accordion-body {
@@ -1354,8 +1367,8 @@
 }
 
 .murex-status-badge.inactive {
-  background: var(--border-primary);
-  color: var(--text-secondary);
+  background: #fee2e2;
+  color: #ef4444;
 }
 
 .murex-script-actions {
@@ -2543,3 +2556,10 @@
   bottom: 0;
   z-index: 2;
 }
+
+/* Round Plotly annotation backgrounds for the count badges */
+.js-plotly-plot .annotation-text-g rect.bg {
+    rx: 50px;
+    ry: 50px;
+}
+
