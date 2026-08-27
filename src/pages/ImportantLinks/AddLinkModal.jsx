@@ -634,6 +634,7 @@ function AddLinkModalComponent({ existingGroups = [], editLink = null, onAdd, on
                             size="sm"
                             onClick={() => removeFile(i)}
                             style={{ padding: '4px 8px', fontSize: '12px', height: 'auto', color: 'var(--c-danger)' }}
+                            leadingIcon={Trash2}
                           >
                             Remove
                           </Button>

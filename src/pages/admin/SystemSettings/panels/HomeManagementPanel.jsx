@@ -1142,7 +1142,10 @@ function HomeManagementPanelComponent() {
               }}
               onClick={confirmDeleteCard}
             >
-              Delete
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash size={14} style={{ marginRight: '6px' }} />
+                Delete
+              </div>
             </button>
           </div>
         }

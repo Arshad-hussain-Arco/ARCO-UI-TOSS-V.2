@@ -30,7 +30,7 @@ export function ViewLeaveModal({ leave, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)' }}>{displayType}</span>
              <span className="leave-table-status" data-status={statusStr} style={{ textTransform: 'capitalize' }}>
-                {statusStr.replace('-', ' ')}
+                {statusStr === 'self-rejected' ? 'Self Rejected' : statusStr.replace('-', ' ')}
              </span>
           </div>
 
