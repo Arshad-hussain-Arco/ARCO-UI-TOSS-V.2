@@ -114,8 +114,8 @@ export function MyLeavesSummaryTab({
       let bVal = b[sortField];
       
       if (sortField === 'comments') {
-        aVal = a.comments || a.approval_reason || a.rejected_reason || '';
-        bVal = b.comments || b.approval_reason || b.rejected_reason || '';
+        aVal = a.comments || (a.status_code === 'REJECTED' ? a.rejected_reason : a.approval_reason) || a.rejected_reason || a.approval_reason || '';
+        bVal = b.comments || (b.status_code === 'REJECTED' ? b.rejected_reason : b.approval_reason) || b.rejected_reason || b.approval_reason || '';
       }
       
       if (aVal === bVal) return 0;
