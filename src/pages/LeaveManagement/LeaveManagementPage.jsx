@@ -1002,7 +1002,7 @@ export function LeaveManagementPage() {
                               <td className="leave-table-cell" data-label="Status">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <span className="leave-table-status" data-status={statusStr}>
-                                    {statusStr}
+                                    {statusStr === 'self-rejected' ? 'Self Rejected' : statusStr}
                                   </span>
                                   {statusStr === 'pending' && <RemindManagerButton leave={leave} />}
                                 </div>

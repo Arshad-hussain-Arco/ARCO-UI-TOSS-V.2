@@ -139,7 +139,10 @@
   background: var(--text-tertiary);
   color: var(--text-inverse);
 }
-
+.leave-table-status[data-status= 'cancelled'] {
+   background: var(--c-danger);
+  color: var(--text-inverse);
+}
 .leave-table-status[data-status='mod-pending'] {
   background: var(--c-info, #3b82f6);
   color: var(--text-inverse);
