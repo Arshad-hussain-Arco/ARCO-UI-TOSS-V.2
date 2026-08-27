@@ -514,7 +514,7 @@ export function LeaveManagementPage() {
       let matchesSearch = true;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type;
+        const displayType = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type;
         matchesSearch = [
           displayType,
           leave.status_code,
@@ -547,7 +547,7 @@ export function LeaveManagementPage() {
   const handleExportCSV = () => {
     const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Leave Reason', 'Status', 'Comments'];
     const rows = filteredSortedLeaves.map(l => [
-      l.leave_type || '',
+      l.leave_name || l.leave_type || '',
       l.start_date || '',
       l.end_date || '',
       l.business_days || 0,
@@ -565,7 +565,7 @@ export function LeaveManagementPage() {
     const doc = new jsPDF('landscape');
     autoTable(doc, {
       head: [['Leave Type', 'Dates', 'Work Days', 'Leave Reason', 'Status', 'Comments']],
-      body: filteredSortedLeaves.map(l => [l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.comments || (l.status_code === 'REJECTED' ? l.rejected_reason : l.approval_reason) || l.rejected_reason || l.approval_reason || '']),
+      body: filteredSortedLeaves.map(l => [l.leave_name || l.leave_type || '', `${l.start_date || ''} to ${l.end_date || ''}`, l.business_days || 0, l.leave_reason || '', l.status_code || '', l.comments || (l.status_code === 'REJECTED' ? l.rejected_reason : l.approval_reason) || l.rejected_reason || l.approval_reason || '']),      
       theme: 'grid',
       styles: { fontSize: 8 },
       headStyles: { fillColor: [29, 78, 216] }
@@ -973,7 +973,7 @@ export function LeaveManagementPage() {
                           return (
                             <tr key={leave.id} className="leave-table-row">
                               <td className="leave-table-cell" data-label="Leave Type">
-                                {displayType}
+                                {leave.leave_name || displayType}
                               </td>
                               <td className="leave-table-cell" data-label="Dates">
                                 <div className="leave-table-dates">
