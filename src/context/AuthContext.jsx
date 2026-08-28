@@ -6,6 +6,13 @@ import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
 import { pushNotificationService } from '@services/pushNotificationService';
 import { useTheme } from '@hooks/useTheme';
+import { useToast } from '@hooks/useToast';
+import { resetSessionEndGuard } from '@api/httpClient';
+
+const SESSION_END_MESSAGES = {
+  other_device: 'Session Ended. Logged in through another browser/device.',
+  timeout: 'Session timed out. Please log in again.',
+};
 
 /**
  * @typedef  {Object} AuthContextValue
@@ -36,6 +43,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   const { setTheme } = useTheme();
+  const toast = useToast();
 
   // Pulls fresh role/permission/subordinate data from /auth/user-info/ and
   // merges it into whatever's currently persisted, without discarding any
@@ -188,14 +196,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  // Listen for global unauthorized events (e.g. from axios interceptor when refresh fails)
+  // Listen for global unauthorized events (e.g. from axios interceptor when refresh
+  // fails, or when the backend flags the access token as killed by a login
+  // elsewhere). `reason` picks the specific toast — never fall back to a
+  // generic "Unauthorized"/"Please login" message here.
   useEffect(() => {
-    const handleUnauthorized = () => {
+    const handleUnauthorized = (event) => {
+      const reason = event.detail?.reason;
+      toast.warning(SESSION_END_MESSAGES[reason] ?? SESSION_END_MESSAGES.timeout);
       clearSession();
     };
     window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
-  }, [clearSession]);
+  }, [clearSession, toast]);
 
   const login = useCallback(async (credentials) => {
     setIsSubmitting(true);
@@ -204,6 +217,7 @@ export function AuthProvider({ children }) {
     try {
       const { token, refreshToken, user: authenticatedUser } = await authService.login(credentials);
 
+      resetSessionEndGuard();
       storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
       if (refreshToken) {
         storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);

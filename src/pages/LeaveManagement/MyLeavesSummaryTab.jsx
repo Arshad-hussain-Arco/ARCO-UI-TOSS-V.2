@@ -6,7 +6,7 @@ import { leaveService } from '@services/leaveService';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
-import { getRelativePendingTime } from './TeamRequestsTab';
+import { getRelativePendingTime, STATUS_TOOLTIPS } from './TeamRequestsTab';
 import { ExportButton } from '@components/ui/ExportButton';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -78,14 +78,12 @@ export function MyLeavesSummaryTab({
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
 
-  // Normalize leave status for filtering and exclude pending requests
+  // Normalize leave status for filtering
   const normalizedLeaves = useMemo(() => {
-    return leaves
-      .map(leave => {
-        const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-        return { ...leave, statusStr };
-      })
-      .filter(leave => leave.statusStr !== 'pending');
+    return leaves.map(leave => {
+      const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
+      return { ...leave, statusStr };
+    });
   }, [leaves]);
 
   // Year and date-range are already applied server-side (leaves prop is
@@ -193,6 +191,11 @@ export function MyLeavesSummaryTab({
               <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
             </button>
 
+            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
+              <span className="leave-filter-label">Pending</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
+            </button>
+
             <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
@@ -201,6 +204,16 @@ export function MyLeavesSummaryTab({
             <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
               <span className="leave-filter-label">Rejected</span>
               <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
+            </button>
+
+            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')} title={STATUS_TOOLTIPS['self-rejected']}>
+              <span className="leave-filter-label">Self-Rejected</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
+            </button>
+
+            <button className="leave-filter-chip" data-active={filterStatus === 'cancelled'} onClick={() => setFilterStatus('cancelled')} title={STATUS_TOOLTIPS.cancelled}>
+              <span className="leave-filter-label">Cancelled</span>
+              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'cancelled').length}</span>
             </button>
           </div>
 
@@ -326,7 +339,7 @@ export function MyLeavesSummaryTab({
                       </td>
                     )}
                     <td className="leave-table-cell">
-                      <span className="leave-table-status" data-status={leave.statusStr}>{leave.statusStr === 'self-rejected' ? 'Self Rejected' : leave.statusStr}</span>
+                      <span className="leave-table-status" data-status={leave.statusStr} title={STATUS_TOOLTIPS[leave.statusStr]}>{leave.statusStr === 'self-rejected' ? 'Self Rejected' : leave.statusStr}</span>
                     </td>
                     <td className="leave-table-cell">
                       <div className="leave-table-actions">
