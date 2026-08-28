@@ -653,14 +653,27 @@ export function CapacityPlanningPage() {
     return `${day}/${month}/${year}`;
   };
 
+  // Substring fragments used to fuzzy-match a status so minor casing/spacing
+  // variance in the source data doesn't silently miss the Tester role.
+  const TESTING_STATUS_FRAGMENTS = [
+    'sit entry',
+    'sit in progress',
+    'smoke',
+    'uat entry',
+    'uat inprogress',
+    'uat in progress',
+    'uat sign off',
+    'fat testing'
+  ];
+
   const getDerivedRole = (alloc) => {
     const statusLower = (alloc.status || '').toLowerCase().trim();
-    if (statusLower === 'fat testing') {
+    if (TESTING_STATUS_FRAGMENTS.some(fragment => statusLower.includes(fragment))) {
       return {
         label: 'Tester',
         icon: <CheckSquare size={14} className="role-icon tester-dev" />,
         class: 'dev-badge dev-tester',
-        tooltip: 'FAT Testing Role'
+        tooltip: `${alloc.status} Role`
       };
     }
     if (alloc.isAssignedProgrammer) {

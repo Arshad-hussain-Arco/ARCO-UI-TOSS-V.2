@@ -1,14 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Calendar, Clock, AlignLeft, Info } from 'lucide-react';
+import leaveService from '@services/leaveService';
 
 export function ViewLeaveModal({ leave, onClose }) {
+  // Not currently passed a shared leaveTypeMap by a parent, so this fetches
+  // its own code -> name lookup from the all-leave-types API (available to
+  // any logged-in employee) rather than hardcoding it.
+  const [leaveTypeMap, setLeaveTypeMap] = useState({});
+
+  useEffect(() => {
+    leaveService.getAllLeaveTypes()
+      .then((response) => {
+        const list = Array.isArray(response) ? response : (response?.results || []);
+        const map = {};
+        list.forEach((t) => {
+          if (t.code) map[t.code] = t.leave_type || t.name || t.code;
+        });
+        setLeaveTypeMap(map);
+      })
+      .catch((e) => console.error('Failed to fetch leave types', e));
+  }, []);
+
   if (!leave) return null;
 
   const startDate = new Date(leave.start_date || leave.date || new Date()).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
   const endDate = new Date(leave.end_date || leave.date || new Date()).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
-  
-  const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
-  const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave Request';
+
+  const displayType = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave Request';
   const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
 
   return (

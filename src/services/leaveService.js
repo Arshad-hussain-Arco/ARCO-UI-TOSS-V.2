@@ -261,6 +261,10 @@ export const leaveService = {
     const response = await httpClient.get(endpoints.manager.teamCalendar(managerId), { params });
     return response.data;
   },
+  getTeamEmployeeCalendars: async (managerId, params) => {
+    const response = await httpClient.get(endpoints.manager.teamEmployeeCalendars(managerId), { params });
+    return response.data;
+  },
   getTeamPresentToday: async (managerId) => {
     const response = await httpClient.get(endpoints.manager.teamPresentToday(managerId));
     return response.data;
@@ -275,6 +279,10 @@ export const leaveService = {
   },
   getLeaveTypesReference: async () => {
     const response = await httpClient.get(endpoints.manager.leaveTypesReference);
+    return response.data;
+  },
+  getAllLeaveTypes: async () => {
+    const response = await httpClient.get(endpoints.hr.allLeaveTypes);
     return response.data;
   },
 

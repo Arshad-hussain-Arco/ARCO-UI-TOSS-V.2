@@ -77,7 +77,7 @@ const CustomToolbar = (toolbar) => {
   );
 };
 
-function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth }) {
+function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth, dayFlags }) {
   // Sync calendar date with parent state
   const currentDate = new Date(year, month, 1);
 
@@ -103,7 +103,9 @@ function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth }) {
       }
 
       return {
-        title: ev.employeeName ? `${ev.leave_type || ev.type} - ${ev.employeeName}` : (ev.title || ev.leave_type || ev.type),
+        // Title is composed upstream (employee name + leave type); fall
+        // back to whatever fields are available for events built elsewhere.
+        title: ev.title || (ev.employeeName ? `${ev.employeeName} - ${ev.leave_type || ev.type}` : (ev.leave_type || ev.type)),
         start,
         end,
         allDay: true,
@@ -125,6 +127,25 @@ function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth }) {
     };
   };
 
+  // Uses real per-employee weekend/holiday flags (dayFlags, keyed by
+  // yyyy-MM-dd, from the team-employee-calendars API) when available —
+  // falls back to the Sat/Sun-only-if-nothing-loaded-yet Fri/Sat guess
+  // otherwise so the grid doesn't render unstyled before the fetch lands.
+  const dayPropGetter = (date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const flags = dayFlags?.[dateStr];
+    if (flags) {
+      if (flags.isHoliday) return { className: 'rbc-day-holiday' };
+      if (flags.isWeekend) return { className: 'rbc-day-weekend' };
+      return {};
+    }
+    const dow = date.getDay();
+    if (dow === 5 || dow === 6) {
+      return { className: 'rbc-day-weekend' };
+    }
+    return {};
+  };
+
   return (
     <div className="leave-calendar-container">
       <Calendar
@@ -137,11 +158,38 @@ function LeaveCalendar({ year, month, events, onPrevMonth, onNextMonth }) {
         date={currentDate}
         onNavigate={handleNavigate}
         eventPropGetter={eventStyleGetter}
+        dayPropGetter={dayPropGetter}
         components={{
           toolbar: CustomToolbar
         }}
         popup
       />
+      <div className="leave-calendar-legend">
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--approved" />
+          Approved
+        </span>
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--pending" />
+          Pending
+        </span>
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--rejected" />
+          Rejected
+        </span>
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--cancelled" />
+          Cancelled / Self-Rejected
+        </span>
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--holiday" />
+          Holiday
+        </span>
+        <span className="leave-calendar-legend-item">
+          <span className="leave-calendar-legend-dot leave-calendar-legend-dot--weekend" />
+          Weekend
+        </span>
+      </div>
     </div>
   );
 }
