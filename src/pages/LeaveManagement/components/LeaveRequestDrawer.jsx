@@ -198,6 +198,16 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
+          {liveReq.cancellationReason && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">
+                {liveReq.status === 'rejected' ? 'Rejection Reason' : 'Cancellation Reason'}
+              </span>
+              <span className="tr-drow-value" style={{ maxWidth: 220 }}>
+                {liveReq.cancellationReason}
+              </span>
+            </div>
+          )}
           {liveReq.justification && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Justification</span>

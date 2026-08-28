@@ -299,6 +299,10 @@ export async function fetchAndMapTeamLeaves(managerId) {
       manager: req.manager_name,
       designation: req.designation,
       reason: req.leave_reason,
+      // Populated only for a rejected/self-rejected/cancelled leave — the
+      // manager-facing reason the cancellation/rejection itself was given,
+      // distinct from the original application reason above.
+      cancellationReason: req.rejected_reason || null,
       // Set only when the employee exceeded a Flexible-mode entitlement and
       // supplied a reason for it — distinct from the normal leave_reason.
       justification: req.justification || null,
