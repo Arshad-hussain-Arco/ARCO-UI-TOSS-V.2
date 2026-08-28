@@ -700,10 +700,19 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     // when switching who the request is being applied for.
     setLeaveType(null);
   }, [effectiveEmpId]);
+  // Apply Leave shows every active leave type except the ones that have
+  // their own dedicated buttons (WFH, Offshore Work) or belong to the
+  // Claim category (Submit Claim).
   const ltItems = useMemo(
     () =>
       eligibleTypes
-        .filter((t) => t.active)
+        .filter(
+          (t) =>
+            t.active &&
+            t.category !== 'CLAIM' &&
+            t.code !== 'WFH' &&
+            t.code !== 'OW',
+        )
         .map((t) => buildLeaveTypeItem(t, leaveBalances)),
     [eligibleTypes, leaveBalances],
   );

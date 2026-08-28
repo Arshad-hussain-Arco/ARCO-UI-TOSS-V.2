@@ -156,6 +156,7 @@ export const murexService = {
           durationMin: Math.round(runDurationMin),
           status: runStatus,
           title: runTitle,
+          isOutlier: runStatus === 'error',
         };
       }).reverse();
       
