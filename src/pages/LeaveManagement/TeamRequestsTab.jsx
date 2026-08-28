@@ -191,6 +191,35 @@ export function getRelativePendingTime(isoString) {
   }
 }
 
+// Explanatory tooltip text for statuses whose meaning isn't obvious from
+// the label alone. Shared across the Apply Leave / My Leaves table, the
+// My Leave Summary tab, and the Team Leave Requests tab so the wording
+// stays consistent everywhere a status badge is shown.
+export const STATUS_TOOLTIPS = {
+  'self-rejected': 'Withdrawn by the employee while it was still pending approval — no manager action was taken.',
+  'self_rejected': 'Withdrawn by the employee while it was still pending approval — no manager action was taken.',
+  'cancelled': 'This leave was already approved, then cancelled afterwards.',
+};
+
+// Status pill class + label for a team request row. `req.status` is the
+// raw backend status lowercased ('pending' / 'approved' / 'rejected' /
+// 'self_rejected' / 'cancelled') — a modification request keeps status
+// 'pending' too, so it needs its own class/label to read "Mod-Pending"
+// instead of a plain "Pending" that'd be indistinguishable from a new
+// leave request awaiting approval.
+export function getStatusBadgeClass(req) {
+  if (req.isModRequest && req.status === 'pending') return 'tr-status-mod-pending';
+  return `tr-status-${req.status}`;
+}
+
+export function getStatusLabel(req) {
+  if (req.isModRequest && req.status === 'pending') return 'Mod-Pending';
+  return req.status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('-');
+}
+
 export function getDurationDisplay(req) {
   const formatDurationStr = (duration) => {
     if (!duration) return '';
@@ -471,7 +500,9 @@ export function TeamRequestsTab({ getPhoto }) {
       all: requests.length,
       pending: requests.filter((r) => r.status === 'pending').length,
       approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected' || r.status === 'self_rejected').length,
+      rejected: requests.filter((r) => r.status === 'rejected').length,
+      self_rejected: requests.filter((r) => r.status === 'self_rejected').length,
+      cancelled: requests.filter((r) => r.status === 'cancelled').length,
       leave: requests.filter((r) => r.type === 'leave').length,
       wfh: requests.filter((r) => r.type === 'wfh').length,
       offshore: requests.filter((r) => r.type === 'offshore').length,
@@ -536,8 +567,7 @@ export function TeamRequestsTab({ getPhoto }) {
           r.id.toLowerCase().includes(q),
       );
     if (statusF !== 'all') {
-      if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
-      else list = list.filter((r) => r.status === statusF);
+      list = list.filter((r) => r.status === statusF);
     }
     if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
     else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
@@ -947,12 +977,15 @@ export function TeamRequestsTab({ getPhoto }) {
               { key: 'pending', label: 'Pending', count: counts.pending },
               { key: 'approved', label: 'Approved', count: counts.approved },
               { key: 'rejected', label: 'Rejected', count: counts.rejected },
+              { key: 'self_rejected', label: 'Self-Rejected', count: counts.self_rejected },
+              { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
             ].map((c) => (
               <button
                 key={c.key}
                 className="tr-chip"
                 data-active={statusF === c.key}
                 onClick={() => setStatusF(c.key)}
+                title={STATUS_TOOLTIPS[c.key]}
               >
                 {c.label}
                 <span className="tr-chip-count">{c.count}</span>
@@ -1092,11 +1125,11 @@ export function TeamRequestsTab({ getPhoto }) {
                                 ) : '-'}
                               </td>
                               <td className="tr-td">
-                                <span className={`tr-status-badge tr-status-${req.status}`}>
+                                <span className={`tr-status-badge ${getStatusBadgeClass(req)}`} title={STATUS_TOOLTIPS[req.status]}>
                                   {req.status === 'pending' && <Clock size={9} />}
                                   {req.status === 'approved' && <CheckCircle2 size={9} />}
                                   {req.status === 'rejected' && <XCircle size={9} />}
-                                  {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                  {getStatusLabel(req)}
                                 </span>
                               </td>
                               {statusF === 'pending' && (
@@ -1232,6 +1265,8 @@ export function TeamRequestsTab({ getPhoto }) {
                       { value: 'pending', label: 'Pending' },
                       { value: 'approved', label: 'Approved' },
                       { value: 'rejected', label: 'Rejected' },
+                      { value: 'self_rejected', label: 'Self-Rejected' },
+                      { value: 'cancelled', label: 'Cancelled' },
                     ]}
                     width="status"
                   />
@@ -1391,11 +1426,11 @@ export function TeamRequestsTab({ getPhoto }) {
                           </div>
 
                           {/* Status */}
-                          <span className={`tr-status-badge tr-status-${req.status}`}>
+                          <span className={`tr-status-badge ${getStatusBadgeClass(req)}`} title={STATUS_TOOLTIPS[req.status]}>
                             {req.status === 'pending' && <Clock size={9} />}
                             {req.status === 'approved' && <CheckCircle2 size={9} />}
                             {req.status === 'rejected' && <XCircle size={9} />}
-                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                            {getStatusLabel(req)}
                           </span>
 
                           {/* Actions */}

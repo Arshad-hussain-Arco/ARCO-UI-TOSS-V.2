@@ -47,6 +47,40 @@ httpClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+// Distinguishes *why* the session ended so the UI can show the right toast.
+// DRF only serializes AuthenticationFailed's plain-string `detail` into the
+// response body — the `code=` kwarg passed on the backend never reaches the
+// client as JSON — so detection has to match on that detail text, not a code.
+// - 'other_device': the account logged in elsewhere (single-session policy) —
+//   CustomJWTAuthentication's "...logged in from another device" detail on
+//   the access token, or the refresh token being blacklisted by that login.
+// - 'timeout': the refresh token itself simply expired/is invalid — no
+//   competing login involved.
+// A page in flight typically fires several requests at once (plus the
+// notifications WS/interval), so a dead session produces a burst of 401s —
+// without this guard each one would dispatch its own toast. Cleared by
+// resetSessionEndGuard() on the next successful login.
+let sessionEndNotified = false;
+
+export function resetSessionEndGuard() {
+  sessionEndNotified = false;
+}
+
+function dispatchUnauthorized(reason) {
+  if (sessionEndNotified) return;
+  sessionEndNotified = true;
+  window.dispatchEvent(new CustomEvent('auth-unauthorized', { detail: { reason } }));
+}
+
+function detailIncludes(errorResponseData, substring) {
+  const detail = errorResponseData?.detail;
+  return typeof detail === 'string' && detail.toLowerCase().includes(substring);
+}
+
+function reasonFromRefreshError(refreshError) {
+  return detailIncludes(refreshError.response?.data, 'blacklisted') ? 'other_device' : 'timeout';
+}
+
 // Response Interceptor: Handle 401s and token refresh
 httpClient.interceptors.response.use(
   (response) => response,
@@ -62,11 +96,19 @@ httpClient.interceptors.response.use(
     ) {
       originalRequest._retry = true;
 
+      // The backend already knows the access token was invalidated by a login
+      // elsewhere (auth_version mismatch) — no point attempting a refresh,
+      // since that same login already blacklisted the refresh token too.
+      if (detailIncludes(error.response?.data, 'another device')) {
+        dispatchUnauthorized('other_device');
+        return Promise.reject(error);
+      }
+
       const refreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN);
 
       if (!refreshToken) {
         // Force logout via event if no refresh token exists
-        window.dispatchEvent(new Event('auth-unauthorized'));
+        dispatchUnauthorized('timeout');
         return Promise.reject(error);
       }
 
@@ -110,7 +152,7 @@ httpClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         // Dispatch global event so context can clear state
-        window.dispatchEvent(new Event('auth-unauthorized'));
+        dispatchUnauthorized(reasonFromRefreshError(refreshError));
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

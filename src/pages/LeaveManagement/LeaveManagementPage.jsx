@@ -22,7 +22,8 @@ import {
   Ship,
   ArrowUpDown,
   MessageCircle,
-  Bell
+  Bell,
+  ScissorsLineDashed
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -35,6 +36,7 @@ import * as XLSX from 'xlsx';
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
 import { CancelLeaveModal } from './CancelLeaveModal';
+import { PartialCancelLeaveModal } from './PartialCancelLeaveModal';
 import { MyLeavesSummaryTab } from './MyLeavesSummaryTab';
 import LeaveRequestDrawer from './components/LeaveRequestDrawer';
 import { TeamRequestsTab } from './TeamRequestsTab';
@@ -82,7 +84,7 @@ const LEAVE_ACTION_BUTTONS = [
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { getRelativePendingTime } from './TeamRequestsTab';
+import { getRelativePendingTime, STATUS_TOOLTIPS } from './TeamRequestsTab';
 
 export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
   const [showFull, setShowFull] = useState(false);
@@ -217,6 +219,7 @@ export function LeaveManagementPage() {
   const [modalType, setModalType] = useState(null);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
+  const [partialCancelModalLeave, setPartialCancelModalLeave] = useState(null);
   const [viewModalLeave, setViewModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -451,6 +454,14 @@ export function LeaveManagementPage() {
   // the eligible-leave-types API response — never hardcoded. `category`
   // covers "Submit Claim", which isn't a fixed pair of codes — it's
   // eligible whenever any active Claim-category leave type exists.
+  // Partial cancel is only meaningful for Actual/Nominal leave types, not
+  // Claim-category ones (a claim earns balance on approval — there's no
+  // "unused portion" to hand back the way there is for a normal leave).
+  const claimLeaveTypeCodes = useMemo(
+    () => new Set(eligibleLeaveTypes.filter((t) => t.category === 'CLAIM').map((t) => t.code)),
+    [eligibleLeaveTypes]
+  );
+
   const isActionEligible = (codes, category) => {
     if (category) {
       return eligibleLeaveTypes.some((t) => t.category === category && t.active !== false);
@@ -605,6 +616,17 @@ export function LeaveManagementPage() {
           onClose={() => setCancelModalLeave(null)}
           onSuccess={() => {
             setCancelModalLeave(null);
+            setRefreshKey(k => k + 1);
+          }}
+        />
+      )}
+
+      {partialCancelModalLeave && (
+        <PartialCancelLeaveModal
+          leave={partialCancelModalLeave}
+          onClose={() => setPartialCancelModalLeave(null)}
+          onSuccess={() => {
+            setPartialCancelModalLeave(null);
             setRefreshKey(k => k + 1);
           }}
         />
@@ -858,6 +880,26 @@ export function LeaveManagementPage() {
 
                       <button
                         className="leave-filter-chip"
+                        data-active={filterStatus === 'self-rejected'}
+                        onClick={() => setFilterStatus('self-rejected')}
+                        title={STATUS_TOOLTIPS['self-rejected']}
+                      >
+                        <span className="leave-filter-label">Self-Rejected</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'self_rejected').length}</span>
+                      </button>
+
+                      <button
+                        className="leave-filter-chip"
+                        data-active={filterStatus === 'cancelled'}
+                        onClick={() => setFilterStatus('cancelled')}
+                        title={STATUS_TOOLTIPS.cancelled}
+                      >
+                        <span className="leave-filter-label">Cancelled</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'cancelled').length}</span>
+                      </button>
+
+                      <button
+                        className="leave-filter-chip"
                         data-active={filterStatus === 'mod-pending'}
                         onClick={() => setFilterStatus('mod-pending')}
                       >
@@ -970,6 +1012,17 @@ export function LeaveManagementPage() {
                           const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
                           const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent;
 
+                          // Partial cancel: only once the leave has actually started (ongoing) —
+                          // before it starts, Edit + full Cancel already cover every case.
+                          // Must still have a future-or-today portion left to cancel.
+                          const endDateObj = new Date(leave.end_date);
+                          endDateObj.setHours(0, 0, 0, 0);
+                          const canPartialCancel = statusStr === 'approved'
+                            && !leave.is_mod_request
+                            && !claimLeaveTypeCodes.has(leave.leave_type)
+                            && startDateObj <= today
+                            && endDateObj >= today;
+
                           return (
                             <tr key={leave.id} className="leave-table-row">
                               <td className="leave-table-cell" data-label="Leave Type">
@@ -1001,7 +1054,7 @@ export function LeaveManagementPage() {
 
                               <td className="leave-table-cell" data-label="Status">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span className="leave-table-status" data-status={statusStr}>
+                                  <span className="leave-table-status" data-status={statusStr} title={STATUS_TOOLTIPS[statusStr]}>
                                     {statusStr}
                                   </span>
                                   {statusStr === 'pending' && <RemindManagerButton leave={leave} />}
@@ -1052,7 +1105,24 @@ export function LeaveManagementPage() {
                                       >
                                         <X className="leave-table-action-icon" />
                                       </button>
+                                      {canPartialCancel && (
+                                        <button
+                                          className="tr-act-btn tr-act-reject"
+                                          title="Partially Cancel Request"
+                                          onClick={() => setPartialCancelModalLeave(leave)}
+                                        >
+                                          <ScissorsLineDashed className="leave-table-action-icon" />
+                                        </button>
+                                      )}
                                     </>
+                                  ) : canPartialCancel ? (
+                                    <button
+                                      className="tr-act-btn tr-act-reject"
+                                      title="Partially Cancel Request"
+                                      onClick={() => setPartialCancelModalLeave(leave)}
+                                    >
+                                      <ScissorsLineDashed className="leave-table-action-icon" />
+                                    </button>
                                   ) : (
                                     <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic', paddingLeft: '4px' }}>
                                       No Modification
