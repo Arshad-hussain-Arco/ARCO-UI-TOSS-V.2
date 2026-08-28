@@ -54,8 +54,7 @@
   display: none;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: linear-gradient(to bottom right, var(--c-primary), var(--c-primary-dark));
+  border-radius: 8px; 
   align-items: center;
   justify-content: center;
 }
@@ -230,6 +229,9 @@
   z-index: 1000;
   flex-direction: column;
   gap: 2px;
+  /* Fixed height fitting ~6 rows (38px row incl. gap + 12px container padding), scroll beyond that */
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .header-pinned-dropdown-menu[data-open="true"] {
@@ -410,7 +412,7 @@
 }
 
 .header-profile-menu-item:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--bg-hover); 
 }
 
 .header-profile-menu-item[data-danger='true'] {
@@ -419,6 +421,7 @@
 
 .header-profile-menu-item[data-danger='true']:hover {
   background-color: var(--c-danger-light);
+  color:  var(--text-primary);
 }
 
 .header-profile-menu-icon {

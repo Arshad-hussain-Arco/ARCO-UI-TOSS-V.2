@@ -187,14 +187,14 @@
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
   outline: none;
-  background-color: var(--bg-secondary);
+  background-color: transparent;
   transition: all 0.2s ease;
   color: var(--text-primary);
 }
 
 .cp-search-input:focus {
   border-color: var(--c-primary);
-  background-color: var(--surface-primary);
+  background-color: transparent;
   box-shadow: 0 0 0 2px rgba(0, 102, 51, 0.15);
 }
 
@@ -227,16 +227,18 @@
   overflow-y: auto;
   overflow-x: auto;
   flex: 1;
+      border: 1px solid var(--border-secondary); 
 }
 
 .cp-data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate; /* Use separate to prevent border overlapping issues with sticky */
+  border-spacing: 0;
   text-align: left;
 }
 
 .cp-data-table th {
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-primary, #ffffff);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
@@ -246,7 +248,11 @@
   border-right: 2px solid var(--border-primary);
   border-bottom: 2px solid var(--border-primary);
   position: sticky;
-  z-index: 10;
+  top: 0;
+  z-index: 50;
+}
+.cp-data-table th:last-child {
+  border-right: none;
 }
 
 .cp-data-table th.group-header {
@@ -260,6 +266,11 @@
   font-weight: 600;
   padding: 6px 14px;
   background-color: var(--bg-secondary);
+  /* Stacks below the first (group) header row instead of overlapping it —
+     the group-header row's own rendered height, so both rows stay stuck
+     correctly when scrolling. */
+  top: 37px;
+  z-index: 9;
 }
 
 .cp-data-table td {
@@ -468,9 +479,8 @@
 }
 
 .cp-team-panel {
-  flex: 1;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 4px
 }
 
 /* Team Panel List View (Utilization rows) */
@@ -821,28 +831,32 @@
 /* ── Drill-down Modal overlay ── */
 .cp-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(15, 23, 42, 0.6);
+  inset: 0;
+  background: var(--bg-overlay);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  padding: 16px;
+  animation: am-fade-in 0.15s ease;
 }
 
 .cp-modal-card {
-  width: 90%;
-  max-width: 1000px;
-  background-color: var(--surface-primary);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-secondary);
+  background: var(--surface-primary);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 1000px; /* Kept max-width to allow larger drilldown table */
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  max-height: 85vh;
-  animation: modalEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  animation: am-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
 }
 
 @keyframes modalEnter {
@@ -861,8 +875,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--border-secondary);
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
 }
 
 .cp-modal-title {
@@ -1026,17 +1042,21 @@
 }
 
 .cp-modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-secondary);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 .cp-modal-close-btn {
+  padding: 6px 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
+  justify-content: center; 
   height: 28px;
   border-radius: 6px;
   border: 1px solid var(--border-secondary, #e2e8f0);
@@ -1056,12 +1076,19 @@
 .dev-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1;
   border-radius: 12px;
   text-transform: capitalize;
+}
+
+.dev-badge svg {
+  flex-shrink: 0;
+  display: block;
 }
 
 .dev-badge.dev-primary {
@@ -1086,8 +1113,7 @@
   color: var(--text-primary);
   background-color: var(--bg-secondary);
   text-align: center;
-  vertical-align: middle !important;
-  border-left: 1px solid var(--border-secondary);
+  vertical-align: middle !important; 
   font-size: 14px;
 }
 
@@ -1105,4 +1131,96 @@
 .cp-modal-card.accent-90 .cp-modal-table th {
   background-color: rgba(0, 104, 56, 0.08);
   color: var(--c-primary);
+}
+
+
+[data-theme="dark"] .cp-modal-card {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced Legend Styles */
+.cp-legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+
+.cp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.cp-legend-item:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.cp-legend-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
+}
+
+/* ─── Expandable Child Table (Reference from LeaveManagement) ─── */
+.cp-team-expanded-row {
+  background: var(--surface-secondary);
+}
+
+.cp-sub-table-wrapper {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-sub-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.cp-sub-table thead {
+  background: var(--bg-tertiary, #f8f9fa);
+}
+
+.cp-sub-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-sub-table th.text-center {
+  text-align: center;
+}
+
+.cp-sub-table td {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+.cp-sub-table tr:last-child td {
+  border-bottom: none;
 }

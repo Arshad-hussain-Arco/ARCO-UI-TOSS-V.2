@@ -228,8 +228,7 @@ export function ReconciliationPage() {
 
   const goToStep2 = useCallback(() => setStep(2), []);
   const goToStep3 = useCallback(() => setStep(3), []);
-
-  const buildReconcileParams = useCallback(() => {
+  const buildReconcileParams = useCallback((extra = {}) => {
     const sourceFile = files[0];
     const destinationFile = files[1];
     const activeMappings = colMappings.filter((m) => !m.exclude && m.dst && m.dst !== '__skip__');
@@ -260,35 +259,14 @@ export function ReconciliationPage() {
         }, {}),
         columnPathMap1: files[0]?.columnPathMap ?? null,
         columnPathMap2: files[1]?.columnPathMap ?? null,
+        ...extra,
       },
       activeMappings,
     };
   }, [colMappings, files, keyColumns]);
 
-  // Full, unpaginated reconciliation result — used only for export, so the
-  // downloaded report always contains every record, not just the current page.
-  const fetchFullResults = useCallback(async () => {
-    const { params, activeMappings } = buildReconcileParams();
-    const resultData = await reconciliationService.reconcileFiles({
-      ...params,
-      exportAll: true,
-    });
-    return { resultData, activeMappings };
-  }, [buildReconcileParams]);
-
-  const runReconciliation = useCallback(async (page = 1) => {
-    setIsReconciling(true);
-    setReconcileError(null);
-    try {
-      const { params, activeMappings } = buildReconcileParams();
-
-      const resultData = await reconciliationService.reconcileFiles({
-        ...params,
-        page,
-        pageSize: 50,
-      });
-
-      const transformedResults = {
+  const transformResultData = useCallback((resultData, activeMappings) => {
+    return {
         stats: {
           matched: resultData.matched?.total ?? 0,
           mismatched: resultData.mismatched?.total ?? 0,
@@ -324,6 +302,15 @@ export function ReconciliationPage() {
         activeMappings,
         rawResults: resultData,
       };
+  }, [keyColumns]);
+
+  const runReconciliation = useCallback(async (page = 1) => {
+    setIsReconciling(true);
+    setReconcileError(null);
+    try {
+      const { params, activeMappings } = buildReconcileParams({ page, pageSize: 50 });
+      const resultData = await reconciliationService.reconcileFiles(params);
+      const transformedResults = transformResultData(resultData, activeMappings);
 
       setResults(transformedResults);
       setIsReconciling(false);
@@ -339,7 +326,13 @@ export function ReconciliationPage() {
       setReconcileError(message);
       toast.error(message);
     }
-  }, [buildReconcileParams, keyColumns, toast]);
+  }, [buildReconcileParams, transformResultData, toast]);
+
+  const fetchFullResultsForExport = useCallback(async () => {
+    const { params, activeMappings } = buildReconcileParams({ exportAll: true });
+    const resultData = await reconciliationService.reconcileFiles(params);
+    return transformResultData(resultData, activeMappings);
+  }, [buildReconcileParams, transformResultData]);
 
   const reset = useCallback(() => {
     setStep(1);
@@ -394,7 +387,7 @@ export function ReconciliationPage() {
             file2Name={files[1]?.name || ''}
             onReset={reset}
             onPageChange={(page) => runReconciliation(page)}
-            onFetchFullResults={fetchFullResults}
+            fetchFullResults={fetchFullResultsForExport}
           />
         ) : null;
       default:
@@ -403,7 +396,6 @@ export function ReconciliationPage() {
   }, [
     step,
     files,
-    fetchFullResults,
     keyColumns,
     colMappings,
     results,
@@ -413,6 +405,7 @@ export function ReconciliationPage() {
     goToStep2,
     goToStep3,
     runReconciliation,
+    fetchFullResultsForExport,
     reset,
     isReconciling,
     reconcileError,

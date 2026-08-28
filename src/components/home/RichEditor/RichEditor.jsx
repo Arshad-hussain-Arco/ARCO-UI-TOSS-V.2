@@ -14,7 +14,7 @@ import { EditableArea } from './EditableArea';
 import { Preview } from './Preview';
 import './RichEditor.css';
 
-import { formatFileSize, buildUploadingPlaceholder, fileKindLabel } from './mediaUtils';
+import { formatFileSize, buildUploadingPlaceholder, fileKindLabel, useHomeMediaToken, attachHomeMediaToken, stripHomeMediaToken } from './mediaUtils';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -52,6 +52,14 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const { isFullscreen, toggle: toggleFullscreen, exit: exitFullscreen } = useFullscreenManager();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [, forceRerender] = useState(0);
+  // The editor's own contenteditable DOM needs media_token attached to
+  // actually load images/videos/PDFs while editing (HomeMediaContentView's
+  // GET requires it) — but html_content must never be SAVED with a token
+  // baked in, since it expires. displayHtml()/flushOutwardNow below keep
+  // "what's in the DOM" (tokenized) and "what's emitted via onChange"
+  // (bare) permanently in sync with each other.
+  const mediaToken = useHomeMediaToken();
+  const displayHtml = (html) => attachHomeMediaToken(html, mediaToken) || html;
 
   // Toggles the placeholder visibility class.
   const updateEmptyState = (el) => {
@@ -62,7 +70,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     const el = editableRef.current;
     if (!el) return;
     updateEmptyState(el);
-    const html = sanitizeEditorHtml(el.innerHTML);
+    const html = stripHomeMediaToken(sanitizeEditorHtml(el.innerHTML));
     lastEmittedRef.current = html;
     onChange?.(html);
     forceRerender((n) => n + 1);
@@ -83,7 +91,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
 
   useEffect(() => {
     if (editableRef.current) {
-      editableRef.current.innerHTML = value?.trim() ? value : '<p><br></p>';
+      editableRef.current.innerHTML = displayHtml(value?.trim() ? value : '<p><br></p>');
       lastEmittedRef.current = value || '';
       history.reset(value || '');
       updateEmptyState(editableRef.current);
@@ -92,7 +100,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
 
   useEffect(() => {
     if (value !== lastEmittedRef.current && editableRef.current) {
-      editableRef.current.innerHTML = value?.trim() ? value : '<p><br></p>';
+      editableRef.current.innerHTML = displayHtml(value?.trim() ? value : '<p><br></p>');
       lastEmittedRef.current = value || '';
       history.reset(value || '');
       updateEmptyState(editableRef.current);
@@ -105,16 +113,21 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     return () => document.removeEventListener('selectionchange', handler);
   }, []);
 
-  const runCommand = (commandFn) => {
+  const runCommand = (commandFn, options = {}) => {
     const el = editableRef.current;
     if (!el) return;
 
-    if (document.activeElement !== el) {
-      restoreSelection(el, getSavedSelection());
+    if (document.activeElement !== el && !options.skipFocus) {
+      restoreSelection(el, getSavedSelection(), options);
+    } else if (getSavedSelection()) {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !el.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        restoreSelection(el, getSavedSelection(), { skipFocus: true });
+      }
     }
 
     const sel = window.getSelection();
-    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const range = (sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null) || getSavedSelection();
 
     history.checkpointNow();
     commandFn(range, el);
@@ -185,14 +198,16 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   };
 
   const MAX_FILE_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+  const MAX_VIDEO_FILE_SIZE_BYTES = 19 * 1024 * 1024; // 19 MB — matches VideoHandler's MAX_VIDEO_MB / backend HOME_MEDIA_VIDEO_MAX_BYTES
 
   const handleRootFileSelected = async (e, handler, buildMarkup) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast?.error?.(`"${file.name}" (${formatFileSize(file.size)}) exceeds the 40 MB size limit.`);
+    const maxBytes = handler === VideoHandler ? MAX_VIDEO_FILE_SIZE_BYTES : MAX_FILE_SIZE_BYTES;
+    if (file.size > maxBytes) {
+      toast?.error?.(`"${file.name}" (${formatFileSize(file.size)}) exceeds the ${maxBytes / (1024 * 1024)} MB size limit.`);
       return;
     }
 
@@ -202,7 +217,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     try {
       const ingested = await handler.ingestFile(file);
       const placeholder = editableRef.current?.querySelector(`#${placeholderId}`);
-      const finalHtml = buildMarkup(ingested, file);
+      const finalHtml = displayHtml(buildMarkup(ingested, file));
       if (placeholder) {
         placeholder.outerHTML = finalHtml;
       } else {
@@ -233,6 +248,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     selectedMediaRef,
     isFullscreen,
     toggleFullscreen,
+    mediaToken,
+    displayHtml,
   };
 
   return (

@@ -24,6 +24,8 @@ export const ROUTES = Object.freeze({
   RECONCILIATION_USER_GUIDE: '/reconciliation/user-guide',
   PROJECT_MONITORING: '/project-monitoring',
   IMPORTANT_LINKS: '/important-links',
+  IMPORTANT_LINKS_CONTENT: '/important-links/content/:id',
+  PREFERENCES: '/preferences',
   DOCUMENTS: '/documents',
   DOCUMENTS_USER_GUIDE: '/documents/user-guide',
 

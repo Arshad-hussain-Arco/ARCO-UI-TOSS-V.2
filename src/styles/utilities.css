@@ -46,6 +46,12 @@
   background: var(--surface-primary, #ffffff);
 }
 
+.action-icon-btn.success:not(:disabled):hover {
+  color: var(--status-success, #10b981);
+  border-color: var(--status-success, #10b981);
+  background: var(--surface-primary, #ffffff);
+}
+
 .action-icon-btn.delete:not(:disabled):hover,
 .action-icon-btn.danger:not(:disabled):hover {
   background: var(--surface-primary, #ffffff);

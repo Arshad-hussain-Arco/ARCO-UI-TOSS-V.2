@@ -29,6 +29,9 @@ export const NOTIF_CONFIG = {
   EOD_JOB_STARTED:         { emoji: '🟢', color: '#10b981', label: 'EOD Job Started' },
   EOD_JOB_COMPLETED:       { emoji: '✅', color: '#10b981', label: 'EOD Job Completed' },
   EOD_JOB_FAILED:          { emoji: '🔴', color: '#ef4444', label: 'EOD Job Failed' },
+  HOLIDAY_ADDED:           { emoji: '🎉', color: '#3b82f6', label: 'Holiday Added' },
+  HOLIDAY_REMOVED:         { emoji: '🗑️', color: '#ef4444', label: 'Holiday Removed' },
+  HOLIDAY_MODIFIED:        { emoji: '✏️', color: '#f59e0b', label: 'Holiday Modified' },
   default:                 { emoji: '📣', color: '#6b7280', label: 'Notification' },
 };
 

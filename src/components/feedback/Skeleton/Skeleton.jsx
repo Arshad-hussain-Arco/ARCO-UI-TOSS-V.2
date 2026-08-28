@@ -20,11 +20,12 @@ function SkeletonComponent({
   variant = 'text',
   count = 1,
   className,
+  style,
 }) {
   const toCssSize = (value) => (typeof value === 'number' ? `${value}px` : value);
 
   return (
-    <span className={styles.group} aria-hidden="true">
+    <span className={styles.group} aria-hidden="true" style={style}>
       {Array.from({ length: count }, (_, index) => (
         <span
           key={index}

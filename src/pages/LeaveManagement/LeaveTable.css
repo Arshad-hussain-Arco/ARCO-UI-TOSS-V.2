@@ -109,40 +109,53 @@
   font-style: italic;
 }
 
-/* Status Badge */
+/* Status Badge — same pill design as the Team Leave Requests tab's
+   .tr-status-badge (leaves/TeamRequests.css): solid, literal colors so
+   contrast holds up in dark mode, not theme text/border variables. */
 .leave-table-status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: lowercase;
+  text-transform: capitalize;
   letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 .leave-table-status[data-status='approved'] {
-  background: var(--c-success);
+  background: var(--c-primary);
   color:  #ffffff;
 }
 
 .leave-table-status[data-status='pending'] {
   background: var(--c-warning);
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 
 .leave-table-status[data-status='rejected'] {
-  background: var(--c-danger);
-  color: var(--text-inverse);
+  background: var(--c-danger-light);
+  color: var(--c-danger);
 }
 
 .leave-table-status[data-status='self-rejected'] {
-  background: var(--text-tertiary);
-  color: var(--text-inverse);
+  background: #94a3b8;
+  color:  #ffffff;
 }
 
+.leave-table-status[data-status='cancelled'] {
+  background: #64748b;
+  color:  #ffffff;
+}
+.leave-table-status[data-status= 'cancelled'] {
+   background: var(--c-danger);
+  color: var(--text-inverse);
+}
 .leave-table-status[data-status='mod-pending'] {
   background: var(--c-info, #3b82f6);
-  color: var(--text-inverse);
+  color:  #ffffff;
 }
 
 /* Icon Button */

@@ -5,7 +5,23 @@ const DISALLOWED_TAGS = ['script', 'style', 'meta', 'link', 'head', 'title', 'xm
 // turns into literal (uppercased) tag names — matched case-insensitively.
 const WORD_NAMESPACED_TAG_RE = /^(o|w|v|m|st1):/i;
 
-const STYLE_ALLOWLIST = ['fontWeight', 'fontStyle', 'textDecoration', 'color', 'backgroundColor'];
+const STYLE_ALLOWLIST = ['fontWeight', 'fontStyle', 'textDecoration', 'color'];
+
+function isNearWhiteColor(colorStr) {
+  if (!colorStr) return false;
+  const lower = colorStr.trim().toLowerCase();
+  if (lower === 'white' || lower === '#fff' || lower === '#ffffff' || lower === 'rgb(255, 255, 255)' || lower === 'rgba(255, 255, 255, 1)') {
+    return true;
+  }
+  const match = lower.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (match) {
+    const r = parseInt(match[1], 10);
+    const g = parseInt(match[2], 10);
+    const b = parseInt(match[3], 10);
+    if (r > 220 && g > 220 && b > 220) return true;
+  }
+  return false;
+}
 
 /**
  * Cleans HTML pasted from MS Word / Google Docs / any rich source down to
@@ -45,7 +61,10 @@ export function cleanPastedHtml(rawHtml) {
     const cleanStyle = {};
     STYLE_ALLOWLIST.forEach((prop) => {
       const val = el.style[prop];
-      if (val) cleanStyle[prop] = val;
+      if (val) {
+        if (prop === 'color' && isNearWhiteColor(val)) return;
+        cleanStyle[prop] = val;
+      }
     });
 
     Array.from(el.attributes).forEach((attr) => {

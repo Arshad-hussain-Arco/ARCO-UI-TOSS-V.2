@@ -50,6 +50,7 @@
   font-family: var(--font-family);
   font-size: 12px;
   color: var(--text-primary);
+  background: transparent;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -395,11 +396,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 7px;
+  padding: 8px 12px;
   border-radius: 4px;
   font-family: var(--font-family);
   font-size: 10.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .tr-type-leave {
@@ -425,14 +427,18 @@
 /* ─── Status Badge ────────────────────────────────────────────────── */
 
 .tr-status-badge {
+  flex-shrink: 0;
+  width: 90px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 2px 8px;
   border-radius: 10px;
   font-family: var(--font-family);
   font-size: 10.5px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .tr-status-pending {
@@ -452,6 +458,16 @@
 
 .tr-status-self_rejected {
   background: #94a3b8;
+  color:  #ffffff;
+}
+
+.tr-status-cancelled {
+  background: #64748b;
+  color:  #ffffff;
+}
+
+.tr-status-mod-pending {
+  background: var(--c-info, #3b82f6);
   color:  #ffffff;
 }
 
@@ -475,8 +491,11 @@
 /* ─── Action Buttons (in table) ───────────────────────────────────── */
 
 .tr-actions {
+  flex-shrink: 0;
+  width: 90px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
 }
 
@@ -837,8 +856,8 @@
 }
 
 .tr-tl-dot.active {
-  background: var(--c-warning);
-  color: var(--surface-primary);
+  background: #f59e0b;
+  color: #fff;
 }
 
 .tr-tl-dot.waiting {
@@ -896,13 +915,22 @@
   margin-bottom: 6px;
   font-family: var(--font-family);
   font-size: 11.5px;
-  color: #ffffff;
+  color: #9a3412; /* Dark amber text for readability on light theme yellow */
 }
 
 .tr-conflict-card.info {
   background: var(--c-info-light);
   border-color: #93c5fd;
   color: #1e40af;
+}
+
+/* Preserve original white color for Dark Theme */
+[data-theme='dark'] .tr-conflict-card {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .tr-conflict-card.info {
+  color: #ffffff;
 }
 
 /* ─── Drawer Footer ───────────────────────────────────────────────── */
@@ -957,9 +985,8 @@
 }
 
 .tr-btn-danger {
-  background: var(--c-danger-light);
-  color:  #ffffff;
-  border-color: #fca5a5;
+  background:  #A32D2D;
+  color:  #ffffff; 
 }
 
 
@@ -983,8 +1010,8 @@
 .tr-confirm-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(2px);
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1384,15 +1411,14 @@
 
 .tr-sdl-emp-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
+  gap: 12px;
+  padding: 12px;
   background: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 8px;
-  transition:
-    background 0.1s,
-    border-color 0.1s;
+  transition: background 0.1s, border-color 0.1s;
 }
 
 .tr-sdl-emp-row:hover {
@@ -1406,10 +1432,10 @@
 }
 
 .tr-sdl-emp-avatar {
+  flex-shrink: 0;
   width: 34px;
   height: 34px;
   font-size: 11px;
-  flex-shrink: 0;
 }
 
 .tr-sdl-emp-identity {
@@ -1419,23 +1445,26 @@
 
 .tr-sdl-emp-type {
   flex-shrink: 0;
+  width: 140px;
+  display: flex;
+  align-items: center;
 }
 
 .tr-sdl-emp-dur {
+  flex-shrink: 0;
+  width: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex-shrink: 0;
-  min-width: 64px;
   gap: 1px;
 }
 
 .tr-sdl-emp-dates {
+  flex-shrink: 0;
+  width: 100px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  flex-shrink: 0;
-  min-width: 72px;
   gap: 1px;
 }
 

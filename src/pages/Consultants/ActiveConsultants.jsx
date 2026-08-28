@@ -24,6 +24,11 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
     return list.map(c => normalizeConsultant(c, true));
   }, [employeesData]);
 
+  // Org-wide totals from the backend (/employees/full/), not the currently
+  // filtered/active-only view — Total Consultants includes inactive ones too.
+  const totalConsultants = employeesData?.total_consultants ?? activeConsultants.length;
+  const activeConsultantsCount = employeesData?.active_consultants ?? activeConsultants.length;
+
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedTeam, setSelectedTeam] = useState('All Teams');
@@ -109,10 +114,10 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   return (
     <>
       <ConsultantsStats
-        total={filtered.length}
-        active={filtered.length}
-        teams={filteredTeamsCount}
-        designations={filteredDesignationsCount}
+        total={totalConsultants}
+        active={activeConsultantsCount}
+        teams={teamsData?.length ?? filteredTeamsCount}
+        designations={designationsData?.length ?? filteredDesignationsCount}
       />
       <div className="consultants-filter-panel-sticky">
         <div className="consultants-filter-row">

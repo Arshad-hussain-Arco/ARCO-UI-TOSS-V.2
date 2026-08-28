@@ -193,18 +193,7 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
                 >
                   {insight.text}
                 </span>
-                <span 
-                  style={{ 
-                    fontSize: '8px', 
-                    fontWeight: 700, 
-                    padding: '2px 5px', 
-                    borderRadius: '4px', 
-                    background: badgeBg, 
-                    color: badgeColor, 
-                    textTransform: 'uppercase', 
-                    flexShrink: 0 
-                  }}
-                >
+                <span className={`dc-alert-badge dc-alert-badge-${insight.severity}`}>
                   {insight.badge}
                 </span>
               </div>

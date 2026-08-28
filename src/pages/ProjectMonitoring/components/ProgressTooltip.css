@@ -1,0 +1,63 @@
+.pm-progress-tooltip {
+  position: fixed;
+  z-index: 10050;
+  background: var(--text-primary);
+  color: var(--surface-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  max-width: 300px;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  font-size: 11px;
+  line-height: 1.4;
+  animation: pm-fade-in 0.15s ease-out;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pm-progress-tooltip::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 2px;
+}
+
+@keyframes pm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pm-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.pm-tooltip-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pm-tooltip-title {
+  font-weight: 700;
+  color: var(--surface-primary);
+  font-size: 12px;
+}
+
+.pm-tooltip-desc {
+  color: var(--border-secondary);
+  font-size: 11px;
+  text-align: justify;
+}

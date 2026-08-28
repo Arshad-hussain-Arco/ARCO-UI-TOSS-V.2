@@ -40,9 +40,9 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
 
     const req = fullReq || {
       id: dashboardReq.id.toString(),
-      empId: dashboardReq.emp_id,
-      name: dashboardReq.emp_name,
-      team: dashboardReq.designation,
+      employeeId: dashboardReq.emp_id ? `EMP${dashboardReq.emp_id}` : 'Unknown',
+      employeeName: dashboardReq.emp_name,
+      team: dashboardReq.team_name || dashboardReq.designation || 'Unknown',
       type: dashboardReq.leave_type,
       leaveType: dashboardReq.leave_type,
       startDate: dashboardReq.start_date || '',
@@ -205,7 +205,7 @@ export function PendingApprovalsActionSection({ pendingApprovals, onActionComple
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
                 <button
                   type="button"
-                  className="action-icon-btn edit"
+                  className="action-icon-btn success"
                   onClick={() => openDrawer(req, 'approve')}
                   disabled={isLoading}
                   title="Approve"

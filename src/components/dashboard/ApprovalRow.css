@@ -32,35 +32,42 @@
 /* Modal Overlay & Card */
 .approval-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: var(--bg-overlay);
   backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: am-fade-in 0.15s ease;
 }
 
 .approval-modal-content {
-  background: var(--surface-primary); /* colors.surface */
-  border-radius: 12px;
-  width: 90%;
-  max-width: 480px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-  border: 1px solid #E3E7E4; /* colors.border */
+  background: var(--surface-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  animation: am-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
 }
 
 .approval-modal-header {
-  padding: 16px 20px;
-  background: #F6F7F5; /* colors.page */
-  border-bottom: 1px solid #E3E7E4; /* colors.border */
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
 }
 
 .approval-modal-header h3 {
@@ -141,10 +148,18 @@
 }
 
 .approval-modal-footer {
-  padding: 14px 20px;
-  background: #F6F7F5; /* colors.page */
-  border-top: 1px solid #E3E7E4; /* colors.border */
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+
+[data-theme="dark"] .approval-modal-content {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

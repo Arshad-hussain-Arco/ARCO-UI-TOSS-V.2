@@ -1,9 +1,18 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { storage } from '@utils/storage';
+import { resolveAvatarDataUri } from '@utils/photo';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
+import { pushNotificationService } from '@services/pushNotificationService';
 import { useTheme } from '@hooks/useTheme';
+import { useToast } from '@hooks/useToast';
+import { resetSessionEndGuard } from '@api/httpClient';
+
+const SESSION_END_MESSAGES = {
+  other_device: 'Session Ended. Logged in through another browser/device.',
+  timeout: 'Session timed out. Please log in again.',
+};
 
 /**
  * @typedef  {Object} AuthContextValue
@@ -34,6 +43,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   const { setTheme } = useTheme();
+  const toast = useToast();
 
   // Pulls fresh role/permission/subordinate data from /auth/user-info/ and
   // merges it into whatever's currently persisted, without discarding any
@@ -68,8 +78,10 @@ export function AuthProvider({ children }) {
         email: info.email || persistedUser?.email,
         role: info.roleName || info.role || persistedUser?.role,
         roleName: info.roleName || persistedUser?.roleName,
+        roleId: info.roleId !== undefined ? info.roleId : persistedUser?.roleId,
         isAdmin: info.isAdmin !== undefined ? info.isAdmin : persistedUser?.isAdmin,
         permissions: info.permissions || persistedUser?.permissions || [],
+        sidebarNavOrder: info.sidebarNavOrder || persistedUser?.sidebarNavOrder || {},
         mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
         designation: info.designation || persistedUser?.designation,
         designationName: info.designationName || persistedUser?.designationName,
@@ -95,16 +107,8 @@ export function AuthProvider({ children }) {
 
 
       if (includePhoto && persistedUser.emp_id) {
-        try {
-          const photoRes = await httpClient.get(endpoints.consultants.photo(persistedUser.emp_id));
-          if (photoRes.data?.photo) {
-            persistedUser.avatar = photoRes.data.photo.startsWith('data:')
-              ? photoRes.data.photo
-              : `data:image/jpeg;base64,${photoRes.data.photo}`;
-          }
-        } catch (err) {
-          console.warn('Failed to fetch user photo', err);
-        }
+        const avatar = await resolveAvatarDataUri(persistedUser.emp_id);
+        if (avatar) persistedUser.avatar = avatar;
       }
 
       storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
@@ -153,6 +157,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) return undefined;
 
+    // Register and subscribe for push notifications
+    pushNotificationService.registerAndSubscribe();
+
     const interval = setInterval(refreshUser, USER_INFO_REFRESH_INTERVAL_MS);
 
     const handleVisibility = () => {
@@ -160,12 +167,10 @@ export function AuthProvider({ children }) {
         refreshUser();
       }
     };
-    window.addEventListener('focus', refreshUser);
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', refreshUser);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [user, refreshUser]);
@@ -191,14 +196,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  // Listen for global unauthorized events (e.g. from axios interceptor when refresh fails)
+  // Listen for global unauthorized events (e.g. from axios interceptor when refresh
+  // fails, or when the backend flags the access token as killed by a login
+  // elsewhere). `reason` picks the specific toast — never fall back to a
+  // generic "Unauthorized"/"Please login" message here.
   useEffect(() => {
-    const handleUnauthorized = () => {
+    const handleUnauthorized = (event) => {
+      const reason = event.detail?.reason;
+      toast.warning(SESSION_END_MESSAGES[reason] ?? SESSION_END_MESSAGES.timeout);
       clearSession();
     };
     window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
-  }, [clearSession]);
+  }, [clearSession, toast]);
 
   const login = useCallback(async (credentials) => {
     setIsSubmitting(true);
@@ -207,23 +217,34 @@ export function AuthProvider({ children }) {
     try {
       const { token, refreshToken, user: authenticatedUser } = await authService.login(credentials);
 
+      resetSessionEndGuard();
       storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
       if (refreshToken) {
         storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       }
+      // Persist the bare JWT-decoded user so refreshUser has a base to merge
+      // onto, but deliberately do NOT setUser() with it here: isAuthenticated
+      // (Boolean(user)) would flip true immediately, and PublicRoute reacts
+      // to that by navigating away right then — mid-flight, with placeholder
+      // role/isAdmin/permissions — racing ahead of the refreshUser() call
+      // below and landing on a 403 or the wrong sidebar. setUser only happens
+      // once, inside refreshUser, once real role/permission data is in hand.
       storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
-      setUser(authenticatedUser);
-      
+
       if (authenticatedUser?.theme) {
         setTheme(authenticatedUser.theme);
       }
+
+      // /auth/user-info/ is intentionally lightweight (no photo/config
+      // payload) so awaiting it here doesn't meaningfully delay login.
+      await refreshUser({ includePhoto: true });
     } catch (caught) {
       setError(caught.message);
       throw caught;
     } finally {
       setIsSubmitting(false);
     }
-  }, [setTheme]);
+  }, [setTheme, refreshUser]);
 
   const logout = useCallback(async () => {
     try {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Bell, BellOff, Check, CheckCheck, X,
   CalendarClock, CheckCircle2, XCircle, CalendarX,
@@ -26,6 +27,9 @@ const TYPE_MAP = {
   EOD_JOB_STARTED:         { Icon: PlayCircle,     hue: 'emerald' },
   EOD_JOB_COMPLETED:       { Icon: CheckCircle2,   hue: 'emerald' },
   EOD_JOB_FAILED:          { Icon: AlertCircle,    hue: 'red'    },
+  HOLIDAY_ADDED:           { Icon: CalendarClock,  hue: 'blue'   },
+  HOLIDAY_REMOVED:         { Icon: CalendarX,      hue: 'red'    },
+  HOLIDAY_MODIFIED:        { Icon: FileEdit,       hue: 'amber'  },
 };
 
 const HUES = {
@@ -59,6 +63,7 @@ function timeAgo(d) {
 export function NotificationsDropdown({
   isOpen, onClose, notifications, unreadCount, wsStatus, onMarkRead, onMarkAllRead,
 }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('all'); // 'all' | 'unread'
   const panelRef = useRef(null);
 
@@ -163,9 +168,43 @@ export function NotificationsDropdown({
                   key={n.id}
                   className={`nd-item${unread ? ' nd-item--ur' : ''}`}
                   role="listitem"
-                  onClick={() => unread && onMarkRead(n.id)}
+                  onClick={() => {
+                    if (unread) onMarkRead(n.id);
+                    let url = n.url || n.action_url || n.link;
+                    
+                    // Smart routing for leave notifications to open the drawer
+                    const isLeaveType = n.notification_type?.startsWith('LEAVE_') || n.notification_type?.startsWith('MOD_');
+                    const targetId = n.leave_id || n.entity_id || n.related_id;
+                    if (isLeaveType && targetId) {
+                      const isManagerAction = n.notification_type === 'LEAVE_APPLIED' || n.notification_type === 'MOD_REQUESTED';
+                      url = `/leave-management?tab=${isManagerAction ? 'team-requests' : 'my-leaves-summary'}&viewLeaveId=${targetId}`;
+                    }
+
+                    if (url) {
+                      navigate(url);
+                      onClose();
+                    }
+                  }}
                   tabIndex={unread ? 0 : -1}
-                  onKeyDown={(e) => e.key === 'Enter' && unread && onMarkRead(n.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (unread) onMarkRead(n.id);
+                      let url = n.url || n.action_url || n.link;
+                      
+                      // Smart routing for leave notifications to open the drawer
+                      const isLeaveType = n.notification_type?.startsWith('LEAVE_') || n.notification_type?.startsWith('MOD_');
+                      const targetId = n.leave_id || n.entity_id || n.related_id;
+                      if (isLeaveType && targetId) {
+                        const isManagerAction = n.notification_type === 'LEAVE_APPLIED' || n.notification_type === 'MOD_REQUESTED';
+                        url = `/leave-management?tab=${isManagerAction ? 'team-requests' : 'my-leaves-summary'}&viewLeaveId=${targetId}`;
+                      }
+
+                      if (url) {
+                        navigate(url);
+                        onClose();
+                      }
+                    }
+                  }}
                 >
                   {/* Left stripe */}
                   {unread && (

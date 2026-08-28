@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   List,
@@ -108,12 +109,15 @@ export function initials(name) {
 }
 export function getPhotoUrl(photo) {
   if (!photo) return null;
-  if (photo.startsWith('http') || photo.startsWith('data:image')) return photo;
-  if (photo.startsWith('/')) return `http://127.0.0.1:8000${photo}`;
-  return `data:image/png;base64,${photo}`;
+  if (photo.startsWith('http') || photo.startsWith('data:image') || photo.startsWith('/')) return photo;
+  return `data:image/jpeg;base64,${photo}`;
 }
 function todayStr() {
-  return /* @__PURE__ */ new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 export function fmtDate(s) {
   if (!s) return '\u2014';
@@ -144,7 +148,10 @@ export function eachDay(s, e) {
   const cur = /* @__PURE__ */ new Date(s + 'T00:00:00'),
     end = /* @__PURE__ */ new Date(e + 'T00:00:00');
   while (cur <= end) {
-    days.push(cur.toISOString().slice(0, 10));
+    const yyyy = cur.getFullYear();
+    const mm = String(cur.getMonth() + 1).padStart(2, '0');
+    const dd = String(cur.getDate()).padStart(2, '0');
+    days.push(`${yyyy}-${mm}-${dd}`);
     cur.setDate(cur.getDate() + 1);
   }
   return days;
@@ -182,6 +189,35 @@ export function getRelativePendingTime(isoString) {
   } else {
     return 'Just now';
   }
+}
+
+// Explanatory tooltip text for statuses whose meaning isn't obvious from
+// the label alone. Shared across the Apply Leave / My Leaves table, the
+// My Leave Summary tab, and the Team Leave Requests tab so the wording
+// stays consistent everywhere a status badge is shown.
+export const STATUS_TOOLTIPS = {
+  'self-rejected': 'Withdrawn by the employee while it was still pending approval — no manager action was taken.',
+  'self_rejected': 'Withdrawn by the employee while it was still pending approval — no manager action was taken.',
+  'cancelled': 'This leave was already approved, then cancelled afterwards.',
+};
+
+// Status pill class + label for a team request row. `req.status` is the
+// raw backend status lowercased ('pending' / 'approved' / 'rejected' /
+// 'self_rejected' / 'cancelled') — a modification request keeps status
+// 'pending' too, so it needs its own class/label to read "Mod-Pending"
+// instead of a plain "Pending" that'd be indistinguishable from a new
+// leave request awaiting approval.
+export function getStatusBadgeClass(req) {
+  if (req.isModRequest && req.status === 'pending') return 'tr-status-mod-pending';
+  return `tr-status-${req.status}`;
+}
+
+export function getStatusLabel(req) {
+  if (req.isModRequest && req.status === 'pending') return 'Mod-Pending';
+  return req.status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('-');
 }
 
 export function getDurationDisplay(req) {
@@ -263,6 +299,10 @@ export async function fetchAndMapTeamLeaves(managerId) {
       manager: req.manager_name,
       designation: req.designation,
       reason: req.leave_reason,
+      // Populated only for a rejected/self-rejected/cancelled leave — the
+      // manager-facing reason the cancellation/rejection itself was given,
+      // distinct from the original application reason above.
+      cancellationReason: req.rejected_reason || null,
       // Set only when the employee exceeded a Flexible-mode entitlement and
       // supplied a reason for it — distinct from the normal leave_reason.
       justification: req.justification || null,
@@ -325,13 +365,17 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
   });
 }
 
-export function TeamRequestsTab() {
+export function TeamRequestsTab({ getPhoto }) {
   const toast = useToast();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editModalLeave, setEditModalLeave] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
+  const [calendarHolidays, setCalendarHolidays] = useState([]);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewLeaveIdParam = searchParams.get('viewLeaveId');
 
   const refetch = React.useCallback(async () => {
     try {
@@ -360,17 +404,71 @@ export function TeamRequestsTab() {
           return [];
         });
 
-      setRequests([...mappedLeaves, ...mappedModRequests]);
+      let holList = [];
+      try {
+        const holResponse = await leaveService.listHolidays({ limit: 1000 });
+        const holidaysData = Array.isArray(holResponse) ? holResponse : (holResponse?.results || holResponse?.data || []);
+        holList = holidaysData.map(h => {
+          const dates = h.dates || [];
+          const startDate = dates.length > 0 ? dates[0] : null;
+          const endDate = dates.length > 0 ? dates[dates.length - 1] : null;
+          return {
+            id: `hol_${h.id}`,
+            title: h.holiday_name || h.name,
+            type: 'Public Holiday',
+            leave_type: 'Public Holiday',
+            startDate: startDate || h.holiday_date || h.date,
+            endDate: endDate || h.holiday_date || h.date,
+            status: 'approved',
+            className: 'rbc-event-holiday'
+          };
+        });
+        setCalendarHolidays(holList);
+      } catch(e) {
+        console.error("Failed to fetch holidays", e);
+      }
+
+      const combined = [...mappedLeaves, ...mappedModRequests];
+      setRequests(combined);
     } catch (error) {
       console.error("Failed to fetch team leaves:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user?.emp_id, user?.id]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
+
+  // Handle direct navigation via push notifications
+  useEffect(() => {
+    if (!isLoading && requests.length > 0 && viewLeaveIdParam) {
+      const targetReq = requests.find(r => String(r.id) === String(viewLeaveIdParam));
+      if (targetReq) {
+        setDrawerReq(targetReq);
+        setDrawerAction('view');
+        setDrawerOpen(true);
+        
+        // Clean up the URL so it doesn't stay open if they refresh
+        searchParams.delete('viewLeaveId');
+        searchParams.delete('tab');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [isLoading, requests, viewLeaveIdParam, searchParams, setSearchParams]);
+
+  const mergedRequests = useMemo(() => {
+    if (!getPhoto) return requests;
+    return requests.map(r => {
+      const empId = String(r.employeeId).replace('EMP', '');
+      const photo = getPhoto(empId);
+      if (photo && photo !== r.photo) {
+        return { ...r, photo };
+      }
+      return r;
+    });
+  }, [requests, getPhoto]);
 
   const [innerTab, setInnerTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -406,7 +504,9 @@ export function TeamRequestsTab() {
       all: requests.length,
       pending: requests.filter((r) => r.status === 'pending').length,
       approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected' || r.status === 'self_rejected').length,
+      rejected: requests.filter((r) => r.status === 'rejected').length,
+      self_rejected: requests.filter((r) => r.status === 'self_rejected').length,
+      cancelled: requests.filter((r) => r.status === 'cancelled').length,
       leave: requests.filter((r) => r.type === 'leave').length,
       wfh: requests.filter((r) => r.type === 'wfh').length,
       offshore: requests.filter((r) => r.type === 'offshore').length,
@@ -425,9 +525,9 @@ export function TeamRequestsTab() {
     return set;
   }, [requests]);
   const sdlDayCount = useMemo(() => leaveDates.size, [leaveDates]);
-  const sdlTeams = useMemo(() => [...new Set(requests.map((r) => r.team))].sort(), [requests]);
+  const sdlTeams = useMemo(() => [...new Set(mergedRequests.map((r) => r.team))].sort(), [mergedRequests]);
   const sdlEmployees = useMemo(() => {
-    let list = requests.filter((r) => eachDay(r.startDate, r.endDate).includes(sdlSelected));
+    let list = mergedRequests.filter((r) => eachDay(r.startDate, r.endDate).includes(sdlSelected));
     if (sdlLeaveTF !== 'all')
       list = list.filter(
         (r) =>
@@ -447,7 +547,7 @@ export function TeamRequestsTab() {
       if (sdlSortBy === 'team') return a.team.localeCompare(b.team);
       return a.employeeName.localeCompare(b.employeeName);
     });
-  }, [requests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, debouncedSdlSearch, sdlSortBy]);
+  }, [mergedRequests, sdlSelected, sdlLeaveTF, sdlTeam, sdlStatus, debouncedSdlSearch, sdlSortBy]);
   function sdlPrevMonth() {
     if (sdlMonth === 0) {
       setSdlMonth(11);
@@ -461,7 +561,7 @@ export function TeamRequestsTab() {
     } else setSdlMonth((m) => m + 1);
   }
   const filtered = useMemo(() => {
-    let list = requests;
+    let list = mergedRequests;
     const q = debouncedSearch.toLowerCase().trim();
     if (q)
       list = list.filter(
@@ -471,8 +571,7 @@ export function TeamRequestsTab() {
           r.id.toLowerCase().includes(q),
       );
     if (statusF !== 'all') {
-      if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
-      else list = list.filter((r) => r.status === statusF);
+      list = list.filter((r) => r.status === statusF);
     }
     if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
     else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
@@ -627,16 +726,26 @@ export function TeamRequestsTab() {
     return p <= 10 ? 'danger' : p <= 30 ? 'warn' : '';
   }
   const liveReq = drawerReq ? (requests.find((r) => r.id === drawerReq.id) ?? drawerReq) : null;
-  const calEvents = useMemo(
-    () =>
-      filtered.map((r) => ({
-        date: /* @__PURE__ */ new Date(r.startDate + 'T00:00:00').getDate(),
-        title: r.employeeName,
-        type: 'leave',
-        status: 'approved',
-      })),
-    [filtered],
-  );
+  const calEvents = useMemo(() => {
+    const regularEvents = filtered.map((r) => ({
+      ...r,
+      date: r.startDate ? new Date(r.startDate + 'T00:00:00').getDate() : null,
+      type: r.type,
+      start_date: r.startDate,
+      end_date: r.endDate,
+      title: r.employeeName ? `${r.type} - ${r.employeeName}` : r.type,
+    }));
+    
+    // Convert calendarHolidays to the format expected by LeaveCalendar
+    const holidayEvents = calendarHolidays.map(h => ({
+      ...h,
+      date: h.startDate ? new Date(h.startDate + 'T00:00:00').getDate() : null,
+      start_date: h.startDate,
+      end_date: h.endDate
+    }));
+    
+    return [...regularEvents, ...holidayEvents];
+  }, [filtered, calendarHolidays]);
 
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = requests.filter(l => l.status === 'pending');
@@ -675,13 +784,13 @@ export function TeamRequestsTab() {
   const handleExportCSV = () => {
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const rows = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -694,13 +803,13 @@ export function TeamRequestsTab() {
     const doc = new jsPDF('landscape');
     const headers = ['Employee Name', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason'];
     const body = filtered.map(req => [
-      req.emp_name || '',
-      req.leave_name || req.leave_type || '',
-      req.start_date || '',
-      req.end_date || '',
-      req.business_days || 0,
+      req.employeeName || '',
+      req.leaveType || '',
+      req.startDate || '',
+      req.endDate || '',
+      req.bizDays || 0,
       req.status || '',
-      req.leave_reason || ''
+      req.reason || ''
     ]);
 
     autoTable(doc, {
@@ -872,12 +981,15 @@ export function TeamRequestsTab() {
               { key: 'pending', label: 'Pending', count: counts.pending },
               { key: 'approved', label: 'Approved', count: counts.approved },
               { key: 'rejected', label: 'Rejected', count: counts.rejected },
+              { key: 'self_rejected', label: 'Self-Rejected', count: counts.self_rejected },
+              { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
             ].map((c) => (
               <button
                 key={c.key}
                 className="tr-chip"
                 data-active={statusF === c.key}
                 onClick={() => setStatusF(c.key)}
+                title={STATUS_TOOLTIPS[c.key]}
               >
                 {c.label}
                 <span className="tr-chip-count">{c.count}</span>
@@ -943,6 +1055,12 @@ export function TeamRequestsTab() {
                       ) : (
                         filtered.map((req) => {
                           const TC = TYPE_CONFIG[req.type];
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const startDateObj = new Date(req.startDate);
+                          startDateObj.setHours(0, 0, 0, 0);
+                          const isApprovedPastOrPresent = req.status === 'approved' && startDateObj <= today;
+                          const canModify = !isApprovedPastOrPresent;
                           return (
                             <tr key={req.id} className="tr-row" data-selected={liveReq?.id === req.id}>
                               <td className="tr-td">
@@ -956,11 +1074,6 @@ export function TeamRequestsTab() {
                                         src={getPhotoUrl(req.photo)}
                                         alt={req.employeeName}
                                         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                                        onError={(e) => {
-                                          e.target.style.display = 'none';
-                                          e.target.nextSibling.style.display = 'block';
-                                          e.target.parentElement.style.background = avatarColor(req.employeeName);
-                                        }}
                                       />
                                     ) : null}
                                     <div style={{ display: req.photo ? 'none' : 'block' }}>
@@ -1016,11 +1129,11 @@ export function TeamRequestsTab() {
                                 ) : '-'}
                               </td>
                               <td className="tr-td">
-                                <span className={`tr-status-badge tr-status-${req.status}`}>
+                                <span className={`tr-status-badge ${getStatusBadgeClass(req)}`} title={STATUS_TOOLTIPS[req.status]}>
                                   {req.status === 'pending' && <Clock size={9} />}
                                   {req.status === 'approved' && <CheckCircle2 size={9} />}
                                   {req.status === 'rejected' && <XCircle size={9} />}
-                                  {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                                  {getStatusLabel(req)}
                                 </span>
                               </td>
                               {statusF === 'pending' && (
@@ -1030,25 +1143,25 @@ export function TeamRequestsTab() {
                               )}
                               <td className="tr-td">
                                 <div className="tr-actions">
-                                  {req.status === 'pending' && (
-                                    <>
-                                      <button
-                                        className="tr-act-btn tr-act-approve"
-                                        title="Approve"
-                                        onClick={() => openDrawer(req, 'approve')}
-                                      >
-                                        <Check size={10} />
-                                      </button>
-                                      <button
-                                        className="tr-act-btn tr-act-reject"
-                                        title="Reject"
-                                        onClick={() => openDrawer(req, 'reject')}
-                                      >
-                                        <X size={10} />
-                                      </button>
-                                    </>
+                                  {(req.status === 'pending' || req.status === 'rejected') && (
+                                    <button
+                                      className="tr-act-btn tr-act-approve"
+                                      title="Approve"
+                                      onClick={() => openDrawer(req, 'approve')}
+                                    >
+                                      <Check size={10} />
+                                    </button>
                                   )}
-                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                                  {(req.status === 'pending' || req.status === 'approved') && (
+                                    <button
+                                      className="tr-act-btn tr-act-reject"
+                                      title="Reject"
+                                      onClick={() => openDrawer(req, 'reject')}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  )}
+                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                                     <>
                                       <button
                                         className="tr-act-btn"
@@ -1057,13 +1170,13 @@ export function TeamRequestsTab() {
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                       </button>
-                                      <button
+                                      {/* <button
                                         className="tr-act-btn"
                                         title="Cancel on behalf"
                                         onClick={() => setCancelModalLeave(req.raw)}
                                       >
                                         <Ban size={10} />
-                                      </button>
+                                      </button> */}
                                     </>
                                   )}
                                   <button
@@ -1156,6 +1269,8 @@ export function TeamRequestsTab() {
                       { value: 'pending', label: 'Pending' },
                       { value: 'approved', label: 'Approved' },
                       { value: 'rejected', label: 'Rejected' },
+                      { value: 'self_rejected', label: 'Self-Rejected' },
+                      { value: 'cancelled', label: 'Cancelled' },
                     ]}
                     width="status"
                   />
@@ -1218,6 +1333,12 @@ export function TeamRequestsTab() {
                   ) : (
                     sdlEmployees.map((req) => {
                       const TC = TYPE_CONFIG[req.type];
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const startDateObj = new Date(req.startDate);
+                      startDateObj.setHours(0, 0, 0, 0);
+                      const isApprovedPastOrPresent = req.status === 'approved' && startDateObj <= today;
+                      const canModify = !isApprovedPastOrPresent;
                       return (
                         <div
                           key={req.id}
@@ -1234,11 +1355,6 @@ export function TeamRequestsTab() {
                                 src={getPhotoUrl(req.photo)}
                                 alt={req.employeeName}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'block';
-                                  e.target.parentElement.style.background = avatarColor(req.employeeName);
-                                }}
                               />
                             ) : null}
                             <div style={{ display: req.photo ? 'none' : 'block' }}>
@@ -1314,34 +1430,34 @@ export function TeamRequestsTab() {
                           </div>
 
                           {/* Status */}
-                          <span className={`tr-status-badge tr-status-${req.status}`}>
+                          <span className={`tr-status-badge ${getStatusBadgeClass(req)}`} title={STATUS_TOOLTIPS[req.status]}>
                             {req.status === 'pending' && <Clock size={9} />}
                             {req.status === 'approved' && <CheckCircle2 size={9} />}
                             {req.status === 'rejected' && <XCircle size={9} />}
-                            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                            {getStatusLabel(req)}
                           </span>
 
                           {/* Actions */}
                           <div className="tr-actions">
-                            {req.status === 'pending' && (
-                              <>
-                                <button
-                                  className="tr-act-btn tr-act-approve"
-                                  title="Approve"
-                                  onClick={() => openDrawer(req, 'approve')}
-                                >
-                                  <Check size={10} />
-                                </button>
-                                <button
-                                  className="tr-act-btn tr-act-reject"
-                                  title="Reject"
-                                  onClick={() => openDrawer(req, 'reject')}
-                                >
-                                  <X size={10} />
-                                </button>
-                              </>
-                            )}
-                            {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && (
+                                  {(req.status === 'pending' || req.status === 'rejected') && (
+                                    <button
+                                      className="tr-act-btn tr-act-approve"
+                                      title="Approve"
+                                      onClick={() => openDrawer(req, 'approve')}
+                                    >
+                                      <Check size={10} />
+                                    </button>
+                                  )}
+                                  {(req.status === 'pending' || req.status === 'approved') && (
+                                    <button
+                                      className="tr-act-btn tr-act-reject"
+                                      title="Reject"
+                                      onClick={() => openDrawer(req, 'reject')}
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  )}
+                            {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                               <>
                                 <button
                                   className="tr-act-btn"
@@ -1350,13 +1466,13 @@ export function TeamRequestsTab() {
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                 </button>
-                                <button
+                                {/* <button
                                   className="tr-act-btn"
                                   title="Cancel on behalf"
                                   onClick={() => setCancelModalLeave(req.raw)}
                                 >
                                   <Ban size={10} />
-                                </button>
+                                </button> */}
                               </>
                             )}
                             <button
@@ -1407,7 +1523,7 @@ export function TeamRequestsTab() {
           }}
         />
       )}
-      {cancelModalLeave && (
+      {/* {cancelModalLeave && (
         <CancelLeaveModal
           leave={cancelModalLeave}
           onClose={() => setCancelModalLeave(null)}
@@ -1416,7 +1532,7 @@ export function TeamRequestsTab() {
             refetch();
           }}
         />
-      )}
+      )} */}
     </div>
   );
 }

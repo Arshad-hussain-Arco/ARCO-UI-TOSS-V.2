@@ -62,8 +62,9 @@ const linregLine = (arr) => {
 };
 const fmtSec = (sec) => {
   if (sec < 60) return sec.toFixed(1) + 's';
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}m ${s}s`;
 };
 const hhmmss = (sec) => {
@@ -74,23 +75,35 @@ const hhmmss = (sec) => {
   return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
 };
 
+// Extracts "HH:MM:SS" from a raw Murex CMP timestamp ("04-AUG-2026 20:40:14")
+// or an ISO one ("2026-08-04T20:40:14"); returns null if unavailable.
+const clockFromTimestamp = (ts) => {
+  if (!ts) return null;
+  const timePart = String(ts).trim().split(/[ T]/).pop();
+  return timePart || null;
+};
+
 const RunCard = ({ run, index }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // CPU/DB values are assumed to be in milliseconds from the mock, convert to seconds
+  // cpuTime/dbTime/idleTime are real seconds from the API's
+  // STEPS_TRANSFORMED (hms_to_seconds) - NOT milliseconds. This used to
+  // divide everything by 1000, silently showing durations 1000x too small.
   const steps = run.steps || [];
-  const totalCpuSec = steps.reduce((sum, s) => sum + (s.cpuTime || 0), 0) / 1000;
-  const totalDbSec = steps.reduce((sum, s) => sum + (s.dbTime || 0), 0) / 1000;
-  
+  const totalCpuSec = steps.reduce((sum, s) => sum + (s.cpuTime || 0), 0);
+  const totalDbSec = steps.reduce((sum, s) => sum + (s.dbTime || 0), 0);
+  const totalIdleSec = steps.reduce((sum, s) => sum + (s.idleTime || 0), 0);
+
   // Use run.durationMin * 60 if total steps time is 0 (to have a fallback)
-  const totalDurationSec = steps.length > 0 ? (totalCpuSec + totalDbSec) : (run.durationMin * 60);
+  const totalDurationSec = steps.length > 0 ? (totalCpuSec + totalDbSec + totalIdleSec) : (run.durationMin * 60);
 
   // Convert steps for Plotly function if needed
   const plotlyRun = {
     steps: steps.map(s => ({
       name: s.name,
-      dbTime: s.dbTime / 1000,
-      cpuTime: s.cpuTime / 1000,
+      dbTime: s.dbTime || 0,
+      cpuTime: s.cpuTime || 0,
+      idleTime: s.idleTime || 0,
     }))
   };
   const { isDarkMode } = useTheme();
@@ -100,10 +113,15 @@ const RunCard = ({ run, index }) => {
   return (
     <div className="run-card">
       <div className="run-head" onClick={() => setIsOpen(!isOpen)}>
-        <div className="run-head-left">
-          <span className="run-name">Run {index + 1}</span>
-          <span className="run-date">({run.date})</span>
-          <span className="run-clock">{hhmmss(totalDurationSec)}</span>
+        <div className="run-head-left" style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+          <span className="run-name" style={run.isOutlier ? { color: '#ef4444' } : {}}>
+            Run {index + 1}: {hhmmss(totalDurationSec)} ({totalDurationSec.toFixed(0)}s)
+          </span>
+          {run.isOutlier && (
+            <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              ⚠️ Outlier
+            </span>
+          )}
         </div>
         <button className={`toggle-btn ${isOpen ? 'open' : ''}`}>
           <span className="chev">▾</span> {isOpen ? 'Hide Gantt' : 'Show Gantt'}
@@ -113,6 +131,7 @@ const RunCard = ({ run, index }) => {
         <div className="run-body">
           <div className="run-stats">
             <span className="step-chip">{steps.length} Steps</span>
+            <span className="run-stat">Total Idle: <b>{totalIdleSec.toFixed(1)}s</b></span>
             <span className="run-stat">Total DB: <b>{totalDbSec.toFixed(1)}s</b></span>
             <span className="run-stat">Total CPU: <b>{totalCpuSec.toFixed(1)}s</b></span>
             <span className="run-stat">Total Duration: <b>{totalDurationSec.toFixed(1)}s</b></span>
@@ -132,38 +151,47 @@ const RunCard = ({ run, index }) => {
               <thead>
                 <tr>
                   <th>Step</th>
+                  <th style={{ textAlign: 'right' }}>Idle / Wait</th>
                   <th style={{ textAlign: 'right' }}>CPU Time</th>
                   <th style={{ textAlign: 'right' }}>Database Time</th>
                   <th style={{ textAlign: 'right' }}>Step Total</th>
-                  <th style={{ textAlign: 'right' }}>Cumulative Start</th>
-                  <th style={{ textAlign: 'right' }}>Cumulative End</th>
+                  <th style={{ textAlign: 'right' }}>Start</th>
+                  <th style={{ textAlign: 'right' }}>End</th>
                 </tr>
               </thead>
               <tbody>
                 {steps.map((s, idx) => {
-                  const cpuSec = (s.cpuTime || 0) / 1000;
-                  const dbSec = (s.dbTime || 0) / 1000;
-                  const stepTotal = cpuSec + dbSec;
-                  
+                  const idleSec = s.idleTime || 0;
+                  const cpuSec = s.cpuTime || 0;
+                  const dbSec = s.dbTime || 0;
+                  const stepTotal = idleSec + cpuSec + dbSec;
+
+                  // Prefer the step's own real timestamps; fall back to a
+                  // cumulative offset (from the run's start) only when real
+                  // timestamps aren't available (e.g. legacy/mock data).
                   let cumStart = 0;
                   for (let i = 0; i < idx; i++) {
-                    cumStart += ((steps[i].cpuTime || 0) / 1000) + ((steps[i].dbTime || 0) / 1000);
+                    cumStart += (steps[i].idleTime || 0) + (steps[i].cpuTime || 0) + (steps[i].dbTime || 0);
                   }
                   const cumEnd = cumStart + stepTotal;
-                  
+                  const startDisplay = clockFromTimestamp(s.startTs) || `${cumStart.toLocaleString(undefined, { maximumFractionDigits: 1 })}s`;
+                  const endDisplay = clockFromTimestamp(s.endTs) || `${cumEnd.toLocaleString(undefined, { maximumFractionDigits: 1 })}s`;
+
                   return (
                     <tr key={idx}>
                       <td>{s.name}</td>
+                      <td className="num-cell">{idleSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                       <td className="num-cell">{cpuSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                       <td className="num-cell">{dbSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                       <td className="num-cell">{stepTotal.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
-                      <td className="num-cell">{cumStart.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
-                      <td className="num-cell">{cumEnd.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
+                      <td className="num-cell">{startDisplay}</td>
+                      <td className="num-cell">{endDisplay}</td>
                     </tr>
                   );
                 })}
                 <tr className="total-row">
                   <td>Total</td>
+                  <td className="num-cell">{totalIdleSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                   <td className="num-cell">{totalCpuSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                   <td className="num-cell">{totalDbSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
                   <td className="num-cell">{totalDurationSec.toLocaleString(undefined, { maximumFractionDigits: 1 })}s</td>
@@ -180,17 +208,25 @@ const RunCard = ({ run, index }) => {
 };
 
 export const ScriptRunMonitor = ({ script, cellDetails }) => {
+  const { isDarkMode } = useTheme();
+  
   // If cellDetails are provided (from heatmap click), we use its runs. Otherwise, use full script.history.
   const history = useMemo(() => {
     if (cellDetails && cellDetails.runs) {
       return cellDetails.runs.map((r, i) => ({
         date: cellDetails.date || 'Unknown',
         durationMin: r.seconds / 60,
+        isOutlier: r.isOutlier,
         steps: (r.steps || []).map(s => ({
           name: s.name,
-          cpuTime: s.cpuTime, // already in ms in mock
+          // cpuTime/dbTime/idleTime/elapsed are all real seconds from the
+          // API's STEPS_TRANSFORMED (hms_to_seconds) - NOT milliseconds.
+          cpuTime: s.cpuTime,
           dbTime: s.dbTime,
+          idleTime: s.idleTime || 0,
           elapsed: s.elapsed,
+          startTs: s.startTs || null,
+          endTs: s.endTs || null,
         }))
       }));
     }
@@ -200,7 +236,10 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
         name: s.name,
         cpuTime: s.cpu_time,
         dbTime: s.db_time,
-        elapsed: s.elapsed_time
+        idleTime: s.idle_time || 0,
+        elapsed: s.elapsed_time,
+        startTs: s.date_time_cmp || null,
+        endTs: s.finished_time || null,
       }))
     }));
   }, [script.history, cellDetails]);
@@ -220,14 +259,18 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
   const stepAggregation = useMemo(() => {
     // Look for a run that actually has steps
     const runWithSteps = history.find(h => h.steps && h.steps.length > 1);
-    if (!runWithSteps) return { names: [], avgElapsed: [], avgCpu: [], avgDb: [], maxElapsed: 0, bottleneckIdx: -1, dbShare: 0 };
+    if (!runWithSteps) return { names: [], avgElapsed: [], avgCpu: [], avgDb: [], avgIdle: [], maxElapsed: 0, bottleneckIdx: -1, dbShare: 0 };
     
     // Skip the first step "Checking"
     const stepNames = runWithSteps.steps.slice(1).map(s => s.name);
     
-    const avgElapsed = stepNames.map((_, i) => mean(history.map(r => ((r.steps || [])[i + 1]?.elapsed || 0) / 1000)));
-    const avgCpu = stepNames.map((_, i) => mean(history.map(r => ((r.steps || [])[i + 1]?.cpuTime || 0) / 1000)));
-    const avgDb = stepNames.map((_, i) => mean(history.map(r => ((r.steps || [])[i + 1]?.dbTime || 0) / 1000)));
+    // cpuTime/dbTime/idleTime/elapsed are already in seconds - see the
+    // history mapping above (this used to divide by 1000, silently showing
+    // durations 1000x too small for real API data).
+    const avgCpu = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.cpuTime || 0)));
+    const avgDb = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.dbTime || 0)));
+    const avgIdle = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.idleTime || 0)));
+    const avgElapsed = stepNames.map((_, i) => avgCpu[i] + avgDb[i] + avgIdle[i]);
     
     const maxElapsed = Math.max(...avgElapsed, 0.1);
     const bottleneckIdx = avgElapsed.indexOf(maxElapsed);
@@ -236,7 +279,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     const sumCpu = avgCpu.reduce((a, b) => a + b, 0);
     const dbShare = (sumDb + sumCpu) > 0 ? (sumDb / (sumDb + sumCpu)) * 100 : 0;
 
-    return { names: stepNames, avgElapsed, avgCpu, avgDb, maxElapsed, bottleneckIdx, dbShare };
+    return { names: stepNames, avgElapsed, avgCpu, avgDb, avgIdle, maxElapsed, bottleneckIdx, dbShare };
   }, [history]);
 
   const kpis = [
@@ -287,8 +330,16 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      y: { title: { display: true, text: 'Seconds' }, grid: { color: '#E4E2DA' }, min: 0 },
-      x: { grid: { display: false } }
+      y: { 
+        title: { display: true, text: 'Seconds', color: isDarkMode ? '#94a3b8' : '#64748b' }, 
+        grid: { color: isDarkMode ? '#334155' : '#e2e8f0' }, 
+        ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' },
+        min: 0 
+      },
+      x: { 
+        grid: { display: false },
+        ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' }
+      }
     }
   };
 
@@ -307,7 +358,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     plugins: { 
       legend: { 
         position: 'bottom', 
-        labels: { boxWidth: 10, font: { size: 10.5 }, padding: 14 } 
+        labels: { boxWidth: 10, font: { size: 10.5 }, padding: 14, color: isDarkMode ? '#f8fafc' : '#1e293b' } 
       } 
     },
     layout: {
@@ -356,21 +407,24 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
         <section>
           <div className="section-head">
             <h2>Pipeline step breakdown</h2>
-            <span className="section-note">Average CPU vs DB time per step, across all runs</span>
+            <span className="section-note">Average idle/CPU/DB time per step, across all runs</span>
           </div>
           <div className="two-col">
             <div className="panel">
               <div className="legend">
+                <span><i style={{ background: '#CBD5E1' }}></i>Idle / Wait</span>
                 <span><i style={{ background: '#B5790C' }}></i>CPU time</span>
                 <span><i style={{ background: '#0F6E56' }}></i>DB time</span>
               </div>
               <div id="ganttBody">
                 {stepAggregation.names.map((name, i) => {
-                  const cpuPct = (stepAggregation.avgCpu[i] / stepAggregation.avgElapsed[i]) * 100 || 0;
-                  const dbPct = 100 - cpuPct;
-                  const widthPct = (stepAggregation.avgElapsed[i] / stepAggregation.maxElapsed) * 100 || 0;
+                  const elapsed = stepAggregation.avgElapsed[i] || 0;
+                  const idlePct = elapsed > 0 ? (stepAggregation.avgIdle[i] / elapsed) * 100 : 0;
+                  const cpuPct = elapsed > 0 ? (stepAggregation.avgCpu[i] / elapsed) * 100 : 0;
+                  const dbPct = Math.max(0, 100 - idlePct - cpuPct);
+                  const widthPct = (elapsed / stepAggregation.maxElapsed) * 100 || 0;
                   const isBottleneck = i === stepAggregation.bottleneckIdx;
-                  
+
                   return (
                     <div className="gantt-row" key={i}>
                       <div className="step-name">
@@ -378,10 +432,41 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         {isBottleneck && <div className="bottleneck-tag">SLOWEST</div>}
                       </div>
                       <div className="step-track">
-                        <div className="step-seg" style={{ left: 0, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}></div>
-                        <div className="step-seg" style={{ left: `${(widthPct * cpuPct) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}></div>
+                        <div className="step-seg" style={{ left: 0, width: `${(widthPct * idlePct) / 100}%`, background: '#CBD5E1' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#CBD5E1' }}></span>
+                              Idle / Wait: {fmtSec(stepAggregation.avgIdle[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="step-seg" style={{ left: `${(widthPct * idlePct) / 100}%`, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#B5790C' }}></span>
+                              CPU time: {fmtSec(stepAggregation.avgCpu[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="step-seg" style={{ left: `${(widthPct * (idlePct + cpuPct)) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}>
+                          <div className="step-seg-tooltip">
+                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-value">
+                              <span className="tooltip-color-box" style={{ background: '#0F6E56' }}></span>
+                              DB time: {fmtSec(stepAggregation.avgDb[i] || 0)}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="step-total">{fmtSec(stepAggregation.avgElapsed[i])}</div>
+                      <div className="step-total">
+                        {fmtSec(
+                          Math.round(stepAggregation.avgIdle[i] || 0) +
+                          Math.round(stepAggregation.avgCpu[i] || 0) +
+                          Math.round(stepAggregation.avgDb[i] || 0)
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -402,7 +487,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           <span className="section-note">Expand a run for its step-by-step CPU / DB waterfall</span>
         </div>
         <div id="runLog">
-          {history.map((run, i) => (
+          {[...history].reverse().map((run, i) => (
             <RunCard key={i} run={run} index={i} />
           ))}
         </div>

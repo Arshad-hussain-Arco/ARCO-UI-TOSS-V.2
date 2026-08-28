@@ -33,10 +33,10 @@
 
 .rwiz-page-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.2px;
+  letter-spacing: -0.4px;
 }
 
 .rwiz-page-guide-btn {
@@ -76,25 +76,27 @@
 }
 
 .rwiz-step-node {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
   border: 2px solid var(--border-secondary);
   color: var(--text-tertiary);
   background: var(--surface-primary);
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .rwiz-step-node--active {
   border-color: var(--c-primary);
   color: var(--c-primary);
   background: var(--c-primary-light);
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(0, 102, 51, 0.1);
 }
 
 .rwiz-step-node--done {
@@ -136,14 +138,14 @@
 /* ─── Main Content Card ──────────────────────────────────────────────────── */
 .rwiz-step-card {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 /* Step Header (Inside Card) */
@@ -238,13 +240,15 @@
 }
 
 .rwiz-btn-primary {
-  background:  #006633;
+  background: #006633;
   color: white;
-  border-color:  #006633;
+  border-color: #006633;
 }
 
 .rwiz-btn-primary:hover {
-  background:  #006633;
+  background: #006633;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 102, 51, 0.2);
 }
 
 .rwiz-btn-outline {
@@ -292,16 +296,16 @@
 }
 
 .rfz-dropzone {
-  border: 2px dashed var(--border-secondary);
-  border-radius: 8px;
+  border: 2px dashed var(--border-primary);
+  border-radius: 12px;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: all 0.2s ease-in-out;
   background: var(--bg-secondary);
   min-height: 120px;
   text-align: center;
@@ -311,6 +315,8 @@
 .rfz-dropzone--active {
   border-color: var(--c-primary);
   background: var(--c-primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 51, 0.08);
 }
 
 .rfz-dropzone-icon {
@@ -888,34 +894,70 @@
 /* Tabs */
 .rrs-tabs {
   display: flex;
-  align-items: center;
-  gap: 2px;
-  border-bottom: 2px solid var(--border-primary);
+  align-items: flex-end;
+  width: 100%;
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .rrs-tab {
-  display: flex;
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: none !important;
+  padding: 8px 18px;
+  height: 38px;
   cursor: pointer;
-  transition: all 0.14s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  outline: none;
+  user-select: none;
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0px 0px;
+  color: var(--text-secondary);
 }
 
-.rrs-tab:hover {
+.rrs-tab:hover:not(.rrs-tab--active) {
+  background-color: var(--bg-hover);
   color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 
 .rrs-tab--active {
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-primary);      
+  border-bottom: 1px solid var(--border-primary-primary);
+  border-radius: 8px 8px 0 0;
   color: var(--c-primary);
-  border-bottom-color: var(--c-primary);
+  font-weight: 600;
+  margin-bottom: -1px;
+  z-index: 2;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.rrs-tab svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: color 0.2s ease;
+}
+
+.rrs-tab--active svg {
+  color: var(--c-primary);
 }
 
 .rrs-tab-badge {
@@ -1040,18 +1082,12 @@
   min-width: 200px;
 }
 
+.rrs-tr {
+  height: 36px;
+}
+
 .rrs-tr:hover {
   background: var(--bg-hover);
-}
-
-
-
-.rrs-tr--missing {
-  background: rgba(249, 115, 22, 0.025);
-}
-
-.rrs-tr--duplicate {
-  background: rgba(37, 99, 235, 0.025);
 }
 
 .rrs-td {
@@ -1060,6 +1096,11 @@
   color: var(--text-primary);
   vertical-align: middle;
   white-space: nowrap;
+  height: 36px;
+  box-sizing: border-box;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rrs-td-key {
@@ -1135,30 +1176,40 @@
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
   padding: 16px;
+  animation: am-fade-in 0.15s ease;
 }
 
 .rrs-modal {
   background: var(--surface-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
   width: 100%;
-  max-width: 400px;
+  max-width: 520px;
+  max-height: 90vh;
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  animation: am-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
 }
 
 .rrs-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 13px 20px;
   border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
 }
 
 .rrs-modal-title {
@@ -1267,11 +1318,14 @@
 }
 
 .rrs-modal-footer {
-  padding: 10px 16px;
-  border-top: 1px solid var(--border-primary);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 7px;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
+  gap: 8px;
 }
 
 /* ─── Reconcile Error Banner (Step 3) ───────────────────────────────────── */
@@ -1624,4 +1678,10 @@
   background: var(--surface-primary);
   border-left: 1px solid var(--border-primary);
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.03);
+}
+
+
+[data-theme="dark"] .rrs-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

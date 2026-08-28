@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
-import { Bell, ChevronDown, ExternalLink, Menu, Moon, MoreVertical, Sun } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, ExternalLink, Menu, Moon, Sun } from 'lucide-react';
 
 import logoUrl from '@assets/images/favicon.png';
 import { APP_LONG_NAME, APP_NAME } from '@constants/app';
+import { ROUTES, buildPath } from '@constants/routes';
 import { usePinnedLinks } from '@context/PinnedLinksContext';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useSidebar } from '@hooks/useSidebar';
@@ -29,11 +31,9 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
   const { isDarkMode, toggleTheme } = useTheme();
   const { pinnedLinks } = usePinnedLinks();
   const { user: authUser } = useAuth();
+  const navigate = useNavigate();
   
-  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-
-  const navMenuRef = useRef(null);
 
   const empId = authUser?.emp_id ?? null;
 
@@ -46,7 +46,6 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
     refreshNotifications,
   } = useNotifications(empId);
 
-  const closeNavMenu = useCallback(() => setIsNavMenuOpen(false), []);
   const closeNotif   = useCallback(() => setIsNotifOpen(false), []);
 
   // EOD notifications have no live push (see useNotifications.js) — refetch
@@ -58,8 +57,6 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
       return !open;
     });
   }, [refreshNotifications]);
-
-  useOnClickOutside(navMenuRef, closeNavMenu, isNavMenuOpen);
 
   const [activeGroupDropdown, setActiveGroupDropdown] = useState(null);
 
@@ -107,55 +104,44 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
                   <ChevronDown size={11} aria-hidden="true" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
                 </button>
                 <div className="header-pinned-dropdown-menu" data-open={isOpen}>
-                  {group.links.map((link) => (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      className="header-pinned-dropdown-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setActiveGroupDropdown(null)}
-                    >
-                      <span>{link.label}</span>
-                      <ExternalLink size={10} style={{ marginLeft: 'auto', opacity: 0.6 }} />
-                    </a>
-                  ))}
+                  {group.links.map((link) =>
+                    link.url ? (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        className="header-pinned-dropdown-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setActiveGroupDropdown(null)}
+                      >
+                        <span>{link.label}</span>
+                        <ExternalLink size={10} style={{ marginLeft: 'auto', opacity: 0.6 }} />
+                      </a>
+                    ) : (
+                      // Shared Folder / Upload File / Comments content type — no
+                      // URL to open, so this navigates in-app to a full page
+                      // instead of a dead/empty anchor.
+                      <button
+                        key={link.id}
+                        type="button"
+                        className="header-pinned-dropdown-link"
+                        style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left' }}
+                        onClick={() => {
+                          setActiveGroupDropdown(null);
+                          navigate(buildPath(ROUTES.IMPORTANT_LINKS_CONTENT, { id: link.id }));
+                        }}
+                      >
+                        <span>{link.label}</span>
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             );
           })}
         </nav>
 
-        <div className="header-mobile-nav-wrapper" ref={navMenuRef}>
-          <button
-            type="button"
-            onClick={() => setIsNavMenuOpen((open) => !open)}
-            className="header-icon-button"
-            aria-haspopup="menu"
-            aria-expanded={isNavMenuOpen}
-            aria-label="More links"
-          >
-            <MoreVertical className="header-icon" aria-hidden="true" />
-          </button>
 
-          {isNavMenuOpen && pinnedLinks.length > 0 ? (
-            <div className="header-mobile-nav-menu" role="menu">
-              {pinnedLinks.map((link) => (
-                <a
-                  key={link.id}
-                  href={link.url}
-                  className="header-mobile-nav-item"
-                  role="menuitem"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={closeNavMenu}
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          ) : null}
-        </div>
 
         <div className="header-divider" />
 

@@ -27,6 +27,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import roleService from '@services/roleService';
 import consultantService from '@services/consultantService';
+import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './RoleManagementPage.css';
 
 // Permission catalog — mirrors the codes seeded by
@@ -163,6 +164,7 @@ const PERMISSION_CATALOG = [
       { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
       { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
       { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
+      { code: 'IMPORTANT_LINKS_GROUP_ACCESS_CONTROL', label: 'Manage Group Access' },
     ],
   },
   {
@@ -219,9 +221,11 @@ export function RoleManagementPage() {
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [roleToCancel, setRoleToCancel] = useState(null);
   const [dirtyRoles, setDirtyRoles] = useState(new Set());
+  const [error, setError] = useState(null);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await roleService.getRoles();
       if (response && response.data && response.stats) {
@@ -233,7 +237,7 @@ export function RoleManagementPage() {
         setRoles(response.data.map(mapRole));
       }
     } catch (err) {
-      toast.error('Failed to load roles.');
+      setError(err);
     } finally {
       setIsLoading(false);
     }
@@ -511,6 +515,16 @@ export function RoleManagementPage() {
     );
   };
 
+  if (error) {
+    return (
+      <ErrorState
+        title="Roles could not be loaded"
+        description={error.message}
+        onRetry={fetchRoles}
+      />
+    );
+  }
+
   return (
     <div className="rm-container">
       {/* ── Top Header & KPI Summary Bar ────────────────────────────────────────── */}
@@ -723,9 +737,15 @@ export function RoleManagementPage() {
                                 const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                                 const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
 
+                                // Modules with no dedicated View code (e.g. Important Links —
+                                // Groups) have no real "master gate" — each permission stays
+                                // independently toggleable, and the master switch is just a
+                                // bulk allow-all/deny-all shortcut: it reads "on" as long as any
+                                // code is allowed, and only reads "off" once every code is denied.
                                 const isViewAllowed = viewCodeObj
                                   ? role.permissions.includes(viewCodeObj.code)
-                                  : codes.every(c => role.permissions.includes(c.code));
+                                  : codes.some(c => role.permissions.includes(c.code));
+                                const gatesSiblings = !!viewCodeObj;
 
                                 const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -752,7 +772,7 @@ export function RoleManagementPage() {
                                             <div
                                               className="rm-perm-box"
                                               key={code}
-                                              style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                              style={gatesSiblings && !isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                             >
                                               <span className="rm-perm-label" title={label}>
                                                 {label}
@@ -847,7 +867,10 @@ export function RoleManagementPage() {
                 style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
                 {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
               >
-                Delete
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash size={14} style={{ marginRight: '6px' }} />
+                  Delete
+                </div>
               </button>
             </div>
           </div>
@@ -1008,7 +1031,8 @@ export function RoleManagementPage() {
 
                       const isViewAllowed = viewCodeObj
                         ? newRoleCodes.includes(viewCodeObj.code)
-                        : codes.every(c => newRoleCodes.includes(c.code));
+                        : codes.some(c => newRoleCodes.includes(c.code));
+                      const gatesSiblings = !!viewCodeObj;
 
                       const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -1035,7 +1059,7 @@ export function RoleManagementPage() {
                                   <div
                                     className="rm-perm-box"
                                     key={code}
-                                    style={!isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                                    style={gatesSiblings && !isViewAllowed ? { opacity: 0.5, pointerEvents: 'none' } : {}}
                                   >
                                     <span className="rm-perm-label" title={label}>
                                       {label}

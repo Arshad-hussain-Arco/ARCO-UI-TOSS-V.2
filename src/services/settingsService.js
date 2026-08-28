@@ -20,10 +20,40 @@ export const settingsService = {
     return response.data;
   },
 
+  /**
+   * The FULL, unfiltered SystemConfig(module='app') blob — every key, not
+   * just the ~8 a given settings tab's own GET exposes. updateConfig() does
+   * a full replace of config_json, so a save built only from
+   * getEnvironmentConfig()/getImportFileConfig() silently drops any key
+   * neither of those covers (e.g. homeMediaFilePath, which has no
+   * dedicated settings UI). Panels that save via updateConfig() should
+   * spread this in first (lowest precedence) before their own known fields.
+   */
+  getAllConfigurations: async () => {
+    const response = await httpClient.get(endpoints.systemSettings.allConfigurations);
+    const row = Array.isArray(response.data) ? response.data[0] : response.data;
+    if (!row?.config_json) return {};
+    try {
+      return JSON.parse(row.config_json);
+    } catch {
+      return {};
+    }
+  },
+
   uploadFile: async (formData) => {
+    // Runtime-file uploads parse the whole CSV server-side (row-by-row state
+    // machine over potentially months of daily logs) before the SFTP step
+    // even starts - that can outlast the shared 30s default timeout on
+    // large files, so give this call more room.
     const response = await httpClient.post(endpoints.systemSettings.uploadFile, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
     });
+    return response.data;
+  },
+
+  getUploadTimestamp: async (fileKey) => {
+    const response = await httpClient.get(endpoints.systemSettings.uploadTimestamp, { params: { fileKey } });
     return response.data;
   },
 
@@ -83,7 +113,7 @@ export const settingsService = {
   deleteHomeData: async (id) => {
     const response = await httpClient.delete(endpoints.systemSettings.deleteHomeData(id), { data: {} });
     return response.data;
-  }
+  },
 };
 
 export default settingsService;

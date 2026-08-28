@@ -7,8 +7,13 @@ const endpoints = {
     userInfo: '/auth/user-info/',
     updateUserInfo: '/auth/update-user-info/',
     updateTheme: '/auth/update-theme/',
+    mySidebarNavOrder: '/auth/my-sidebar-nav-order/',
     adminUpdatePassword: '/auth/admin-update-password/',
     updatePassword: '/auth/update-password/',
+  },
+  pushNotifications: {
+    vapidPublicKey: '/notifications/vapid-public-key/',
+    subscribe: '/notifications/subscribe/',
   },
   reconciliation: {
     preprocess: '/reconciliation/reconciliation/preprocess/',
@@ -19,15 +24,19 @@ const endpoints = {
     create: '/auth/role-permissions/create/',
     update: (id) => `/auth/role-permissions/${id}/update/`,
     delete: (id) => `/auth/role-permissions/${id}/delete/`,
+    sidebarNavOrder: (id) => `/auth/role-permissions/${id}/sidebar-nav-order/`,
   },
   importantLinks: {
     groups: {
       listCreate: '/important-links/groups/',
       detailUpdateDelete: (id) => `/important-links/groups/${id}/`,
+      accessControl: (id) => `/important-links/groups/${id}/access-control/`,
+      pin: (id) => `/important-links/groups/${id}/pin/`,
     },
     links: {
       list: '/important-links/link-data/',
       detail: (id) => `/important-links/link-data/${id}/`,
+      content: (id) => `/important-links/link-data/${id}/content/`,
       create: '/important-links/link-data/create/',
       update: (id) => `/important-links/link-data/${id}/update/`,
       delete: (id) => `/important-links/link-data/${id}/delete/`,
@@ -37,7 +46,9 @@ const endpoints = {
     environmentConfig: '/env-admin/environment-config/',
     updateConfig: '/env-admin/update-config/',
     importFileConfig: '/env-admin/import-file-config/',
+    allConfigurations: '/env-admin/all-configs/',
     uploadFile: '/env-admin/upload-file/',
+    uploadTimestamp: '/env-admin/upload-timestamp/',
     crColumns: '/capacity-planning/cr-columns/',
     updateCrColumn: (id) => `/capacity-planning/cr-columns/${id}/update/`,
     woColumns: '/capacity-planning/wo-columns/',
@@ -49,6 +60,7 @@ const endpoints = {
     deleteHomeData: (id) => `/dashboard/home-data/${id}/delete/`,
     uploadHomeMedia: '/dashboard/home-data/media-upload/',
     homeMediaContent: (id) => `/dashboard/home-media/${id}/`,
+    homeMediaToken: '/dashboard/home-media/token/',
   },
   dashboard: {
     summary: '/dashboard/summary/',
@@ -95,6 +107,7 @@ const endpoints = {
   scriptManager: {
     runtimeFile: '/script-manager/runtime-file/',
     runtimeFileKpis: '/script-manager/runtime-file/kpis/',
+    runtimeFileOverview: '/script-manager/runtime-file/overview/',
     categories: {
       list: '/script-manager/categories/',
       create: '/script-manager/categories/create/',
@@ -129,6 +142,7 @@ const endpoints = {
     teamPresentToday: (id) => `/leaves/manager/${id}/team-present-today/`,
     teamOnLeaveToday: (id) => `/leaves/manager/${id}/team-on-leave-today/`,
     teamOnWfhToday: (id) => `/leaves/manager/${id}/team-on-wfh-today/`,
+    leaveTypesReference: '/leaves/manager/leave-types-reference/',
     shifts: {
       list: '/leaves/shifts/',
       add: '/leaves/shifts/add/',
@@ -192,6 +206,10 @@ const endpoints = {
     update: '/employees/update/',
     delete: '/employees/delete/',
     list: '/employees/full/',
+    photos: (params = {}) => {
+      const query = new URLSearchParams(params).toString();
+      return `/employees/photos/${query ? `?${query}` : ''}`;
+    },
     inactive: '/employees/inactive/',
     activate: '/employees/activate/',
     roles: '/employees/roles/',

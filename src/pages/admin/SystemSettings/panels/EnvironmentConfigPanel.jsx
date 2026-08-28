@@ -17,6 +17,7 @@ function EnvironmentConfigPanelComponent() {
   const [formData, setFormData] = useState({
     clientDirectory: '',
     ImpLinksPath: '',
+    documentfilePath: '',
     systemHealthHeartbeat: '',
     eodHeartbeatInterval: '',
     envConfigServerIp: '',
@@ -39,6 +40,7 @@ function EnvironmentConfigPanelComponent() {
         setFormData({
           clientDirectory: res.clientDirectory || '',
           ImpLinksPath: res.ImpLinksPath || '',
+          documentfilePath: res.documentfilePath || '',
           systemHealthHeartbeat: res.systemHealthHeartbeat || '',
           eodHeartbeatInterval: res.eodHeartbeatInterval || '',
           envConfigServerIp: res.envConfigServerIp || '',
@@ -60,12 +62,17 @@ function EnvironmentConfigPanelComponent() {
     try {
       setSaving(true);
       
-      // Need to fetch full config to merge as update requires full replace
-      // In this case, we just send what we have, but according to API, we might need all configs
+      // update-config is a full replace of config_json, and
+      // getEnvironmentConfig()/getImportFileConfig() only return their own
+      // ~8-key whitelist each — merging just those two silently drops any
+      // key neither tab knows about (e.g. homeMediaFilePath). Spread the
+      // full raw config in first (lowest precedence) so those survive.
+      const rawConfig = await settingsService.getAllConfigurations();
       const allConfigs = await settingsService.getEnvironmentConfig(); // Get base config
       const importConfigs = await settingsService.getImportFileConfig(); // It might return other fields
 
       const mergedConfig = {
+        ...rawConfig,
         ...allConfigs,
         ...importConfigs,
         ...formData
@@ -141,6 +148,21 @@ function EnvironmentConfigPanelComponent() {
               value={formData.ImpLinksPath}
               placeholder="/upload/CABCalendar"
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
+            />
+          </div>
+
+          {/* 2.5 Documents FilePath */}
+          <div className="ss-modal-form-group">
+            <label className="ss-modal-label" htmlFor="env-docs-filepath">
+              Documents FilePath
+            </label>
+            <input
+              id="env-docs-filepath"
+              type="text"
+              className="ss-input"
+              value={formData.documentfilePath}
+              placeholder="/upload/Documents"
+              onChange={(e) => handleChange('documentfilePath', e.target.value)}
             />
           </div>
 

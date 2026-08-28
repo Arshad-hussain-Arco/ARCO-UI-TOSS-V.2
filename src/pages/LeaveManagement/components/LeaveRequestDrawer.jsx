@@ -198,6 +198,16 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
+          {liveReq.cancellationReason && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">
+                {liveReq.status === 'rejected' ? 'Rejection Reason' : 'Cancellation Reason'}
+              </span>
+              <span className="tr-drow-value" style={{ maxWidth: 220 }}>
+                {liveReq.cancellationReason}
+              </span>
+            </div>
+          )}
           {liveReq.justification && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Justification</span>
@@ -367,12 +377,7 @@ export function LeaveRequestDrawer({
               {
                 label: 'Pending Manager Approval',
                 sub: liveReq.manager ? `Reporting to ${liveReq.manager}` : 'Awaiting action',
-                state:
-                  liveReq.status === 'pending'
-                    ? 'active'
-                    : liveReq.status === 'approved'
-                      ? 'done'
-                      : 'rejected',
+                state: 'active',
               },
               {
                 label:
@@ -418,7 +423,7 @@ export function LeaveRequestDrawer({
         </div>
 
         {/* Manager Notes */}
-        {!isReadOnly && (drawerAction !== 'view' || liveReq.status === 'pending') && (
+        {!isReadOnly && drawerAction !== 'view' && (
           <div className="tr-dsec">
             <div className="tr-dsec-title">Manager Notes</div>
             <textarea
@@ -452,9 +457,9 @@ export function LeaveRequestDrawer({
         <button className="tr-btn tr-btn-ghost" onClick={onClose}>
           {isReadOnly ? 'Close' : 'Cancel'}
         </button>
-        {!isReadOnly && liveReq.status === 'pending' && (
+        {!isReadOnly && drawerAction !== 'view' && (liveReq.status === 'pending' || liveReq.status === 'approved' || liveReq.status === 'rejected') && (
           <>
-            {(drawerAction === 'view' || drawerAction === 'reject') && (
+            {drawerAction === 'reject' && liveReq.status !== 'rejected' && (
               <button 
                 className="tr-btn tr-btn-danger" 
                 onClick={onReject}
@@ -464,7 +469,7 @@ export function LeaveRequestDrawer({
                 {isSubmittingAction ? 'Rejecting...' : 'Reject'}
               </button>
             )}
-            {(drawerAction === 'view' || drawerAction === 'approve') && (
+            {drawerAction === 'approve' && liveReq.status !== 'approved' && (
               <button 
                 className="tr-btn tr-btn-primary" 
                 onClick={() => setShowConfirm(true)}

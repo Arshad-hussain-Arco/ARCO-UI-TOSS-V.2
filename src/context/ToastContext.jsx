@@ -44,11 +44,14 @@ export function ToastProvider({ children }) {
     [dismiss],
   );
 
-  const value = useMemo(() => {
+  // Actions are memoized separately from `toasts` so that calling toast.error/success
+  // (which updates `toasts`) doesn't hand out a new function identity — consumers that
+  // put `toast` in a useCallback/useEffect dependency array would otherwise re-run
+  // every time a toast fires, which can trigger infinite fetch-then-toast-error loops.
+  const actions = useMemo(() => {
     const withVariant = (variant) => (title, options) => show({ ...options, title, variant });
 
     return {
-      toasts,
       show,
       dismiss,
       success: withVariant(TOAST_VARIANTS.SUCCESS),
@@ -56,7 +59,9 @@ export function ToastProvider({ children }) {
       warning: withVariant(TOAST_VARIANTS.WARNING),
       info: withVariant(TOAST_VARIANTS.INFO),
     };
-  }, [toasts, show, dismiss]);
+  }, [show, dismiss]);
+
+  const value = useMemo(() => ({ toasts, ...actions }), [toasts, actions]);
 
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }

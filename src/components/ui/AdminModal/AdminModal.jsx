@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { Loader } from '@components/feedback/Loader/Loader';
 
 import { dismissBackdrop } from '@utils/interactive';
 import './AdminModal.css';
@@ -25,6 +26,8 @@ export function AdminModal({
   onClose,
   size = 'md',
   variant = 'center',
+  isLoading = false,
+  loadingMessage = 'Loading roles...',
   children,
   footer,
 }) {
@@ -85,7 +88,15 @@ export function AdminModal({
           </>
         )}
 
-        <div className="admin-modal-body">{children}</div>
+        <div className="admin-modal-body">
+          {isLoading ? (
+            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+              <Loader message={loadingMessage} />
+            </div>
+          ) : (
+            children
+          )}
+        </div>
 
         {footer && <div className="admin-modal-footer">{footer}</div>}
       </div>

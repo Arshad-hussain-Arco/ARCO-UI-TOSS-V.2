@@ -126,7 +126,7 @@
   padding: 5px 8px 5px 26px;
   border: 1px solid var(--border-primary);
   border-radius: 4px;
-  background-color: var(--surface-secondary);
+  background-color: transparent;
   color: var(--text-primary);
   font-size: 11px;
   width: 220px;
@@ -251,7 +251,7 @@
   padding: 5px 8px 5px 26px;
   border: 1px solid var(--border-primary);
   border-radius: 4px;
-  background-color: var(--surface-secondary);
+  background-color: transparent;
   color: var(--text-primary);
   font-size: 11px;
   width: 190px;
@@ -298,7 +298,7 @@
 /* KPI Cards Section */
 .attendance-kpi-section {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   padding: 12px 16px;
   background-color: var(--surface-primary);
@@ -580,6 +580,16 @@
   color: #a5b4fc;
 }
 
+.att-status-wfh {
+  background-color: #ecfeff;
+  color: #0e7490;
+}
+
+[data-theme='dark'] .att-status-wfh {
+  background-color: #164e63;
+  color: #67e8f9;
+}
+
 /* Timeline Filters - Match Leave Management Tabs */
 .att-timeline-folder-tabs {
   display: flex;
@@ -666,28 +676,51 @@
 .attendance-timeline-team-group {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: max-content;
 }
 
 .attendance-timeline-team-header {
+  /* Stays in normal flow, full width — its solid background/border look
+     the same at any horizontal scroll position, so it doesn't itself need
+     to be sticky. Only the label inside (icon + team name) needs to stay
+     pinned in view — see .attendance-timeline-team-header-label. Padding
+     lives on the label itself (not here) so its inset stays the same
+     16px whether or not it's currently pinned by the scroll position. */
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  padding: 10px 0;
   background-color: #f4f6f8; /* Very light gray */
   border-bottom: 1px solid #e2e8f0;
   border-top: 1px solid #e2e8f0;
+  width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+/* The icon + team name — sticky so it stays visible on the left of the
+   viewport while scrolling horizontally through the date columns, instead
+   of scrolling away with the rest of the (full-width) header bar. */
+.attendance-timeline-team-header-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
   font-size: 13px;
   font-weight: 600;
   color: #334155;
   position: sticky;
   left: 0;
-  z-index: 5;
+  z-index: 6;
 }
 
 [data-theme='dark'] .attendance-timeline-team-header {
   background-color: #1e293b;
-  color: #cbd5e1;
   border-color: #334155;
+}
+
+[data-theme='dark'] .attendance-timeline-team-header-label {
+  color: #cbd5e1;
 }
 
 .att-team-header-icon {
@@ -702,16 +735,36 @@
 }
 .attendance-timeline-wrapper {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
+/* Card wrapping the scrollable calendar + its footer legend — bounded so
+   the legend always sits right under the visible rows instead of trailing
+   after them with blank space when there are only a few consultants. */
 .attendance-timeline {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  overflow: auto;
+  overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The actual scrolling region — horizontal + vertical — inside the
+   .attendance-timeline card. Sticky header/consultant-column/team-header
+   positioning is relative to this ancestor. */
+.attendance-timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .attendance-timeline-header {
@@ -773,6 +826,7 @@
 }
 
 .attendance-timeline-body {
+  width: 100%;
   min-width: max-content;
 }
 
@@ -1174,17 +1228,29 @@
   min-width: 0;
 }
 
+.attendance-card-ring-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+}
+
 .attendance-card-ring {
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto;
+  width: 90px;
+  height: 90px;
 }
 
 .attendance-ring-svg {
   width: 100%;
   height: 100%;
   transform: rotate(0deg);
+  overflow: visible;
+}
+
+.attendance-ring-progress {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.2));
 }
 
 .attendance-ring-text {
@@ -1193,18 +1259,25 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .attendance-ring-percentage {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1;
 }
 
 .attendance-ring-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-tertiary);
   margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .attendance-card-stats {
@@ -1237,6 +1310,18 @@
 }
 
 /* Empty State */
+.attendance-inline-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--color-warning-bg, #fff7e6);
+  color: var(--color-warning-text, #a15c00);
+  font-size: 13px;
+}
+
 .attendance-empty {
   display: flex;
   flex-direction: column;
@@ -1261,6 +1346,7 @@
 .attendance-timeline-wrapper::-webkit-scrollbar,
 .attendance-report-wrapper::-webkit-scrollbar,
 .attendance-timeline::-webkit-scrollbar,
+.attendance-timeline-scroll::-webkit-scrollbar,
 .attendance-report-table::-webkit-scrollbar,
 .attendance-card-grid::-webkit-scrollbar {
   width: 6px;
@@ -1271,6 +1357,7 @@
 .attendance-timeline-wrapper::-webkit-scrollbar-track,
 .attendance-report-wrapper::-webkit-scrollbar-track,
 .attendance-timeline::-webkit-scrollbar-track,
+.attendance-timeline-scroll::-webkit-scrollbar-track,
 .attendance-report-table::-webkit-scrollbar-track,
 .attendance-card-grid::-webkit-scrollbar-track {
   background: var(--surface-secondary);
@@ -1280,6 +1367,7 @@
 .attendance-timeline-wrapper::-webkit-scrollbar-thumb,
 .attendance-report-wrapper::-webkit-scrollbar-thumb,
 .attendance-timeline::-webkit-scrollbar-thumb,
+.attendance-timeline-scroll::-webkit-scrollbar-thumb,
 .attendance-report-table::-webkit-scrollbar-thumb,
 .attendance-card-grid::-webkit-scrollbar-thumb {
   background: var(--border-secondary);
@@ -1290,6 +1378,7 @@
 .attendance-timeline-wrapper::-webkit-scrollbar-thumb:hover,
 .attendance-report-wrapper::-webkit-scrollbar-thumb:hover,
 .attendance-timeline::-webkit-scrollbar-thumb:hover,
+.attendance-timeline-scroll::-webkit-scrollbar-thumb:hover,
 .attendance-report-table::-webkit-scrollbar-thumb:hover,
 .attendance-card-grid::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
@@ -1407,13 +1496,34 @@
   background-color: var(--surface-accent);
 }
 
-/* Scrollable table wrapper */
-.att-report-scroll {
+/* Card wrapping the scrollable table + its footer legend — bounded so the
+   legend always sits right under the visible rows instead of trailing
+   after them with blank space when there are only a few rows. */
+.att-report-card {
   flex: 1;
-  overflow: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   background-color: var(--surface-primary);
+  overflow: hidden;
+}
+
+/* Scrollable table wrapper */
+.att-report-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Footer legend below the table — a real flex sibling of the scroll area,
+   not a sticky tfoot row, so it's always visible at the bottom of the card
+   regardless of how many rows there are. */
+.att-report-legend-footer {
+  flex-shrink: 0;
+  border-top: 2px solid var(--border-primary);
+  background-color: var(--surface-secondary);
 }
 
 .att-report-scroll::-webkit-scrollbar {
@@ -1806,18 +1916,17 @@
 }
 
 /* ═══════════════════════════════════════════════
-   INLINE LEGEND (tfoot footer)
+   INLINE LEGEND FOOTERS
    ═══════════════════════════════════════════════ */
 
-/* tfoot cell that holds the legend */
-.att-legend-tfoot {
-  padding: 0;
+/* Footer legend for the timeline views (On WFH / On Leave) — a real flex
+   sibling below the scrollable calendar box, not a sticky row inside it,
+   so it's always visible at the bottom of the card regardless of how many
+   consultants there are. */
+.att-timeline-legend-footer {
+  flex-shrink: 0;
   border-top: 2px solid var(--border-primary);
   background-color: var(--surface-secondary);
-  /* stick to bottom of scroll container */
-  position: sticky;
-  bottom: 0;
-  z-index: 15;
 }
 
 .att-inline-legend {
@@ -1852,6 +1961,7 @@
   color: var(--text-tertiary);
 }
 
+
 /* ═══════════════════════════════════════════════
    RESPONSIVE OVERRIDES
    ═══════════════════════════════════════════════ */
@@ -1868,4 +1978,14 @@
   .att-month-nav { flex-wrap: wrap; }
   .att-search-input { width: 160px; }
   .att-search-input:focus { width: 180px; }
+}
+
+/* Dark Mode Table Borders Fix */
+[data-theme='dark'] .att-th,
+[data-theme='dark'] .att-td,
+[data-theme='dark'] .att-th-consultant,
+[data-theme='dark'] .att-td-consultant,
+[data-theme='dark'] .att-th-summary,
+[data-theme='dark'] .att-td-summary {
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }

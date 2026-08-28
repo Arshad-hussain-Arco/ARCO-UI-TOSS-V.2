@@ -195,15 +195,10 @@
 }
 
 .eps-avatar-img {
-  width: 56px;
-<<<<<<< HEAD
-  height: 56px; 
-  border-radius: 12px; 
-=======
-  height: 56px;
+  width: 56px; 
+  height: 56px;  
   border-radius: 8px;
-  object-fit: cover;
->>>>>>> b054bdb04cd5e7832923cc415f0e9c953b61eb59
+  object-fit: cover; 
   border: 2px solid var(--surface-primary);
   box-shadow: var(--shadow-sm);
   display: block;
@@ -226,11 +221,7 @@
 .eps-avatar-overlay {
   position: absolute;
   inset: 0;
-<<<<<<< HEAD
-  border-radius: 12px;
-=======
-  border-radius: 8px;
->>>>>>> b054bdb04cd5e7832923cc415f0e9c953b61eb59
+  border-radius: 8px; 
   background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;

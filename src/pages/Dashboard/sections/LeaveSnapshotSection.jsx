@@ -56,8 +56,18 @@ function LeaveSnapshotSectionComponent({ leaveDistribution, upcomingLeaves, atte
         <div className="dc-leave-list">
           {upcomingLeaves.map((leave) => (
             <div key={leave.id} className="dc-leave-item">
-              <div className="dc-avatar" aria-hidden="true">
-                {getInitials(leave.name)}
+              <div className="dc-avatar" aria-hidden="true" style={{ overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {getInitials(leave.name)}
+                </div>
+                {leave.photo_url_base64 && (
+                  <img
+                    src={leave.photo_url_base64}
+                    alt={leave.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', position: 'absolute', zIndex: 1 }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
               </div>
               <div className="dc-leave-info">
                 <span className="dc-leave-name">{leave.name}</span>

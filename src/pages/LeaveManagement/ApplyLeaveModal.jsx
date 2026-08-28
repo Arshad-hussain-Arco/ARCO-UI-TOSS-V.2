@@ -527,6 +527,7 @@ function buildLeaveTypeItem(entry, balances) {
     id: entry.code,
     code: entry.code,
     label: entry.leave_type,
+    description: entry.description || '',
     balance: available,
     isUnlimited,
     isFlexible: !isUnlimited && !!entry.is_flexible,
@@ -564,6 +565,8 @@ function buildLeaveTypeItem(entry, balances) {
       ? 'Requires manager approval per organization policy.'
       : 'Does not require manager approval.',
     gender: entry.gender_restriction || undefined,
+    // 'PAID' | 'UNPAID' — from LMSLeaveType.payment_type.
+    paymentType: entry.payment_type || null,
   };
 }
 // `canApplyOnBehalf`: whether this user may apply leave for a subordinate,
@@ -619,8 +622,11 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   // Explicit multi-select of individual dates for the Claim flow — a range
   // doesn't fit since eligible dates for a Claim type aren't necessarily
   // contiguous (e.g. two unrelated declared-working Sundays weeks apart).
-  const [selectedClaimDates, setSelectedClaimDates] = useState([]); // array of Date
+  // Each entry is { date: Date, duration: 'FULL_DAY' | 'FIRST_HALF' | 'SECOND_HALF' }
+  // so a claimant can mark e.g. only the morning of one Saturday as claimed.
+  const [selectedClaimDates, setSelectedClaimDates] = useState([]);
   const [pendingClaimDate, setPendingClaimDate] = useState(null);
+  const [pendingClaimDuration, setPendingClaimDuration] = useState('FULL_DAY');
   const [reason, setReason] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [empItems, setEmpItems] = useState([]);
@@ -694,10 +700,19 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     // when switching who the request is being applied for.
     setLeaveType(null);
   }, [effectiveEmpId]);
+  // Apply Leave shows every active leave type except the ones that have
+  // their own dedicated buttons (WFH, Offshore Work) or belong to the
+  // Claim category (Submit Claim).
   const ltItems = useMemo(
     () =>
       eligibleTypes
-        .filter((t) => t.active)
+        .filter(
+          (t) =>
+            t.active &&
+            t.category !== 'CLAIM' &&
+            t.code !== 'WFH' &&
+            t.code !== 'OW',
+        )
         .map((t) => buildLeaveTypeItem(t, leaveBalances)),
     [eligibleTypes, leaveBalances],
   );
@@ -760,7 +775,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     [startDate, end, calendarDayMap],
   );
   const charged = isClaimType
-    ? selectedClaimDates.length
+    ? selectedClaimDates.reduce((sum, e) => sum + (e.duration === 'FULL_DAY' ? 1 : 0.5), 0)
     : isMultiDay
       ? multiDayBizArr.reduce(
           (sum, day) => sum + ((dailyConfigs[dateStr(day)] || 'full') === 'full' ? 1 : 0.5),
@@ -946,6 +961,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     setClaimEligibleDates(null);
     setSelectedClaimDates([]);
     setPendingClaimDate(null);
+    setPendingClaimDuration('FULL_DAY');
     setLastDayBreakdown(null);
     setReason('');
     setAttachments([]);
@@ -1047,7 +1063,13 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                 <span className="al-confirm-row-label">Dates</span>
                 <span className="al-confirm-row-value">
                   {isClaimType
-                    ? selectedClaimDates.map((d) => fmtShort(d)).join(', ') || '\u2014'
+                    ? selectedClaimDates
+                        .map((e) =>
+                          e.duration === 'FULL_DAY'
+                            ? fmtShort(e.date)
+                            : `${fmtShort(e.date)} (${e.duration === 'FIRST_HALF' ? '1st Half' : '2nd Half'})`,
+                        )
+                        .join(', ') || '\u2014'
                     : startDate ? fmtDate(startDate) : '\u2014'}
                   {!isClaimType && end && dateStr(end) !== dateStr(startDate) ? ` \u2192 ${fmtDate(end)}` : ''}
                 </span>
@@ -1143,9 +1165,16 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                         leave_type: backendLeaveType,
                         // Claims use `dates` (an explicit list) instead of
                         // a range — see ClaimSubmitSerializer on the
-                        // backend for why a range doesn't fit.
+                        // backend for why a range doesn't fit. Each entry
+                        // carries its own duration so a claimant can submit
+                        // e.g. only the first half of a given date.
                         ...(isClaimType
-                          ? { dates: selectedClaimDates.map(dateStr) }
+                          ? {
+                              dates: selectedClaimDates.map((e) => ({
+                                date: dateStr(e.date),
+                                duration: e.duration,
+                              })),
+                            }
                           : {
                               start_date: dateStr(startDate),
                               end_date: end ? dateStr(end) : dateStr(startDate),
@@ -1331,6 +1360,14 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                     options={ltItems.map((item) => ({ value: item.id, label: item.label }))}
                     width="leaveType"
                   />
+                  {leaveType?.description && (
+                    <p className="al-policy-hint">{leaveType.description}</p>
+                  )}
+                  {leaveType?.paymentType && (
+                    <p className="al-policy-hint">
+                      Payment Type: {leaveType.paymentType === 'PAID' ? 'Paid' : 'Unpaid'}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1349,6 +1386,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       // than silently submit a mismatch.
                       setSelectedClaimDates([]);
                       setPendingClaimDate(null);
+                      setPendingClaimDuration('FULL_DAY');
                     }}
                     placeholder={
                       claimTypeItems.length === 0
@@ -1358,6 +1396,12 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                     options={claimTypeItems.map((t) => ({ value: t.code, label: t.leave_type }))}
                     width="leaveType"
                   />
+                  {(() => {
+                    const selectedClaim = claimTypeItems.find((t) => t.code === claimType);
+                    return selectedClaim?.description ? (
+                      <p className="al-policy-hint">{selectedClaim.description}</p>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
@@ -1399,7 +1443,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
               ) : (
                 <div className="al-form-group">
                   <span className="al-label al-label-required">Claim Date(s)</span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <DatePicker
                       value={pendingClaimDate}
                       onChange={setPendingClaimDate}
@@ -1413,6 +1457,20 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       disabled={!claimType}
                       width="220px"
                     />
+                    {/* Half-day selector — lets a claimant mark only the
+                        first or second half of a date as claimed, instead
+                        of always claiming the full day. */}
+                    <Select
+                      value={pendingClaimDuration}
+                      onChange={setPendingClaimDuration}
+                      disabled={!claimType}
+                      width="150px"
+                      options={[
+                        { value: 'FULL_DAY', label: 'Full Day' },
+                        { value: 'FIRST_HALF', label: 'First Half' },
+                        { value: 'SECOND_HALF', label: 'Second Half' },
+                      ]}
+                    />
                     <button
                       type="button"
                       className="al-btn al-btn-outline"
@@ -1420,12 +1478,28 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       onClick={() => {
                         if (!pendingClaimDate) return;
                         const key = dateStr(pendingClaimDate);
-                        setSelectedClaimDates((prev) =>
-                          prev.some((d) => dateStr(d) === key)
-                            ? prev
-                            : [...prev, pendingClaimDate].sort((a, b) => a - b),
-                        );
+                        setSelectedClaimDates((prev) => {
+                          // A FULL_DAY entry supersedes any half-day entries
+                          // for the same date, and vice versa — a date can't
+                          // simultaneously be "full day" and "first half"
+                          // claimed, but FIRST_HALF + SECOND_HALF for the
+                          // same date are two distinct, coexisting entries.
+                          const withoutConflicts = prev.filter((e) => {
+                            if (dateStr(e.date) !== key) return true;
+                            if (pendingClaimDuration === 'FULL_DAY') return false;
+                            return e.duration !== 'FULL_DAY' && e.duration !== pendingClaimDuration;
+                          });
+                          const alreadyExists = withoutConflicts.some(
+                            (e) => dateStr(e.date) === key && e.duration === pendingClaimDuration,
+                          );
+                          if (alreadyExists) return withoutConflicts;
+                          return [
+                            ...withoutConflicts,
+                            { date: pendingClaimDate, duration: pendingClaimDuration },
+                          ].sort((a, b) => a.date - b.date || a.duration.localeCompare(b.duration));
+                        });
                         setPendingClaimDate(null);
+                        setPendingClaimDuration('FULL_DAY');
                       }}
                     >
                       <Plus className="al-btn-icon" /> Add
@@ -1442,18 +1516,27 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                         No dates added yet.
                       </span>
                     ) : (
-                      selectedClaimDates.map((d) => (
+                      selectedClaimDates.map((e) => (
                         <span
-                          key={dateStr(d)}
+                          key={`${dateStr(e.date)}-${e.duration}`}
                           className="al-sum-type-badge"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                         >
-                          {fmtShort(d)}
+                          {fmtShort(e.date)}
+                          {e.duration !== 'FULL_DAY' && (
+                            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                              ({e.duration === 'FIRST_HALF' ? '1st Half' : '2nd Half'})
+                            </span>
+                          )}
                           <button
                             type="button"
-                            aria-label={`Remove ${dateStr(d)}`}
+                            aria-label={`Remove ${dateStr(e.date)}${e.duration !== 'FULL_DAY' ? ` (${e.duration})` : ''}`}
                             onClick={() =>
-                              setSelectedClaimDates((prev) => prev.filter((x) => dateStr(x) !== dateStr(d)))
+                              setSelectedClaimDates((prev) =>
+                                prev.filter(
+                                  (x) => !(dateStr(x.date) === dateStr(e.date) && x.duration === e.duration),
+                                ),
+                              )
                             }
                             style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
                           >
@@ -1878,14 +1961,13 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                 )}
 
                 {/* Approval flow */}
-                {startDate && (
+                {startDate && applyFor === 'self' && (
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Approval Flow</p>
                     <div className="al-approval-steps">
                       {[
-                        { label: activeEmp.name, role: 'Applicant', done: true },
-                        { label: activeEmp.manager, role: 'Reporting Manager', done: false },
-                        { label: 'HR Department', role: 'Final Approval', done: false },
+                        { label: user?.name || activeEmp.name, role: 'Applicant', done: true },
+                        { label: user?.reportingManager || activeEmp.manager || 'Manager', role: 'Reporting Manager', done: false },
                       ].map((s, i) => (
                         <div key={i} className="al-approval-step">
                           <div className={`al-approval-dot ${s.done ? 'done' : 'pending'}`}>
@@ -1910,6 +1992,9 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                   <div className="al-sum-section">
                     <p className="al-sum-section-title">Policy</p>
                     {[
+                      ...(effectiveLeaveType.paymentType
+                        ? [['Payment', effectiveLeaveType.paymentType === 'PAID' ? 'Paid' : 'Unpaid']]
+                        : []),
                       ['Notice', effectiveLeaveType.noticePeriod],
                       [
                         'Max consec.',

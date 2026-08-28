@@ -96,7 +96,41 @@ function getInitials(name) {
     .join('')
     .toUpperCase();
 }
-function TeamLeaveSummary() {
+function calculateConsultantTotals(c, summaryLeaveType) {
+  let targetTypes = [];
+  if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+  else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+  else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+  else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+  else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+  else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+  else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
+
+  let totalQuota = 0, totalBooked = 0, totalPending = 0, totalRemaining = 0;
+
+  if (summaryLeaveType === 'all') {
+    totalQuota = c.leaveTypes?.reduce((sum, lt) => sum + (lt.entitled || 0), 0) || c.leaveQuota || 0;
+    totalBooked = c.leaveTypes?.reduce((sum, lt) => sum + (lt.booked || 0), 0) || calcTotal(c) || 0;
+    totalPending = c.leaveTypes?.reduce((sum, lt) => sum + (lt.pending || 0), 0) || 0;
+    totalRemaining = c.leaveTypes?.reduce((sum, lt) => sum + (lt.remaining || 0), 0) || calcRemaining(c) || 0;
+  } else {
+    if (c.leaveTypes && c.leaveTypes.length > 0) {
+      const lts = c.leaveTypes.filter(lt => targetTypes.includes(lt.leave_type_code));
+      totalQuota = lts.reduce((sum, lt) => sum + (lt.entitled || 0), 0);
+      totalBooked = lts.reduce((sum, lt) => sum + (lt.booked || 0), 0);
+      totalPending = lts.reduce((sum, lt) => sum + (lt.pending || 0), 0);
+      totalRemaining = lts.reduce((sum, lt) => sum + (lt.remaining || 0), 0);
+    } else {
+      targetTypes.forEach(tt => {
+        totalQuota += c.balances?.[tt]?.entitled || 0;
+        totalBooked += c.balances?.[tt]?.used || 0;
+        totalRemaining += c.balances?.[tt]?.available || 0;
+      });
+    }
+  }
+  return { totalQuota, totalBooked, totalPending, totalRemaining };
+}
+function TeamLeaveSummary({ getPhoto }) {
   const { user } = useAuth();
   const [departmentData, setDepartmentData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,12 +140,13 @@ function TeamLeaveSummary() {
   const [summaryTimePeriod, setSummaryTimePeriod] = useState('');
   const [summaryLeaveType, setSummaryLeaveType] = useState('all');
   const [teamSortState, setTeamSortState] = useState({});
-  const [teamSearchQueries, setTeamSearchQueries] = useState({});
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [expandedDepts, setExpandedDepts] = useState(/* @__PURE__ */ new Set());
   const [expandedEmployees, setExpandedEmployees] = useState(new Set());
   const [sortField, setSortField] = useState('name');
   const [sortDirection, setSortDirection] = useState('asc');
   const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
+  const [teamSearchQueries, setTeamSearchQueries] = useState({});
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -126,6 +161,7 @@ function TeamLeaveSummary() {
 
         // Group employees by team
         const deptMap = {};
+
         rawData.forEach(emp => {
           const tId = emp.team_id || 'unknown';
           if (!deptMap[tId]) {
@@ -178,6 +214,24 @@ function TeamLeaveSummary() {
     fetchSummary();
   }, [user?.emp_id, summaryTimePeriod]);
 
+  const mergedDepartmentData = useMemo(() => {
+    if (!getPhoto) return departmentData;
+    return departmentData.map(dept => ({
+      ...dept,
+      consultants: dept.consultants.map(emp => ({
+        ...emp,
+        photo: getPhoto(emp.emp_id || emp.id) || emp.photo
+      }))
+    }));
+  }, [departmentData, getPhoto]);
+
+  const handleTeamSearchChange = (deptId, value) => {
+    setTeamSearchQueries((prev) => ({
+      ...prev,
+      [deptId]: value,
+    }));
+  };
+
   const handleAnalyticsUtilizationSort = (deptId) => {
     setTeamSortState((prev) => {
       const current = prev[deptId] || { field: null, direction: null };
@@ -197,13 +251,6 @@ function TeamLeaveSummary() {
         },
       };
     });
-  };
-
-  const handleTeamSearchChange = (deptId, value) => {
-    setTeamSearchQueries((prev) => ({
-      ...prev,
-      [deptId]: value,
-    }));
   };
 
   useEffect(() => {
@@ -232,16 +279,19 @@ function TeamLeaveSummary() {
     next.has(id) ? next.delete(id) : next.add(id);
     setExpandedAnalyticsDepts(next);
   };
-  const handleSort = (field) => {
-    if (sortField === field) setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  const handleSort = (deptId, field) => {
+    setTeamSortState(prev => {
+      const current = prev[deptId] || { field: 'name', direction: 'asc' };
+      if (current.field === field) {
+        return { ...prev, [deptId]: { field, direction: current.direction === 'asc' ? 'desc' : 'asc' } };
+      } else {
+        return { ...prev, [deptId]: { field, direction: 'asc' } };
+      }
+    });
   };
   const filteredDepartments = useMemo(() => {
-    let depts = departmentData;
-    
+    let depts = mergedDepartmentData;
+
     if (summaryDepartment !== 'all') {
       depts = depts.filter((d) => String(d.id) === String(summaryDepartment));
     }
@@ -252,12 +302,31 @@ function TeamLeaveSummary() {
         return { ...dept, consultants: activeConsultants };
       }).filter(dept => dept.consultants.length > 0);
     }
+    
+    const q = globalSearchQuery?.trim().toLowerCase();
+    if (q) {
+      depts = depts.map(dept => {
+        const matched = (dept.consultants || []).filter(c => 
+          c.name.toLowerCase().includes(q) ||
+          (c.designation && c.designation.toLowerCase().includes(q))
+        );
+        return { ...dept, consultants: matched };
+      }).filter(dept => dept.consultants.length > 0);
+    }
 
     return depts;
-  }, [summaryDepartment, departmentData, summaryTimePeriod]);
+  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod, globalSearchQuery]);
+
+  useEffect(() => {
+    if (globalSearchQuery?.trim() !== '') {
+      const allFilteredDeptIds = filteredDepartments.map(d => d.id);
+      setExpandedDepts(new Set(allFilteredDeptIds));
+      setExpandedAnalyticsDepts(new Set(allFilteredDeptIds));
+    }
+  }, [globalSearchQuery, filteredDepartments]);
   const getSortedConsultants = (deptId, consultants) => {
     let filtered = consultants;
-    const q = (teamSearchQueries[deptId] || '').trim().toLowerCase();
+    const q = globalSearchQuery.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter(
         (c) =>
@@ -265,21 +334,40 @@ function TeamLeaveSummary() {
           (c.designation && c.designation.toLowerCase().includes(q))
       );
     }
+    const sortConfig = teamSortState[deptId] || { field: 'name', direction: 'asc' };
+    const { field: sField, direction: sDir } = sortConfig;
+    
     return [...filtered].sort((a, b) => {
-      const aVal =
-        sortField === 'name'
-          ? a.name.toLowerCase()
-          : sortField === 'totalLeaveDays'
-            ? calcTotal(a)
-            : calcRemaining(a);
-      const bVal =
-        sortField === 'name'
-          ? b.name.toLowerCase()
-          : sortField === 'totalLeaveDays'
-            ? calcTotal(b)
-            : calcRemaining(b);
+      let aVal, bVal;
+      
+      switch (sField) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'totalQuota':
+          aVal = calculateConsultantTotals(a, summaryLeaveType).totalQuota;
+          bVal = calculateConsultantTotals(b, summaryLeaveType).totalQuota;
+          break;
+        case 'totalBooked':
+          aVal = calculateConsultantTotals(a, summaryLeaveType).totalBooked;
+          bVal = calculateConsultantTotals(b, summaryLeaveType).totalBooked;
+          break;
+        case 'totalPending':
+          aVal = calculateConsultantTotals(a, summaryLeaveType).totalPending;
+          bVal = calculateConsultantTotals(b, summaryLeaveType).totalPending;
+          break;
+        case 'remaining':
+          aVal = calculateConsultantTotals(a, summaryLeaveType).totalRemaining;
+          bVal = calculateConsultantTotals(b, summaryLeaveType).totalRemaining;
+          break;
+        default:
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+      }
+      
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sortDirection === 'asc' ? cmp : -cmp;
+      return sDir === 'asc' ? cmp : -cmp;
     });
   };
   const visibleCategories = useMemo(() => {
@@ -302,7 +390,7 @@ function TeamLeaveSummary() {
     if (summaryLeaveType !== 'all') {
       filtered = consultants.filter(c => visibleCategories.some(cat => c[cat.key] > 0));
     }
-    const q = (teamSearchQueries[deptId] || '').trim().toLowerCase();
+    const q = globalSearchQuery.trim().toLowerCase();
     if (q) {
       filtered = filtered.filter(
         (c) =>
@@ -403,10 +491,9 @@ function TeamLeaveSummary() {
       {!loading && (
         <>
           {/* ── Shared Filter Bar ── */}
-          <div className="team-summary-filter-bar">
-            <div className="team-summary-filters-left">
+          <div className="team-summary-filter-bar" style={{ alignContent: 'flex-start', justifyContent: 'space-between' }}>
+            <div className="team-summary-filters-left" style={{ flex: '0 0 auto' }}>
               <div className="team-summary-filter-group">
-                <span className="team-summary-filter-label">Department</span>
                 <Select
                   value={summaryDepartment}
                   onChange={setSummaryDepartment}
@@ -419,7 +506,6 @@ function TeamLeaveSummary() {
               </div>
 
               <div className="team-summary-filter-group">
-                <span className="team-summary-filter-label">Time Period</span>
                 <Select
                   value={summaryTimePeriod}
                   onChange={setSummaryTimePeriod}
@@ -444,7 +530,6 @@ function TeamLeaveSummary() {
               </div>
 
               <div className="team-summary-filter-group">
-                <span className="team-summary-filter-label">Leave Type</span>
                 <Select
                   value={summaryLeaveType}
                   onChange={setSummaryLeaveType}
@@ -463,10 +548,27 @@ function TeamLeaveSummary() {
                 />
               </div>
 
-
+              <div className="team-summary-filter-group" style={{ display: 'flex', alignItems: 'center' }}>
+                <div className="team-summary-search-wrapper" style={{ minWidth: '220px' }}>
+                  <Search className="team-summary-search-icon" size={13} />
+                  <input
+                    type="text"
+                    placeholder="Search employee across all..."
+                    className="team-summary-search-input"
+                    value={globalSearchQuery}
+                    onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                    style={{ paddingRight: '32px' }} 
+                  />
+                  {globalSearchQuery && (
+                    <button type="button" className="search-clear-btn" onClick={() => setGlobalSearchQuery('')}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="team-summary-filters-right">
+            <div className="team-summary-filters-right" style={{ marginLeft: 0 }}>
               <div className="team-summary-view-switcher">
                 <button
                   className="team-summary-view-btn"
@@ -506,210 +608,192 @@ function TeamLeaveSummary() {
                 </div>
               ) : (
                 filteredDepartments.map((department) => {
-                const isExpanded = expandedDepts.has(department.id);
-                const stats = getDeptStats(department);
-                const sorted = getSortedConsultants(department.id, department.consultants);
-                return (
-                  <div key={department.id} className="team-summary-department-section">
-                    <div
-                      className="team-summary-department-header"
-                      {...activatable(() => toggleDept(department.id), {
-                        isExpanded: expandedDepts.has(department.id),
-                      })}
-                    >
-                      <div className="team-summary-department-header-left">
-                        <ChevronRight
-                          size={15}
-                          className="team-summary-department-chevron"
-                          data-expanded={isExpanded}
-                        />
-                        <span className="team-summary-department-name">{department.name}</span>
-                      </div>
-                      <div className="team-summary-department-meta">
-                        <div className="team-summary-dept-stat">
-                          <Users size={11} />
-                          <span className="team-summary-dept-stat-val">{stats.count}</span>
-                          <span className="team-summary-dept-stat-sub">consultants</span>
+                  const isExpanded = expandedDepts.has(department.id);
+                  const stats = getDeptStats(department);
+                  const sorted = getSortedConsultants(department.id, department.consultants);
+                  return (
+                    <div key={department.id} className="team-summary-department-section">
+                      <div
+                        className="team-summary-department-header"
+                        {...activatable(() => toggleDept(department.id), {
+                          isExpanded: expandedDepts.has(department.id),
+                        })}
+                      >
+                        <div className="team-summary-department-header-left">
+                          <ChevronRight
+                            size={15}
+                            className="team-summary-department-chevron"
+                            data-expanded={isExpanded}
+                          />
+                          <span className="team-summary-department-name">{department.name}</span>
                         </div>
+                        <div className="team-summary-department-meta">
+                          <div className="team-summary-dept-stat">
+                            <Users size={11} />
+                            <span className="team-summary-dept-stat-val">{stats.count}</span>
+                            <span className="team-summary-dept-stat-sub">consultants</span>
+                          </div>
 
 
 
-                        <div className="team-summary-dept-meta-sep" />
-
-                        <div className="team-summary-search-wrapper" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
-                          <Search className="team-summary-search-icon" size={13} />
-                          <input
-                            type="text"
-                            placeholder="Search employee..."
-                            className="team-summary-search-input"
-                            value={teamSearchQueries[department.id] || ''}
-                            onChange={(e) => handleTeamSearchChange(department.id, e.target.value)}
-                            style={{ paddingRight: '32px' }} />
-                          {teamSearchQueries[department.id] && (
-                            <button type="button" className="search-clear-btn" onClick={() => handleTeamSearchChange(department.id, '')}>
-                              <X size={14} />
-                            </button>
-                          )}
+                          <div className="team-summary-dept-meta-sep" />
                         </div>
                       </div>
-                    </div>
 
-                    {isExpanded && (
-                      <div className="team-summary-table-wrapper">
-                        <div className="team-summary-table-container">
-                          <table className="team-summary-table">
-                            <thead className="team-summary-table-thead">
-                              <tr>
-                                <th
-                                  className="team-summary-table-header team-summary-table-header-sortable"
-                                  onClick={() => handleSort('name')}
-                                >
-                                  <span>Employee</span>
-                                  <ArrowUpDown size={10} className="team-summary-sort-icon" />
-                                </th>
-                                <th className="team-summary-table-header team-summary-table-header-numeric">Total Quota</th>
-                                <th className="team-summary-table-header team-summary-table-header-numeric">Total Booked</th>
-                                <th className="team-summary-table-header team-summary-table-header-numeric">Total Pending</th>
-                                <th
-                                  className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable"
-                                  onClick={() => handleSort('remaining')}
-                                >
-                                  <span>Total Remaining</span>
-                                  <ArrowUpDown size={10} className="team-summary-sort-icon" />
-                                </th>
-                                <th className="team-summary-table-header" style={{ width: '40px', textAlign: 'center' }}></th>
-                              </tr>
-                            </thead>
-                            <tbody className="team-summary-table-tbody">
-                              {sorted.map((c) => {
-                                const isEmpExpanded = expandedEmployees.has(c.id);
+                      {isExpanded && (
+                        <div className="team-summary-table-wrapper">
+                          <div className="team-summary-table-container">
+                            <table className="team-summary-table">
+                              <thead className="team-summary-table-thead">
+                                <tr>
+                                  <th
+                                    className="team-summary-table-header team-summary-table-header-sortable"
+                                    onClick={() => handleSort(department.id, 'name')}
+                                  >
+                                    <span>
+                                      Employee
+                                      <ArrowUpDown size={10} className="team-summary-sort-icon" />
+                                    </span>
+                                  </th>
+                                  <th className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable" onClick={() => handleSort(department.id, 'totalQuota')}>
+                                    <span>
+                                      Total Quota
+                                      <ArrowUpDown size={10} className="team-summary-sort-icon" />
+                                    </span>
+                                  </th>
+                                  <th className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable" onClick={() => handleSort(department.id, 'totalBooked')}>
+                                    <span>
+                                      Total Booked
+                                      <ArrowUpDown size={10} className="team-summary-sort-icon" />
+                                    </span>
+                                  </th>
+                                  <th className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable" onClick={() => handleSort(department.id, 'totalPending')}>
+                                    <span>
+                                      Total Pending
+                                      <ArrowUpDown size={10} className="team-summary-sort-icon" />
+                                    </span>
+                                  </th>
+                                  <th
+                                    className="team-summary-table-header team-summary-table-header-numeric team-summary-table-header-sortable"
+                                    onClick={() => handleSort(department.id, 'remaining')}
+                                  >
+                                    <span>
+                                      Total Remaining
+                                      <ArrowUpDown size={10} className="team-summary-sort-icon" />
+                                    </span>
+                                  </th>
+                                  <th className="team-summary-table-header" style={{ width: '40px', textAlign: 'center' }}></th>
+                                </tr>
+                              </thead>
+                              <tbody className="team-summary-table-tbody">
+                                {sorted.map((c) => {
+                                  const isEmpExpanded = expandedEmployees.has(c.id);
 
-                                let targetTypes = [];
-                                if (summaryLeaveType === 'annual') targetTypes = ['AL'];
-                                else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
-                                else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
-                                else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
-                                else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
-                                else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
-                                else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
+                                  const { totalQuota, totalBooked, totalPending, totalRemaining } = calculateConsultantTotals(c, summaryLeaveType);
 
-                                let totalQuota = 0, totalBooked = 0, totalPending = 0, totalRemaining = 0;
+                                  const LEAVE_TYPE_LABELS = {
+                                    AL: "Annual Leave",
+                                    SL: "Sick Leave",
+                                    ML: "Maternity Leave",
+                                    PL: "Paternity Leave",
+                                    CompOff: "Compensatory Off",
+                                    WW: "Weekend Work",
+                                    AdvL: "Advance Leave",
+                                    CWW: "Claim Weekend Work",
+                                    CCompOff: "Claim Compensatory Off",
+                                    WFH: "Work From Home"
+                                  };
 
-                                if (summaryLeaveType === 'all') {
-                                  totalQuota = c.leaveTypes?.reduce((sum, lt) => sum + (lt.entitled || 0), 0) || c.leaveQuota || 0;
-                                  totalBooked = c.leaveTypes?.reduce((sum, lt) => sum + (lt.booked || 0), 0) || calcTotal(c) || 0;
-                                  totalPending = c.leaveTypes?.reduce((sum, lt) => sum + (lt.pending || 0), 0) || 0;
-                                  totalRemaining = c.leaveTypes?.reduce((sum, lt) => sum + (lt.remaining || 0), 0) || calcRemaining(c) || 0;
-                                } else {
-                                  if (c.leaveTypes && c.leaveTypes.length > 0) {
-                                    const lts = c.leaveTypes.filter(lt => targetTypes.includes(lt.leave_type_code));
-                                    totalQuota = lts.reduce((sum, lt) => sum + (lt.entitled || 0), 0);
-                                    totalBooked = lts.reduce((sum, lt) => sum + (lt.booked || 0), 0);
-                                    totalPending = lts.reduce((sum, lt) => sum + (lt.pending || 0), 0);
-                                    totalRemaining = lts.reduce((sum, lt) => sum + (lt.remaining || 0), 0);
-                                  } else {
-                                    targetTypes.forEach(tt => {
-                                      totalQuota += c.balances?.[tt]?.entitled || 0;
-                                      totalBooked += c.balances?.[tt]?.used || 0;
-                                      totalRemaining += c.balances?.[tt]?.available || 0;
-                                    });
-                                  }
-                                }
+                                  let targetTypes = [];
+                                  if (summaryLeaveType === 'annual') targetTypes = ['AL'];
+                                  else if (summaryLeaveType === 'sick') targetTypes = ['SL'];
+                                  else if (summaryLeaveType === 'compoff') targetTypes = ['CompOff', 'CCompOff'];
+                                  else if (summaryLeaveType === 'wfh') targetTypes = ['WFH'];
+                                  else if (summaryLeaveType === 'offshore') targetTypes = ['OW'];
+                                  else if (summaryLeaveType === 'weekend') targetTypes = ['WW', 'CWW'];
+                                  else if (summaryLeaveType === 'paternity') targetTypes = ['PL', 'ML'];
 
-                                const LEAVE_TYPE_LABELS = {
-                                  AL: "Annual Leave",
-                                  SL: "Sick Leave",
-                                  ML: "Maternity Leave",
-                                  PL: "Paternity Leave",
-                                  CompOff: "Compensatory Off",
-                                  WW: "Weekend Work",
-                                  AdvL: "Advance Leave",
-                                  CWW: "Claim Weekend Work",
-                                  CCompOff: "Claim Compensatory Off",
-                                  WFH: "Work From Home"
-                                };
+                                  const relevantLeaves = c.leaveTypes || [];
 
-                                const relevantLeaves = c.leaveTypes || [];
-
-                                return (
-                                  <Fragment key={c.id}>
-                                    <tr className="team-summary-table-row" onClick={() => toggleEmployee(c.id)} style={{ cursor: 'pointer' }}>
-                                      <td className="team-summary-table-cell team-summary-table-cell-name">
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                          <span style={{ fontWeight: 500 }}>{c.name}</span>
-                                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{c.designation}</span>
-                                        </div>
-                                      </td>
-                                      <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalQuota}</td>
-                                      <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalBooked}</td>
-                                      <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalPending}</td>
-                                      <td className="team-summary-table-cell team-summary-table-cell-numeric team-summary-cell-total" data-critical={totalRemaining <= 3 ? 'true' : 'false'}>{totalRemaining}</td>
-                                      <td className="team-summary-table-cell" style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        <ChevronDown size={16} style={{ transform: isEmpExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                                      </td>
-                                    </tr>
-                                    {isEmpExpanded && (
-                                      <tr className="team-summary-sub-row">
-                                        <td colSpan={6} style={{ padding: 0 }}>
-                                          <div className="team-summary-sub-table-wrapper">
-                                            <table className="team-summary-sub-table">
-                                              <thead>
-                                                <tr>
-                                                  <th>Leave Type</th>
-                                                  <th className="num">Entitled</th>
-                                                  <th className="num">Carryover</th>
-                                                  <th className="num">Advance Prev Yr</th>
-                                                  <th className="num">Upcoming</th>
-                                                  <th className="num">Booked</th>
-                                                  <th className="num">Pending</th>
-                                                  <th className="num">Approved</th>
-                                                  <th className="num">Rejected</th>
-                                                  <th className="num">Completed</th>
-                                                  <th className="num">Remaining</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {relevantLeaves.length > 0 ? (
-                                                  relevantLeaves.map((lt, idx) => {
-                                                    const typeMatches = targetTypes.includes(lt.leave_type_code);
-                                                    return (
-                                                      <tr key={idx} style={{ backgroundColor: (summaryLeaveType !== 'all' && typeMatches) ? 'rgba(16, 185, 129, 0.15)' : 'transparent' }}>
-                                                        <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{LEAVE_TYPE_LABELS[lt.leave_type_code] || lt.leave_type_name || lt.leave_type_code}</td>
-                                                        <td className="num">{lt.entitled || 0}</td>
-                                                        <td className="num">{lt.carryover || 0}</td>
-                                                        <td className="num">{lt.advance_taken_prev_yr || 0}</td>
-                                                        <td className="num">{lt.upcoming || 0}</td>
-                                                        <td className="num">{lt.booked || 0}</td>
-                                                        <td className="num">{lt.pending || 0}</td>
-                                                        <td className="num">{lt.approved || 0}</td>
-                                                        <td className="num">{lt.rejected || 0}</td>
-                                                        <td className="num">{lt.completed || 0}</td>
-                                                        <td className="num" style={{ fontWeight: 600, color: 'var(--c-primary)' }}>{lt.remaining || 0}</td>
-                                                      </tr>
-                                                    );
-                                                  })
-                                                ) : (
-                                                  <tr>
-                                                    <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '16px' }}>No active leave allocations found.</td>
-                                                  </tr>
-                                                )}
-                                              </tbody>
-                                            </table>
+                                  return (
+                                    <Fragment key={c.id}>
+                                      <tr className="team-summary-table-row" onClick={() => toggleEmployee(c.id)} style={{ cursor: 'pointer' }}>
+                                        <td className="team-summary-table-cell team-summary-table-cell-name">
+                                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: 500 }}>{c.name}</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{c.designation}</span>
                                           </div>
                                         </td>
+                                        <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalQuota}</td>
+                                        <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalBooked}</td>
+                                        <td className="team-summary-table-cell team-summary-table-cell-numeric">{totalPending}</td>
+                                        <td className="team-summary-table-cell team-summary-table-cell-numeric team-summary-cell-total" data-critical={totalRemaining <= 3 ? 'true' : 'false'}>{totalRemaining}</td>
+                                        <td className="team-summary-table-cell" style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                          <ChevronDown size={16} style={{ transform: isEmpExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                                        </td>
                                       </tr>
-                                    )}
-                                  </Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                                      {isEmpExpanded && (
+                                        <tr className="team-summary-sub-row">
+                                          <td colSpan={6} style={{ padding: 0 }}>
+                                            <div className="team-summary-sub-table-wrapper">
+                                              <table className="team-summary-sub-table">
+                                                <thead>
+                                                  <tr>
+                                                    <th>Leave Type</th>
+                                                    <th className="num">Entitled</th>
+                                                    <th className="num">Carryover</th>
+                                                    <th className="num">Advance Prev Yr</th>
+                                                    <th className="num">Upcoming</th>
+                                                    <th className="num">Booked</th>
+                                                    <th className="num">Pending</th>
+                                                    <th className="num">Approved</th>
+                                                    <th className="num">Rejected</th>
+                                                    <th className="num">Completed</th>
+                                                    <th className="num">Remaining</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {relevantLeaves.length > 0 ? (
+                                                    relevantLeaves.map((lt, idx) => {
+                                                      const typeMatches = targetTypes.includes(lt.leave_type_code);
+                                                      return (
+                                                        <tr key={idx} style={{ backgroundColor: (summaryLeaveType !== 'all' && typeMatches) ? 'rgba(16, 185, 129, 0.15)' : 'transparent' }}>
+                                                          <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{LEAVE_TYPE_LABELS[lt.leave_type_code] || lt.leave_type_name || lt.leave_type_code}</td>
+                                                          <td className="num">{lt.entitled || 0}</td>
+                                                          <td className="num">{lt.carryover || 0}</td>
+                                                          <td className="num">{lt.advance_taken_prev_yr || 0}</td>
+                                                          <td className="num">{lt.upcoming || 0}</td>
+                                                          <td className="num">{lt.booked || 0}</td>
+                                                          <td className="num">{lt.pending || 0}</td>
+                                                          <td className="num">{lt.approved || 0}</td>
+                                                          <td className="num">{lt.rejected || 0}</td>
+                                                          <td className="num">{lt.completed || 0}</td>
+                                                          <td className="num" style={{ fontWeight: 600, color: 'var(--c-primary)' }}>{lt.remaining || 0}</td>
+                                                        </tr>
+                                                      );
+                                                    })
+                                                  ) : (
+                                                    <tr>
+                                                      <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '16px' }}>No active leave allocations found.</td>
+                                                    </tr>
+                                                  )}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </Fragment>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
@@ -781,21 +865,7 @@ function TeamLeaveSummary() {
 
                             <div className="tsa-dept-kpi-sep" />
 
-                            <div className="team-summary-search-wrapper" style={{ minWidth: '200px' }} onClick={(e) => e.stopPropagation()}>
-                              <Search className="team-summary-search-icon" size={13} />
-                              <input
-                                type="text"
-                                placeholder="Search employee..."
-                                className="team-summary-search-input"
-                                value={teamSearchQueries[dept.id] || ''}
-                                onChange={(e) => handleTeamSearchChange(dept.id, e.target.value)}
-                                style={{ paddingRight: '32px' }} />
-                              {teamSearchQueries[dept.id] && (
-                                <button type="button" className="search-clear-btn" onClick={() => handleTeamSearchChange(dept.id, '')}>
-                                  <X size={14} />
-                                </button>
-                              )}
-                            </div>
+
                           </div>
                         </div>
 

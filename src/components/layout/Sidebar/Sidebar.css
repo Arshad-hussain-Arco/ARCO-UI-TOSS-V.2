@@ -168,7 +168,7 @@
 /* Tooltip - Modern Floating Panel */
 .sidebar-tooltip {
   position: fixed;
-  left: 72px;
+  left: 88px;
   padding: 16px 20px;
   background: var(--surface-elevated);
   backdrop-filter: blur(12px);

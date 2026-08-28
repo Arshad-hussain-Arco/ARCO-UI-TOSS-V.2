@@ -29,11 +29,14 @@ function EmployeeCard({ consultant, onClick }) {
     toast.success('Username copied');
   };
 
+  const imgSrc = consultant.photo
+    ? (consultant.photo.startsWith('data:') ? consultant.photo : `data:image/jpeg;base64,${consultant.photo.replace(/\s+/g, '')}`)
+    : (consultant.avatar || MOCK_AVATAR(consultant.name));
+
   return (
     <div className="tv-emp-card" {...activatable(() => onClick(consultant.id))}>
       <div className="tv-emp-avatar">
-        <img src={consultant.avatar || MOCK_AVATAR(consultant.name)} alt={consultant.name} />
-        <span className={`tv-emp-status-dot ${statusClass}`} />
+        <img src={imgSrc} alt={consultant.name} />
       </div>
       <div className="tv-emp-info">
         <div className="tv-emp-name">{consultant.name}</div>
@@ -56,7 +59,7 @@ function EmployeeCard({ consultant, onClick }) {
   );
 }
 
-function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, canEdit, canDelete }) {
+function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCache, headcountMap, onEdit, onDelete, employeesData, getPhoto, canEdit, canDelete }) {
   const [memberSearch, setMemberSearch] = useState('');
   const hc = headcountMap[team.id];
   const activeMembers = useMemo(() => {
@@ -70,9 +73,13 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
           norm.userId = fullEmp.user_name || fullEmp.username || fullEmp.userId;
         }
       }
+
+      const photo = getPhoto?.(norm.id);
+      if (photo) norm.photo = photo;
+
       return norm;
     });
-  }, [hc, employeesData]);
+  }, [hc, employeesData, getPhoto]);
 
   const filteredActiveMembers = useMemo(() => {
     if (!memberSearch.trim()) return activeMembers;
@@ -205,7 +212,7 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
-export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
+export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhoto }) {
   const { user, hasPermission } = useAuth();
   
   const canCreateTeam = hasPermission('TEAMS_CREATE');
@@ -479,8 +486,8 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
                     <span className="tv-sc-lbl">On Leave</span>
                   </div>
                   <div className="tv-sc-stat">
-                    <span className="tv-sc-val wfh">{hc ? hc.wfh : '--'}</span>
-                    <span className="tv-sc-lbl">WFH</span>
+                    <span className="tv-sc-val wfh">{hc ? (hc.present_other ?? hc.wfh) : '--'}</span>
+                    <span className="tv-sc-lbl">Remote<strong>/</strong><br />Other Present</span>
                   </div>
                   <div className="tv-sc-stat total">
                     <span className="tv-sc-val">{hc ? hc.total : (team.members_count || '--')}</span>
@@ -508,20 +515,21 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData }) {
       <div className="tv-accordions-list">
         {filteredTeams.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
-            <TeamAccordion
-              team={team}
-              isExpanded={expandedTeamId === team.id}
-              onToggle={() => handleCardClick(team.id)}
-              onProfileView={onProfileView}
-              cache={teamMembersCache}
-              setCache={setTeamMembersCache}
-              headcountMap={headcountMap}
-              onEdit={openEditModal}
-              onDelete={setDeleteTarget}
-              employeesData={employeesData}
-              canEdit={canEdit}
-              canDelete={canDelete}
-            />
+              <TeamAccordion
+                team={team}
+                isExpanded={expandedTeamId === team.id}
+                onToggle={() => handleCardClick(team.id)}
+                onProfileView={onProfileView}
+                cache={teamMembersCache}
+                setCache={setTeamMembersCache}
+                headcountMap={headcountMap}
+                onEdit={openEditModal}
+                onDelete={setDeleteTarget}
+                employeesData={employeesData}
+                getPhoto={getPhoto}
+                canEdit={canEdit}
+                canDelete={canDelete}
+              />
           </div>
         ))}
       </div>

@@ -25,6 +25,7 @@ import { Image } from '@components/common/Image/Image';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
+import { useEmployeePhotos } from '@hooks/useEmployeePhotos';
 import { consultantService } from '@services/consultantService';
 import { authService } from '@services/authService';
 import { ActiveConsultants } from './ActiveConsultants';
@@ -60,7 +61,7 @@ const emptyForm = {
   visaExpire: '',
   visaRenewal: '',
   nextVisaExit: '',
-  location: 'On Site',
+  location: '',
   remarks: '',
   manager: '',
   gender: '',
@@ -112,8 +113,18 @@ export function ConsultantsPage() {
 
   const [activeFilteredCount, setActiveFilteredCount] = useState(null);
   const [inactiveFilteredCount, setInactiveFilteredCount] = useState(null);
+  const { photoMap, getPhoto, refetch: refetchPhotos } = useEmployeePhotos({ includeInactive: true });
+  // Optimistic per-employee photo state set right after an upload/delete, so
+  // that consultant's row shows the new image immediately — before the
+  // shared photo directory (GET /employees/photos/) has refetched. Keyed by
+  // emp_id; value is the new base64 photo, or '' to mean "just removed".
+  const [photoOverrides, setPhotoOverrides] = useState({});
 
-  const fetchEmployees = useCallback(() => consultantService.getEmployeesList(), []);
+  const fetchEmployees = useCallback(async () => {
+    const employees = await consultantService.getEmployeesList();
+    if (!employees) throw new Error('No employees data returned');
+    return employees;
+  }, []);
 
   const {
     data: employeesData,
@@ -153,11 +164,50 @@ export function ConsultantsPage() {
     ? compLocationsData
     : compLocationsData?.results || [];
 
-  const fetchInactive = useCallback(() => consultantService.getInactiveConsultants(), []);
-  const { data: inactiveData } = useAsync(fetchInactive, { immediate: true });
-  const inactiveCount = Array.isArray(inactiveData)
-    ? inactiveData.length
-    : inactiveData?.results?.length || 0;
+  const fetchInactive = useCallback(async () => {
+    try {
+      const employees = await consultantService.getInactiveConsultants();
+      if (!employees) throw new Error('No inactive employees data returned');
+      return employees;
+    } catch (err) {
+      throw err;
+    }
+  }, []);
+  const { data: rawInactiveData, setData: setInactiveData, isLoading: isInactiveLoading, error: inactiveError, refetch: loadInactive } = useAsync(fetchInactive, { immediate: true });
+  const inactiveCount = Array.isArray(rawInactiveData)
+    ? rawInactiveData.length
+    : rawInactiveData?.results?.length || 0;
+
+  const mergedEmployeesData = useMemo(() => {
+    if (!employeesData) return employeesData;
+    const empList = Array.isArray(employeesData) ? employeesData : (employeesData.results || []);
+    const merged = empList.map(e => {
+      const id = e.emp_id || e.id;
+      // An optimistic override (set right after upload/delete) always wins,
+      // even when it's '' (just removed) — otherwise a stale cached photo
+      // from the directory would flash back in until it refetches.
+      if (Object.prototype.hasOwnProperty.call(photoOverrides, id)) {
+        return { ...e, photo: photoOverrides[id] };
+      }
+      const photo = getPhoto(id);
+      return photo ? { ...e, photo } : e;
+    });
+    return Array.isArray(employeesData) ? merged : { ...employeesData, results: merged };
+  }, [employeesData, photoMap, getPhoto, photoOverrides]);
+
+  const inactiveData = useMemo(() => {
+    if (!rawInactiveData) return rawInactiveData;
+    const empList = Array.isArray(rawInactiveData) ? rawInactiveData : (rawInactiveData.results || []);
+    const merged = empList.map(e => {
+      const id = e.emp_id || e.id;
+      if (Object.prototype.hasOwnProperty.call(photoOverrides, id)) {
+        return { ...e, photo: photoOverrides[id] };
+      }
+      const photo = getPhoto(id);
+      return photo ? { ...e, photo } : e;
+    });
+    return Array.isArray(rawInactiveData) ? merged : { ...rawInactiveData, results: merged };
+  }, [rawInactiveData, photoMap, getPhoto, photoOverrides]);
 
   const pageTabs = useMemo(
     () => ALL_PAGE_TABS.filter((t) => hasPermission(t.permission)),
@@ -239,8 +289,10 @@ export function ConsultantsPage() {
   useEffect(() => {
     if (activeTab === 'consultants') {
       loadEmployees();
+    } else if (activeTab === 'inactive') {
+      loadInactive();
     }
-  }, [activeTab, loadEmployees]);
+  }, [activeTab, loadEmployees, loadInactive]);
 
   const openDrawer = (mode) => {
     setDrawerMode(mode);
@@ -337,21 +389,16 @@ export function ConsultantsPage() {
       });
 
       // If we are editing an existing consultant, upload immediately
-      if (editingTarget?.id) {
+      const editingId = editingTarget?.id || editingTarget?.emp_id;
+      if (editingId) {
         try {
-          await consultantService.uploadPhoto(editingTarget.id, rawBase64);
+          await consultantService.uploadPhoto(editingId, rawBase64);
           toast.success('Photo uploaded successfully');
-          // Update locally to guarantee UI reflects the change even if fetch is cached
-          setEmployeesData((prev) => {
-            const list = prev?.results || prev || [];
-            const mapped = list.map((c) =>
-              (c.emp_id || c.id) === editingTarget.id
-                ? { ...c, photo: rawBase64, avatar: rawBase64 }
-                : c,
-            );
-            return prev?.results ? { ...prev, results: mapped } : mapped;
-          });
+          // Show the new photo for this consultant right away — don't wait
+          // on the shared photo directory to refetch.
+          setPhotoOverrides((prev) => ({ ...prev, [editingId]: rawBase64 }));
           loadEmployees(); // Background refresh
+          refetchPhotos(); // Keep the shared photo directory (other pages) in sync
         } catch (err) {
           toast.error('Failed to upload photo instantly');
         }
@@ -364,19 +411,17 @@ export function ConsultantsPage() {
     patch({ avatar: null, photoUploadBase64: null, photo: null, photoDeleteFlag: true });
 
     // If we are editing an existing consultant, delete immediately
-    if (editingTarget?.id) {
+    const editingId = editingTarget?.id || editingTarget?.emp_id;
+    if (editingId) {
       try {
-        await consultantService.deletePhoto(editingTarget.id);
+        await consultantService.deletePhoto(editingId);
         toast.success('Photo removed successfully');
-        // Update locally to guarantee UI reflects the change
-        setEmployeesData((prev) => {
-          const list = prev?.results || prev || [];
-          const mapped = list.map((c) =>
-            (c.emp_id || c.id) === editingTarget.id ? { ...c, photo: null, avatar: null } : c,
-          );
-          return prev?.results ? { ...prev, results: mapped } : mapped;
-        });
+        // Clear the photo for this consultant right away — don't wait on the
+        // shared photo directory to refetch (and don't let its stale cache
+        // flash the old photo back in).
+        setPhotoOverrides((prev) => ({ ...prev, [editingId]: '' }));
         loadEmployees(); // Background refresh
+        refetchPhotos(); // Keep the shared photo directory (other pages) in sync
       } catch (err) {
         toast.error('Failed to remove photo instantly');
       }
@@ -426,6 +471,26 @@ export function ConsultantsPage() {
     if (formData.physicalPcAvailable) {
       if (!formData.computerLocation) return toast.error('Computer Location is required');
     }
+
+    // Duplicate email/mobile check against currently loaded consultants — mirrors the
+    // backend's "already exist with status active" rejection so the user finds out
+    // before submitting instead of after.
+    const currentId = editingTarget?.id || editingTarget?.emp_id;
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const normalizedMobile = formData.mobile.trim();
+    const allConsultants = [
+      ...(Array.isArray(dynamicEmployees) ? dynamicEmployees : []),
+      ...(Array.isArray(rawInactiveData) ? rawInactiveData : rawInactiveData?.results || []),
+    ];
+    const isSelf = (c) => isEditing && String(c.emp_id || c.id) === String(currentId);
+    const emailTaken = allConsultants.some(
+      (c) => !isSelf(c) && (c.email || '').trim().toLowerCase() === normalizedEmail,
+    );
+    if (emailTaken) return toast.error('A consultant with this email address already exists');
+    const mobileTaken = allConsultants.some(
+      (c) => !isSelf(c) && (c.mobile || '').trim() === normalizedMobile,
+    );
+    if (mobileTaken) return toast.error('A consultant with this mobile number already exists');
 
     setIsSaving(true);
     try {
@@ -560,7 +625,7 @@ export function ConsultantsPage() {
               onDelete={canActivateDeactivate ? handleDelete : undefined}
               onProfileView={setViewProfileId}
               onFilteredCountChange={setActiveFilteredCount}
-              employeesData={employeesData}
+              employeesData={mergedEmployeesData}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
               isLoading={isEmployeesLoading}
@@ -577,10 +642,19 @@ export function ConsultantsPage() {
               onFilteredCountChange={setInactiveFilteredCount}
               designationsData={dynamicDesignations}
               teamsData={dynamicTeams}
+              inactiveData={inactiveData}
+              isLoading={isInactiveLoading}
+              error={inactiveError}
+              refetch={loadInactive}
             />
           )}
           {activeTab === 'teams' && (
-            <TeamsView onProfileView={setViewProfileId} onTeamChanged={loadRefData} employeesData={employeesData} />
+            <TeamsView 
+              onProfileView={setViewProfileId} 
+              onTeamChanged={loadRefData} 
+              employeesData={mergedEmployeesData}
+              getPhoto={getPhoto} 
+            />
           )}
         </div>
       </div>
@@ -960,8 +1034,7 @@ export function ConsultantsPage() {
                               .filter((loc) => loc.name && loc.name.toLowerCase() !== 'hybrid')
                               .map((loc) => {
                                 const isSelected =
-                                  formData.location?.toLowerCase() === loc.name.toLowerCase() ||
-                                  (!formData.location && loc.name.toLowerCase() === 'onsite');
+                                  formData.location?.toLowerCase() === loc.name.toLowerCase();
                                 return (
                                   <button
                                     key={loc.id}

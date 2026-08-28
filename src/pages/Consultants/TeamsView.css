@@ -20,7 +20,7 @@
 }
 
 .tv-summary-card {
-  min-width: 260px;
+  min-width: 320px;
   background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 12px;
@@ -56,20 +56,24 @@
 
 .tv-sc-stats {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .tv-sc-stat {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
+  text-align: center;
 }
 
 .tv-sc-val {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.2;
 }
 .tv-sc-val.leave {
   color: var(--status-warning);
@@ -83,10 +87,14 @@
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-top: 2px;
+  margin-top: 4px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .tv-sc-stat.total {
+  flex: 0 0 auto;
   padding-left: 12px;
   border-left: 1px solid var(--border-primary);
 }

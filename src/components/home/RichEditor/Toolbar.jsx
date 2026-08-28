@@ -4,7 +4,7 @@ import {
   Type, Highlighter, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, ListChecks, Indent, Outdent, Quote, Minus, Link2, ExternalLink,
   Image as ImageIcon, Film, FileText, Paperclip, Table as TableIcon, Undo2, Redo2,
-  Maximize2, Minimize2, ChevronDown, Columns, Rows, Combine, Split, Droplet, Grid3x3,
+  Maximize2, Minimize2, ChevronDown, Columns, Rows, Combine, Split, Droplet, Grid3x3, Trash2,
 } from 'lucide-react';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useRichEditorContext } from './RichEditorContext';
@@ -246,7 +246,8 @@ export function Toolbar() {
           ref={fontColorInputRef}
           type="color"
           className="rte-tb-color-input"
-          onChange={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef))}
+          onInput={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
+          onChange={(e) => runCommand((range, el) => applyFontColor(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
         />
       </button>
       <button type="button" className="rte-tb-btn" title="Highlight color" onMouseDown={(e) => { e.preventDefault(); saveSelection(); }} onClick={() => highlightColorInputRef.current?.click()}>
@@ -255,7 +256,8 @@ export function Toolbar() {
           ref={highlightColorInputRef}
           type="color"
           className="rte-tb-color-input"
-          onChange={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef))}
+          onInput={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
+          onChange={(e) => runCommand((range, el) => applyHighlight(range, el, e.target.value, pendingStyleSpanRef), { skipFocus: true })}
         />
       </button>
       <ToolbarDivider />
@@ -281,7 +283,7 @@ export function Toolbar() {
       <ToolbarDivider />
 
       {/* Link */}
-      <div className="rte-tb-popover-wrap" ref={openPopover === 'link' ? popoverRef : null}>
+      {/* <div className="rte-tb-popover-wrap" ref={openPopover === 'link' ? popoverRef : null}>
         <ToolbarButton icon={Link2} label="Insert / edit link" onAction={openLinkPopover} />
         {openPopover === 'link' && (
           <div className="rte-popover">
@@ -299,11 +301,13 @@ export function Toolbar() {
             </label>
             <div className="rte-popover-actions">
               <button type="button" className="rte-popover-btn rte-popover-btn-primary" onClick={submitLink}>Apply</button>
-              <button type="button" className="rte-popover-btn" onClick={handleRemoveLink}>Remove link</button>
+              <button type="button" className="rte-popover-btn" onClick={handleRemoveLink}>
+                <Trash2 size={13} style={{ marginRight: '4px' }} /> Remove link
+              </button>
             </div>
           </div>
         )}
-      </div>
+      </div> */}
       <ToolbarDivider />
 
       {/* Media */}
@@ -324,7 +328,7 @@ export function Toolbar() {
       <div className="rte-tb-popover-wrap" ref={openPopover === 'table-insert' ? popoverRef : null}>
         <ToolbarButton icon={TableIcon} label="Insert table" onAction={() => setOpenPopover((p) => (p === 'table-insert' ? null : 'table-insert'))} />
         {openPopover === 'table-insert' && (
-          <div className="rte-popover rte-table-grid-popover">
+          <div className="rte-popover rte-table-grid-popover rte-popover-right">
             <div className="rte-table-grid" onMouseLeave={() => setGridHover({ rows: 0, cols: 0 })}>
               {Array.from({ length: 8 }).map((_, r) => (
                 <div key={r} className="rte-table-grid-row">
@@ -351,7 +355,7 @@ export function Toolbar() {
       <div className="rte-tb-popover-wrap" ref={openPopover === 'table-ops' ? popoverRef : null}>
         <ToolbarButton icon={ChevronDown} label="Table operations" onAction={() => setOpenPopover((p) => (p === 'table-ops' ? null : 'table-ops'))} />
         {openPopover === 'table-ops' && (
-          <div className="rte-popover rte-table-ops-popover">
+          <div className="rte-popover rte-table-ops-popover rte-popover-right">
             <button type="button" className="rte-menu-item" onClick={() => { withTableAndCell((t, c) => insertRowAfter(t, getRowIndex(t, c))); setOpenPopover(null); }}>
               <Rows size={14} /> Add row below
             </button>

@@ -88,11 +88,11 @@ export function LogViewerModal({ isOpen, onClose, env }) {
       }
     };
     fetchLogContent();
-    let interval;
-    if (env.status === 'running') {
-      interval = setInterval(fetchLogContent, 5000);
-    }
-    return () => { if (interval) clearInterval(interval); };
+    // let interval;
+    // if (env.status === 'running') {
+    //   interval = setInterval(fetchLogContent, 5000);
+    // }
+    // return () => { if (interval) clearInterval(interval); };
   }, [env.id, selectedJob, env.status]);
 
   // Recompute match indices on query/content/view change

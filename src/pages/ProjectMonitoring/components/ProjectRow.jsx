@@ -167,7 +167,16 @@ export function ProjectRow({ project, changeRequests = [], isExpanded, onToggleE
       {isExpanded && (
         <tr className="pm-detail-row">
           <td colSpan={4}>
-            <div className="pm-expanded-detail-container">
+            <div
+              className="pm-expanded-detail-container"
+              style={{
+                position: 'sticky',
+                left: 0,
+                width: 'var(--table-visible-width, 100%)',
+                maxWidth: 'var(--table-visible-width, 100%)',
+                boxSizing: 'border-box',
+              }}
+            >
 
               {/* Key-Value Grid — 2 columns, all from API */}
               <div className="pm-kv-grid">

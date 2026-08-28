@@ -6,12 +6,16 @@ import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { HomeCard } from '@components/home/HomeCard';
 import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
 import { RichEditor } from '@components/home/RichEditor/RichEditor';
+import { uploadMediaFile, toAbsoluteMediaUrl, attachHomeMediaToken, useHomeMediaToken, withFreshMediaToken } from '@components/home/RichEditor/mediaUtils';
 import DOMPurify from 'dompurify';
 
-const MAX_ARTICLE_MEDIA_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+// Content tab only accepts images — video attaches through the Rich Text
+// Editor tab instead (its own HomeMedia/SFTP upload pipeline).
+const MAX_ARTICLE_IMAGE_SIZE_BYTES = 40 * 1024 * 1024; // 40 MB
+const MAX_ARTICLE_VIDEO_SIZE_BYTES = 19 * 1024 * 1024; // 19 MB, matches VideoHandler's MAX_VIDEO_MB — same upload endpoint enforces this server-side
 const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-const ALLOWED_VIDEO_MIME = ['video/mp4', 'video/webm'];
-const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'webm'];
+const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+// const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
 function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -38,6 +42,7 @@ function stripHtml(htmlStr) {
  */
 function HomeManagementPanelComponent() {
   const toast = useToast();
+  const mediaToken = useHomeMediaToken();
   const [cards, setCards] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -55,6 +60,28 @@ function HomeManagementPanelComponent() {
   const [personBio, setPersonBio] = useState('');
   const [personFile, setPersonFile] = useState(null);
   const [personPreviewUrl, setPersonPreviewUrl] = useState(null);
+  // Bare (untokenized) URL for an EXISTING server-side video when editing a
+  // card — kept separate from personPreviewUrl so the token can be attached
+  // reactively at render time via `effectivePreviewUrl` below, rather than
+  // baked in once at the moment the edit modal opens. mediaToken loads
+  // async; baking it in early would permanently freeze a stale/missing
+  // token into state if the fetch hadn't resolved yet by that point.
+  const [personExistingVideoUrl, setPersonExistingVideoUrl] = useState(null);
+  // True once the user explicitly removes a card's existing video via the
+  // Remove button, with no new file chosen to replace it — handleSaveCard
+  // needs this to know to send video_media_id: '' (clear), since "no file
+  // picked" is otherwise indistinguishable from "leave the video alone".
+  const [personVideoRemoved, setPersonVideoRemoved] = useState(false);
+  // Click-to-play gate for the video PREVIEW itself — opening the edit
+  // modal (or picking a video) must not fire a network request on its own;
+  // this flag/URL defer that until the admin actually presses Play, same as
+  // the published Homepage's card. Split in two: a local blob preview
+  // (personFile set) needs no token and can play as soon as
+  // personVideoPreviewPlaying flips true; an EXISTING server video needs a
+  // confirmed (awaited, not just whatever's in state) token first — see
+  // handlePreviewPlayClick — so personVideoConfirmedSrc holds that result.
+  const [personVideoPreviewPlaying, setPersonVideoPreviewPlaying] = useState(false);
+  const [personVideoConfirmedSrc, setPersonVideoConfirmedSrc] = useState(null);
   const [personMediaType, setPersonMediaType] = useState(null); // 'image' | 'video' | null
   const [personWidth, setPersonWidth] = useState('100%'); // '50%' | '100%'
 
@@ -96,9 +123,13 @@ function HomeManagementPanelComponent() {
     setPersonBio('');
     setPersonFile(null);
     if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+      try { URL.revokeObjectURL(personPreviewUrl); } catch { }
     }
     setPersonPreviewUrl(null);
+    setPersonExistingVideoUrl(null);
+    setPersonVideoRemoved(false);
+    setPersonVideoPreviewPlaying(false);
+    setPersonVideoConfirmedSrc(null);
     setPersonMediaType(null);
     setPersonWidth('50%');
 
@@ -117,16 +148,26 @@ function HomeManagementPanelComponent() {
     setPersonBio('');
     setPersonFile(null);
     if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+      try { URL.revokeObjectURL(personPreviewUrl); } catch { }
     }
     setPersonPreviewUrl(null);
+    setPersonExistingVideoUrl(null);
+    setPersonVideoRemoved(false);
+    setPersonVideoPreviewPlaying(false);
+    setPersonVideoConfirmedSrc(null);
     setPersonMediaType(null);
     setPersonWidth('50%');
 
     setHtmlContent('');
     setHtmlWidth('100%');
 
+    // Content-tab video is a HomeMedia/SFTP reference (card.video_url), not
+    // the base64 `photo` BLOB — takes priority when present, same rule
+    // HomeCard.jsx's render uses. Stored bare (untokenized) here —
+    // `effectivePreviewUrl` attaches the current mediaToken reactively at
+    // render time instead of baking in a possibly-not-yet-loaded token now.
     const photoUrl = card.photo ? (card.photo.startsWith('data:') || card.photo.startsWith('http:') ? card.photo : `data:image/jpeg;base64,${card.photo}`) : null;
+    const bareVideoUrl = card.video_url ? toAbsoluteMediaUrl(card.video_url) : null;
     const widthVal = card.display_width || '100%';
 
     if (card.card_type === 'html_code') {
@@ -144,9 +185,13 @@ function HomeManagementPanelComponent() {
       setPersonDesignation(card.designation || '');
       setPersonBio(card.bio || card.text_content || '');
       setPersonWidth(widthVal);
-      setPersonPreviewUrl(photoUrl);
-      const isVideo = card.media_type === 'video' || (photoUrl && photoUrl.startsWith('data:video/'));
-      setPersonMediaType(photoUrl ? (isVideo ? 'video' : 'image') : null);
+      if (bareVideoUrl) {
+        setPersonExistingVideoUrl(bareVideoUrl);
+        setPersonMediaType('video');
+      } else {
+        setPersonPreviewUrl(photoUrl);
+        setPersonMediaType(photoUrl ? 'image' : null);
+      }
     }
 
     setIsModalOpen(true);
@@ -180,24 +225,22 @@ function HomeManagementPanelComponent() {
 
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isImageMime = ALLOWED_IMAGE_MIME.includes(file.type);
-    const isVideoMime = ALLOWED_VIDEO_MIME.includes(file.type);
     const isValidExt = ALLOWED_EXTENSIONS.includes(ext);
 
-    const isVideo = isVideoMime || ext === 'mp4' || ext === 'webm';
     const isImage = isImageMime || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
 
     // 1. Validate file format
-    if (!isValidExt || (!isImage && !isVideo)) {
-      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, WEBP, MP4, or WEBM.');
+    if (!isValidExt || !isImage) {
+      toast.error('Unsupported file format — Please upload PNG, JPG, JPEG, or WEBP.');
       // Do NOT clear existing valid media
       return;
     }
 
-    // 2. Validate file size (40 MB limit)
-    if (file.size > MAX_ARTICLE_MEDIA_SIZE_BYTES) {
+    // 2. Validate file size
+    const maxBytes = MAX_ARTICLE_IMAGE_SIZE_BYTES;
+    if (file.size > maxBytes) {
       const sizeMb = formatFileSize(file.size);
-      const mediaLabel = isVideo ? 'Video' : 'Image';
-      toast.error(`${mediaLabel} too large — ${sizeMb} selected. Maximum allowed size is 40 MB.`);
+      toast.error(`Image too large — ${sizeMb} selected. Maximum allowed size is ${maxBytes / (1024 * 1024)} MB.`);
       // Do NOT clear existing valid media
       return;
     }
@@ -215,9 +258,13 @@ function HomeManagementPanelComponent() {
     setPersonFile(file);
     const url = URL.createObjectURL(file);
     setPersonPreviewUrl(url);
-    setPersonMediaType(isVideo ? 'video' : 'image');
+    setPersonExistingVideoUrl(null); // a freshly picked local file supersedes any existing server video
+    setPersonVideoRemoved(false);
+    setPersonVideoPreviewPlaying(false);
+    setPersonVideoConfirmedSrc(null);
+    setPersonMediaType('image');
     setIsUploading(false);
-    toast.success(`${isVideo ? 'Video' : 'Image'} selected: ${file.name}`);
+    toast.success(`Image selected: ${file.name}`);
   };
 
   const handleSaveCard = async () => {
@@ -226,7 +273,7 @@ function HomeManagementPanelComponent() {
     // except needing *something* to actually show on the card). Rich Text
     // still requires actual content since an empty editor renders nothing.
     if (activeTab === 'text') {
-      if (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile) {
+      if (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile && !personExistingVideoUrl) {
         toast.error('Add at least a title, description, or media to save this card.');
         return;
       }
@@ -247,9 +294,22 @@ function HomeManagementPanelComponent() {
         payload.append('designation', personDesignation.trim());
         payload.append('bio', personBio.trim());
         payload.append('display_width', personWidth);
-        if (personFile) {
+        if (personFile && personMediaType === 'video') {
+          // Video bytes never touch the `photo` BLOB column — upload to the
+          // same HomeMedia/SFTP pipeline the Rich Text Editor uses, then
+          // attach by reference. Clear any previous video/photo the other
+          // media type may have left behind so display priority stays
+          // unambiguous (HomeCard.jsx renders video over photo).
+          const uploaded = await uploadMediaFile(personFile);
+          payload.append('video_media_id', String(uploaded.id));
+        } else if (personFile) {
           payload.append('photo', personFile);
-          if (personMediaType) payload.append('media_type', personMediaType);
+          payload.append('video_media_id', '');
+        } else if (personVideoRemoved) {
+          // User pressed Remove on an existing video and picked no
+          // replacement — otherwise "no file sent" is indistinguishable
+          // from "leave the video alone" (see HomeConfigUpdateView).
+          payload.append('video_media_id', '');
         }
       } else {
         payload.append('card_type', 'html_code');
@@ -277,8 +337,15 @@ function HomeManagementPanelComponent() {
 
   const isSaveDisabled = isUploading || (
     activeTab === 'text'
-      ? (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile)
+      ? (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile && !personExistingVideoUrl)
       : !htmlContent.trim()
+  );
+
+  // Bare `personExistingVideoUrl` gets the current mediaToken attached here
+  // (reactively, every render) rather than once when the edit modal opened
+  // — mediaToken loads async and may not have been ready yet at that point.
+  const effectivePreviewUrl = personPreviewUrl || (
+    personExistingVideoUrl ? attachHomeMediaToken(personExistingVideoUrl, mediaToken) : null
   );
 
   const renderArticleMediaZone = () => {
@@ -287,7 +354,7 @@ function HomeManagementPanelComponent() {
         <label className="ss-modal-label" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Article Media</span>
           <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--text-tertiary)' }}>
-            Upload an image or video to display with this article.
+            Upload an image to display with this article.
           </span>
         </label>
 
@@ -304,24 +371,24 @@ function HomeManagementPanelComponent() {
             }
           }}
           style={{
-            border: personPreviewUrl ? '1px solid var(--border-primary)' : '2px dashed var(--border-primary)',
+            border: effectivePreviewUrl ? '1px solid var(--border-primary)' : '2px dashed var(--border-primary)',
             borderRadius: '8px',
-            padding: personPreviewUrl ? '0' : '24px 16px',
+            padding: effectivePreviewUrl ? '0' : '24px 16px',
             textAlign: 'center',
             background: 'var(--bg-secondary)',
-            cursor: isUploading ? 'wait' : (personPreviewUrl ? 'default' : 'pointer'),
+            cursor: isUploading ? 'wait' : (effectivePreviewUrl ? 'default' : 'pointer'),
             transition: 'all 0.15s ease',
             position: 'relative',
             overflow: 'hidden',
           }}
           onClick={(e) => {
-            if (!personPreviewUrl && !isUploading) {
+            if (!effectivePreviewUrl && !isUploading) {
               e.stopPropagation();
               personFileInputRef.current?.click();
             }
           }}
           onKeyDown={(e) => {
-            if (!personPreviewUrl && (e.key === 'Enter' || e.key === ' ') && !isUploading) {
+            if (!effectivePreviewUrl && (e.key === 'Enter' || e.key === ' ') && !isUploading) {
               e.preventDefault();
               e.stopPropagation();
               personFileInputRef.current?.click();
@@ -331,7 +398,7 @@ function HomeManagementPanelComponent() {
           <input
             type="file"
             ref={personFileInputRef}
-            accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.webm"
+            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
             style={{ display: 'none' }}
             onChange={(e) => {
               const selected = e.target.files?.[0];
@@ -347,21 +414,55 @@ function HomeManagementPanelComponent() {
                 Processing media...
               </span>
             </div>
-          ) : personPreviewUrl ? (
+          ) : effectivePreviewUrl ? (
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
               {/* Media Preview Box */}
               <div style={{ background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '240px', overflow: 'hidden' }}>
-                {personMediaType === 'video' || (personPreviewUrl && personPreviewUrl.startsWith('data:video/')) ? (
-                  <video
-                    controls
-                    preload="metadata"
-                    playsInline
-                    src={personPreviewUrl}
-                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
-                  />
+                {personMediaType === 'video' || (effectivePreviewUrl && effectivePreviewUrl.startsWith('data:video/')) ? (
+                  (personFile && personVideoPreviewPlaying) || personVideoConfirmedSrc ? (
+                    <video
+                      controls
+                      autoPlay
+                      preload="auto"
+                      playsInline
+                      src={personFile ? effectivePreviewUrl : personVideoConfirmedSrc}
+                      style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (personFile) {
+                          // Local blob preview — no network request, no token needed.
+                          setPersonVideoPreviewPlaying(true);
+                        } else if (personExistingVideoUrl) {
+                          // Await a CONFIRMED token before ever mounting the
+                          // <video> element, rather than trusting whatever
+                          // mediaToken happens to be at render time.
+                          setPersonVideoConfirmedSrc(await withFreshMediaToken(personExistingVideoUrl));
+                        }
+                      }}
+                      style={{
+                        width: '100%', height: '180px', display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', gap: '8px',
+                        background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff',
+                      }}
+                      aria-label="Play video preview"
+                    >
+                      <span style={{
+                        width: '48px', height: '48px', borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.16)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Film size={20} />
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Click to preview</span>
+                    </button>
+                  )
                 ) : (
                   <img
-                    src={personPreviewUrl}
+                    src={effectivePreviewUrl}
                     alt="Article media preview"
                     style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
                   />
@@ -437,10 +538,14 @@ function HomeManagementPanelComponent() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
-                        try { URL.revokeObjectURL(personPreviewUrl); } catch {}
+                        try { URL.revokeObjectURL(personPreviewUrl); } catch { }
                       }
                       setPersonFile(null);
                       setPersonPreviewUrl(null);
+                      if (personExistingVideoUrl) setPersonVideoRemoved(true);
+                      setPersonExistingVideoUrl(null);
+                      setPersonVideoPreviewPlaying(false);
+                      setPersonVideoConfirmedSrc(null);
                       setPersonMediaType(null);
                     }}
                   >
@@ -457,7 +562,7 @@ function HomeManagementPanelComponent() {
                 Drag & drop media here, or <span style={{ color: 'var(--c-primary)' }}>browse</span>
               </span>
               <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                Supports PNG, JPG, JPEG, WEBP, MP4, WEBM
+                Supports PNG, JPG, JPEG, WEBP
               </span>
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Maximum file size: 40 MB
@@ -904,7 +1009,14 @@ function HomeManagementPanelComponent() {
                       card={{
                         card_type: activeTab === 'text' ? 'person_card' : 'html_code',
                         display_width: activeTab === 'text' ? personWidth : htmlWidth,
-                        photo: activeTab === 'text' ? personPreviewUrl : null,
+                        // HomeCard.jsx treats video as `video_url` (its own
+                        // pipeline appends the media token) and `photo` as
+                        // the base64/image path — pass bare/untokenized
+                        // values here so that pipeline runs exactly once.
+                        photo: activeTab === 'text' && personMediaType !== 'video' ? personPreviewUrl : null,
+                        video_url: activeTab === 'text' && personMediaType === 'video'
+                          ? (personFile ? personPreviewUrl : personExistingVideoUrl)
+                          : null,
                         person_name: personName,
                         designation: personDesignation,
                         bio: personBio,
@@ -1030,7 +1142,10 @@ function HomeManagementPanelComponent() {
               }}
               onClick={confirmDeleteCard}
             >
-              Delete
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash size={14} style={{ marginRight: '6px' }} />
+                Delete
+              </div>
             </button>
           </div>
         }

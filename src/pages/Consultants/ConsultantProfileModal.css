@@ -33,12 +33,12 @@
 
 .cp-modal-content,
 .cp-profile-modal {
-  background: var(--surface-primary, #ffffff);
+  background: var(--surface-primary);
   width: 100%;
   max-width: 860px;
   max-height: 85vh;
   border-radius: 14px;
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-secondary);
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.08),
     0 8px 10px -6px rgba(0, 0, 0, 0.04);
@@ -62,7 +62,6 @@
 
 /* Accessibility: Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-
   .cp-modal-overlay,
   .cp-modal-content {
     animation: none !important;
@@ -106,7 +105,7 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background: var(--c-primary, #005A36);
+  background: var(--c-primary, #005a36);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -190,7 +189,6 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-
 }
 
 .cp-badge-status.is-active .cp-badge-dot {
@@ -277,7 +275,7 @@
 .cp-hardware-panel,
 .cp-general-info-panel,
 .cp-leave-summary-panel {
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-light, #c8cacc);
   border-radius: 12px;
   background: var(--surface-primary, #ffffff);
   overflow: hidden;
@@ -311,7 +309,7 @@
 }
 
 .cp-panel-icon {
-  color: var(--c-primary, #005A36);
+  color: var(--c-primary, #005a36);
 }
 
 .cp-panel-count {
@@ -372,7 +370,6 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-
 }
 
 .cp-asset-val.is-yes .cp-asset-dot {
@@ -385,7 +382,7 @@
 
 .cp-asset-divider {
   height: 1px;
-  background: var(--border-light, #f1f5f9);
+  background: var(--border-light, #c8cacc);
   margin: 2px 0;
 }
 
@@ -425,7 +422,7 @@
 
 .cp-info-row-divider {
   height: 1px;
-  background: var(--border-light, #f1f5f9);
+  background: var(--border-light, #c8cacc);
   margin: 1px 0;
 }
 
@@ -454,7 +451,7 @@
 }
 
 .cp-link {
-  color: var(--c-primary, #005A36);
+  color: var(--c-primary, #005a36);
   text-decoration: none;
 }
 
@@ -541,7 +538,7 @@
 .cp-leave-avail-num {
   font-size: 15px;
   font-weight: 800;
-  color: var(--c-primary, #005A36);
+  color: var(--c-primary, #005a36);
   line-height: 1;
 }
 
@@ -576,7 +573,7 @@
   align-items: center;
   font-size: 10.5px;
   color: var(--text-secondary, #475569);
-  border-top: 1px solid var(--border-light, #f1f5f9);
+  border-top: 1px solid var(--border-light, #c8cacc);
   padding-top: 4px;
   margin-top: 2px;
 }
@@ -635,4 +632,10 @@
     grid-template-columns: 1fr;
     gap: 10px;
   }
+}
+
+
+[data-theme="dark"] .cp-profile-modal {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

@@ -7,7 +7,16 @@ export const normalizeConsultant = (c, isActive = true) => {
 
     if (!avatarUrl) {
       avatarUrl = '';
-    } else if (avatarUrl.startsWith('data:image')) {
+    } else if (avatarUrl.startsWith('ZGF0Y')) {
+      // The backend sometimes double base64-encodes the "data:image..." string.
+      try {
+        avatarUrl = atob(avatarUrl);
+      } catch (e) {
+        console.warn('Failed to decode double-base64 avatar');
+      }
+    }
+    
+    if (avatarUrl.startsWith('data:image')) {
       // Already a valid data URI — use as-is
     } else if (
       avatarUrl.startsWith('http://') ||
@@ -57,6 +66,7 @@ export const normalizeConsultant = (c, isActive = true) => {
     location: c.location || 'On Site',
     accountStatus: isActive ? 'active' : 'inactive',
     avatar: avatarUrl,
+    photo: c.photo || c.photo_url_base64 || '',
     roleId: c.role_id || (typeof c.role === 'object' ? c.role?.id : c.role) || '',
     teamId: c.team_id || (typeof c.team === 'object' ? c.team?.id : c.team) || '',
     team: c.team_name || c.team?.name || c.team || c.department || 'Unassigned',

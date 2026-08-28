@@ -18,14 +18,11 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
-export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, designationsData, teamsData }) {
-  const fetchInactive = useCallback(async () => {
-    const res = await consultantService.getInactiveConsultants();
-    const list = Array.isArray(res) ? res : res?.results || [];
+export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, designationsData, teamsData, inactiveData, isLoading, error, refetch }) {
+  const consultants = useMemo(() => {
+    const list = Array.isArray(inactiveData) ? inactiveData : (inactiveData?.results || []);
     return list.map(c => normalizeConsultant(c, false));
-  }, []);
-
-  const { data: consultants, isLoading, error, refetch } = useAsync(fetchInactive);
+  }, [inactiveData]);
   const toast = useToast();
   const { hasPermission } = useAuth();
   const canActivateDeactivate = hasPermission('EMPLOYEE_ACTIVATE_DEACTIVATE');
@@ -106,7 +103,7 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
     );
   }
 
-  if (isLoading && !consultants) {
+  if (isLoading && !inactiveData) {
     return (
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">

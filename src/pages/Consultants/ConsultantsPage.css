@@ -146,7 +146,7 @@
   border-radius: 6px;
   font-size: 13px;
   color: var(--text-primary, #111111);
-  background-color: var(--bg-primary);
+  background-color: transparent;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
   height: 32px;
@@ -1425,7 +1425,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--surface-primary);
+  background:  #ffffff;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s;
 }

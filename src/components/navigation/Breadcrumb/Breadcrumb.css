@@ -96,3 +96,10 @@ a.breadcrumb-link:hover {
   background-color: var(--bg-hover);
   text-decoration: none;
 }
+
+.breadcrumb-right-element {
+  margin-left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

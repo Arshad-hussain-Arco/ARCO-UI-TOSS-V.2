@@ -187,7 +187,7 @@
   padding: 8px 30px 8px 30px;
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
-  background-color: var(--surface-primary);
+  background-color: transparent;
   color: var(--text-primary);
   font-size: 12px;
   outline: none;
@@ -519,6 +519,35 @@
   border: 1px solid var(--border-secondary);
 }
 
+.doc-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  height: 100%;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.doc-preview-error .doc-error-icon {
+  color: var(--c-danger, #ef4444);
+  margin-bottom: 16px;
+}
+
+.doc-preview-error h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.doc-preview-error p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+}
+
 .doc-preview-placeholder-icon {
   color: var(--text-tertiary);
   margin-bottom: 24px;
@@ -617,9 +646,34 @@
   background-color: var(--surface-primary);
   margin: 0 auto;
   max-width: 680px;
+  padding: 30px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+/* Rendered .xlsx/.xls/.csv content */
+.doc-table-viewer {
+  max-height: 650px;
+  overflow: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+.doc-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+.doc-table td {
+  border: 1px solid var(--border-primary);
+  padding: 6px 10px;
+  white-space: nowrap;
+  color: var(--text-primary);
 }
 .doc-docx-content {
   padding: 30px;
@@ -754,38 +808,42 @@
 /* Modal Overlay & Containers */
 .doc-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(15, 23, 42, 0.3);
-  backdrop-filter: blur(2px);
-  z-index: 10000;
+  inset: 0;
+  background: var(--bg-overlay);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
+  animation: am-fade-in 0.15s ease;
 }
 
 .doc-modal-container {
-  background-color: var(--surface-primary);
-  border-radius: 8px;
+  background: var(--surface-primary);
   border: 1px solid var(--border-secondary);
-  width: 440px;
-  max-width: 90%;
-  box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modalZoom 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: am-slide-up 0.18s ease;
+  font-family: var(--font-family);
+  position: relative;
 }
 
 .doc-modal-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-secondary);
-  background-color: var(--bg-secondary);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  background: var(--surface-primary);
 }
 
 .doc-modal-header h3 {
@@ -912,11 +970,13 @@
 }
 
 .doc-modal-footer {
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-secondary);
-  background-color: var(--bg-secondary);
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  padding: 11px 20px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+  flex-shrink: 0;
   gap: 8px;
 }
 
@@ -933,6 +993,9 @@
   background-color: #006633; 
   color:  #ffffff;
   border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .doc-modal-btn.primary:hover {
   background-color: #006633; 
@@ -947,15 +1010,39 @@
   background-color: var(--bg-secondary);
 }
 
-/* Override action buttons in Document Folder Tree to be borderless */
+/* Enhanced action buttons in Document Folder Tree */
 .doc-file-actions-group .action-icon-btn,
 .doc-folder-actions .action-icon-btn {
-  border-color: transparent !important;
-  background-color: transparent !important;
-  box-shadow: none !important;
+  background-color: var(--surface-primary) !important;
+  border: 1px solid var(--border-secondary) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 6px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  width: 26px !important;
+  height: 26px !important;
 }
 
 .doc-file-actions-group .action-icon-btn:hover,
 .doc-folder-actions .action-icon-btn:hover {
-  background-color: var(--bg-secondary) !important;
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-hover) !important;
+  z-index: 2;
+}
+
+.doc-file-actions-group .action-icon-btn.edit:hover,
+.doc-folder-actions .action-icon-btn.edit:hover {
+  color: var(--c-info) !important;
+  border-color: var(--c-info) !important;
+}
+
+.doc-file-actions-group .action-icon-btn.delete:hover,
+.doc-folder-actions .action-icon-btn.delete:hover {
+  color: var(--c-danger) !important;
+  border-color: var(--c-danger) !important;
+}
+
+
+[data-theme="dark"] .doc-modal-container {
+  background: var(--surface-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
 }

@@ -580,7 +580,7 @@ const MAIN_TABS = ['Matched', 'Mismatched', 'Missing', 'Duplicates'];
 
 // Export folds into RECONCILIATION_VIEW — no separate permission tier,
 // so this is always on unless a future caller explicitly overrides it.
-export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, onFetchFullResults, canExport = true }) {
+export function StepResults({ results, file1Name, file2Name, onReset, onPageChange, fetchFullResults, canExport = true }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Matched');
   const [missingSubTab, setMissingSubTab] = useState('src');
@@ -640,10 +640,10 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         // every record, not just the current page.
         let raw = results.rawResults;
         let activeMappings = results.activeMappings;
-        if (onFetchFullResults) {
-          const full = await onFetchFullResults();
-          raw = full.resultData;
-          activeMappings = full.activeMappings ?? activeMappings;
+        if (fetchFullResults) {
+          const full = await fetchFullResults();
+          raw = full?.rawResults;
+          activeMappings = full?.activeMappings ?? activeMappings;
         }
         if (!raw) {
           toast.error('No raw results available for export.');
@@ -891,7 +891,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         toast.error('Failed to export report.');
       }
     },
-    [results, file1Name, file2Name, toast, onFetchFullResults],
+    [results, file1Name, file2Name, toast, fetchFullResults],
   );
 
   return (
