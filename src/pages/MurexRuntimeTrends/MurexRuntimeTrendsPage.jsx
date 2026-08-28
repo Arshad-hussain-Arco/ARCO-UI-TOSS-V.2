@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef, Fragment } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, useImperativeHandle, forwardRef, Fragment } from 'react';
 import {
   Download,
   RefreshCw,
@@ -65,8 +65,9 @@ function useChartThemeColor() {
 }
 
 /* ─── Plotly Chart Wrapper Component (CDN Auto-Loader) ────────── */
-export function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover, style }) {
+export const PlotlyChart = forwardRef(function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover, style }, forwardedRef) {
   const containerRef = useRef(null);
+  useImperativeHandle(forwardedRef, () => containerRef.current, []);
   const [plotlyLoaded, setPlotlyLoaded] = useState(Boolean(window.Plotly));
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover,
   }
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 220, ...style }} />;
-}
+});
 
 /* ─── Stacked Bar Chart Spec for Job Cards ─────────────────────── */
 function buildJobStackedBarSpec(script, themeColor = '#000000') {
@@ -541,6 +542,8 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
   const outliersCountGrid = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => 0));
   const textColorMatrix = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => '#000000'));
   const annotations = [];
+  const shapes = [];
+  const dateAnnotationsGrid = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => null));
 
   // Helper for formatting date strings
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -562,21 +565,36 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
         if (!isNaN(dateObj)) {
           monthGrid[run.dayIndex][wIdx] = dateObj.getMonth();
           const dateString = `${monthNames[dateObj.getMonth()]} ${dateObj.getDate()}`;
-          annotations.push({
+          dateAnnotationsGrid[run.dayIndex][wIdx] = {
             x: wIdx + 0.47,
             y: run.dayIndex - 0.47,
             text: dateString,
-            showarrow: false,
-            font: { size: 10, color: '#000000' },
-            xanchor: 'right',
-            yanchor: 'top',
-          });
+          };
         }
       } else {
         zMatrix[run.dayIndex][wIdx] = (zMatrix[run.dayIndex][wIdx] + run.durationMin) / 2;
       }
     }
   });
+
+  // Push date annotations now that outliersCountGrid is fully known, so their color matches the cell text
+  for (let d = 0; d < 7; d++) {
+    for (let w = 0; w < weeks.length; w++) {
+      const dateAnnotation = dateAnnotationsGrid[d][w];
+      if (dateAnnotation) {
+        const isOutlierCell = outliersCountGrid[d][w] > 0;
+        annotations.push({
+          x: dateAnnotation.x,
+          y: dateAnnotation.y,
+          text: dateAnnotation.text,
+          showarrow: false,
+          font: { size: 10, color: isOutlierCell ? '#ffffff' : '#000000' },
+          xanchor: 'right',
+          yanchor: 'top',
+        });
+      }
+    }
+  }
 
   // Build textMatrix, count badges, and outlier icons
   for (let w = 0; w < weeks.length; w++) {
@@ -586,18 +604,32 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
         let cellText = '';
         if (cellRuns.length > 3) {
           cellText = cellRuns.slice(0, 3).join('<br>') + '<br>. . .';
-          // Add green circle badge for count
+          // Add green circle badge for count - a pixel-sized shape keeps it a true circle
+          // regardless of the cell's data-space aspect ratio (bgcolor+borderpad on text
+          // produces an oval once the digits' width differs from the font's line height).
+          shapes.push({
+            type: 'circle',
+            xref: 'x',
+            yref: 'y',
+            xsizemode: 'pixel',
+            ysizemode: 'pixel',
+            xanchor: w + 0.45,
+            yanchor: d + 0.35,
+            x0: -7,
+            x1: 7,
+            y0: -7,
+            y1: 7,
+            fillcolor: '#16a34a',
+            line: { color: '#16a34a' },
+          });
           annotations.push({
-            x: w + 0.47,
-            y: d + 0.47, // bottom-right
+            x: w + 0.45,
+            y: d + 0.35,
             text: `<b>${cellRuns.length}</b>`,
             showarrow: false,
             font: { size: 9, color: 'white' },
-            bgcolor: '#16a34a',
-            bordercolor: '#16a34a',
-            borderpad: 2,
-            xanchor: 'right',
-            yanchor: 'bottom',
+            xanchor: 'center',
+            yanchor: 'middle',
           });
         } else {
           cellText = cellRuns.join('<br>');
@@ -624,7 +656,6 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
     }
   }
 
-  const shapes = [];
   // Function to get the first non-null month in a week column
   const getPredominantMonth = (colIdx) => {
     for (let d = 0; d < 7; d++) {
@@ -661,7 +692,7 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
         y: days,
         text: textMatrix,
         texttemplate: '%{text}',
-        textfont: { color: textColorMatrix },
+        textfont: { color: textColorMatrix, size: 11 },
         type: 'heatmap',
         colorscale: [
           [0.0, '#fef08a'],
@@ -1041,6 +1072,17 @@ export function MurexRuntimeTrendsPage() {
   const [loadingScriptIds, setLoadingScriptIds] = useState(() => new Set());
   const [selectedCellDetails, setSelectedCellDetails] = useState(null);
   const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
+  const heatmapRefs = useRef({});
+
+  const handleDownloadHeatmap = useCallback((scriptId, scriptName) => {
+    const node = heatmapRefs.current[scriptId];
+    if (!node || !window.Plotly) return;
+    window.Plotly.downloadImage(node, {
+      format: 'png',
+      filename: `${scriptName}-runtime-heatmap`,
+      scale: 2,
+    });
+  }, []);
   const [isGanttLoading, setIsGanttLoading] = useState(false);
 
   const toggleExpandScript = async (scriptId, e) => {
@@ -1116,6 +1158,9 @@ export function MurexRuntimeTrendsPage() {
           const processData = response.data?.[script.name];
           if (processData && processData.labels && processData.steps) {
             const allDurations = processData.time_duration || [];
+            // Must match the outlier rule used to build script.history in murexService.js
+            // (runDurationMin > avgRuntimeMin * 2), otherwise the per-run "Outlier" flags here
+            // won't agree with the "⚠️ count" badge shown on the heatmap cell.
             let overallAvgSecs = 0;
             if (script.history && script.history.length > 0) {
               const totalMins = script.history.reduce((acc, h) => acc + (h.durationMin || 0), 0);
@@ -1123,7 +1168,7 @@ export function MurexRuntimeTrendsPage() {
             } else {
               overallAvgSecs = allDurations.length ? allDurations.reduce((a, b) => a + b, 0) / allDurations.length : 0;
             }
-            const outlierThreshold = overallAvgSecs * 1.5;
+            const outlierThreshold = overallAvgSecs * 2;
 
             const runs = processData.labels.map((label, index) => {
               const stepsData = processData.steps[index];
@@ -1874,13 +1919,26 @@ export function MurexRuntimeTrendsPage() {
                                 <td colSpan={5}>
                                   <div className="murex-detail-accordion-content">
                                     <div className="murex-detail-accordion-header">
-                                      <h4 className="murex-detail-title">
-                                        <Activity size={14} style={{ color: '#005A36' }} />
-                                        Runtime Heatmap & Execution Pattern — {script.name}
-                                      </h4>
-                                      <span className="murex-detail-subtitle">
-                                        Click any date cell on the heatmap to view detailed execution runs & Gantt charts
-                                      </span>
+                                      <div>
+                                        <h4 className="murex-detail-title">
+                                          <Activity size={14} style={{ color: '#005A36' }} />
+                                          Runtime Heatmap & Execution Pattern — {script.name}
+                                        </h4>
+                                        <span className="murex-detail-subtitle">
+                                          Click any date cell on the heatmap to view detailed execution runs & Gantt charts
+                                        </span>
+                                      </div>
+                                      {!isLoading && (
+                                        <button
+                                          type="button"
+                                          className="murex-heatmap-download-btn"
+                                          onClick={() => handleDownloadHeatmap(script.id, script.name)}
+                                          title="Download heatmap as PNG"
+                                        >
+                                          <Download size={14} />
+                                          Download
+                                        </button>
+                                      )}
                                     </div>
                                     {isLoading ? (
                                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', gap: '16px', color: 'var(--text-tertiary)' }}>
@@ -1890,6 +1948,7 @@ export function MurexRuntimeTrendsPage() {
                                     ) : (
                                       <div className="murex-detail-heatmap-wrapper">
                                         <PlotlyChart
+                                          ref={(node) => { heatmapRefs.current[script.id] = node; }}
                                           data={spec.data}
                                           layout={spec.layout}
                                           onClick={(e) => handleHeatmapCellClick(scriptWithDetails, e)}

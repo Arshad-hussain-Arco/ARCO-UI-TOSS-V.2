@@ -644,6 +644,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Single "Run Details" section heading, shown once above all job cards */
+.murex-run-details-heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  letter-spacing: -0.2px;
+}
+
 /* Collapsible MO_EOD Job Timeline Accordion Card */
 .murex-timeline-accordion-card {
   background: var(--surface-primary, #ffffff);
@@ -1932,6 +1941,28 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+}
+
+.murex-heatmap-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.murex-heatmap-download-btn:hover {
+  background: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary);
 }
 
 .murex-detail-subtitle {

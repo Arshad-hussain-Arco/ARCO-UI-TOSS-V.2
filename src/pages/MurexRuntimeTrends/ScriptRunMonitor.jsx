@@ -216,6 +216,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
       return cellDetails.runs.map((r, i) => ({
         date: cellDetails.date || 'Unknown',
         durationMin: r.seconds / 60,
+        isOutlier: r.isOutlier,
         steps: (r.steps || []).map(s => ({
           name: s.name,
           // cpuTime/dbTime/idleTime/elapsed are all real seconds from the
