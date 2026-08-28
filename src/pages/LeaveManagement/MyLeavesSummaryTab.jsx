@@ -339,7 +339,7 @@ export function MyLeavesSummaryTab({
                       </td>
                     )}
                     <td className="leave-table-cell">
-                      <span className="leave-table-status" data-status={leave.statusStr} title={STATUS_TOOLTIPS[leave.statusStr]}>{leave.statusStr}</span>
+                      <span className="leave-table-status" data-status={leave.statusStr} title={STATUS_TOOLTIPS[leave.statusStr]}>{leave.statusStr === 'self-rejected' ? 'Self Rejected' : leave.statusStr}</span>
                     </td>
                     <td className="leave-table-cell">
                       <div className="leave-table-actions">
