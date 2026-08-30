@@ -39,25 +39,22 @@ function DocumentsActivitySectionComponent({ documents }) {
         display: 'flex', 
         flexDirection: 'column', 
         minHeight: '340px', 
-        padding: '24px',
-        backgroundColor: '#ffffff',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px'
+        padding: '24px'
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#111827', letterSpacing: '-0.3px' }}>
+          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
             Recently Uploaded
           </h3>
-          <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500, marginTop: '2px', display: 'block' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, marginTop: '2px', display: 'block' }}>
             Your latest files across the repository
           </span>
         </div>
         <button 
           onClick={() => navigate(ROUTES.DOCUMENTS)}
           style={{ 
-            background: 'none', border: 'none', color: '#4f46e5', fontSize: '13px', 
+            background: 'none', border: 'none', color: 'var(--primary-color, #4f46e5)', fontSize: '13px', 
             fontWeight: 600, display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 0 
           }}
         >
@@ -72,13 +69,13 @@ function DocumentsActivitySectionComponent({ documents }) {
            const isExcel = ['xls', 'xlsx', 'csv'].includes(file.type);
            const isImage = ['png', 'jpg', 'jpeg', 'svg'].includes(file.type);
            
-           let iconBg = '#f3f4f6';
-           let iconColor = '#6b7280';
+           let iconBg = 'var(--bg-tertiary)';
+           let iconColor = 'var(--text-secondary)';
            
-           if (isPdf) { iconBg = '#fee2e2'; iconColor = '#ef4444'; }
-           else if (isExcel) { iconBg = '#dcfce7'; iconColor = '#10b981'; }
-           else if (isImage) { iconBg = '#e0e7ff'; iconColor = '#4f46e5'; }
-           else if (['doc', 'docx'].includes(file.type)) { iconBg = '#dbeafe'; iconColor = '#3b82f6'; }
+           if (isPdf) { iconBg = 'rgba(239, 68, 68, 0.15)'; iconColor = '#ef4444'; }
+           else if (isExcel) { iconBg = 'rgba(16, 185, 129, 0.15)'; iconColor = '#10b981'; }
+           else if (isImage) { iconBg = 'rgba(79, 70, 229, 0.15)'; iconColor = '#4f46e5'; }
+           else if (['doc', 'docx'].includes(file.type)) { iconBg = 'rgba(59, 130, 246, 0.15)'; iconColor = '#3b82f6'; }
 
            const subtitle = file.raw?.created_at ? new Date(file.raw.created_at).toLocaleDateString() : `${(file.type || 'UNKNOWN').toUpperCase()} Document`;
 
@@ -91,17 +88,17 @@ function DocumentsActivitySectionComponent({ documents }) {
                 backgroundColor: 'transparent', borderRadius: '8px', cursor: 'pointer', 
                 transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f9fafb'; }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', backgroundColor: iconBg, color: iconColor, marginRight: '14px', flexShrink: 0 }}>
                 <FileIconCard size={18} />
               </div>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{subtitle}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{subtitle}</div>
               </div>
-              <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#f9fafb', color: '#9ca3af' }} className="chevron-icon">
+              <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }} className="chevron-icon">
                  <ChevronRight size={14} />
               </div>
             </div>

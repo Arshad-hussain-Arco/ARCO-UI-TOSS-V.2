@@ -342,21 +342,61 @@ export function DashboardPage() {
     try {
       const processed = processCapacityData(capacityRecords, [5, 6], new Date(), new Set(), new Map());
       
+      const empCapacityMap = new Map();
+      
+      // 1. Pre-fill with all active employees
+      employees.forEach(emp => {
+        if (emp.status === 'Inactive' || emp.is_active === false) return;
+        
+        const eId = String(emp.id || emp.emp_id);
+        const eName = emp.name || emp.full_name || emp.first_name || 'Unknown';
+        const eTeam = emp.team_name || emp.team || 'Unassigned Team';
+        
+        empCapacityMap.set(eId, {
+          id: eId,
+          name: eName,
+          teamName: eTeam,
+          photo: emp.photo_url_base64 || emp.photo || null,
+          next7Days: { occupied: 0, available: 5 },
+          availableMDs: 5
+        });
+      });
+
+      // 2. Merge processed assignments
+      processed.forEach(c => {
+        const id = String(c.id);
+        let matched = empCapacityMap.get(id);
+        
+        // Fallback match by name
+        if (!matched) {
+          matched = Array.from(empCapacityMap.values()).find(
+            e => e.name.toLowerCase() === c.name.toLowerCase()
+          );
+        }
+
+        if (matched) {
+          matched.next7Days = c.next7Days;
+          matched.availableMDs = c.next7Days?.available || 0;
+        } else {
+          empCapacityMap.set(id, {
+            ...c,
+            availableMDs: c.next7Days?.available || 0
+          });
+        }
+      });
+
+      const availableConsultants = Array.from(empCapacityMap.values());
+      
+      // 3. Aggregate by Team
       const teamMap = {};
-      const availableConsultants = processed.map(c => {
+      availableConsultants.forEach(c => {
         const available = c.next7Days?.available || 0;
         const occupied = c.next7Days?.occupied || 0;
         
-        // Aggregate per team
         const tName = c.teamName || 'Unassigned';
         if (!teamMap[tName]) teamMap[tName] = { team: tName, used: 0, available: 0 };
         teamMap[tName].used += occupied;
         teamMap[tName].available += available;
-
-        return {
-          ...c,
-          availableMDs: available
-        };
       });
 
       capacityByTeam = Object.values(teamMap).map(t => {
@@ -371,6 +411,7 @@ export function DashboardPage() {
         };
       });
 
+      // 4. Sort and get top 5 available consultants
       availableConsultants.sort((a, b) => b.availableMDs - a.availableMDs);
       topAvailableConsultants = availableConsultants.slice(0, 5);
     } catch (e) {
