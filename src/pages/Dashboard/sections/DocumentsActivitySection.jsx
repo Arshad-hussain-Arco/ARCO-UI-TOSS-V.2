@@ -1,71 +1,114 @@
-import { memo } from 'react';
-import { Eye, FileText, Upload } from 'lucide-react';
+import React, { memo } from 'react';
+import { ChevronRight, FileText, FileSpreadsheet, Image, File, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@constants/routes';
 
-import { ACTIVITY_ICONS } from '../dashboardIcons';
+export function getFileIcon(type) {
+  switch (type?.toLowerCase()) {
+    case 'pdf':
+    case 'doc':
+    case 'docx':
+      return FileText;
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return FileSpreadsheet;
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'svg':
+      return Image;
+    default:
+      return File;
+  }
+}
 
-/**
- * Document counters and the recent activity feed.
- *
- * @param {Object} props
- * @param {{ total: number, uploadedThisWeek: number, mostViewed: string[] }} props.documents
- * @param {{ id: string, action: string, time: string, type: string }[]} props.recentActivity
- */
-function DocumentsActivitySectionComponent({ documents, recentActivity }) {
+function DocumentsActivitySectionComponent({ documents }) {
+  const navigate = useNavigate();
+
+  if (!documents || !documents.files) return null;
+
+  // Assume the last 5 files in the array or sorting by ID gives us the most recent
+  const recentFiles = [...documents.files].reverse().slice(0, 5);
+
   return (
-    <section className="dc-two-col">
-      <div className="dc-card">
-        <h2 className="dc-section-title">Documents Overview</h2>
-
-        <div className="dc-doc-stats">
-          <div className="dc-doc-stat">
-            <FileText size={18} className="dc-doc-icon" />
-            <div>
-              <div className="dc-doc-val">{documents.total}</div>
-              <div className="dc-doc-lbl">Total Files</div>
-            </div>
-          </div>
-          <div className="dc-doc-stat">
-            <Upload size={18} className="dc-doc-icon dc-doc-icon-green" />
-            <div>
-              <div className="dc-doc-val">{documents.uploadedThisWeek}</div>
-              <div className="dc-doc-lbl">This Week</div>
-            </div>
-          </div>
+    <div 
+      className="dc-card"
+      style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '340px', 
+        padding: '24px',
+        backgroundColor: '#ffffff',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#111827', letterSpacing: '-0.3px' }}>
+            Recently Uploaded
+          </h3>
+          <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500, marginTop: '2px', display: 'block' }}>
+            Your latest files across the repository
+          </span>
         </div>
-
-        <div className="dc-most-viewed">
-          <div className="dc-mv-header">
-            <Eye size={12} />
-            <span>Most Viewed</span>
-          </div>
-          {documents.mostViewed.map((fileName) => (
-            <div key={fileName} className="dc-mv-item">
-              {fileName}
-            </div>
-          ))}
-        </div>
+        <button 
+          onClick={() => navigate(ROUTES.DOCUMENTS)}
+          style={{ 
+            background: 'none', border: 'none', color: '#4f46e5', fontSize: '13px', 
+            fontWeight: 600, display: 'flex', alignItems: 'center', cursor: 'pointer', padding: 0 
+          }}
+        >
+          View all
+        </button>
       </div>
 
-      <div className="dc-card">
-        <h2 className="dc-section-title">Recent Activity</h2>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {recentFiles.map((file) => {
+           const FileIconCard = getFileIcon(file.type);
+           const isPdf = file.type === 'pdf';
+           const isExcel = ['xls', 'xlsx', 'csv'].includes(file.type);
+           const isImage = ['png', 'jpg', 'jpeg', 'svg'].includes(file.type);
+           
+           let iconBg = '#f3f4f6';
+           let iconColor = '#6b7280';
+           
+           if (isPdf) { iconBg = '#fee2e2'; iconColor = '#ef4444'; }
+           else if (isExcel) { iconBg = '#dcfce7'; iconColor = '#10b981'; }
+           else if (isImage) { iconBg = '#e0e7ff'; iconColor = '#4f46e5'; }
+           else if (['doc', 'docx'].includes(file.type)) { iconBg = '#dbeafe'; iconColor = '#3b82f6'; }
 
-        <div className="dc-activity-list">
-          {recentActivity.map((entry) => {
-            const Icon = ACTIVITY_ICONS[entry.type];
+           const subtitle = file.raw?.created_at ? new Date(file.raw.created_at).toLocaleDateString() : `${(file.type || 'UNKNOWN').toUpperCase()} Document`;
 
-            return (
-              <div key={entry.id} className="dc-activity-item">
-                <div className="dc-activity-icon">{Icon ? <Icon size={12} /> : null}</div>
-                <div className="dc-activity-body">
-                  <span className="dc-activity-text">{entry.action}</span>
-                  <span className="dc-activity-time">{entry.time}</span>
-                </div>
+           return (
+            <div 
+              key={file.id} 
+              onClick={() => navigate(ROUTES.DOCUMENTS, { state: { selectedFileId: file.id } })}
+              style={{ 
+                display: 'flex', alignItems: 'center', padding: '10px 12px', 
+                backgroundColor: 'transparent', borderRadius: '8px', cursor: 'pointer', 
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f9fafb'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', backgroundColor: iconBg, color: iconColor, marginRight: '14px', flexShrink: 0 }}>
+                <FileIconCard size={18} />
               </div>
-            );
-          })}
-        </div>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{subtitle}</div>
+              </div>
+              <div style={{ marginLeft: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#f9fafb', color: '#9ca3af' }} className="chevron-icon">
+                 <ChevronRight size={14} />
+              </div>
+            </div>
+           )
+        })}
       </div>
-    </section>
+    </div>
   );
 }
 

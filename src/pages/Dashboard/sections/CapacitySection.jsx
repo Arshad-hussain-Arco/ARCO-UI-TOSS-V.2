@@ -17,45 +17,78 @@ const capacityColor = (utilization) => CAPACITY_BANDS.find((band) => utilization
  */
 function CapacitySectionComponent({ capacityByTeam }) {
   return (
-    <section className="dc-section">
-      <h2 className="dc-section-title">Capacity Utilization by Team</h2>
+    <div className="dc-card" style={{ display: 'flex', flexDirection: 'column', minHeight: '340px', padding: '20px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Capacity Utilization by Team
+        </h3>
+        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Allocated work vs available bandwidth</span>
+      </div>
 
-      <div className="dc-cap-grid">
-        {capacityByTeam.map((team) => {
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {capacityByTeam.map((team, index) => {
           const color = capacityColor(team.utilization);
 
           return (
-            <div key={team.team} className="dc-cap-row">
-              <span className="dc-cap-team">{team.team}</span>
-              <div className="dc-cap-track">
-                <div
-                  className="dc-cap-bar"
-                  style={{ width: `${team.utilization}%`, background: color }}
-                />
-              </div>
-              <span className="dc-cap-pct" style={{ color }}>
-                {team.utilization}%
+            <div 
+              key={team.team} 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                padding: '10px 0',
+                borderBottom: index === capacityByTeam.length - 1 ? 'none' : '1px solid var(--border-primary)',
+                gap: '12px'
+              }}
+            >
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', width: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {team.team}
               </span>
+              
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ flex: 1, height: '6px', background: 'var(--bg-tertiary)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{ 
+                      width: `${team.utilization}%`, 
+                      height: '100%', 
+                      background: color,
+                      borderRadius: '3px',
+                      transition: 'width 0.5s ease-out'
+                    }}
+                  />
+                </div>
+                <span style={{ fontWeight: 700, color, minWidth: '36px', textAlign: 'right' }}>
+                  {team.utilization}%
+                </span>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="dc-cap-legend">
-        <span className="dc-cap-legend-item">
-          <span className="dc-cap-dot" style={{ background: 'var(--status-success)' }} />
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '16px', 
+        marginTop: '16px', 
+        fontSize: '10px', 
+        color: 'var(--text-secondary)' 
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--status-success)' }} />
           &lt;80% Healthy
         </span>
-        <span className="dc-cap-legend-item">
-          <span className="dc-cap-dot" style={{ background: 'var(--status-warning)' }} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--status-warning)' }} />
           80–90% Warning
         </span>
-        <span className="dc-cap-legend-item">
-          <span className="dc-cap-dot" style={{ background: 'var(--status-critical)' }} />
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--status-critical)' }} />
           90%+ Critical
         </span>
       </div>
-    </section>
+    </div>
   );
 }
 
