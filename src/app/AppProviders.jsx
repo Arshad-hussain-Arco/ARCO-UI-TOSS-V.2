@@ -3,6 +3,7 @@ import { PinnedLinksProvider } from '@context/PinnedLinksContext';
 import { SidebarProvider } from '@context/SidebarContext';
 import { ThemeProvider } from '@context/ThemeContext';
 import { ToastProvider } from '@context/ToastContext';
+import { UploadProvider } from '@context/UploadContext';
 
 /**
  * Composes every application-wide provider in one place.
@@ -15,11 +16,13 @@ export function AppProviders({ children }) {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <AuthProvider>
-          <SidebarProvider>
-            <PinnedLinksProvider>{children}</PinnedLinksProvider>
-          </SidebarProvider>
-        </AuthProvider>
+        <UploadProvider>
+          <AuthProvider>
+            <SidebarProvider>
+              <PinnedLinksProvider>{children}</PinnedLinksProvider>
+            </SidebarProvider>
+          </AuthProvider>
+        </UploadProvider>
       </ToastProvider>
     </ThemeProvider>
   );

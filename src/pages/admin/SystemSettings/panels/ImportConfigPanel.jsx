@@ -2,6 +2,7 @@ import { memo, useRef, useState, useEffect } from 'react';
 import { Eye, EyeOff, Save, Upload, Loader2, FileSpreadsheet, CircleCheck } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
+import { useUploads } from '@context/UploadContext';
 
 /**
  * TAB 2: ImportFileConfig
@@ -9,6 +10,8 @@ import { settingsService } from '@services/settingsService';
  */
 function ImportConfigPanelComponent() {
   const toast = useToast();
+  const { uploadFile, uploads } = useUploads();
+  const isMounted = useRef(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,7 +40,9 @@ function ImportConfigPanelComponent() {
   const [uploadingFields, setUploadingFields] = useState({});
 
   useEffect(() => {
+    isMounted.current = true;
     fetchData();
+    return () => { isMounted.current = false; };
   }, []);
 
   const fetchData = async ({ silent = false } = {}) => {
@@ -83,42 +88,30 @@ function ImportConfigPanelComponent() {
     setFormData((prev) => ({ ...prev, [field]: val }));
   };
 
-  const handleFileUpload = async (field, fileKey, event) => {
+  const isFieldUploading = (field) => {
+    return Object.values(uploads).some(u => u.field === field && u.status === 'uploading');
+  };
+
+  const handleFileUpload = (field, fileKey, event) => {
     const file = event.target.files?.[0];
     if (file) {
-      setUploadingFields((prev) => ({ ...prev, [field]: true }));
-      try {
-        const payload = new FormData();
-        payload.append('file', file);
-        payload.append('fileKey', fileKey);
-
-        const res = await settingsService.uploadFile(payload);
-
-        toast.success(`File uploaded successfully: ${file.name}`);
-        // The upload response already carries the authoritative path and
-        // completion timestamp — apply it directly instead of refetching.
-        // A refetch here would overwrite the whole formData/uploadedAt
-        // state wholesale, clobbering another field's just-applied result
-        // if a second upload is running concurrently, and would stamp
-        // uploadedAt a second time with the same value for no reason.
-        if (res?.filePath) {
-          handleChange(field, res.filePath);
+      uploadFile(field, fileKey, file, 
+        (res) => {
+          if (isMounted.current) {
+            if (res?.filePath) {
+              handleChange(field, res.filePath);
+            }
+            if (res?.uploadedAt) {
+              setUploadedAt((prev) => ({ ...prev, [`${field}_uploadedAt`]: res.uploadedAt }));
+            }
+          }
+        },
+        (error) => {
+          // Handled globally
         }
-        if (res?.uploadedAt) {
-          setUploadedAt((prev) => ({ ...prev, [`${field}_uploadedAt`]: res.uploadedAt }));
-        }
-      } catch (error) {
-        console.error('File upload failed:', error);
-        toast.error(`Failed to upload ${file.name}`);
-      } finally {
-        setUploadingFields((prev) => {
-          const next = { ...prev };
-          delete next[field];
-          return next;
-        });
-        // Allow re-selecting the same file again later.
-        event.target.value = '';
-      }
+      );
+      // Allow re-selecting the same file again later.
+      event.target.value = '';
     }
   };
 
@@ -265,9 +258,9 @@ function ImportConfigPanelComponent() {
                     border: '1px solid var(--border-primary)',
                   }}
                   onClick={() => fileInputRefs.woFilePath.current?.click()}
-                  disabled={uploadingFields.workOrderStatusFilePath}
+                  disabled={isFieldUploading('workOrderStatusFilePath')}
                 >
-                  {uploadingFields.workOrderStatusFilePath ? (
+                  {isFieldUploading('workOrderStatusFilePath') ? (
                     <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
                   ) : (
                     <>
@@ -343,9 +336,9 @@ function ImportConfigPanelComponent() {
                     border: '1px solid var(--border-primary)',
                   }}
                   onClick={() => fileInputRefs.crFilePath.current?.click()}
-                  disabled={uploadingFields.changeRequestFilePath}
+                  disabled={isFieldUploading('changeRequestFilePath')}
                 >
-                  {uploadingFields.changeRequestFilePath ? (
+                  {isFieldUploading('changeRequestFilePath') ? (
                     <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
                   ) : (
                     <>
@@ -421,9 +414,9 @@ function ImportConfigPanelComponent() {
                     border: '1px solid var(--border-primary)',
                   }}
                   onClick={() => fileInputRefs.runtimeTrendsFilePath.current?.click()}
-                  disabled={uploadingFields.runTimeFilePath}
+                  disabled={isFieldUploading('runTimeFilePath')}
                 >
-                  {uploadingFields.runTimeFilePath ? (
+                  {isFieldUploading('runTimeFilePath') ? (
                     <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
                   ) : (
                     <>
