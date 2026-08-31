@@ -28,7 +28,7 @@ const SESSION_END_MESSAGES = {
  * @property {() => void} clearError
  */
 
-export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
+export const AuthContext = createContext(/** @type {AuthContextValue | null} */ (null));
 
 // Background safety net only — the primary refresh trigger is tab
 // focus/visibility (see below), which is when a user actually notices a
@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
       const { default: endpoints } = await import('@api/endpoints');
       const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
       const fullInfo = userInfoRes.data;
-      
+
       console.log('USER DATA RESPONSE FROM BACKEND:', fullInfo);
 
       const info = fullInfo.userInformation || fullInfo;
@@ -108,7 +108,6 @@ export function AuthProvider({ children }) {
       if (info.userName || info.username) {
         persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
       }
-
 
       if (includePhoto && persistedUser.emp_id) {
         const avatar = await resolveAvatarDataUri(persistedUser.emp_id);
@@ -214,41 +213,48 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
   }, [clearSession, toast]);
 
-  const login = useCallback(async (credentials) => {
-    setIsSubmitting(true);
-    setError(null);
+  const login = useCallback(
+    async (credentials) => {
+      setIsSubmitting(true);
+      setError(null);
 
-    try {
-      const { token, refreshToken, user: authenticatedUser } = await authService.login(credentials);
+      try {
+        const {
+          token,
+          refreshToken,
+          user: authenticatedUser,
+        } = await authService.login(credentials);
 
-      resetSessionEndGuard();
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
-      if (refreshToken) {
-        storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        resetSessionEndGuard();
+        storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
+        if (refreshToken) {
+          storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        }
+        // Persist the bare JWT-decoded user so refreshUser has a base to merge
+        // onto, but deliberately do NOT setUser() with it here: isAuthenticated
+        // (Boolean(user)) would flip true immediately, and PublicRoute reacts
+        // to that by navigating away right then — mid-flight, with placeholder
+        // role/isAdmin/permissions — racing ahead of the refreshUser() call
+        // below and landing on a 403 or the wrong sidebar. setUser only happens
+        // once, inside refreshUser, once real role/permission data is in hand.
+        storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
+
+        if (authenticatedUser?.theme) {
+          setTheme(authenticatedUser.theme);
+        }
+
+        // /auth/user-info/ is intentionally lightweight (no photo/config
+        // payload) so awaiting it here doesn't meaningfully delay login.
+        await refreshUser({ includePhoto: true });
+      } catch (caught) {
+        setError(caught.message);
+        throw caught;
+      } finally {
+        setIsSubmitting(false);
       }
-      // Persist the bare JWT-decoded user so refreshUser has a base to merge
-      // onto, but deliberately do NOT setUser() with it here: isAuthenticated
-      // (Boolean(user)) would flip true immediately, and PublicRoute reacts
-      // to that by navigating away right then — mid-flight, with placeholder
-      // role/isAdmin/permissions — racing ahead of the refreshUser() call
-      // below and landing on a 403 or the wrong sidebar. setUser only happens
-      // once, inside refreshUser, once real role/permission data is in hand.
-      storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
-
-      if (authenticatedUser?.theme) {
-        setTheme(authenticatedUser.theme);
-      }
-
-      // /auth/user-info/ is intentionally lightweight (no photo/config
-      // payload) so awaiting it here doesn't meaningfully delay login.
-      await refreshUser({ includePhoto: true });
-    } catch (caught) {
-      setError(caught.message);
-      throw caught;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [setTheme, refreshUser]);
+    },
+    [setTheme, refreshUser],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -280,7 +286,17 @@ export function AuthProvider({ children }) {
       refreshUser,
       clearError,
     }),
-    [user, isInitialising, isSubmitting, error, login, logout, hasPermission, refreshUser, clearError],
+    [
+      user,
+      isInitialising,
+      isSubmitting,
+      error,
+      login,
+      logout,
+      hasPermission,
+      refreshUser,
+      clearError,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
