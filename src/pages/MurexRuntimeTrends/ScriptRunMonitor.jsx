@@ -83,6 +83,36 @@ const clockFromTimestamp = (ts) => {
   return timePart || null;
 };
 
+const MONTH_ABBR = {
+  JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+};
+
+// Parses a raw Murex CMP timestamp ("04-AUG-2026 20:40:14") or an ISO one
+// into epoch ms, for sorting runs chronologically. Returns null if unparseable.
+const parseTimestampMs = (ts) => {
+  if (!ts) return null;
+  const str = String(ts).trim();
+  const cmpMatch = str.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})[ T](\d{1,2}):(\d{2}):(\d{2})/);
+  if (cmpMatch) {
+    const [, day, monAbbr, year, h, m, s] = cmpMatch;
+    const monthIdx = MONTH_ABBR[monAbbr.toUpperCase()];
+    if (monthIdx === undefined) return null;
+    return new Date(Number(year), monthIdx, Number(day), Number(h), Number(m), Number(s)).getTime();
+  }
+  const parsed = new Date(str.replace(' ', 'T')).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+// The earliest step start-timestamp for a run, used to sort runs oldest-first.
+const runStartMs = (run) => {
+  for (const step of run.steps || []) {
+    const ms = parseTimestampMs(step.startTs);
+    if (ms !== null) return ms;
+  }
+  return null;
+};
+
 const RunCard = ({ run, index }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -211,9 +241,12 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
   const { isDarkMode } = useTheme();
   
   // If cellDetails are provided (from heatmap click), we use its runs. Otherwise, use full script.history.
+  // Sorted oldest-first by each run's earliest step timestamp (falling back to
+  // the incoming order when no timestamps are available), so both the "Run
+  // duration over time" chart and the Run log below number runs identically.
   const history = useMemo(() => {
-    if (cellDetails && cellDetails.runs) {
-      return cellDetails.runs.map((r, i) => ({
+    const ordered = (cellDetails && cellDetails.runs)
+      ? cellDetails.runs.map((r) => ({
         date: cellDetails.date || 'Unknown',
         durationMin: r.seconds / 60,
         isOutlier: r.isOutlier,
@@ -228,26 +261,33 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           startTs: s.startTs || null,
           endTs: s.endTs || null,
         }))
-      }));
-    }
-    return [...(script.history || [])].reverse().map(r => ({
-      ...r,
-      steps: (r.steps || []).map(s => ({
-        name: s.name,
-        cpuTime: s.cpu_time,
-        dbTime: s.db_time,
-        idleTime: s.idle_time || 0,
-        elapsed: s.elapsed_time,
-        startTs: s.date_time_cmp || null,
-        endTs: s.finished_time || null,
       }))
-    }));
+      : [...(script.history || [])].map(r => ({
+        ...r,
+        steps: (r.steps || []).map(s => ({
+          name: s.name,
+          cpuTime: s.cpu_time,
+          dbTime: s.db_time,
+          idleTime: s.idle_time || 0,
+          elapsed: s.elapsed_time,
+          startTs: s.date_time_cmp || null,
+          endTs: s.finished_time || null,
+        }))
+      }));
+
+    // Re-sort oldest-first by actual step timestamps when available, so we
+    // don't depend on the API always returning runs in chronological order.
+    const withTimes = ordered.map((run, i) => ({ run, i, ms: runStartMs(run) }));
+    if (withTimes.every(w => w.ms !== null)) {
+      withTimes.sort((a, b) => a.ms - b.ms);
+    }
+    return withTimes.map(w => w.run);
   }, [script.history, cellDetails]);
   
   // Convert all durations to seconds
   const durS = useMemo(() => history.map(h => (h.durationMin || 0) * 60), [history]);
   const n = durS.length;
-  
+
   const avgDur = mean(durS);
   const p95Dur = percentile(durS, 95);
   const sd = stddev(durS);
@@ -371,9 +411,8 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
       <header className="top">
         <div>
           <p className="job-title">{script.name}</p>
-          <p className="job-sub"><span className="num">{n}</span> runs tracked · latest <span className="num">{history[history.length - 1]?.date}</span></p>
+          <p className="job-sub"><span className="num">{n}</span> runs tracked · latest <span className="num">{history[history.length - 1]?.date}</span> ({fmtSec(latest)})</p>
         </div>
-        <span className="status-chip"><span className="dot"></span>{script.status === 'error' ? 'Failed' : 'Within SLA'}</span>
       </header>
 
       <div className="kpi-grid">
@@ -487,7 +526,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           <span className="section-note">Expand a run for its step-by-step CPU / DB waterfall</span>
         </div>
         <div id="runLog">
-          {[...history].reverse().map((run, i) => (
+          {history.map((run, i) => (
             <RunCard key={i} run={run} index={i} />
           ))}
         </div>

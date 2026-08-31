@@ -82,6 +82,24 @@
   background: var(--teal);
 }
 
+.run-monitor-wrap .status-chip.breach {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.run-monitor-wrap .status-chip.breach .dot {
+  background: var(--amber);
+}
+
+.run-monitor-wrap .status-chip.failed {
+  background: var(--coral-bg);
+  color: var(--coral);
+}
+
+.run-monitor-wrap .status-chip.failed .dot {
+  background: var(--coral);
+}
+
 .run-monitor-wrap .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
