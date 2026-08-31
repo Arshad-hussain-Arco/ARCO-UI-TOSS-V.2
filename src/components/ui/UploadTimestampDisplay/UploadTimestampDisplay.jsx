@@ -71,7 +71,7 @@ export function UploadTimestampDisplay({ fileKey, label, configs, useRawTime }) 
         return (
           <div 
             key={item.fileKey}
-            title={`Data for ${item.label} was last updated on ${customFormattedTime}`}
+
             style={{ 
               display: 'inline-flex', 
               alignItems: 'center', 
