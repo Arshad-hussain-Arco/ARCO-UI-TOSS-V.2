@@ -49,7 +49,7 @@ export function buildVideoMarkup({ url, filename, filesize, mime, align = 'cente
     `<span class="rte-video-size">${escapeAttr(sizeText)}</span>` +
     `</div>` +
     `<div class="rte-video-actions">` +
-    `<button type="button" class="rte-btn-sm rte-btn-danger rte-media-remove-btn" title="Remove video">Remove ×</button>` +
+    `<button type="button" class="rte-btn-sm rte-btn-danger rte-media-remove-btn" title="Remove video"> × Remove</button>` +
     `</div>` +
     `</div>` +
     `</div>`

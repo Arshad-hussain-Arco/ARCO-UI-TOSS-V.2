@@ -267,7 +267,7 @@ export function shapeOverviewRuns(runs = [], isoDate) {
     return {
       id: `timeline_${run.script_name}_${idx}`,
       jobInfo: {
-        title: `${run.script_name} Timeline`,
+        title: run.script_name,
         scriptName: run.script_name,
         startTimeStr: toDisplayCmp(run.run_start),
         endTimeStr: toDisplayCmp(run.run_end),

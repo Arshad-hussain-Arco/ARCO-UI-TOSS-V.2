@@ -133,25 +133,47 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
-          <div className="tr-drow">
-            <span className="tr-drow-label">
-              {liveReq.isModRequest ? 'New Start Date' : liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
-            </span>
-            <span className="tr-drow-value">{fmtDate(liveReq.startDate)}</span>
-          </div>
-          <div className="tr-drow">
-            <span className="tr-drow-label">
-              {liveReq.isModRequest ? 'New End Date' : liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
-            </span>
-            <span className="tr-drow-value">{fmtDate(liveReq.endDate)}</span>
-          </div>
+          {liveReq.claimDates && liveReq.claimDates.length > 1 ? (
+            // Grouped multi-date claim submission (see groupClaimRows in
+            // TeamRequestsTab) — the dates aren't a contiguous range, so
+            // list each claimed date + duration instead of a single
+            // From/To Date pair that would misrepresent the gap between them.
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">Claimed Dates</span>
+              <span className="tr-drow-value">
+                {liveReq.claimDates.map((cd) => (
+                  <div key={cd.id}>
+                    {fmtDate(cd.date)}
+                    {cd.duration && cd.duration !== 'full' && (
+                      <> ({cd.duration === 'morning' ? 'First Half' : cd.duration === 'afternoon' ? 'Second Half' : cd.duration})</>
+                    )}
+                  </div>
+                ))}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="tr-drow">
+                <span className="tr-drow-label">
+                  {liveReq.isModRequest ? 'New Start Date' : liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
+                </span>
+                <span className="tr-drow-value">{fmtDate(liveReq.startDate)}</span>
+              </div>
+              <div className="tr-drow">
+                <span className="tr-drow-label">
+                  {liveReq.isModRequest ? 'New End Date' : liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
+                </span>
+                <span className="tr-drow-value">{fmtDate(liveReq.endDate)}</span>
+              </div>
+            </>
+          )}
           {liveReq.isModRequest && liveReq.origReason && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Original Reason</span>
               <span className="tr-drow-value" style={{ color: 'var(--text-tertiary)' }}>{liveReq.origReason}</span>
             </div>
           )}
-          {liveReq.type !== 'offshore' && (
+          {liveReq.type !== 'offshore' && !(liveReq.claimDates && liveReq.claimDates.length > 1) && (
             <div className="tr-drow">
               <span className="tr-drow-label">Duration</span>
               <span className="tr-drow-value">
@@ -195,6 +217,16 @@ export function LeaveRequestDrawer({
               </span>
               <span className="tr-drow-value" style={{ maxWidth: 220 }}>
                 {liveReq.reason}
+              </span>
+            </div>
+          )}
+          {liveReq.cancellationReason && (
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">
+                {liveReq.status === 'rejected' ? 'Rejection Reason' : 'Cancellation Reason'}
+              </span>
+              <span className="tr-drow-value" style={{ maxWidth: 220 }}>
+                {liveReq.cancellationReason}
               </span>
             </div>
           )}
@@ -367,12 +399,7 @@ export function LeaveRequestDrawer({
               {
                 label: 'Pending Manager Approval',
                 sub: liveReq.manager ? `Reporting to ${liveReq.manager}` : 'Awaiting action',
-                state:
-                  liveReq.status === 'pending'
-                    ? 'active'
-                    : liveReq.status === 'approved'
-                      ? 'done'
-                      : 'rejected',
+                state: 'active',
               },
               {
                 label:
@@ -418,7 +445,7 @@ export function LeaveRequestDrawer({
         </div>
 
         {/* Manager Notes */}
-        {!isReadOnly && (drawerAction !== 'view' || liveReq.status === 'pending') && (
+        {!isReadOnly && drawerAction !== 'view' && (
           <div className="tr-dsec">
             <div className="tr-dsec-title">Manager Notes</div>
             <textarea
@@ -452,9 +479,9 @@ export function LeaveRequestDrawer({
         <button className="tr-btn tr-btn-ghost" onClick={onClose}>
           {isReadOnly ? 'Close' : 'Cancel'}
         </button>
-        {!isReadOnly && liveReq.status === 'pending' && (
+        {!isReadOnly && drawerAction !== 'view' && (liveReq.status === 'pending' || liveReq.status === 'approved' || liveReq.status === 'rejected') && (
           <>
-            {(drawerAction === 'view' || drawerAction === 'reject') && (
+            {drawerAction === 'reject' && liveReq.status !== 'rejected' && (
               <button 
                 className="tr-btn tr-btn-danger" 
                 onClick={onReject}
@@ -464,7 +491,7 @@ export function LeaveRequestDrawer({
                 {isSubmittingAction ? 'Rejecting...' : 'Reject'}
               </button>
             )}
-            {(drawerAction === 'view' || drawerAction === 'approve') && (
+            {drawerAction === 'approve' && liveReq.status !== 'approved' && (
               <button 
                 className="tr-btn tr-btn-primary" 
                 onClick={() => setShowConfirm(true)}

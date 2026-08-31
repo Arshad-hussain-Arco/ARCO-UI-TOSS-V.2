@@ -62,8 +62,9 @@ const linregLine = (arr) => {
 };
 const fmtSec = (sec) => {
   if (sec < 60) return sec.toFixed(1) + 's';
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}m ${s}s`;
 };
 const hhmmss = (sec) => {
@@ -112,10 +113,15 @@ const RunCard = ({ run, index }) => {
   return (
     <div className="run-card">
       <div className="run-head" onClick={() => setIsOpen(!isOpen)}>
-        <div className="run-head-left">
-          <span className="run-name">Run {index + 1}</span>
-          <span className="run-date">({run.date})</span>
-          <span className="run-clock">{hhmmss(totalDurationSec)}</span>
+        <div className="run-head-left" style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+          <span className="run-name" style={run.isOutlier ? { color: '#ef4444' } : {}}>
+            Run {index + 1}: {hhmmss(totalDurationSec)} ({totalDurationSec.toFixed(0)}s)
+          </span>
+          {run.isOutlier && (
+            <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              ⚠️ Outlier
+            </span>
+          )}
         </div>
         <button className={`toggle-btn ${isOpen ? 'open' : ''}`}>
           <span className="chev">▾</span> {isOpen ? 'Hide Gantt' : 'Show Gantt'}
@@ -210,6 +216,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
       return cellDetails.runs.map((r, i) => ({
         date: cellDetails.date || 'Unknown',
         durationMin: r.seconds / 60,
+        isOutlier: r.isOutlier,
         steps: (r.steps || []).map(s => ({
           name: s.name,
           // cpuTime/dbTime/idleTime/elapsed are all real seconds from the
@@ -260,10 +267,10 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     // cpuTime/dbTime/idleTime/elapsed are already in seconds - see the
     // history mapping above (this used to divide by 1000, silently showing
     // durations 1000x too small for real API data).
-    const avgElapsed = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.elapsed || 0)));
     const avgCpu = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.cpuTime || 0)));
     const avgDb = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.dbTime || 0)));
     const avgIdle = stepNames.map((_, i) => mean(history.map(r => (r.steps || [])[i + 1]?.idleTime || 0)));
+    const avgElapsed = stepNames.map((_, i) => avgCpu[i] + avgDb[i] + avgIdle[i]);
     
     const maxElapsed = Math.max(...avgElapsed, 0.1);
     const bottleneckIdx = avgElapsed.indexOf(maxElapsed);
@@ -453,7 +460,13 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                           </div>
                         </div>
                       </div>
-                      <div className="step-total">{fmtSec(stepAggregation.avgElapsed[i])}</div>
+                      <div className="step-total">
+                        {fmtSec(
+                          Math.round(stepAggregation.avgIdle[i] || 0) +
+                          Math.round(stepAggregation.avgCpu[i] || 0) +
+                          Math.round(stepAggregation.avgDb[i] || 0)
+                        )}
+                      </div>
                     </div>
                   );
                 })}

@@ -461,6 +461,16 @@
   color:  #ffffff;
 }
 
+.tr-status-cancelled {
+  background: #64748b;
+  color:  #ffffff;
+}
+
+.tr-status-mod-pending {
+  background: var(--c-info, #3b82f6);
+  color:  #ffffff;
+}
+
 /* ─── Priority Badge ──────────────────────────────────────────────── */
 
 .tr-priority-high {
@@ -846,8 +856,8 @@
 }
 
 .tr-tl-dot.active {
-  background: var(--c-warning);
-  color: var(--surface-primary);
+  background: #f59e0b;
+  color: #fff;
 }
 
 .tr-tl-dot.waiting {

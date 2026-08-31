@@ -24,7 +24,7 @@ import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
 import { useAsync } from '@hooks/useAsync';
-import ProgressTooltip from '../ProjectMonitoring/components/ProgressTooltip';
+import ProgressTooltip from '@pages/ProjectMonitoring/components/ProgressTooltip';
 import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -653,14 +653,27 @@ export function CapacityPlanningPage() {
     return `${day}/${month}/${year}`;
   };
 
+  // Substring fragments used to fuzzy-match a status so minor casing/spacing
+  // variance in the source data doesn't silently miss the Tester role.
+  const TESTING_STATUS_FRAGMENTS = [
+    'sit entry',
+    'sit in progress',
+    'smoke',
+    'uat entry',
+    'uat inprogress',
+    'uat in progress',
+    'uat sign off',
+    'fat testing'
+  ];
+
   const getDerivedRole = (alloc) => {
     const statusLower = (alloc.status || '').toLowerCase().trim();
-    if (statusLower === 'fat testing') {
+    if (TESTING_STATUS_FRAGMENTS.some(fragment => statusLower.includes(fragment))) {
       return {
         label: 'Tester',
         icon: <CheckSquare size={14} className="role-icon tester-dev" />,
         class: 'dev-badge dev-tester',
-        tooltip: 'FAT Testing Role'
+        tooltip: `${alloc.status} Role`
       };
     }
     if (alloc.isAssignedProgrammer) {
@@ -1247,7 +1260,8 @@ export function CapacityPlanningPage() {
                   <tr>
                     <th>Project</th>
                     <th>Stage</th>
-                    <th>Start / End Date</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
                     <th className="text-center">{`Next ${projectViewTimeframe} Days (Total)`}</th>
                   </tr>
                 </thead>
@@ -1265,7 +1279,7 @@ export function CapacityPlanningPage() {
                             <div className="cp-team-subheader-left">
                               {isCollapsed ? <ChevronRight size={14} className="cp-team-chevron" /> : <ChevronDown size={14} className="cp-team-chevron" />}
                               <span className="team-name-label">
-                                <ProjectText projectStr={group.project} /> — {group.summary}
+                                <ProjectText projectStr={group.project} summary={group.summary} />
                               </span>
                             </div>
                           </div>
@@ -1281,7 +1295,8 @@ export function CapacityPlanningPage() {
                             {group.stageName}
                           </span>
                         </td>
-                        <td>{formatDateDMY(group.startDate)} - {formatDateDMY(group.endDate)}</td>
+                        <td>{formatDateDMY(group.startDate)}</td>
+                        <td>{formatDateDMY(group.endDate)}</td>
                         <td className="text-center">
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                             <span className="team-size-badge">{group.developers.length} developer{group.developers.length === 1 ? '' : 's'}</span>
@@ -1293,39 +1308,51 @@ export function CapacityPlanningPage() {
 
                     if (!isCollapsed) {
                       rows.push(
-                        <tr key={`project-${group.key}-header`} className="cp-member-row" style={{ background: 'var(--surface-secondary)' }}>
-                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Developer</td>
-                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Role</td>
-                          <td style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Team</td>
-                          <td className="text-center" style={{ fontWeight: 600, fontSize: '11px', color: 'var(--text-secondary)' }}>Effort (Raw → Prorated)</td>
+                        <tr key={`project-${group.key}-expanded`} className="cp-team-expanded-row">
+                          <td colSpan={5} style={{ padding: 0 }}>
+                            <div className="cp-sub-table-wrapper">
+                              <table className="cp-sub-table" style={{ tableLayout: 'fixed' }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '35%' }}>Developer</th>
+                                    <th style={{ width: '25%' }}>Role</th>
+                                    <th style={{ width: '20%' }}>Team</th>
+                                    <th className="text-center" style={{ width: '20%' }}>Effort (Raw → Prorated)</th>
+                                  </tr>
+                                </thead>
+                              <tbody>
+                                {group.developers.map((d, idx) => (
+                                  <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
+                                    <td className="member-name-cell">
+                                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        {d.isUnmatchedDeveloper && (
+                                          <AlertTriangle
+                                            size={12}
+                                            style={{ color: '#d97706', marginRight: '6px', cursor: 'help' }}
+                                            title="This developer's name could not be matched to a known employee record."
+                                          />
+                                        )}
+                                        {d.name}
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
+                                        {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
+                                        <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
+                                      </div>
+                                    </td>
+                                    <td>{d.teamName || 'Unassigned Team'}</td>
+                                    <td className="text-center">
+                                      {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              </table>
+                            </div>
+                          </td>
                         </tr>
                       );
-                      group.developers.forEach((d, idx) => (
-                        rows.push(
-                          <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
-                            <td className="member-name-cell">
-                              {d.name}
-                              {d.isUnmatchedDeveloper && (
-                                <AlertTriangle
-                                  size={12}
-                                  style={{ color: '#d97706', marginLeft: '6px', cursor: 'help', verticalAlign: 'middle' }}
-                                  title="This developer's name could not be matched to a known employee record."
-                                />
-                              )}
-                            </td>
-                            <td>
-                              <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
-                                {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
-                                <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
-                              </div>
-                            </td>
-                            <td>{d.teamName || 'Unassigned Team'}</td>
-                            <td className="text-center">
-                              {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
-                            </td>
-                          </tr>
-                        )
-                      ));
                     }
                     return rows;
                   })}
@@ -1367,10 +1394,10 @@ export function CapacityPlanningPage() {
                       position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-secondary)',
                     }}
                   >
-                    <div style={{ width: '280px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    <div style={{ width: '380px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
                       Project
                     </div>
-                    <div style={{ flex: 1, position: 'relative', height: '34px' }}>
+                    <div style={{ flex: 1, position: 'relative', height: '34px', overflow: 'hidden' }}>
                       {ganttData.monthTicks.map((tick, idx) => (
                         <div
                           key={idx}
@@ -1390,15 +1417,24 @@ export function CapacityPlanningPage() {
                   {/* Project rows */}
                   {ganttData.projects.map(p => (
                     <div key={p.key} className="cp-member-row" style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ width: '280px', flexShrink: 0, padding: '10px 14px' }}>
+                      <div style={{ width: '380px', flexShrink: 0, padding: '10px 14px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {p.summary}
+                          <ProjectText projectStr={p.project} summary={p.summary} />
                         </div>
                         <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
                           {p.developers.length} developer{p.developers.length === 1 ? '' : 's'} · {p.totalProratedEffort.toFixed(1)} MDs
                         </div>
                       </div>
-                      <div style={{ flex: 1, position: 'relative', height: '32px' }}>
+                      <div style={{ flex: 1, position: 'relative', height: '32px', overflow: 'hidden' }}>
+                        {ganttData.monthTicks.map((tick, idx) => (
+                          <div
+                            key={`grid-${idx}`}
+                            style={{
+                              position: 'absolute', left: `${tick.leftPct}%`, top: 0, bottom: 0,
+                              borderLeft: '1px solid var(--border-tertiary)', zIndex: 0
+                            }}
+                          />
+                        ))}
                         {ganttData.todayPct !== null && (
                           <div
                             style={{
@@ -1550,8 +1586,13 @@ export function CapacityPlanningPage() {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 <span>{Number(alloc.effort).toFixed(1)} MDs</span>
                                 <span
-                                  style={{ fontSize: '11px', color: 'var(--text-secondary)' }}
-                                  title={`Only the portion of this assignment's ${Number(alloc.effort).toFixed(1)} MDs that falls within the next ${selectedDrillTimeframe} days counts toward the window total: ${Number(alloc.effort).toFixed(1)} x (${alloc.overlapBizDays}/${alloc.totalBizDays} business days) = ${alloc.proratedEffort.toFixed(1)}.`}
+                                  style={{ fontSize: '11px', color: 'var(--text-secondary)', cursor: 'default' }}
+                                  onMouseEnter={(e) => setActiveTooltip({
+                                    title: 'Prorated Calculation',
+                                    description: `Only the portion of this assignment's ${Number(alloc.effort).toFixed(1)} MDs that falls within the next ${selectedDrillTimeframe} days counts toward the window total: ${Number(alloc.effort).toFixed(1)} x (${alloc.overlapBizDays}/${alloc.totalBizDays} business days) = ${alloc.proratedEffort.toFixed(1)}.`,
+                                    targetRect: e.currentTarget.getBoundingClientRect()
+                                  })}
+                                  onMouseLeave={() => setActiveTooltip(null)}
                                 >
                                   → {alloc.proratedEffort.toFixed(1)} MDs in window ({alloc.overlapBizDays}/{alloc.totalBizDays} biz days)
                                 </span>
@@ -1622,9 +1663,32 @@ export function CapacityPlanningPage() {
   );
 }
 
-function ProjectText({ projectStr }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function ProjectText({ projectStr, summary }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [targetRect, setTargetRect] = useState(null);
+  const timeoutRef = useRef(null);
+
   if (!projectStr) return <span>N/A</span>;
+
+  const handleMouseEnter = (e) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setTargetRect(e.currentTarget.getBoundingClientRect());
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShowTooltip(false);
+    }, 100);
+  };
+
+  const handleTooltipMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  };
+
+  const handleTooltipMouseLeave = () => {
+    setShowTooltip(false);
+  };
 
   const parts = projectStr.split(':');
   let ref = '';
@@ -1636,37 +1700,32 @@ function ProjectText({ projectStr }) {
   }
 
   const displayRef = ref ? (ref.startsWith('#') ? ref : `#${ref}`) : '';
+  const fullText = summary ? `${title} — ${summary}` : title;
 
-  if (title.length <= 30) {
+  if (fullText.length <= 40) {
     return (
       <span>
         {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
-        {title}
+        {fullText}
       </span>
     );
   }
 
   return (
-    <span>
+    <span
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
-      {isExpanded ? title : `${title.slice(0, 30)}...`}{' '}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--c-primary)',
-          padding: '0',
-          font: 'inherit',
-          fontWeight: 600,
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          display: 'inline'
-        }}
-      >
-        {isExpanded ? 'Show less' : 'Show more'}
-      </button>
+      {`${fullText.slice(0, 40)}...`}
+      <ProgressTooltip
+        title={displayRef ? `${displayRef} Details` : "Project Details"}
+        description={fullText}
+        targetRect={targetRect}
+        visible={showTooltip}
+        onMouseEnter={handleTooltipMouseEnter}
+        onMouseLeave={handleTooltipMouseLeave}
+      />
     </span>
   );
 }

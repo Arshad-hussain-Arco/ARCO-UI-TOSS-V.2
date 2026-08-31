@@ -182,7 +182,11 @@ export function MurexOverviewTab() {
     return (job.name && job.name.toLowerCase().includes(q)) ||
       (job.rawScriptName && job.rawScriptName.toLowerCase().includes(q));
   });
-  const timelineList = dayData.timelineList || [];
+  const timelineList = (dayData.timelineList || []).filter(timelineItem => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return timelineItem.jobInfo?.title?.toLowerCase().includes(q);
+  });
 
 
 
@@ -827,72 +831,88 @@ export function MurexOverviewTab() {
       </div>
 
       {/* 3. List of Data-Driven Collapsible EOD Job Timeline Accordions */}
-      {!isLoadingDay && timelineList.length > 0 ? (
-        timelineList.map((timelineItem) => {
-          const isExpanded = !!expandedAccordions[timelineItem.id];
-          const chartSpec = buildTimelineChartSpec(timelineItem);
-
-          return (
-            <div key={timelineItem.id} className="murex-overview-section">
-              <div className={`murex-timeline-accordion-card ${isExpanded ? 'is-expanded' : ''}`}>
-                {/* Accordion Header */}
-                <div
-                  className="murex-timeline-accordion-header"
-                  onClick={() => toggleAccordion(timelineItem.id)}
-                >
-                  <div className="murex-timeline-accordion-header-left">
-                    <h3 className="murex-overview-job-title">{timelineItem.jobInfo.title}</h3>
-                    <div className="murex-overview-job-meta">
-                      <span>{timelineItem.jobInfo.startTimeStr} — {timelineItem.jobInfo.endTimeStr}</span>
-                      <span className="murex-meta-dot">•</span>
-                      <span>Duration: <strong>{timelineItem.jobInfo.durationStr}</strong></span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="murex-timeline-accordion-chevron-btn"
-                    aria-label={isExpanded ? 'Collapse timeline' : 'Expand timeline'}
-                  >
-                    {isExpanded ? (
-                      <ChevronUp size={18} className="murex-chevron-icon" />
-                    ) : (
-                      <ChevronDown size={18} className="murex-chevron-icon" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Accordion Body: Legend + Plotly Chart */}
-                {isExpanded && (
-                  <div className="murex-timeline-accordion-body">
-                    {/* Legend */}
-                    <div className="murex-overview-legend">
-                      {timelineItem.categories.map((cat) => (
-                        <div key={cat.key} className="murex-overview-legend-item">
-                          <span className="murex-overview-legend-dot" style={{ backgroundColor: cat.color }} />
-                          <span className="murex-overview-legend-text">{cat.name}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Plotly Timeline Chart */}
-                    <div className="murex-overview-plotly-wrapper" style={{ minHeight: chartSpec.layout.height }}>
-                      <PlotlyChart
-                        data={chartSpec.data}
-                        layout={chartSpec.layout}
-                        config={{ responsive: true, displayModeBar: false }}
-                        onHover={(ev) => ev?.points?.[0] && setHoveredTimelineRow(ev.points[0].y)}
-                        onUnhover={() => setHoveredTimelineRow(null)}
-                        style={{ width: '100%', height: chartSpec.layout.height }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+      {isLoadingDay ? (
+        <div className="murex-overview-section">
+          <div className="murex-timeline-accordion-card">
+            <div className="murex-overview-empty-state" style={{ minHeight: '150px' }}>
+              <Loader2 size={24} className="murex-empty-icon" style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Loading job timelines for {formattedDate}…</span>
             </div>
-          );
-        })
+          </div>
+        </div>
+      ) : timelineList.length > 0 ? (
+        <>
+          <div className="murex-overview-section">
+            <h3 className="murex-run-details-heading">Run Details</h3>
+          </div>
+
+          {timelineList.map((timelineItem) => {
+            const isExpanded = !!expandedAccordions[timelineItem.id];
+            const chartSpec = buildTimelineChartSpec(timelineItem);
+
+            return (
+              <div key={timelineItem.id} className="murex-overview-section">
+                <div className={`murex-timeline-accordion-card ${isExpanded ? 'is-expanded' : ''}`}>
+                  {/* Accordion Header */}
+                  <div
+                    className="murex-timeline-accordion-header"
+                    onClick={() => toggleAccordion(timelineItem.id)}
+                  >
+                    <div className="murex-timeline-accordion-header-left">
+                      <h3 className="murex-overview-job-title">{timelineItem.jobInfo.title}</h3>
+                      <div className="murex-overview-job-meta">
+                        <span>{timelineItem.jobInfo.startTimeStr} — {timelineItem.jobInfo.endTimeStr}</span>
+                        <span className="murex-meta-dot">•</span>
+                        <span>Duration: <strong>{timelineItem.jobInfo.durationStr}</strong></span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="murex-timeline-accordion-chevron-btn"
+                      aria-label={isExpanded ? 'Collapse timeline' : 'Expand timeline'}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp size={18} className="murex-chevron-icon" />
+                      ) : (
+                        <ChevronDown size={18} className="murex-chevron-icon" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Accordion Body: Legend + Plotly Chart */}
+                  {isExpanded && (
+                    <div className="murex-timeline-accordion-body">
+                      {/* Legend */}
+                      <div className="murex-overview-legend">
+                        {timelineItem.categories.map((cat) => (
+                          <div key={cat.key} className="murex-overview-legend-item">
+                            <span className="murex-overview-legend-dot" style={{ backgroundColor: cat.color }} />
+                            <span className="murex-overview-legend-text">{cat.name}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Plotly Timeline Chart */}
+                      <div className="murex-overview-plotly-wrapper" style={{ minHeight: chartSpec.layout.height }}>
+                        <PlotlyChart
+                          data={chartSpec.data}
+                          layout={chartSpec.layout}
+                          config={{ responsive: true, displayModeBar: false }}
+                          onHover={(ev) => ev?.points?.[0] && setHoveredTimelineRow(ev.points[0].y)}
+                          onUnhover={() => setHoveredTimelineRow(null)}
+                          style={{ width: '100%', height: chartSpec.layout.height }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </>
       ) : (
         <div className="murex-overview-section">
+          <h3 className="murex-run-details-heading">Run Details</h3>
           <div className="murex-timeline-accordion-card">
             <div className="murex-overview-empty-state">
               <FileQuestion size={24} className="murex-empty-icon" />

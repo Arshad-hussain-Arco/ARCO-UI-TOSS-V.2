@@ -4,7 +4,7 @@ import {
   Type, Highlighter, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, ListChecks, Indent, Outdent, Quote, Minus, Link2, ExternalLink,
   Image as ImageIcon, Film, FileText, Paperclip, Table as TableIcon, Undo2, Redo2,
-  Maximize2, Minimize2, ChevronDown, Columns, Rows, Combine, Split, Droplet, Grid3x3,
+  Maximize2, Minimize2, ChevronDown, Columns, Rows, Combine, Split, Droplet, Grid3x3, Trash2,
 } from 'lucide-react';
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { useRichEditorContext } from './RichEditorContext';
@@ -301,7 +301,9 @@ export function Toolbar() {
             </label>
             <div className="rte-popover-actions">
               <button type="button" className="rte-popover-btn rte-popover-btn-primary" onClick={submitLink}>Apply</button>
-              <button type="button" className="rte-popover-btn" onClick={handleRemoveLink}>Remove link</button>
+              <button type="button" className="rte-popover-btn" onClick={handleRemoveLink}>
+                <Trash2 size={13} style={{ marginRight: '4px' }} /> Remove link
+              </button>
             </div>
           </div>
         )}

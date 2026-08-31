@@ -227,17 +227,18 @@
   overflow-y: auto;
   overflow-x: auto;
   flex: 1;
-  padding-top: 10px;
+      border: 1px solid var(--border-secondary); 
 }
 
 .cp-data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate; /* Use separate to prevent border overlapping issues with sticky */
+  border-spacing: 0;
   text-align: left;
 }
 
 .cp-data-table th {
-  background-color: var(--bg-secondary);
+  background-color: var(--surface-primary, #ffffff);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
@@ -248,7 +249,10 @@
   border-bottom: 2px solid var(--border-primary);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 50;
+}
+.cp-data-table th:last-child {
+  border-right: none;
 }
 
 .cp-data-table th.group-header {
@@ -1140,7 +1144,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 14px 16px 0;
+  padding: 14px 16px 10px;
 }
 
 .cp-legend-item {
@@ -1172,4 +1176,51 @@
   border-radius: 3px;
   display: inline-block;
   box-shadow: 0 0 0 1px rgba(0,0,0,0.05) inset;
+}
+
+/* ─── Expandable Child Table (Reference from LeaveManagement) ─── */
+.cp-team-expanded-row {
+  background: var(--surface-secondary);
+}
+
+.cp-sub-table-wrapper {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-sub-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-tertiary);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.cp-sub-table thead {
+  background: var(--bg-tertiary, #f8f9fa);
+}
+
+.cp-sub-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-sub-table th.text-center {
+  text-align: center;
+}
+
+.cp-sub-table td {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+.cp-sub-table tr:last-child td {
+  border-bottom: none;
 }

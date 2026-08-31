@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef, Fragment } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, useImperativeHandle, forwardRef, Fragment } from 'react';
 import {
   Download,
   RefreshCw,
@@ -65,8 +65,9 @@ function useChartThemeColor() {
 }
 
 /* ─── Plotly Chart Wrapper Component (CDN Auto-Loader) ────────── */
-export function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover, style }) {
+export const PlotlyChart = forwardRef(function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover, style }, forwardedRef) {
   const containerRef = useRef(null);
+  useImperativeHandle(forwardedRef, () => containerRef.current, []);
   const [plotlyLoaded, setPlotlyLoaded] = useState(Boolean(window.Plotly));
 
   useEffect(() => {
@@ -136,7 +137,7 @@ export function PlotlyChart({ data, layout, config, onClick, onHover, onUnhover,
   }
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 220, ...style }} />;
-}
+});
 
 /* ─── Stacked Bar Chart Spec for Job Cards ─────────────────────── */
 function buildJobStackedBarSpec(script, themeColor = '#000000') {
@@ -317,7 +318,7 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
   const lastRunFmt = script.lastRun || '—';
   const outlierCount = scriptDetails ? (scriptDetails.history || []).filter(h => h.status === 'error').length : 0;
   const freqFmt = scriptDetails?.calculatedFrequency || (script.frequency != null ? `${script.frequency}/day` : '—');
-  
+
   const trendObj = scriptDetails?.calculatedTrend;
   const trendPct = trendObj ? `${trendObj.percentage.toFixed(1)}%` : '—';
   const trendDirection = trendObj?.direction || 'stable';
@@ -448,7 +449,7 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
                     <div className="murex-job-metric-info">
                       <span className="murex-job-metric-label">Recent Shift</span>
                       <span className={`murex-job-metric-value ${trendIsBetter ? 'green' : 'red'}`}>
-                         {trendDirection === 'stable' ? 'Stable' : trendPct}
+                        {trendDirection === 'stable' ? 'Stable' : trendPct}
                       </span>
                     </div>
                   </div>
@@ -533,10 +534,16 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
   const uniqueWeeks = [...new Set(runs.map(r => r.week))].sort((a, b) => a - b);
   const weeks = uniqueWeeks.length > 0 ? uniqueWeeks.map(w => `${w}`) : ['No Data'];
 
-  // Initialize zMatrix and textMatrix
+  // Initialize zMatrix, textMatrix, and durationsGrid
   const zMatrix = Array(7).fill(0).map(() => Array(weeks.length).fill(null));
   const textMatrix = Array(7).fill('').map(() => Array(weeks.length).fill(''));
+  const monthGrid = Array(7).fill(null).map(() => Array(weeks.length).fill(null));
+  const durationsGrid = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => []));
+  const outliersCountGrid = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => 0));
+  const textColorMatrix = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => '#000000'));
   const annotations = [];
+  const shapes = [];
+  const dateAnnotationsGrid = Array.from({ length: 7 }, () => Array.from({ length: weeks.length }, () => null));
 
   // Helper for formatting date strings
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -545,43 +552,134 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
   runs.forEach(run => {
     const wIdx = uniqueWeeks.indexOf(run.week);
     if (wIdx !== -1 && run.dayIndex >= 0 && run.dayIndex < 7) {
+      durationsGrid[run.dayIndex][wIdx].push(run.durationFormatted);
+
+      if (run.isOutlier) {
+        outliersCountGrid[run.dayIndex][wIdx]++;
+      }
+
       if (zMatrix[run.dayIndex][wIdx] === null) {
         zMatrix[run.dayIndex][wIdx] = run.durationMin;
-        textMatrix[run.dayIndex][wIdx] = run.durationFormatted;
 
-        // Add date annotation perfectly in the top-right corner of the cell
         const dateObj = parseISO(run.date);
         if (!isNaN(dateObj)) {
+          monthGrid[run.dayIndex][wIdx] = dateObj.getMonth();
           const dateString = `${monthNames[dateObj.getMonth()]} ${dateObj.getDate()}`;
-          annotations.push({
-            x: wIdx + 0.47, // right edge
-            y: run.dayIndex - 0.47, // top edge (because y is reversed)
+          dateAnnotationsGrid[run.dayIndex][wIdx] = {
+            x: wIdx + 0.47,
+            y: run.dayIndex - 0.47,
             text: dateString,
-            showarrow: false,
-            font: { size: 10, color: '#000000' },
-            xanchor: 'right',
-            yanchor: 'top',
+          };
+        }
+      } else {
+        zMatrix[run.dayIndex][wIdx] = (zMatrix[run.dayIndex][wIdx] + run.durationMin) / 2;
+      }
+    }
+  });
+
+  // Push date annotations now that outliersCountGrid is fully known, so their color matches the cell text
+  for (let d = 0; d < 7; d++) {
+    for (let w = 0; w < weeks.length; w++) {
+      const dateAnnotation = dateAnnotationsGrid[d][w];
+      if (dateAnnotation) {
+        const isOutlierCell = outliersCountGrid[d][w] > 0;
+        annotations.push({
+          x: dateAnnotation.x,
+          y: dateAnnotation.y,
+          text: dateAnnotation.text,
+          showarrow: false,
+          font: { size: 10, color: isOutlierCell ? '#ffffff' : '#000000' },
+          xanchor: 'right',
+          yanchor: 'top',
+        });
+      }
+    }
+  }
+
+  // Build textMatrix, count badges, and outlier icons
+  for (let w = 0; w < weeks.length; w++) {
+    for (let d = 0; d < 7; d++) {
+      const cellRuns = durationsGrid[d][w];
+      if (cellRuns.length > 0) {
+        let cellText = '';
+        if (cellRuns.length > 3) {
+          cellText = cellRuns.slice(0, 3).join('<br>') + '<br>. . .';
+          // Add green circle badge for count - a pixel-sized shape keeps it a true circle
+          // regardless of the cell's data-space aspect ratio (bgcolor+borderpad on text
+          // produces an oval once the digits' width differs from the font's line height).
+          shapes.push({
+            type: 'circle',
+            xref: 'x',
+            yref: 'y',
+            xsizemode: 'pixel',
+            ysizemode: 'pixel',
+            xanchor: w + 0.45,
+            yanchor: d + 0.35,
+            x0: -7,
+            x1: 7,
+            y0: -7,
+            y1: 7,
+            fillcolor: '#16a34a',
+            line: { color: '#16a34a' },
           });
+          annotations.push({
+            x: w + 0.45,
+            y: d + 0.35,
+            text: `<b>${cellRuns.length}</b>`,
+            showarrow: false,
+            font: { size: 9, color: 'white' },
+            xanchor: 'center',
+            yanchor: 'middle',
+          });
+        } else {
+          cellText = cellRuns.join('<br>');
         }
 
-        // Outlier in the top-left corner
-        if (run.isOutlier) {
+        // Apply white color and ⚠️ if cell has any outliers
+        const outlierCount = outliersCountGrid[d][w];
+        if (outlierCount > 0) {
+          textColorMatrix[d][w] = '#ffffff';
+          cellText = `<span style="color: white;">${cellText}</span>`;
+          
           annotations.push({
-            x: wIdx - 0.47, // left edge
-            y: run.dayIndex - 0.47, // top edge
-            text: '⚠️',
+            x: w - 0.47,
+            y: d - 0.47,
+            text: `⚠️ <b>${outlierCount}</b>`,
             showarrow: false,
-            font: { size: 12 },
+            font: { size: 11, color: '#ffffff' },
             xanchor: 'left',
             yanchor: 'top',
           });
         }
-      } else {
-        zMatrix[run.dayIndex][wIdx] = (zMatrix[run.dayIndex][wIdx] + run.durationMin) / 2;
-        textMatrix[run.dayIndex][wIdx] += `<br>${run.durationFormatted}`;
+        textMatrix[d][w] = cellText;
       }
     }
-  });
+  }
+
+  // Function to get the first non-null month in a week column
+  const getPredominantMonth = (colIdx) => {
+    for (let d = 0; d < 7; d++) {
+      if (monthGrid[d][colIdx] !== null) return monthGrid[d][colIdx];
+    }
+    return null;
+  };
+
+  for (let w = 1; w < weeks.length; w++) {
+    const prevMonth = getPredominantMonth(w - 1);
+    const currMonth = getPredominantMonth(w);
+
+    // If the primary month of this week is different from the previous week, draw a straight vertical line
+    if (prevMonth !== null && currMonth !== null && prevMonth !== currMonth) {
+      shapes.push({
+        type: 'line',
+        x0: w - 0.5,
+        x1: w - 0.5,
+        y0: -0.5,
+        y1: 6.5, // Covers all 7 days (0 to 6)
+        line: { color: themeColor, width: 1.5, dash: 'dash' }
+      });
+    }
+  }
 
   return {
     weeks,
@@ -594,7 +692,7 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
         y: days,
         text: textMatrix,
         texttemplate: '%{text}',
-        textfont: { color: '#000000' },
+        textfont: { color: textColorMatrix, size: 11 },
         type: 'heatmap',
         colorscale: [
           [0.0, '#fef08a'],
@@ -620,9 +718,20 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
       font: { color: themeColor, size: 11, family: 'Inter, system-ui, sans-serif' },
-      xaxis: { title: { text: 'ISO Week Number', font: { size: 11, color: themeColor } }, type: 'category' },
-      yaxis: { title: { text: 'Day of Week', font: { size: 11, color: themeColor } }, autorange: 'reversed' },
+      xaxis: {
+        title: { text: 'ISO Week Number', font: { size: 11, color: themeColor } },
+        type: 'category',
+        showgrid: false,
+        zeroline: false
+      },
+      yaxis: {
+        title: { text: 'Day of Week', font: { size: 11, color: themeColor } },
+        autorange: 'reversed',
+        showgrid: false,
+        zeroline: false
+      },
       annotations: annotations,
+      shapes: shapes,
     },
   };
 }
@@ -969,6 +1078,17 @@ export function MurexRuntimeTrendsPage() {
   const [loadingScriptIds, setLoadingScriptIds] = useState(() => new Set());
   const [selectedCellDetails, setSelectedCellDetails] = useState(null);
   const [expandedRunGanttIds, setExpandedRunGanttIds] = useState(() => new Set());
+  const heatmapRefs = useRef({});
+
+  const handleDownloadHeatmap = useCallback((scriptId, scriptName) => {
+    const node = heatmapRefs.current[scriptId];
+    if (!node || !window.Plotly) return;
+    window.Plotly.downloadImage(node, {
+      format: 'png',
+      filename: `${scriptName}-runtime-heatmap`,
+      scale: 2,
+    });
+  }, []);
   const [isGanttLoading, setIsGanttLoading] = useState(false);
 
   const toggleExpandScript = async (scriptId, e) => {
@@ -1043,6 +1163,19 @@ export function MurexRuntimeTrendsPage() {
           const response = await murexService.fetchRuntimeDetails(payload);
           const processData = response.data?.[script.name];
           if (processData && processData.labels && processData.steps) {
+            const allDurations = processData.time_duration || [];
+            // Must match the outlier rule used to build script.history in murexService.js
+            // (runDurationMin > avgRuntimeMin * 2), otherwise the per-run "Outlier" flags here
+            // won't agree with the "⚠️ count" badge shown on the heatmap cell.
+            let overallAvgSecs = 0;
+            if (script.history && script.history.length > 0) {
+              const totalMins = script.history.reduce((acc, h) => acc + (h.durationMin || 0), 0);
+              overallAvgSecs = (totalMins / script.history.length) * 60;
+            } else {
+              overallAvgSecs = allDurations.length ? allDurations.reduce((a, b) => a + b, 0) / allDurations.length : 0;
+            }
+            const outlierThreshold = overallAvgSecs * 2;
+
             const runs = processData.labels.map((label, index) => {
               const stepsData = processData.steps[index];
               const formatDuration = (secs) => {
@@ -1051,13 +1184,15 @@ export function MurexRuntimeTrendsPage() {
                 const s = Math.floor(secs % 60).toString().padStart(2, '0');
                 return `${h}:${m}:${s}`;
               };
+              
+              const currentRunSecs = processData.time_duration[index] || 0;
 
               return {
                 id: `${script.id}-run-${index}`,
                 name: `Run ${index + 1} (${label})`,
-                duration: formatDuration(processData.time_duration[index]),
-                seconds: processData.time_duration[index],
-                isOutlier: false,
+                duration: formatDuration(currentRunSecs),
+                seconds: currentRunSecs,
+                isOutlier: currentRunSecs > outlierThreshold,
                 steps: stepsData.step.map((stepName, stepIndex) => ({
                   name: stepName,
                   dbTime: stepsData.db_time[stepIndex],
@@ -1714,9 +1849,14 @@ export function MurexRuntimeTrendsPage() {
                         return (
                           <Fragment key={script.id}>
                             <tr
-                              className={`murex-script-row ${isExpanded ? 'expanded' : ''}`}
-                              onClick={(e) => toggleExpandScript(script.id, e)}
-                              draggable
+                              className={`murex-script-row ${isExpanded ? 'expanded' : ''} ${script.status.toLowerCase() === 'inactive' ? 'inactive-row' : ''}`}
+                              onClick={(e) => {
+                                if (script.status.toLowerCase() !== 'inactive') {
+                                  toggleExpandScript(script.id, e);
+                                }
+                              }}
+                              style={{ cursor: script.status.toLowerCase() === 'inactive' ? 'not-allowed' : 'pointer' }}
+                              draggable={script.status.toLowerCase() !== 'inactive'}
                               onDragStart={(e) => e.dataTransfer.setData('text/plain', script.name)}
                             >
                               <td className="murex-script-td">
@@ -1743,70 +1883,91 @@ export function MurexRuntimeTrendsPage() {
                                   {script.category}
                                 </span>
                               </td>
-                            <td className="murex-script-td">{script.lastRun}</td>
-                            <td className="murex-script-td">
-                              <span className={`murex-status-badge ${script.status.toLowerCase()}`}>
-                                {script.status}
-                              </span>
-                            </td>
-                            <td className="murex-script-td actions-col">
-                              <div className="murex-script-actions">
-                                <button
-                                  className="murex-icon-btn"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleExpandScript(script.id, e);
-                                  }}
-                                  title={isExpanded ? "Collapse Details" : "View Details"}
-                                >
-                                  <CiPlay1
-                                    size={16}
-                                    style={{
-                                      color: 'var(--primary-color)',
-                                      transition: 'transform 0.3s ease',
-                                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                              <td className="murex-script-td">{script.lastRun}</td>
+                              <td className="murex-script-td">
+                                <span className={`murex-status-badge ${script.status.toLowerCase()}`}>
+                                  {script.status}
+                                </span>
+                              </td>
+                              <td className="murex-script-td actions-col">
+                                <div className="murex-script-actions">
+                                  <button
+                                    className="murex-icon-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (script.status.toLowerCase() !== 'inactive') {
+                                        toggleExpandScript(script.id, e);
+                                      }
                                     }}
-                                  />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-
-                          {/* Expanded Child Row — Master-Detail Heatmap Accordion */}
-                          {isExpanded && (
-                            <tr className="murex-script-detail-row">
-                              <td colSpan={5}>
-                                <div className="murex-detail-accordion-content">
-                                  <div className="murex-detail-accordion-header">
-                                    <h4 className="murex-detail-title">
-                                      <Activity size={14} style={{ color: '#005A36' }} />
-                                      Runtime Heatmap & Execution Pattern — {script.name}
-                                    </h4>
-                                    <span className="murex-detail-subtitle">
-                                      Click any date cell on the heatmap to view detailed execution runs & Gantt charts
-                                    </span>
-                                  </div>
-                                  {isLoading ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', gap: '16px', color: 'var(--text-tertiary)' }}>
-                                      <Loader2 className="spin" size={32} style={{ color: 'var(--primary-color)' }} />
-                                      <p>Fetching Full Runtime History...</p>
-                                    </div>
-                                  ) : (
-                                    <div className="murex-detail-heatmap-wrapper">
-                                      <PlotlyChart
-                                        data={spec.data}
-                                        layout={spec.layout}
-                                        onClick={(e) => handleHeatmapCellClick(scriptWithDetails, e)}
-                                      />
-                                    </div>
-                                  )}
+                                    disabled={script.status.toLowerCase() === 'inactive'}
+                                    style={{
+                                      opacity: script.status.toLowerCase() === 'inactive' ? 0.3 : 1,
+                                      cursor: script.status.toLowerCase() === 'inactive' ? 'not-allowed' : 'pointer'
+                                    }}
+                                    title={script.status.toLowerCase() === 'inactive' ? "Cannot view details for inactive scripts" : (isExpanded ? "Collapse Details" : "View Details")}
+                                  >
+                                    <CiPlay1
+                                      size={16}
+                                      style={{
+                                        color: 'var(--primary-color)',
+                                        transition: 'transform 0.3s ease',
+                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                                      }}
+                                    />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
-                          )}
-                        </Fragment>
-                      );
-                    }))}
+
+                            {/* Expanded Child Row — Master-Detail Heatmap Accordion */}
+                            {isExpanded && (
+                              <tr className="murex-script-detail-row">
+                                <td colSpan={5}>
+                                  <div className="murex-detail-accordion-content">
+                                    <div className="murex-detail-accordion-header">
+                                      <div>
+                                        <h4 className="murex-detail-title">
+                                          <Activity size={14} style={{ color: '#005A36' }} />
+                                          Runtime Heatmap & Execution Pattern — {script.name}
+                                        </h4>
+                                        <span className="murex-detail-subtitle">
+                                          Click any date cell on the heatmap to view detailed execution runs & Gantt charts
+                                        </span>
+                                      </div>
+                                      {!isLoading && (
+                                        <button
+                                          type="button"
+                                          className="murex-heatmap-download-btn"
+                                          onClick={() => handleDownloadHeatmap(script.id, script.name)}
+                                          title="Download heatmap as PNG"
+                                        >
+                                          <Download size={14} />
+                                          Download
+                                        </button>
+                                      )}
+                                    </div>
+                                    {isLoading ? (
+                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', gap: '16px', color: 'var(--text-tertiary)' }}>
+                                        <Loader2 className="spin" size={32} style={{ color: 'var(--primary-color)' }} />
+                                        <p>Fetching Full Runtime History...</p>
+                                      </div>
+                                    ) : (
+                                      <div className="murex-detail-heatmap-wrapper">
+                                        <PlotlyChart
+                                          ref={(node) => { heatmapRefs.current[script.id] = node; }}
+                                          data={spec.data}
+                                          layout={spec.layout}
+                                          onClick={(e) => handleHeatmapCellClick(scriptWithDetails, e)}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      }))}
                   </tbody>
                 </table>
               </div>

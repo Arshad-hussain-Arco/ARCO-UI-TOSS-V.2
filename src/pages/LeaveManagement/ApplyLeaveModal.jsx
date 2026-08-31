@@ -619,11 +619,17 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   // 'compoff'/'weekend' choice, see claimTypeItems below.
   const [claimType, setClaimType] = useState(null);
   const [claimEligibleDates, setClaimEligibleDates] = useState(null); // null = not yet loaded/not applicable
+  // { 'YYYY-MM-DD': ['FIRST_HALF', ...] } — halves already covered by an
+  // existing PENDING/APPROVED claim of this type, per claimEligibleDates.
+  const [claimedPortions, setClaimedPortions] = useState({});
   // Explicit multi-select of individual dates for the Claim flow — a range
   // doesn't fit since eligible dates for a Claim type aren't necessarily
   // contiguous (e.g. two unrelated declared-working Sundays weeks apart).
-  const [selectedClaimDates, setSelectedClaimDates] = useState([]); // array of Date
+  // Each entry is { date: Date, duration: 'FULL_DAY' | 'FIRST_HALF' | 'SECOND_HALF' }
+  // so a claimant can mark e.g. only the morning of one Saturday as claimed.
+  const [selectedClaimDates, setSelectedClaimDates] = useState([]);
   const [pendingClaimDate, setPendingClaimDate] = useState(null);
+  const [pendingClaimDuration, setPendingClaimDuration] = useState('FULL_DAY');
   const [reason, setReason] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [empItems, setEmpItems] = useState([]);
@@ -697,10 +703,19 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     // when switching who the request is being applied for.
     setLeaveType(null);
   }, [effectiveEmpId]);
+  // Apply Leave shows every active leave type except the ones that have
+  // their own dedicated buttons (WFH, Offshore Work) or belong to the
+  // Claim category (Submit Claim).
   const ltItems = useMemo(
     () =>
       eligibleTypes
-        .filter((t) => t.active)
+        .filter(
+          (t) =>
+            t.active &&
+            t.category !== 'CLAIM' &&
+            t.code !== 'WFH' &&
+            t.code !== 'OW',
+        )
         .map((t) => buildLeaveTypeItem(t, leaveBalances)),
     [eligibleTypes, leaveBalances],
   );
@@ -763,7 +778,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     [startDate, end, calendarDayMap],
   );
   const charged = isClaimType
-    ? selectedClaimDates.length
+    ? selectedClaimDates.reduce((sum, e) => sum + (e.duration === 'FULL_DAY' ? 1 : 0.5), 0)
     : isMultiDay
       ? multiDayBizArr.reduce(
           (sum, day) => sum + ((dailyConfigs[dateStr(day)] || 'full') === 'full' ? 1 : 0.5),
@@ -872,6 +887,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   useEffect(() => {
     if (!isClaimType || !claimType || !effectiveEmpId) {
       setClaimEligibleDates(null);
+      setClaimedPortions({});
       return;
     }
     let active = true;
@@ -886,16 +902,45 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
         end: dateStr(queryEnd),
       })
       .then((data) => {
-        if (active) setClaimEligibleDates(data?.eligible_dates || []);
+        if (!active) return;
+        // Dates the employee already has a PENDING/APPROVED claim covering
+        // entirely are dropped by the backend from eligible_dates outright;
+        // claimed_portions only lists dates that are still partially open
+        // (e.g. First Half already claimed, Second Half still available).
+        setClaimEligibleDates(data?.eligible_dates || []);
+        setClaimedPortions(data?.claimed_portions || {});
       })
       .catch((err) => {
         console.error('Failed to fetch claim-eligible dates', err);
-        if (active) setClaimEligibleDates([]);
+        if (active) {
+          setClaimEligibleDates([]);
+          setClaimedPortions({});
+        }
       });
     return () => {
       active = false;
     };
   }, [isClaimType, claimType, effectiveEmpId, today]);
+  // Which halves of `d` are already spoken for — by an existing
+  // PENDING/APPROVED claim (claimedPortions, from the server) or by an
+  // entry the user already added to this submission but hasn't sent yet
+  // (selectedClaimDates) — so the picker never lets the same half be
+  // claimed twice. FULL_DAY counts as unavailable if either half is taken.
+  const unavailablePortionsFor = (d) => {
+    const key = dateStr(d);
+    const taken = new Set(claimedPortions[key] || []);
+    selectedClaimDates.forEach((e) => {
+      if (dateStr(e.date) !== key) return;
+      if (e.duration === 'FULL_DAY') {
+        taken.add('FIRST_HALF');
+        taken.add('SECOND_HALF');
+      } else {
+        taken.add(e.duration);
+      }
+    });
+    if (taken.has('FIRST_HALF') || taken.has('SECOND_HALF')) taken.add('FULL_DAY');
+    return taken;
+  };
   useEffect(() => {
     if (user?.mySubordinates?.length > 0 && user?.emp_id) {
       import('@services/consultantService').then(({ default: consultantService }) => {
@@ -949,6 +994,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     setClaimEligibleDates(null);
     setSelectedClaimDates([]);
     setPendingClaimDate(null);
+    setPendingClaimDuration('FULL_DAY');
     setLastDayBreakdown(null);
     setReason('');
     setAttachments([]);
@@ -1050,7 +1096,13 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                 <span className="al-confirm-row-label">Dates</span>
                 <span className="al-confirm-row-value">
                   {isClaimType
-                    ? selectedClaimDates.map((d) => fmtShort(d)).join(', ') || '\u2014'
+                    ? selectedClaimDates
+                        .map((e) =>
+                          e.duration === 'FULL_DAY'
+                            ? fmtShort(e.date)
+                            : `${fmtShort(e.date)} (${e.duration === 'FIRST_HALF' ? '1st Half' : '2nd Half'})`,
+                        )
+                        .join(', ') || '\u2014'
                     : startDate ? fmtDate(startDate) : '\u2014'}
                   {!isClaimType && end && dateStr(end) !== dateStr(startDate) ? ` \u2192 ${fmtDate(end)}` : ''}
                 </span>
@@ -1146,9 +1198,16 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                         leave_type: backendLeaveType,
                         // Claims use `dates` (an explicit list) instead of
                         // a range — see ClaimSubmitSerializer on the
-                        // backend for why a range doesn't fit.
+                        // backend for why a range doesn't fit. Each entry
+                        // carries its own duration so a claimant can submit
+                        // e.g. only the first half of a given date.
                         ...(isClaimType
-                          ? { dates: selectedClaimDates.map(dateStr) }
+                          ? {
+                              dates: selectedClaimDates.map((e) => ({
+                                date: dateStr(e.date),
+                                duration: e.duration,
+                              })),
+                            }
                           : {
                               start_date: dateStr(startDate),
                               end_date: end ? dateStr(end) : dateStr(startDate),
@@ -1360,6 +1419,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       // than silently submit a mismatch.
                       setSelectedClaimDates([]);
                       setPendingClaimDate(null);
+                      setPendingClaimDuration('FULL_DAY');
                     }}
                     placeholder={
                       claimTypeItems.length === 0
@@ -1416,19 +1476,61 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
               ) : (
                 <div className="al-form-group">
                   <span className="al-label al-label-required">Claim Date(s)</span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <DatePicker
                       value={pendingClaimDate}
-                      onChange={setPendingClaimDate}
+                      onChange={(d) => {
+                        setPendingClaimDate(d);
+                        // If the previously-picked duration isn't available
+                        // for the newly-picked date, fall back to whatever
+                        // is — so the Add button never submits a portion
+                        // that's actually already taken.
+                        const unavailable = d ? unavailablePortionsFor(d) : new Set();
+                        if (unavailable.has(pendingClaimDuration)) {
+                          if (!unavailable.has('FIRST_HALF')) setPendingClaimDuration('FIRST_HALF');
+                          else if (!unavailable.has('SECOND_HALF')) setPendingClaimDuration('SECOND_HALF');
+                        }
+                      }}
                       maxDate={new Date(today.getTime() - 864e5)}
                       isDateDisabled={
                         claimType && claimEligibleDates
-                          ? (d) => !claimEligibleDates.includes(dateStr(d))
+                          ? (d) => {
+                              if (!claimEligibleDates.includes(dateStr(d))) return true;
+                              // Only disable the date outright when BOTH
+                              // halves are taken — FULL_DAY being taken
+                              // (e.g. by a single half-day claim) should
+                              // still leave the date pickable, just with
+                              // the remaining half as the only option.
+                              const unavailable = unavailablePortionsFor(d);
+                              return unavailable.has('FIRST_HALF') && unavailable.has('SECOND_HALF');
+                            }
                           : undefined
                       }
                       placeholder={claimType ? 'Select a date' : 'Select a claim type first'}
                       disabled={!claimType}
                       width="220px"
+                    />
+                    {/* Half-day selector — lets a claimant mark only the
+                        first or second half of a date as claimed, instead
+                        of always claiming the full day. Options already
+                        covered by an existing claim (server-side) or by
+                        another entry added earlier in this same submission
+                        are disabled, so the same half can't be double-claimed. */}
+                    <Select
+                      value={pendingClaimDuration}
+                      onChange={setPendingClaimDuration}
+                      disabled={!claimType}
+                      width="150px"
+                      options={(() => {
+                        const unavailable = pendingClaimDate
+                          ? unavailablePortionsFor(pendingClaimDate)
+                          : new Set();
+                        return [
+                          { value: 'FULL_DAY', label: 'Full Day', disabled: unavailable.has('FULL_DAY') },
+                          { value: 'FIRST_HALF', label: 'First Half', disabled: unavailable.has('FIRST_HALF') },
+                          { value: 'SECOND_HALF', label: 'Second Half', disabled: unavailable.has('SECOND_HALF') },
+                        ];
+                      })()}
                     />
                     <button
                       type="button"
@@ -1437,12 +1539,28 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       onClick={() => {
                         if (!pendingClaimDate) return;
                         const key = dateStr(pendingClaimDate);
-                        setSelectedClaimDates((prev) =>
-                          prev.some((d) => dateStr(d) === key)
-                            ? prev
-                            : [...prev, pendingClaimDate].sort((a, b) => a - b),
-                        );
+                        setSelectedClaimDates((prev) => {
+                          // A FULL_DAY entry supersedes any half-day entries
+                          // for the same date, and vice versa — a date can't
+                          // simultaneously be "full day" and "first half"
+                          // claimed, but FIRST_HALF + SECOND_HALF for the
+                          // same date are two distinct, coexisting entries.
+                          const withoutConflicts = prev.filter((e) => {
+                            if (dateStr(e.date) !== key) return true;
+                            if (pendingClaimDuration === 'FULL_DAY') return false;
+                            return e.duration !== 'FULL_DAY' && e.duration !== pendingClaimDuration;
+                          });
+                          const alreadyExists = withoutConflicts.some(
+                            (e) => dateStr(e.date) === key && e.duration === pendingClaimDuration,
+                          );
+                          if (alreadyExists) return withoutConflicts;
+                          return [
+                            ...withoutConflicts,
+                            { date: pendingClaimDate, duration: pendingClaimDuration },
+                          ].sort((a, b) => a.date - b.date || a.duration.localeCompare(b.duration));
+                        });
                         setPendingClaimDate(null);
+                        setPendingClaimDuration('FULL_DAY');
                       }}
                     >
                       <Plus className="al-btn-icon" /> Add
@@ -1459,18 +1577,27 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                         No dates added yet.
                       </span>
                     ) : (
-                      selectedClaimDates.map((d) => (
+                      selectedClaimDates.map((e) => (
                         <span
-                          key={dateStr(d)}
+                          key={`${dateStr(e.date)}-${e.duration}`}
                           className="al-sum-type-badge"
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                         >
-                          {fmtShort(d)}
+                          {fmtShort(e.date)}
+                          {e.duration !== 'FULL_DAY' && (
+                            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                              ({e.duration === 'FIRST_HALF' ? '1st Half' : '2nd Half'})
+                            </span>
+                          )}
                           <button
                             type="button"
-                            aria-label={`Remove ${dateStr(d)}`}
+                            aria-label={`Remove ${dateStr(e.date)}${e.duration !== 'FULL_DAY' ? ` (${e.duration})` : ''}`}
                             onClick={() =>
-                              setSelectedClaimDates((prev) => prev.filter((x) => dateStr(x) !== dateStr(d)))
+                              setSelectedClaimDates((prev) =>
+                                prev.filter(
+                                  (x) => !(dateStr(x.date) === dateStr(e.date) && x.duration === e.duration),
+                                ),
+                              )
                             }
                             style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
                           >
