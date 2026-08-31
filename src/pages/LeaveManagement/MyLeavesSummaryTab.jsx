@@ -190,14 +190,80 @@ export function MyLeavesSummaryTab({
 
 
   return (
-    <div className="my-leaves-summary-tab" style={{ marginTop: '20px' }}>
+    <div className="my-leaves-summary-tab" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Filters Toolbar */}
-      <div className="leave-filters-section" style={{ marginBottom: '16px', background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+      {/* Top Filter Card: Search, Dates, and Export */}
+      <div className="leave-filters-section" style={{ background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', width: '100%' }}>
+          {/* Leave Type Search */}
+          <div className="tr-search-wrap" style={{ maxWidth: 200 }}>
+            <Search className="tr-search-icon" />
+            <input
+              className="tr-search"
+              placeholder="Search leave type…"
+              value={leaveTypeSearch}
+              onChange={(e) => setLeaveTypeSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Date Filters */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ width: '130px' }}>
+              <Select 
+                value={selectedMonth} 
+                onChange={setSelectedMonth} 
+                options={MONTHS} 
+                placeholder="Select Month"
+                width="130px"
+              />
+            </div>
+            <div style={{ width: '100px' }}>
+              <Select
+                value={selectedYear}
+                onChange={onYearChange}
+                options={YEARS}
+                placeholder="Select Year"
+                width="100px"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
+              <DatePicker
+                value={fromDate ? new Date(fromDate) : null}
+                onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                placeholder="Start Date"
+                width="110px"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
+              <DatePicker
+                value={toDate ? new Date(toDate) : null}
+                onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                placeholder="End Date"
+                width="110px"
+              />
+            </div>
+          </div>
+
+          {/* Export Button */}
+          <div style={{ marginLeft: 'auto' }}>
+            <ExportButton
+              excel
+              pdf
+              onExcelExport={handleExportCSV}
+              onPdfExport={handleExportPDF}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table Card (Status Pills + Table) */}
+      <div className="lc-card-panel">
         
-        {/* Filters Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', alignContent: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '0 0 auto' }}>
+        {/* Status Pills inside the Table Container */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-secondary)' }}>
+          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button className="leave-filter-chip" data-active={filterStatus === 'all'} onClick={() => setFilterStatus('all')}>
               <span className="leave-filter-label">All</span>
               <span className="leave-filter-badge">{searchFilteredLeaves.length}</span>
@@ -212,92 +278,10 @@ export function MyLeavesSummaryTab({
               <span className="leave-filter-label">Approved</span>
               <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
             </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
-              <span className="leave-filter-label">Rejected</span>
-              <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')} title={STATUS_TOOLTIPS['self-rejected']}>
-              <span className="leave-filter-label">Self-Rejected</span>
-              <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'cancelled'} onClick={() => setFilterStatus('cancelled')} title={STATUS_TOOLTIPS.cancelled}>
-              <span className="leave-filter-label">Cancelled</span>
-              <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'cancelled').length}</span>
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', width: '100%' }}>
-            {/* Leave Type Search */}
-            <div className="tr-search-wrap" style={{ maxWidth: 200 }}>
-              <Search className="tr-search-icon" />
-              <input
-                className="tr-search"
-                placeholder="Search leave type…"
-                value={leaveTypeSearch}
-                onChange={(e) => setLeaveTypeSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Date Filters */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ width: '130px' }}>
-                <Select 
-                  value={selectedMonth} 
-                  onChange={setSelectedMonth} 
-                  options={MONTHS} 
-                  placeholder="Select Month"
-                  width="130px"
-                />
-              </div>
-              <div style={{ width: '100px' }}>
-                <Select
-                  value={selectedYear}
-                  onChange={onYearChange}
-                  options={YEARS}
-                  placeholder="Select Year"
-                  width="100px"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
-                <DatePicker
-                  value={fromDate ? new Date(fromDate) : null}
-                  onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
-                  placeholder="Start Date"
-                  width="110px"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
-                <DatePicker
-                  value={toDate ? new Date(toDate) : null}
-                  onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
-                  placeholder="End Date"
-                  width="110px"
-                />
-              </div>
-            </div>
-
-            {/* Export Button — marginLeft: auto keeps it pinned to the
-                right edge of this row even if the row wraps at narrower
-                widths, instead of falling in line after the date filters. */}
-            <div style={{ marginLeft: 'auto' }}>
-              <ExportButton
-                excel
-                pdf
-                onExcelExport={handleExportCSV}
-                onPdfExport={handleExportPDF}
-              />
-            </div>
           </div>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="lc-card-panel">
+        {/* Table Section */}
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
             <Loader message="Loading your leaves..." />

@@ -26,6 +26,7 @@ import {
   CalendarPlus,
   Globe2,
   CalendarClock,
+  RotateCcw,
 } from 'lucide-react';
 import { useDebounce } from '@hooks/useDebounce';
 import { Select } from '@components/forms/Select/Select';
@@ -1129,19 +1130,46 @@ export function TeamRequestsTab({ getPhoto }) {
                 ]}
                 width="leaveType"
               />
-              <Select
-                value={sortBy}
-                onChange={setSortBy}
-                options={[
-                  { value: 'requestedOn', label: 'Newest First' },
-                  { value: 'oldestFirst', label: 'Oldest First' },
-                  { value: 'startDate', label: 'Start Date' },
-                  { value: 'endDate', label: 'End Date' },
-                ]}
-                width="sort"
-              />
             </div>
             <div className="tr-all-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setLeaveTypeF('all');
+                  setSortBy('requestedOn');
+                  setStatusF('all');
+                  setTypeF('all');
+                  setTableSortField(null);
+                  setTableSortOrder('asc');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '0 12px',
+                  height: '32px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '6px',
+                  background: 'var(--surface-primary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseOver={(e) => { 
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                  e.currentTarget.style.background = 'var(--bg-secondary)'; 
+                }}
+                onMouseOut={(e) => { 
+                  e.currentTarget.style.color = 'var(--text-secondary)'; 
+                  e.currentTarget.style.background = 'var(--surface-primary)'; 
+                }}
+                title="Reset Filters"
+              >
+                <RotateCcw size={14} />
+                Reset
+              </button>
               <div className="tr-view-toggle">
                 <button
                   className="tr-view-btn"
