@@ -9,4 +9,5 @@ export const TOAST_VARIANTS = Object.freeze({
   ERROR: 'error',
   WARNING: 'warning',
   INFO: 'info',
+  LOADING: 'loading',
 });

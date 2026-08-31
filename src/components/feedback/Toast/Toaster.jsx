@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, Loader2, X } from 'lucide-react';
 
 import { TOAST_VARIANTS } from '@constants/ui';
 import { useToast } from '@hooks/useToast';
@@ -10,6 +10,7 @@ const VARIANT_ICONS = {
   [TOAST_VARIANTS.ERROR]: AlertCircle,
   [TOAST_VARIANTS.WARNING]: AlertTriangle,
   [TOAST_VARIANTS.INFO]: Info,
+  [TOAST_VARIANTS.LOADING]: Loader2,
 };
 
 /**
@@ -34,7 +35,11 @@ export function Toaster() {
             role={variant === TOAST_VARIANTS.ERROR ? 'alert' : 'status'}
             aria-live={variant === TOAST_VARIANTS.ERROR ? 'assertive' : 'polite'}
           >
-            <Icon className={styles.icon} aria-hidden="true" />
+            <Icon
+              className={styles.icon}
+              aria-hidden="true"
+              style={variant === TOAST_VARIANTS.LOADING ? { animation: 'spin 1s linear infinite' } : undefined}
+            />
 
             <div className={styles.content}>
               <p className={styles.title}>{title}</p>

@@ -96,7 +96,11 @@ export function LeaveRequestDrawer({
           <div>
             <div className="tr-emp-name">{liveReq.employeeName}</div>
             <div className="tr-emp-meta">
-              <span className="tr-emp-meta-item">{liveReq.employeeId}</span>
+              {/* employeeUsername (Employee.user_name) is shown here instead
+                  of the emp_id — employeeId is kept around only for internal
+                  lookups (e.g. LeaveManagementPage's employeeDirectory),
+                  not meant to be a user-facing identifier. */}
+              <span className="tr-emp-meta-item">{liveReq.employeeUsername || liveReq.employeeId}</span>
               {liveReq.designation && <span className="tr-emp-meta-item">· {liveReq.designation}</span>}
               <span className="tr-emp-meta-item">· {liveReq.team}</span>
             </div>
@@ -141,14 +145,26 @@ export function LeaveRequestDrawer({
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Claimed Dates</span>
               <span className="tr-drow-value">
-                {liveReq.claimDates.map((cd) => (
-                  <div key={cd.id}>
-                    {fmtDate(cd.date)}
-                    {cd.duration && cd.duration !== 'full' && (
-                      <> ({cd.duration === 'morning' ? 'First Half' : cd.duration === 'afternoon' ? 'Second Half' : cd.duration})</>
-                    )}
-                  </div>
-                ))}
+                {liveReq.claimDates.map((cd) => {
+                  // claimDates comes from two different grouping functions
+                  // depending on which tab opened this drawer —
+                  // TeamRequestsTab's groupClaimRows stores the short
+                  // display form ('morning'/'afternoon'), while
+                  // LeaveManagementPage's groupClaimLeaves stores the raw
+                  // backend enum ('FIRST_HALF'/'SECOND_HALF') straight off
+                  // leave_duration. Handle both instead of only one.
+                  const halfLabel = cd.duration === 'morning' || cd.duration === 'FIRST_HALF'
+                    ? 'First Half'
+                    : cd.duration === 'afternoon' || cd.duration === 'SECOND_HALF'
+                      ? 'Second Half'
+                      : null;
+                  return (
+                    <div key={cd.id}>
+                      {fmtDate(cd.date)}
+                      {halfLabel && <> ({halfLabel})</>}
+                    </div>
+                  );
+                })}
               </span>
             </div>
           ) : (

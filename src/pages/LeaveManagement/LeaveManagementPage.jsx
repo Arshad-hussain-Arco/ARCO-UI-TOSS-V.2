@@ -271,6 +271,11 @@ export function LeaveManagementPage() {
   const [viewModalLeave, setViewModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
+  // Offshore work / WFH used to be crammed into filterStatus too (mutually
+  // exclusive with every status pill), so picking one reset any active
+  // status filter and vice versa. Split into its own dimension so they
+  // combine via AND — see filteredSortedLeaves below.
+  const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('desc');
   const [commentsModalText, setCommentsModalText] = useState(null);
@@ -408,8 +413,12 @@ export function LeaveManagementPage() {
             console.error("Failed to fetch holidays for calendar", e);
           }
 
-          setLeaves(userLeaves);
-
+          // groupClaimLeaves collapses a multi-date claim submission (one
+          // Leave row per claimed date/half on the backend) into a single
+          // row with an itemized claimDates list, so it displays and
+          // approves as one request instead of N — see groupClaimLeaves
+          // above for the full rationale.
+          setLeaves(groupClaimLeaves(userLeaves));
           setCalendarHolidayEvents(calendarHolidays);
         } catch (e) {
           console.error("Failed to fetch leaves", e);
@@ -574,7 +583,7 @@ export function LeaveManagementPage() {
   // manager here, full stop. mySubordinates (direct reports, from
   // /auth/user-info/) is the single signal for every manager-only affordance
   // on this screen — Apply Leave / My Leave Summary have no gate at all.
-  const isManager = Boolean(user?.mySubordinates?.length > 0);
+  const isManager = Boolean(user?.isManager);
   const canApplyOnBehalf = isManager;
 
   // Resolve the manager's own emp_id (falls back to /auth/user-info/ when
@@ -636,10 +645,10 @@ export function LeaveManagementPage() {
   const filteredSortedLeaves = useMemo(() => {
     return searchFilteredLeaves.filter(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      return filterStatus === 'all'
-        || (filterStatus === 'offshore' ? leave.leave_type === 'OW'
-          : filterStatus === 'wfh' ? leave.leave_type === 'WFH'
-          : statusStr === filterStatus);
+      const typeMatch = filterType === 'all'
+        || (filterType === 'offshore' ? leave.leave_type === 'OW' : leave.leave_type === 'WFH');
+      const statusMatch = filterStatus === 'all' || statusStr === filterStatus;
+      return typeMatch && statusMatch;
     }).sort((a, b) => {
       if (!sortField) return 0;
       let aVal = a[sortField];
@@ -657,7 +666,7 @@ export function LeaveManagementPage() {
       const result = aVal > bVal ? 1 : -1;
       return sortOrder === 'asc' ? result : -result;
     });
-  }, [searchFilteredLeaves, filterStatus, sortField, sortOrder]);
+  }, [searchFilteredLeaves, filterStatus, filterType, sortField, sortOrder]);
 
   // Calendar view mirrors whatever the status/type chips above have
   // filtered `filteredSortedLeaves` down to — same integration pattern as
@@ -859,18 +868,42 @@ export function LeaveManagementPage() {
           open={!!viewModalLeave}
           liveReq={{
             id: viewModalLeave.id,
-            employeeName: user?.username || user?.employee_name || 'You',
-            employeeId: user?.emp_id || user?.employee_id || '-',
-            leaveType: viewModalLeave.leave_type || viewModalLeave.type,
+            // employeeName is the bold header line, employeeId renders
+            // directly below it — this was showing username ("mahboob1")
+            // as the name and emp_id ("22") below it. Show the actual name
+            // up top and username below, matching what "employeeId" reads
+            // as everywhere else in this drawer (an identifier line, not
+            // literally required to be a numeric id).
+            employeeName: user?.name || user?.employee_name || 'You',
+            employeeId: user?.username || user?.emp_id || '-',
+            // Request Type must be the leave's display name (e.g. "Claim
+            // Weekend Work"), not its raw code ("CWW") — leave_name comes
+            // straight from LeaveSerializer; leaveTypeMap is the same
+            // code -> name lookup this page already uses for every other
+            // leave-name display (see displayType below).
+            leaveType: viewModalLeave.leave_name || leaveTypeMap[viewModalLeave.leave_type] || viewModalLeave.leave_type || viewModalLeave.type,
             startDate: viewModalLeave.start_date || viewModalLeave.date,
             endDate: viewModalLeave.end_date || viewModalLeave.date,
-            bizDays: viewModalLeave.business_days || viewModalLeave.in_days || 0,
-            requestedOn: viewModalLeave.created_at || new Date().toISOString(),
+            // `|| in_days` always kicked in for a Claim (business_days is
+            // always 0 for one — see leaves/services.py _create_claim — and
+            // 0 is falsy), showing the claimed day count instead of the
+            // correct 0 work days.
+            bizDays: viewModalLeave.business_days ?? 0,
+            // Leave has no `created_at` field — that always fell through to
+            // `new Date().toISOString()`, and fmtDate (which expects a bare
+            // YYYY-MM-DD string, appending 'T00:00:00' itself) choked on the
+            // full ISO datetime string, rendering "Invalid Date". Use the
+            // real field (requested_date), date-only.
+            requestedOn: viewModalLeave.requested_date ? viewModalLeave.requested_date.split('T')[0] : '',
             status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
             duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
             fromDateDuration: viewModalLeave.from_date_duration,
             toDateDuration: viewModalLeave.to_date_duration,
+            // Grouped multi-date claim submission (see groupClaimLeaves) —
+            // lets the drawer list each claimed date individually instead
+            // of a misleading single Start/End Date range.
+            claimDates: viewModalLeave.claimDates,
           }}
           drawerAction="view"
           isReadOnly={true}
@@ -887,6 +920,7 @@ export function LeaveManagementPage() {
                 setActiveTab(tab.id);
                 localStorage.setItem('leaveManagementActiveTab', tab.id);
                 setFilterStatus('all');
+                setFilterType('all');
               }}
               className="leave-management-tab"
               data-active={activeTab === tab.id}
@@ -1039,8 +1073,11 @@ export function LeaveManagementPage() {
                     <div className="leave-filters-container">
                       <button
                         className="leave-filter-chip"
-                        data-active={filterStatus === 'all'}
-                        onClick={() => setFilterStatus('all')}
+                        data-active={filterStatus === 'all' && filterType === 'all'}
+                        onClick={() => {
+                          setFilterStatus('all');
+                          setFilterType('all');
+                        }}
                       >
                         <span className="leave-filter-label">All</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.length}</span>
@@ -1102,16 +1139,21 @@ export function LeaveManagementPage() {
                       </button>
                       <button
                         className="leave-filter-chip"
-                        data-active={filterStatus === 'offshore'}
-                        onClick={() => setFilterStatus('offshore')}
+                        data-active={filterType === 'offshore'}
+                        // Kept separate from filterStatus (see filterType
+                        // above) so this combines with an active status pill
+                        // via AND instead of resetting it — e.g. Approved +
+                        // Offshore Work narrows to just approved offshore
+                        // requests.
+                        onClick={() => setFilterType((prev) => (prev === 'offshore' ? 'all' : 'offshore'))}
                       >
                         <span className="leave-filter-label">Offshore work</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.leave_type === 'OW').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
-                        data-active={filterStatus === 'wfh'}
-                        onClick={() => setFilterStatus('wfh')}
+                        data-active={filterType === 'wfh'}
+                        onClick={() => setFilterType((prev) => (prev === 'wfh' ? 'all' : 'wfh'))}
                       >
                         <span className="leave-filter-label">Work From Home</span>
                         <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.leave_type === 'WFH').length}</span>
@@ -1214,12 +1256,23 @@ export function LeaveManagementPage() {
                           const isPast = startDateObj < today;
                           const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
                           const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent && !isPast;
-                          
+                          // Same authoritative signal groupClaimLeaves uses. A
+                          // claim's dates come from the claim-eligible-dates
+                          // picker, not free-form start/end fields, so "Edit"
+                          // (which opens EditLeaveModal for a normal leave's
+                          // date range) doesn't apply to it at all.
+                          const isClaimRequest = leave.leave_category === 'CLAIM';
+
+                          // Partial cancel: only once the leave has actually started (ongoing) —
+                          // before it starts, Edit + full Cancel already cover every case.
+                          // Must still have a future-or-today portion left to cancel.
                           const endDateObj = new Date(leave.end_date);
                           endDateObj.setHours(0, 0, 0, 0);
-                          const hasFutureDays = endDateObj >= today;
-                          const canPartialCancel = statusStr === 'approved' && leave.in_days > 1 && hasFutureDays;
-                          const isClaimRequest = leave.leave_category === 'CLAIM';
+                          const canPartialCancel = statusStr === 'approved'
+                            && !leave.is_mod_request
+                            && !claimLeaveTypeCodes.has(leave.leave_type)
+                            && startDateObj <= today
+                            && endDateObj >= today;
 
                           return (
                             <tr key={leave.id} className="leave-table-row">

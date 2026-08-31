@@ -86,6 +86,7 @@ export function AuthProvider({ children }) {
         permissions: info.permissions || persistedUser?.permissions || [],
         sidebarNavOrder: info.sidebarNavOrder || persistedUser?.sidebarNavOrder || {},
         mySubordinates: info.mySubordinates || persistedUser?.mySubordinates || [],
+        isManager: (info.mySubordinates || persistedUser?.mySubordinates || []).length > 0,
         designation: info.designation || persistedUser?.designation,
         designationName: info.designationName || persistedUser?.designationName,
         teamName: info.teamName || persistedUser?.teamName,
