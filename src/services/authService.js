@@ -88,20 +88,18 @@ export const authService = {
   },
 
   getSession: async () => {
+    // Depending on the backend, verify the token or fetch user profile
     const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
     const persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
 
     if (token && persistedUser) {
       try {
-        const decoded = jwtDecode(token);
-        // Check if token is expired (exp is in seconds)
-        if (decoded.exp && decoded.exp * 1000 > Date.now()) {
-          return { user: persistedUser };
-        } else {
-          // Token is expired, try to rely on interceptor logic or just throw
-          throw new Error('Token expired');
-        }
+        // Verify token if verify endpoint exists
+        await httpClient.post(endpoints.auth.verify, { token });
+        return { user: persistedUser };
       } catch {
+        // If verify fails, the interceptor might try to refresh it.
+        // If it still fails, the session is dead.
         throw new Error('Session invalid');
       }
     }

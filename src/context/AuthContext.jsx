@@ -28,7 +28,7 @@ const SESSION_END_MESSAGES = {
  * @property {() => void} clearError
  */
 
-export const AuthContext = createContext(/** @type {AuthContextValue | null} */(null));
+export const AuthContext = createContext(/** @type {AuthContextValue | null} */ (null));
 
 // Background safety net only — the primary refresh trigger is tab
 // focus/visibility (see below), which is when a user actually notices a
@@ -67,7 +67,7 @@ export function AuthProvider({ children }) {
       const { default: endpoints } = await import('@api/endpoints');
       const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
       const fullInfo = userInfoRes.data;
-      
+
       console.log('USER DATA RESPONSE FROM BACKEND:', fullInfo);
 
       const info = fullInfo.userInformation || fullInfo;
@@ -109,7 +109,6 @@ export function AuthProvider({ children }) {
         persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
       }
 
-
       if (includePhoto && persistedUser.emp_id) {
         const avatar = await resolveAvatarDataUri(persistedUser.emp_id);
         if (avatar) persistedUser.avatar = avatar;
@@ -137,53 +136,13 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const clearSession = useCallback(() => {
-    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-    storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
-    storage.remove(STORAGE_KEYS.AUTH_USER);
-
-    // Clear all temporary UI states (tabs, views) from localStorage so they reset on next login
-    const keysToKeep = [STORAGE_KEYS.THEME, STORAGE_KEYS.SIDEBAR_COLLAPSED, 'APP_START_TIME'];
-    const allKeys = Object.keys(window.localStorage);
-
-    allKeys.forEach((key) => {
-      if (!keysToKeep.includes(key)) {
-        window.localStorage.removeItem(key);
-      }
-    });
-
-    // Also clear sessionStorage just in case future tabs use it
-    window.sessionStorage.clear();
-
-    setUser(null);
-  }, []);
-
   // Restore a persisted session on first mount so a refresh does not sign the
   // user out, and pull fresh role/permission data at the same time.
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
-      // Explictly clear the session if the Vite dev server was restarted.
-      const currentStartTime = import.meta.env.VITE_APP_START_TIME;
-      if (currentStartTime) {
-        const lastStartTime = storage.getRaw('APP_START_TIME');
-        if (lastStartTime && lastStartTime !== currentStartTime) {
-          clearSession();
-        }
-        storage.setRaw('APP_START_TIME', currentStartTime);
-      }
-
-      try {
-        // Verify the existing session before allowing access
-        await authService.getSession();
-        // If valid, refresh role/permission data
-        await refreshUser({ includePhoto: true });
-      } catch (err) {
-        // If verification fails or no session exists, clear any stale state
-        clearSession();
-      }
-
+      await refreshUser({ includePhoto: true });
       if (isMounted) {
         setIsInitialising(false);
       }
@@ -193,7 +152,7 @@ export function AuthProvider({ children }) {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clearSession, refreshUser]);
+  }, []);
 
   // Keep permissions from going stale for a long-lived session: re-pull on
   // an interval, and whenever the tab regains focus/visibility (the moment
@@ -219,7 +178,26 @@ export function AuthProvider({ children }) {
     };
   }, [user, refreshUser]);
 
+  const clearSession = useCallback(() => {
+    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
+    storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
+    storage.remove(STORAGE_KEYS.AUTH_USER);
 
+    // Clear all temporary UI states (tabs, views) from localStorage so they reset on next login
+    const keysToKeep = [STORAGE_KEYS.THEME, STORAGE_KEYS.SIDEBAR_COLLAPSED];
+    const allKeys = Object.keys(window.localStorage);
+
+    allKeys.forEach((key) => {
+      if (!keysToKeep.includes(key)) {
+        window.localStorage.removeItem(key);
+      }
+    });
+
+    // Also clear sessionStorage just in case future tabs use it
+    window.sessionStorage.clear();
+
+    setUser(null);
+  }, []);
 
   // Listen for global unauthorized events (e.g. from axios interceptor when refresh
   // fails, or when the backend flags the access token as killed by a login
@@ -235,41 +213,48 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
   }, [clearSession, toast]);
 
-  const login = useCallback(async (credentials) => {
-    setIsSubmitting(true);
-    setError(null);
+  const login = useCallback(
+    async (credentials) => {
+      setIsSubmitting(true);
+      setError(null);
 
-    try {
-      const { token, refreshToken, user: authenticatedUser } = await authService.login(credentials);
+      try {
+        const {
+          token,
+          refreshToken,
+          user: authenticatedUser,
+        } = await authService.login(credentials);
 
-      resetSessionEndGuard();
-      storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
-      if (refreshToken) {
-        storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        resetSessionEndGuard();
+        storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
+        if (refreshToken) {
+          storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        }
+        // Persist the bare JWT-decoded user so refreshUser has a base to merge
+        // onto, but deliberately do NOT setUser() with it here: isAuthenticated
+        // (Boolean(user)) would flip true immediately, and PublicRoute reacts
+        // to that by navigating away right then — mid-flight, with placeholder
+        // role/isAdmin/permissions — racing ahead of the refreshUser() call
+        // below and landing on a 403 or the wrong sidebar. setUser only happens
+        // once, inside refreshUser, once real role/permission data is in hand.
+        storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
+
+        if (authenticatedUser?.theme) {
+          setTheme(authenticatedUser.theme);
+        }
+
+        // /auth/user-info/ is intentionally lightweight (no photo/config
+        // payload) so awaiting it here doesn't meaningfully delay login.
+        await refreshUser({ includePhoto: true });
+      } catch (caught) {
+        setError(caught.message);
+        throw caught;
+      } finally {
+        setIsSubmitting(false);
       }
-      // Persist the bare JWT-decoded user so refreshUser has a base to merge
-      // onto, but deliberately do NOT setUser() with it here: isAuthenticated
-      // (Boolean(user)) would flip true immediately, and PublicRoute reacts
-      // to that by navigating away right then — mid-flight, with placeholder
-      // role/isAdmin/permissions — racing ahead of the refreshUser() call
-      // below and landing on a 403 or the wrong sidebar. setUser only happens
-      // once, inside refreshUser, once real role/permission data is in hand.
-      storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
-
-      if (authenticatedUser?.theme) {
-        setTheme(authenticatedUser.theme);
-      }
-
-      // /auth/user-info/ is intentionally lightweight (no photo/config
-      // payload) so awaiting it here doesn't meaningfully delay login.
-      await refreshUser({ includePhoto: true });
-    } catch (caught) {
-      setError(caught.message);
-      throw caught;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [setTheme, refreshUser]);
+    },
+    [setTheme, refreshUser],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -301,7 +286,17 @@ export function AuthProvider({ children }) {
       refreshUser,
       clearError,
     }),
-    [user, isInitialising, isSubmitting, error, login, logout, hasPermission, refreshUser, clearError],
+    [
+      user,
+      isInitialising,
+      isSubmitting,
+      error,
+      login,
+      logout,
+      hasPermission,
+      refreshUser,
+      clearError,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

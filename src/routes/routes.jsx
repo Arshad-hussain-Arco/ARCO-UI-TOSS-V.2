@@ -9,7 +9,6 @@ import { ROUTES } from '@constants/routes';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 import { RequirePermission } from './RequirePermission';
-import { RootRoute } from './RootRoute';
 import { lazyPage } from './lazyPage';
 
 /* ── Pages ────────────────────────────────────────────────────────────────────
@@ -106,7 +105,7 @@ export const routes = [
   { path: ROUTES.DOCUMENTS_USER_GUIDE, element: <DocumentsUserGuidePage /> },
   {
     path: ROUTES.ROOT,
-    element: <RootRoute />,
+    element: <Navigate to={ROUTES.DASHBOARD} replace />,
   },
 
   // ── Public ────────────────────────────────────────────────────────────────
@@ -170,7 +169,12 @@ export const routes = [
                 path: ROUTES.EOD_MANAGEMENT,
                 element: (
                   <RequirePermission
-                    codes={['EOD_OVERVIEW_VIEW', 'EOD_CONFIG_VIEW', 'EOD_SCHEDULE_VIEW', 'EOD_CONTROL_VIEW']}
+                    codes={[
+                      'EOD_OVERVIEW_VIEW',
+                      'EOD_CONFIG_VIEW',
+                      'EOD_SCHEDULE_VIEW',
+                      'EOD_CONTROL_VIEW',
+                    ]}
                   >
                     <EODManagementPage />
                   </RequirePermission>
@@ -183,7 +187,9 @@ export const routes = [
                   // independent tabs within this page — any one permission
                   // is enough to reach it, the page itself filters which
                   // tabs are actually visible.
-                  <RequirePermission codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}>
+                  <RequirePermission
+                    codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}
+                  >
                     <ConsultantsPage />
                   </RequirePermission>
                 ),
@@ -191,7 +197,9 @@ export const routes = [
               {
                 path: ROUTES.CONSULTANT_DETAIL,
                 element: (
-                  <RequirePermission codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}>
+                  <RequirePermission
+                    codes={['EMPLOYEE_VIEW', 'EMPLOYEE_VIEW_INACTIVE', 'TEAMS_VIEW']}
+                  >
                     <ConsultantsPage />
                   </RequirePermission>
                 ),
@@ -244,7 +252,13 @@ export const routes = [
                 // link list itself (see LinkDataListView's docstring).
                 path: ROUTES.IMPORTANT_LINKS_CONTENT,
                 element: (
-                  <RequirePermission codes={['IMPORTANT_LINKS_VIEW', 'IMPORTANT_LINKS_PIN_HEADER', 'IMPORTANT_LINKS_SHOW_HEADER']}>
+                  <RequirePermission
+                    codes={[
+                      'IMPORTANT_LINKS_VIEW',
+                      'IMPORTANT_LINKS_PIN_HEADER',
+                      'IMPORTANT_LINKS_SHOW_HEADER',
+                    ]}
+                  >
                     <LinkContentPage />
                   </RequirePermission>
                 ),
