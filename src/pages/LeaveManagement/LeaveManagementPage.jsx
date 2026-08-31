@@ -642,13 +642,18 @@ export function LeaveManagementPage() {
     });
   }, [leavesWithModRequests, searchQuery, leaveTypeMap]);
 
+  const typeFilteredLeaves = useMemo(() => {
+    if (filterType === 'all') return searchFilteredLeaves;
+    return searchFilteredLeaves.filter(leave => 
+      filterType === 'offshore' ? leave.leave_type === 'OW' : leave.leave_type === 'WFH'
+    );
+  }, [searchFilteredLeaves, filterType]);
+
   const filteredSortedLeaves = useMemo(() => {
-    return searchFilteredLeaves.filter(leave => {
+    return typeFilteredLeaves.filter(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      const typeMatch = filterType === 'all'
-        || (filterType === 'offshore' ? leave.leave_type === 'OW' : leave.leave_type === 'WFH');
       const statusMatch = filterStatus === 'all' || statusStr === filterStatus;
-      return typeMatch && statusMatch;
+      return statusMatch;
     }).sort((a, b) => {
       if (!sortField) return 0;
       let aVal = a[sortField];
@@ -666,7 +671,7 @@ export function LeaveManagementPage() {
       const result = aVal > bVal ? 1 : -1;
       return sortOrder === 'asc' ? result : -result;
     });
-  }, [searchFilteredLeaves, filterStatus, filterType, sortField, sortOrder]);
+  }, [typeFilteredLeaves, filterStatus, sortField, sortOrder]);
 
   // Calendar view mirrors whatever the status/type chips above have
   // filtered `filteredSortedLeaves` down to — same integration pattern as
@@ -1080,7 +1085,7 @@ export function LeaveManagementPage() {
                         }}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.length}</span>
                       </button>
 
                       <button
@@ -1089,7 +1094,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'pending' || l.status_code === 'MOD_PENDING').length}</span>
                       </button>
 
                       <button
@@ -1098,7 +1103,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -1106,7 +1111,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
 
                       <button
@@ -1116,7 +1121,7 @@ export function LeaveManagementPage() {
                         title={STATUS_TOOLTIPS['self-rejected']}
                       >
                         <span className="leave-filter-label">Self-Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'self_rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'self_rejected').length}</span>
                       </button>
 
                       <button
@@ -1126,7 +1131,7 @@ export function LeaveManagementPage() {
                         title={STATUS_TOOLTIPS.cancelled}
                       >
                         <span className="leave-filter-label">Cancelled</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'cancelled').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'cancelled').length}</span>
                       </button>
 
                       <button
@@ -1135,8 +1140,11 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('mod-pending')}
                       >
                         <span className="leave-filter-label">Modification Requests</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.is_mod_request).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.is_mod_request).length}</span>
                       </button>
+
+                      <div style={{ width: '1px', height: '28px', background: 'var(--border-primary)', margin: '0 4px', alignSelf: 'center' }} />
+
                       <button
                         className="leave-filter-chip"
                         data-active={filterType === 'offshore'}

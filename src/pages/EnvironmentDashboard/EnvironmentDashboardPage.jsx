@@ -704,6 +704,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-featureType"
               type="text"
+              placeholder="e.g., Infra, Database, Web"
               className={`env-form-input ${addErrors.featureType ? 'has-error' : ''}`}
               value={addForm.featureType}
               onChange={(e) => setAddForm((prev) => ({ ...prev, featureType: e.target.value }))}
@@ -718,6 +719,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-fileName"
               type="text"
+              placeholder="e.g., config.json"
               className={`env-form-input ${addErrors.fileName ? 'has-error' : ''}`}
               value={addForm.fileName}
               onChange={(e) => setAddForm((prev) => ({ ...prev, fileName: e.target.value }))}
@@ -732,6 +734,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-storageLocation"
               type="text"
+              placeholder="e.g., /upload/configs/"
               className={`env-form-input ${addErrors.storageLocation ? 'has-error' : ''}`}
               value={addForm.storageLocation}
               onChange={(e) => setAddForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
@@ -768,6 +771,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-featureType"
                 type="text"
+                placeholder="e.g., Infra, Database, Web"
                 className={`env-form-input ${editErrors.featureType ? 'has-error' : ''}`}
                 value={editForm.featureType}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, featureType: e.target.value }))}
@@ -782,6 +786,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-fileName"
                 type="text"
+                placeholder="e.g., config.json"
                 className={`env-form-input ${editErrors.fileName ? 'has-error' : ''}`}
                 value={editForm.fileName}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, fileName: e.target.value }))}
@@ -796,6 +801,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-storageLocation"
                 type="text"
+                placeholder="e.g., /upload/configs/"
                 className={`env-form-input ${editErrors.storageLocation ? 'has-error' : ''}`}
                 value={editForm.storageLocation}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
