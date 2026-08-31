@@ -1,4 +1,5 @@
 import { AuthProvider } from '@context/AuthContext';
+import { FileUploadProvider } from '@context/FileUploadContext';
 import { PinnedLinksProvider } from '@context/PinnedLinksContext';
 import { SidebarProvider } from '@context/SidebarContext';
 import { ThemeProvider } from '@context/ThemeContext';
@@ -15,11 +16,13 @@ export function AppProviders({ children }) {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <AuthProvider>
-          <SidebarProvider>
-            <PinnedLinksProvider>{children}</PinnedLinksProvider>
-          </SidebarProvider>
-        </AuthProvider>
+        <FileUploadProvider>
+          <AuthProvider>
+            <SidebarProvider>
+              <PinnedLinksProvider>{children}</PinnedLinksProvider>
+            </SidebarProvider>
+          </AuthProvider>
+        </FileUploadProvider>
       </ToastProvider>
     </ThemeProvider>
   );

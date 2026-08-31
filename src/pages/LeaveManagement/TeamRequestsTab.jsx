@@ -686,14 +686,18 @@ export function TeamRequestsTab({ getPhoto }) {
     all: baseFiltered.length,
     pending: baseFiltered.filter((r) => r.status === 'pending').length,
     approved: baseFiltered.filter((r) => r.status === 'approved').length,
-    rejected: baseFiltered.filter((r) => r.status === 'rejected' || r.status === 'self_rejected').length,
+    // Strictly "rejected" (manager-rejected) — self_rejected (withdrawn by
+    // the employee) and cancelled (withdrawn after approval) are their own
+    // pills now, not folded into this count.
+    rejected: baseFiltered.filter((r) => r.status === 'rejected').length,
+    self_rejected: baseFiltered.filter((r) => r.status === 'self_rejected').length,
+    cancelled: baseFiltered.filter((r) => r.status === 'cancelled').length,
   }), [baseFiltered]);
 
   const filtered = useMemo(() => {
     let list = baseFiltered;
     if (statusF !== 'all') {
-      if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
-      else list = list.filter((r) => r.status === statusF);
+      list = list.filter((r) => r.status === statusF);
     }
     return [...list].sort((a, b) => {
       if (tableSortField) {
@@ -812,11 +816,13 @@ export function TeamRequestsTab({ getPhoto }) {
     setStatusF('pending');
   }
   // Quick type filters (Offshore Work / WFH) — unlike the KPI cards above
-  // (which jump straight to that type's Pending bucket), these show every
-  // status for the type: pending, approved, rejected, and self-rejected.
+  // (which jump straight to that type's Pending bucket), these combine
+  // with whatever status pill is active via AND (baseFiltered applies
+  // typeF, then statusCounts/filtered apply statusF on top) instead of
+  // resetting it — so picking Offshore Work while "Approved" is selected
+  // narrows to Approved Offshore Work requests, not every status.
   function handleTypeChipClick(type) {
     setTypeF((prev) => (prev === type ? 'all' : type));
-    setStatusF('all');
   }
   const teamAvailability = useMemo(() => {
     if (!drawerReq) return null;
@@ -1170,15 +1176,19 @@ export function TeamRequestsTab({ getPhoto }) {
               { key: 'pending', label: 'Pending', count: statusCounts.pending },
               { key: 'approved', label: 'Approved', count: statusCounts.approved },
               { key: 'rejected', label: 'Rejected', count: statusCounts.rejected },
+              { key: 'self_rejected', label: 'Self-Rejected', count: statusCounts.self_rejected },
+              { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled },
             ].map((c) => (
               <button
                 key={c.key}
                 className="tr-chip"
                 data-active={statusF === c.key}
-                onClick={() => {
-                  setStatusF(c.key);
-                  setTypeF('all');
-                }}
+                // Don't reset typeF here — status and type (Offshore
+                // Work/WFH) pills are meant to combine via AND (baseFiltered
+                // already applies typeF before statusCounts/filtered apply
+                // statusF), so picking a status shouldn't silently drop an
+                // active Offshore Work/WFH selection.
+                onClick={() => setStatusF(c.key)}
                 title={STATUS_TOOLTIPS[c.key]}
               >
                 {c.label}
