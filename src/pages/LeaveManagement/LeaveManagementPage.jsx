@@ -703,7 +703,57 @@ export function LeaveManagementPage() {
           leave_duration: cd.duration,
         }));
       }
-      return [base];
+      // Split standard leaves around holidays so they don't visually overlap
+      const splitSegments = [];
+      let currentStart = new Date(base.start_date);
+      const leaveEnd = new Date(base.end_date);
+      currentStart.setHours(0, 0, 0, 0);
+      leaveEnd.setHours(0, 0, 0, 0);
+
+      // Sort holidays by start date
+      const sortedHols = [...calendarHolidayEvents].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+      for (const hol of sortedHols) {
+        if (!hol.start_date || !hol.end_date) continue;
+        const hs = new Date(hol.start_date); hs.setHours(0, 0, 0, 0);
+        const he = new Date(hol.end_date); he.setHours(0, 0, 0, 0);
+        
+        if (currentStart <= leaveEnd) {
+           if (currentStart <= he && leaveEnd >= hs) {
+              // Overlap found
+              if (currentStart < hs) {
+                 // Segment before the holiday
+                 const segEnd = new Date(hs);
+                 segEnd.setDate(segEnd.getDate() - 1);
+                 const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                 const formattedEnd = new Date(segEnd.getTime() - (segEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                 splitSegments.push({
+                   ...base,
+                   start_date: formattedStart,
+                   end_date: formattedEnd,
+                   id: `${base.id}_${splitSegments.length}`
+                 });
+              }
+              // Move currentStart past the holiday
+              const nextStart = new Date(he);
+              nextStart.setDate(nextStart.getDate() + 1);
+              currentStart = nextStart > currentStart ? nextStart : currentStart;
+           }
+        }
+      }
+      
+      if (currentStart <= leaveEnd) {
+        const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const formattedEnd = new Date(leaveEnd.getTime() - (leaveEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        splitSegments.push({
+           ...base,
+           start_date: formattedStart,
+           end_date: formattedEnd,
+           id: `${base.id}_${splitSegments.length}`
+        });
+      }
+      
+      return splitSegments;
     });
     return [...mappedLeaves, ...calendarHolidayEvents];
   }, [filteredSortedLeaves, calendarHolidayEvents, leaveTypeMap]);
