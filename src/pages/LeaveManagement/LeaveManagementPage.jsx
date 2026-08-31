@@ -573,7 +573,7 @@ export function LeaveManagementPage() {
   // manager here, full stop. mySubordinates (direct reports, from
   // /auth/user-info/) is the single signal for every manager-only affordance
   // on this screen — Apply Leave / My Leave Summary have no gate at all.
-  const isManager = Boolean(user?.mySubordinates?.length > 0);
+  const isManager = Boolean(user?.isManager);
   const canApplyOnBehalf = isManager;
 
   // Resolve the manager's own emp_id (falls back to /auth/user-info/ when
@@ -808,18 +808,42 @@ export function LeaveManagementPage() {
           open={!!viewModalLeave}
           liveReq={{
             id: viewModalLeave.id,
-            employeeName: user?.username || user?.employee_name || 'You',
-            employeeId: user?.emp_id || user?.employee_id || '-',
-            leaveType: viewModalLeave.leave_type || viewModalLeave.type,
+            // employeeName is the bold header line, employeeId renders
+            // directly below it — this was showing username ("mahboob1")
+            // as the name and emp_id ("22") below it. Show the actual name
+            // up top and username below, matching what "employeeId" reads
+            // as everywhere else in this drawer (an identifier line, not
+            // literally required to be a numeric id).
+            employeeName: user?.name || user?.employee_name || 'You',
+            employeeId: user?.username || user?.emp_id || '-',
+            // Request Type must be the leave's display name (e.g. "Claim
+            // Weekend Work"), not its raw code ("CWW") — leave_name comes
+            // straight from LeaveSerializer; leaveTypeMap is the same
+            // code -> name lookup this page already uses for every other
+            // leave-name display (see displayType below).
+            leaveType: viewModalLeave.leave_name || leaveTypeMap[viewModalLeave.leave_type] || viewModalLeave.leave_type || viewModalLeave.type,
             startDate: viewModalLeave.start_date || viewModalLeave.date,
             endDate: viewModalLeave.end_date || viewModalLeave.date,
-            bizDays: viewModalLeave.business_days || viewModalLeave.in_days || 0,
-            requestedOn: viewModalLeave.created_at || new Date().toISOString(),
+            // `|| in_days` always kicked in for a Claim (business_days is
+            // always 0 for one — see leaves/services.py _create_claim — and
+            // 0 is falsy), showing the claimed day count instead of the
+            // correct 0 work days.
+            bizDays: viewModalLeave.business_days ?? 0,
+            // Leave has no `created_at` field — that always fell through to
+            // `new Date().toISOString()`, and fmtDate (which expects a bare
+            // YYYY-MM-DD string, appending 'T00:00:00' itself) choked on the
+            // full ISO datetime string, rendering "Invalid Date". Use the
+            // real field (requested_date), date-only.
+            requestedOn: viewModalLeave.requested_date ? viewModalLeave.requested_date.split('T')[0] : '',
             status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
             duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
             fromDateDuration: viewModalLeave.from_date_duration,
             toDateDuration: viewModalLeave.to_date_duration,
+            // Grouped multi-date claim submission (see groupClaimLeaves) —
+            // lets the drawer list each claimed date individually instead
+            // of a misleading single Start/End Date range.
+            claimDates: viewModalLeave.claimDates,
           }}
           drawerAction="view"
           isReadOnly={true}

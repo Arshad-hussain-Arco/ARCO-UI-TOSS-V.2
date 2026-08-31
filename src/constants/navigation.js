@@ -87,12 +87,14 @@ export const SIDEBAR_NAVIGATION = [
   // No `permission` — open to every authenticated user. Team Requests / Leave
   // Configuration inside this screen are gated by manager hierarchy instead.
   { id: 'leave', label: 'Leave Management', icon: Calendar, to: ROUTES.LEAVE_MANAGEMENT },
+  // No `permission` — gated purely by manager hierarchy (managerOnly),
+  // same mechanism as Leave Management's Team tabs; see user.isManager.
   {
     id: 'attendance',
     label: 'Attendance',
     icon: Clock,
     to: ROUTES.ATTENDANCE,
-    permission: 'ATTENDANCE_VIEW',
+    managerOnly: true,
   },
   {
     id: 'capacity',
@@ -163,19 +165,21 @@ export function applyOrder(items, order) {
 /**
  * Filters SIDEBAR_NAVIGATION down to items the given user may see, then
  * applies their role's configured display order (Preferences > Sidebar
- * Layout, edited per-role by an admin). Items with no `permission`/`admin`
- * gate are always visible to an authenticated user. `navOrder` is the raw
- * {order, adminChildrenOrder} shape carried on `user.sidebarNavOrder` (set
- * from the role's stored config by /auth/user-info/) — omit it (or pass
- * empty arrays) to fall back to the hardcoded catalog order.
+ * Layout, edited per-role by an admin). Items with no `permission`/`admin`/
+ * `managerOnly` gate are always visible to an authenticated user. `navOrder`
+ * is the raw {order, adminChildrenOrder} shape carried on
+ * `user.sidebarNavOrder` (set from the role's stored config by
+ * /auth/user-info/) — omit it (or pass empty arrays) to fall back to the
+ * hardcoded catalog order.
  *
- * @param {{ isAdmin?: boolean }} user
+ * @param {{ isAdmin?: boolean, isManager?: boolean }} user
  * @param {(code: string) => boolean} hasPermission
  * @param {{ order?: string[], adminChildrenOrder?: string[] }} [navOrder]
  */
 export function getVisibleNavigation(user, hasPermission, navOrder) {
   const visible = SIDEBAR_NAVIGATION.filter((item) => {
     if (item.admin) return Boolean(user?.isAdmin);
+    if (item.managerOnly) return Boolean(user?.isManager);
     if (item.permissions) return item.permissions.some((code) => hasPermission(code));
     if (item.permission) return hasPermission(item.permission);
     return true;

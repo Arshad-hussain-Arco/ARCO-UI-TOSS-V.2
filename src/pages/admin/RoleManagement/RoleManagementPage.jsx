@@ -121,15 +121,6 @@ const PERMISSION_CATALOG = [
     ],
   },
   {
-    // 4 sub-tabs are read-only views over the same team-calendar/quota
-    // data — no edit action exists on this screen.
-    module: 'Attendance',
-    codes: [
-      { code: 'ATTENDANCE_VIEW', label: 'View' },
-      { code: 'ATTENDANCE_EXPORT', label: 'Export' },
-    ],
-  },
-  {
     // Summary/Team views are two display modes over one dataset — no
     // create/edit action exists on this screen. CR/WO column mapping
     // lives under Admin Panel > System Settings instead (is_admin).

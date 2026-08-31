@@ -336,7 +336,13 @@ export async function fetchAndMapTeamLeaves(managerId) {
 
     return {
       id: req.id.toString(),
+      // Kept as "EMP<id>" — parsed back out via .replace('EMP','') to build
+      // the employeeDirectory lookup in LeaveManagementPage's refetch, so
+      // this can't just become the username. employeeUsername is the
+      // actual login username (Employee.user_name), shown instead of this
+      // in the request drawer per the "show username, not emp id" ask.
       employeeId: `EMP${req.emp_id}`,
+      employeeUsername: req.emp_username,
       employeeName: req.emp_name,
       photo: req.photo,
       team: req.team_name,

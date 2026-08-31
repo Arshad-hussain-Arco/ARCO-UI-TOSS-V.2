@@ -264,10 +264,10 @@ function LeaveTypeNameLegend({ leaveTypes }) {
 export function AttendancePage() {
   useDocumentTitle('Attendance');
 
-  const { user, hasPermission } = useAuth();
-  const canExport = hasPermission('ATTENDANCE_EXPORT');
+  const { user } = useAuth();
+  const isManager = Boolean(user?.isManager);
+  const canExport = isManager;
 
-  const isManager = Boolean(user?.mySubordinates?.length > 0);
   const { getPhoto: getTeamPhoto } = useEmployeePhotos({
     managerId: user?.emp_id,
     enabled: isManager && !!user?.emp_id,

@@ -353,15 +353,44 @@ export function MyLeavesSummaryTab({
                   <tr key={leave.id || idx} className="leave-table-row">
                     <td className="leave-table-cell">{displayType}</td>
                     <td className="leave-table-cell">
-                      <div className="leave-table-dates">
-                        <span className="leave-table-date-text text-[14px]">{dateDisplay}</span>
-                        <span className="leave-table-date-duration">
-                          ({days} day{days !== 1 ? 's' : ''})
-                          {durationText ? ` • ${durationText}` : ''}
-                        </span>
-                      </div>
+                      {leave.claimDates && leave.claimDates.length > 1 ? (
+                        // Grouped multi-date claim submission (see
+                        // groupClaimLeaves in LeaveManagementPage) — the
+                        // dates aren't a contiguous range, so a "start -
+                        // end" span with a summed day count is misleading
+                        // (it implies continuous leave across every day in
+                        // between). List each claimed date + duration
+                        // instead, same as the Apply Leave tab table.
+                        <div className="leave-table-dates">
+                          {leave.claimDates.map((cd) => (
+                            <div key={cd.id} className="leave-table-date-text text-[14px]">
+                              {new Date(cd.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                              <span className="leave-table-date-duration">
+                                {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
+                                {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="leave-table-dates">
+                          <span className="leave-table-date-text text-[14px]">{dateDisplay}</span>
+                          <span className="leave-table-date-duration">
+                            ({days} day{days !== 1 ? 's' : ''})
+                            {durationText ? ` • ${durationText}` : ''}
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td className="leave-table-cell">{leave.business_days || days}</td>
+                    {/* `|| days` fell back to in_days whenever business_days
+                        was 0 — since 0 is falsy in JS, that always kicked in
+                        for a Claim (which is never a leave day, so
+                        business_days is always 0 — see leaves/services.py
+                        _create_claim), showing the claimed day count instead
+                        of the correct 0 work days. Apply Leave tab's own
+                        table shows plain business_days with no such
+                        fallback — mirror that here. */}
+                    <td className="leave-table-cell">{leave.business_days ?? 0}</td>
                     <td className="leave-table-cell">
                       <TruncatedText text={leave.leave_reason || leave.reason} maxLength={25} title="Leave Reason" />
                     </td>

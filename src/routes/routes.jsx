@@ -198,7 +198,7 @@ export const routes = [
               {
                 path: ROUTES.ATTENDANCE,
                 element: (
-                  <RequirePermission code="ATTENDANCE_VIEW">
+                  <RequirePermission allowManager>
                     <AttendancePage />
                   </RequirePermission>
                 ),
