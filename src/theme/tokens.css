@@ -82,7 +82,7 @@
   --bg-tertiary: #374151;
   --bg-hover: #374151;
   --bg-active: #4b5563;
-  --bg-overlay: rgba(0, 0, 0, 0.4);
+  --bg-overlay: rgba(0, 0, 0, 0.45);
 
   /* Text Colors */
   --text-primary: #f9fafb;
