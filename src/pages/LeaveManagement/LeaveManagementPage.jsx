@@ -408,8 +408,66 @@ export function LeaveManagementPage() {
             console.error("Failed to fetch holidays for calendar", e);
           }
 
-          setLeaves(groupClaimLeaves(userLeaves));
-          setCalendarHolidayEvents(calendarHolidays);
+          setLeaves(userLeaves);
+
+          // Split user leaves around holidays so they don't visually overlap on the calendar
+          const splitLeavesForCalendar = [];
+          userLeaves.forEach(leave => {
+            if (!leave.start_date || !leave.end_date) {
+              splitLeavesForCalendar.push(leave);
+              return;
+            }
+
+            let currentStart = new Date(leave.start_date);
+            const leaveEnd = new Date(leave.end_date);
+            currentStart.setHours(0, 0, 0, 0);
+            leaveEnd.setHours(0, 0, 0, 0);
+
+            // Sort holidays by start date
+            const sortedHols = [...calendarHolidays].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+            for (const hol of sortedHols) {
+              if (!hol.start_date || !hol.end_date) continue;
+              const hs = new Date(hol.start_date); hs.setHours(0, 0, 0, 0);
+              const he = new Date(hol.end_date); he.setHours(0, 0, 0, 0);
+              
+              if (currentStart <= leaveEnd) {
+                 if (currentStart <= he && leaveEnd >= hs) {
+                    // Overlap found
+                    if (currentStart < hs) {
+                       // Segment before the holiday
+                       const segEnd = new Date(hs);
+                       segEnd.setDate(segEnd.getDate() - 1);
+                       // We must adjust time to avoid timezone offset issues when formatting
+                       const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                       const formattedEnd = new Date(segEnd.getTime() - (segEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                       splitLeavesForCalendar.push({
+                         ...leave,
+                         start_date: formattedStart,
+                         end_date: formattedEnd,
+                         id: `${leave.id}_${splitLeavesForCalendar.length}`
+                       });
+                    }
+                    // Move currentStart past the holiday
+                    const nextStart = new Date(he);
+                    nextStart.setDate(nextStart.getDate() + 1);
+                    currentStart = nextStart > currentStart ? nextStart : currentStart;
+                 }
+              }
+            }
+            if (currentStart <= leaveEnd) {
+              const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+              const formattedEnd = new Date(leaveEnd.getTime() - (leaveEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+              splitLeavesForCalendar.push({
+                 ...leave,
+                 start_date: formattedStart,
+                 end_date: formattedEnd,
+                 id: `${leave.id}_${splitLeavesForCalendar.length}`
+              });
+            }
+          });
+
+          setCalendarEvents([...splitLeavesForCalendar, ...calendarHolidays]);
         } catch (e) {
           console.error("Failed to fetch leaves", e);
           setError(e);
@@ -1184,25 +1242,9 @@ export function LeaveManagementPage() {
                           today.setHours(0, 0, 0, 0);
                           const startDateObj = new Date(leave.start_date);
                           startDateObj.setHours(0, 0, 0, 0);
+                          const isPast = startDateObj < today;
                           const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
-                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent;
-                          // Same authoritative signal groupClaimLeaves uses. A
-                          // claim's dates come from the claim-eligible-dates
-                          // picker, not free-form start/end fields, so "Edit"
-                          // (which opens EditLeaveModal for a normal leave's
-                          // date range) doesn't apply to it at all.
-                          const isClaimRequest = leave.leave_category === 'CLAIM';
-
-                          // Partial cancel: only once the leave has actually started (ongoing) —
-                          // before it starts, Edit + full Cancel already cover every case.
-                          // Must still have a future-or-today portion left to cancel.
-                          const endDateObj = new Date(leave.end_date);
-                          endDateObj.setHours(0, 0, 0, 0);
-                          const canPartialCancel = statusStr === 'approved'
-                            && !leave.is_mod_request
-                            && !claimLeaveTypeCodes.has(leave.leave_type)
-                            && startDateObj <= today
-                            && endDateObj >= today;
+                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent && !isPast;
 
                           return (
                             <tr key={leave.id} className="leave-table-row">

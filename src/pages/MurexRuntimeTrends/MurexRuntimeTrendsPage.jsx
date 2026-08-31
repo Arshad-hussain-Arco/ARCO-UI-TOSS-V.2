@@ -944,10 +944,16 @@ export function MurexRuntimeTrendsPage() {
   const fetchTrends = useCallback(() => murexService.getRuntimeTrends(timeRange), [timeRange]);
   const { data, isLoading, error, refetch } = useAsync(fetchTrends);
 
+  const isFirstRender = useRef(true);
   useEffect(() => {
     setScriptDetailsMap({});
     setExpandedScriptIds(new Set());
-  }, [timeRange]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    refetch();
+  }, [timeRange, refetch]);
 
   const runtimeSummary = data?.summary;
   const runtimeTrendData = data?.trend ?? [];

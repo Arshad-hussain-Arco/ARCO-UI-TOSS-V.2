@@ -52,3 +52,58 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// --- Image Caching Logic ---
+const IMAGE_CACHE_NAME = 'image-cache-v1';
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName.startsWith('image-cache-') && cacheName !== IMAGE_CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  
+  // Intercept requests for images
+  if (request.destination === 'image' || request.url.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        // Return from cache if found
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        // Otherwise fetch from the network
+        return fetch(request).then((networkResponse) => {
+          // Check for a valid response (only cache 200 responses)
+          // Ensure it's a basic type to avoid caching cross-origin requests opaquely (optional, depending on requirements)
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
+          }
+
+          // Clone the response because it can only be consumed once
+          const responseToCache = networkResponse.clone();
+          caches.open(IMAGE_CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
+          return networkResponse;
+        });
+      })
+    );
+  }
+});

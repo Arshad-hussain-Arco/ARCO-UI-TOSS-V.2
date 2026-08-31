@@ -21,9 +21,26 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
 
   const close = useCallback(() => setIsOpen(false), []);
   useOnClickOutside(wrapperRef, close, isOpen);
+  const hoverTimeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 200);
+  };
 
   return (
-    <div className="header-profile-wrapper" ref={wrapperRef}>
+    <div 
+      className="header-profile-wrapper" 
+      ref={wrapperRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
@@ -94,10 +111,6 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
             <LogOut className="header-profile-menu-icon" aria-hidden="true" />
             <span className="header-profile-menu-text">Sign Out</span>
           </button>
-
-          <div className="header-profile-menu-version" style={{ fontSize: '10px', color: 'var(--text-tertiary)', padding: '8px 12px 4px', textAlign: 'center' }}>
-            TOSS v.2.0.0
-          </div>
         </div>
       ) : null}
     </div>

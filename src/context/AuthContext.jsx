@@ -67,6 +67,9 @@ export function AuthProvider({ children }) {
       const { default: endpoints } = await import('@api/endpoints');
       const userInfoRes = await httpClient.get(endpoints.auth.userInfo);
       const fullInfo = userInfoRes.data;
+      
+      console.log('USER DATA RESPONSE FROM BACKEND:', fullInfo);
+
       const info = fullInfo.userInformation || fullInfo;
 
       persistedUser = {

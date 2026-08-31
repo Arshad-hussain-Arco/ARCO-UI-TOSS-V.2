@@ -858,10 +858,7 @@ export function RoleManagementPage() {
                 style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
                 {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash size={14} style={{ marginRight: '6px' }} />
-                  Delete
-                </div>
+                Delete
               </button>
             </div>
           </div>

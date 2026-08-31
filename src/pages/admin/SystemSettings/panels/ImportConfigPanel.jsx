@@ -212,7 +212,7 @@ function ImportConfigPanelComponent() {
                   </label>
                   {formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt) && (
                     <div
-                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.workOrderStatusFilePath_uploadedAt)}`}
+
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -290,7 +290,7 @@ function ImportConfigPanelComponent() {
                   </label>
                   {formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt) && (
                     <div
-                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.changeRequestFilePath_uploadedAt)}`}
+
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -368,7 +368,7 @@ function ImportConfigPanelComponent() {
                   </label>
                   {formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt) && (
                     <div
-                      title={`Data for Last uploaded on was last updated on ${formatUploadedAt(uploadedAt.runTimeFilePath_uploadedAt)}`}
+
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',

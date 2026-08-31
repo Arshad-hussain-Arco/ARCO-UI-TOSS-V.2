@@ -152,7 +152,7 @@ function TeamLeaveSummary({ getPhoto }) {
     const fetchSummary = async () => {
       if (!user?.emp_id) return;
       try {
-        if (departmentData.length === 0) setLoading(true);
+        setLoading(true);
         const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id), {
           params: summaryTimePeriod ? { month: summaryTimePeriod } : {}
         });
@@ -504,49 +504,52 @@ function TeamLeaveSummary({ getPhoto }) {
                   width="department"
                 />
               </div>
+              {summaryView === 'analytics' && (
+                <>
+                  <div className="team-summary-filter-group">
+                    <Select
+                      value={summaryTimePeriod}
+                      onChange={setSummaryTimePeriod}
+                      placeholder="All Months"
+                      options={[
+                        { value: '', label: 'All Months' },
+                        { value: 'january', label: 'January' },
+                        { value: 'february', label: 'February' },
+                        { value: 'march', label: 'March' },
+                        { value: 'april', label: 'April' },
+                        { value: 'may', label: 'May' },
+                        { value: 'june', label: 'June' },
+                        { value: 'july', label: 'July' },
+                        { value: 'august', label: 'August' },
+                        { value: 'september', label: 'September' },
+                        { value: 'october', label: 'October' },
+                        { value: 'november', label: 'November' },
+                        { value: 'december', label: 'December' }
+                      ]}
+                      width="dateRange"
+                    />
+                  </div>
 
-              <div className="team-summary-filter-group">
-                <Select
-                  value={summaryTimePeriod}
-                  onChange={setSummaryTimePeriod}
-                  placeholder="Select Month"
-                  options={[
-                    { value: '', label: 'Select Month', disabled: true },
-                    { value: 'january', label: 'January' },
-                    { value: 'february', label: 'February' },
-                    { value: 'march', label: 'March' },
-                    { value: 'april', label: 'April' },
-                    { value: 'may', label: 'May' },
-                    { value: 'june', label: 'June' },
-                    { value: 'july', label: 'July' },
-                    { value: 'august', label: 'August' },
-                    { value: 'september', label: 'September' },
-                    { value: 'october', label: 'October' },
-                    { value: 'november', label: 'November' },
-                    { value: 'december', label: 'December' }
-                  ]}
-                  width="dateRange"
-                />
-              </div>
-
-              <div className="team-summary-filter-group">
-                <Select
-                  value={summaryLeaveType}
-                  onChange={setSummaryLeaveType}
-                  options={[
-                    { value: 'all', label: 'All Types' },
-                    { value: 'annual', label: 'Annual Leave' },
-                    { value: 'sick', label: 'Sick Leave' },
-                    { value: 'compoff', label: 'Comp-Off' },
-                    { value: 'wfh', label: 'WFH' },
-                    { value: 'offshore', label: 'Offshore Work' },
-                    { value: 'weekend', label: 'Weekend Work' },
-                    { value: 'visa', label: 'Visa Purpose' },
-                    { value: 'paternity', label: 'Paternity' },
-                  ]}
-                  width="leaveType"
-                />
-              </div>
+                  <div className="team-summary-filter-group">
+                    <Select
+                      value={summaryLeaveType}
+                      onChange={setSummaryLeaveType}
+                      options={[
+                        { value: 'all', label: 'All Types' },
+                        { value: 'annual', label: 'Annual Leave' },
+                        { value: 'sick', label: 'Sick Leave' },
+                        { value: 'compoff', label: 'Comp-Off' },
+                        { value: 'wfh', label: 'WFH' },
+                        { value: 'offshore', label: 'Offshore Work' },
+                        { value: 'weekend', label: 'Weekend Work' },
+                        { value: 'visa', label: 'Visa Purpose' },
+                        { value: 'paternity', label: 'Paternity' },
+                      ]}
+                      width="leaveType"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="team-summary-filter-group" style={{ display: 'flex', alignItems: 'center' }}>
                 <div className="team-summary-search-wrapper" style={{ minWidth: '220px' }}>

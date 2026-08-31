@@ -270,7 +270,7 @@
      the group-header row's own rendered height, so both rows stay stuck
      correctly when scrolling. */
   top: 37px;
-  z-index: 9;
+  z-index: 49;
 }
 
 .cp-data-table td {
@@ -1209,6 +1209,12 @@
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-tertiary);
+  border-right: none;
+  text-transform: none;
+  letter-spacing: normal;
+  position: static;
+  z-index: auto;
+  background-color: transparent;
 }
 
 .cp-sub-table th.text-center {

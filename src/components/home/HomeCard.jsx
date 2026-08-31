@@ -161,9 +161,11 @@ export function HomeCard({ card, className = '', style = {} }) {
     return null;
   };
 
+  const noMediaClass = (!hasVideo && !photoUrl) ? 'home-card-no-media' : '';
+
   return (
     <>
-      <article className={`home-card ${widthClass} ${isHtmlCard ? 'home-card-html-only' : ''} ${className}`} style={style}>
+      <article className={`home-card ${widthClass} ${isHtmlCard ? 'home-card-html-only' : ''} ${noMediaClass} ${className}`} style={style}>
         {/* Media Section — omitted entirely for Rich Text cards, and for
             Article/Content cards that never had an image or video uploaded
             (a text-only card shouldn't show an empty placeholder box; the
