@@ -30,154 +30,50 @@ import consultantService from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './RoleManagementPage.css';
 
-// Permission catalog — mirrors the codes seeded by
-// ARCO-API-TOSS-V.2/rbac/management/commands/seed_permissions.py. Every
-// role's `permissions` is a flat list of these codes (never the old nested
-// module/Allow-Deny matrix). Admin Panel access (Roles & Permissions, Leave
-// Policy Management, System Settings) is a separate `isAdmin` flag and has
-// no codes of its own here.
-const PERMISSION_CATALOG = [
-  {
-    module: 'Project Monitoring',
-    codes: [
-      { code: 'PROJECT_MONITORING_VIEW', label: 'View' },
-      { code: 'PROJECT_MONITORING_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    module: 'Environment Dashboard',
-    codes: [
-      { code: 'ENVIRONMENT_DASHBOARD_VIEW', label: 'View' },
-      { code: 'ENVIRONMENT_DASHBOARD_CREATE', label: 'Create' },
-      { code: 'ENVIRONMENT_DASHBOARD_EDIT', label: 'Edit' },
-      { code: 'ENVIRONMENT_DASHBOARD_DELETE', label: 'Delete' },
-      { code: 'ENVIRONMENT_DASHBOARD_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    module: 'Murex Runtime Trends',
-    codes: [
-      { code: 'MUREX_RUNTIME_VIEW', label: 'View' },
-      // Script Management tab (category CRUD) — a mutable sub-feature of
-      // this otherwise read-only screen, gated separately.
-      { code: 'MUREX_SCRIPT_CATEGORY_CREATE', label: 'Create Category' },
-      { code: 'MUREX_SCRIPT_CATEGORY_EDIT', label: 'Edit Category' },
-      { code: 'MUREX_SCRIPT_CATEGORY_DELETE', label: 'Delete Category' },
-    ],
-  },
-  {
-    module: 'EOD Management — Overview',
-    codes: [{ code: 'EOD_OVERVIEW_VIEW', label: 'View' }],
-  },
-  {
-    module: 'EOD Management — Configuration',
-    codes: [
-      { code: 'EOD_CONFIG_VIEW', label: 'View' },
-      { code: 'EOD_CONFIG_CREATE', label: 'Create' },
-      { code: 'EOD_CONFIG_EDIT', label: 'Edit' },
-      { code: 'EOD_CONFIG_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'EOD Management — Schedules',
-    codes: [
-      { code: 'EOD_SCHEDULE_VIEW', label: 'View' },
-      { code: 'EOD_SCHEDULE_CREATE', label: 'Create' },
-      { code: 'EOD_SCHEDULE_EDIT', label: 'Edit' },
-      { code: 'EOD_SCHEDULE_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'EOD Management — Control',
-    codes: [
-      { code: 'EOD_CONTROL_VIEW', label: 'View' },
-      // Start/Stop/Pause/Resume/Run-All are one merged code, not split
-      // further, per explicit direction.
-      { code: 'EOD_CONTROL_EXECUTE', label: 'Execute' },
-      { code: 'EOD_CONTROL_VIEW_LOGS', label: 'View Logs' },
-    ],
-  },
-  {
-    // Sidebar label is "Consultants" — matched here so admins can find it.
-    module: 'Consultants',
-    codes: [
-      { code: 'EMPLOYEE_VIEW', label: 'View' },
-      { code: 'EMPLOYEE_VIEW_INACTIVE', label: 'View Inactive Consultants' },
-      { code: 'EMPLOYEE_CREATE', label: 'Create' },
-      // Resetting another employee's password rides on this same code —
-      // no separate "Reset Password" permission.
-      { code: 'EMPLOYEE_EDIT', label: 'Edit (incl. Reset Password)' },
-      // Not a real delete — the action soft-toggles ACTIVE/INACTIVE status.
-      { code: 'EMPLOYEE_ACTIVATE_DEACTIVATE', label: 'Activate / Deactivate' },
-    ],
-  },
-  {
-    module: 'Consultants — Teams',
-    codes: [
-      { code: 'TEAMS_VIEW', label: 'View' },
-      { code: 'TEAMS_CREATE', label: 'Create' },
-      { code: 'TEAMS_EDIT', label: 'Edit' },
-      { code: 'TEAMS_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    // 4 sub-tabs are read-only views over the same team-calendar/quota
-    // data — no edit action exists on this screen.
-    module: 'Attendance',
-    codes: [
-      { code: 'ATTENDANCE_VIEW', label: 'View' },
-      { code: 'ATTENDANCE_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    // Summary/Team views are two display modes over one dataset — no
-    // create/edit action exists on this screen. CR/WO column mapping
-    // lives under Admin Panel > System Settings instead (is_admin).
-    module: 'Capacity Planning',
-    codes: [
-      { code: 'CAPACITY_PLANNING_VIEW', label: 'View' },
-      { code: 'CAPACITY_PLANNING_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    // Upload + Run Reconciliation are two halves of one stateless
-    // workflow (CREATE) — no DB persistence exists to "edit".
-    // Upload/Run and Export fold into View — anyone let onto this screen
-    // can use the whole stateless workflow by default.
-    module: 'Reconciliation',
-    codes: [{ code: 'RECONCILIATION_VIEW', label: 'View (incl. Upload/Run/Export)' }],
-  },
-  {
-    module: 'Important Links',
-    codes: [
-      { code: 'IMPORTANT_LINKS_VIEW', label: 'View' },
-      { code: 'IMPORTANT_LINKS_CREATE', label: 'Create' },
-      { code: 'IMPORTANT_LINKS_EDIT', label: 'Edit' },
-      { code: 'IMPORTANT_LINKS_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'Important Links — Groups',
-    codes: [
-      { code: 'IMPORTANT_LINKS_GROUP_CREATE', label: 'Create' },
-      { code: 'IMPORTANT_LINKS_GROUP_EDIT', label: 'Rename' },
-      { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
-      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
-      { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
-      { code: 'IMPORTANT_LINKS_GROUP_ACCESS_CONTROL', label: 'Manage Group Access' },
-    ],
-  },
-  {
-    module: 'Documents',
-    codes: [
-      { code: 'DOCUMENTS_VIEW', label: 'View (tree only)' },
-      { code: 'DOCUMENTS_CREATE', label: 'Create' },
-      { code: 'DOCUMENTS_EDIT', label: 'Edit' },
-      { code: 'DOCUMENTS_DELETE', label: 'Delete' },
-      { code: 'DOCUMENTS_DOWNLOAD', label: 'Download / View Content' },
-    ],
-  },
-];
+// Build a dynamic catalog from the user's available permissions
+function buildDynamicCatalog(permissionsArray = []) {
+  const catalogMap = {};
+
+  permissionsArray.forEach((permStr) => {
+    if (typeof permStr !== 'string') return;
+    const parts = permStr.split(':');
+    if (parts.length !== 2) return;
+
+    const [modRaw, actRaw] = parts;
+    const moduleName = modRaw
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const actionLabel = actRaw === 'read' ? 'View' : actRaw.charAt(0).toUpperCase() + actRaw.slice(1);
+
+    if (!catalogMap[moduleName]) {
+      catalogMap[moduleName] = { module: moduleName, codes: [] };
+    }
+
+    if (!catalogMap[moduleName].codes.find((c) => c.code === permStr)) {
+      catalogMap[moduleName].codes.push({
+        code: permStr,
+        label: actionLabel,
+      });
+    }
+  });
+
+  const catalog = Object.values(catalogMap).sort((a, b) => a.module.localeCompare(b.module));
+
+  catalog.forEach((m) => {
+    m.codes.sort((a, b) => {
+      const aIsView = a.label === 'View';
+      const bIsView = b.label === 'View';
+      if (aIsView && !bIsView) return -1;
+      if (!aIsView && bIsView) return 1;
+      return a.label.localeCompare(b.label);
+    });
+  });
+
+  return catalog;
+}
+
 
 // Count assigned permission codes
 const countPermissions = (codes) => (Array.isArray(codes) ? codes.length : 0);
@@ -205,7 +101,10 @@ const mapRole = (r) => {
 export function RoleManagementPage() {
   useDocumentTitle('Roles & Permissions - Admin Panel');
   const toast = useToast();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
+  
+  // Dynamically compute catalog based on current user's permissions
+  const PERMISSION_CATALOG = useMemo(() => buildDynamicCatalog(user?.permissions || []), [user?.permissions]);
   const [roles, setRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

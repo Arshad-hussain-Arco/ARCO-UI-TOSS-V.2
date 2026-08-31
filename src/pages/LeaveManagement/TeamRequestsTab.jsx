@@ -525,7 +525,7 @@ export function TeamRequestsTab({ getPhoto }) {
       setSdlYear((y) => y + 1);
     } else setSdlMonth((m) => m + 1);
   }
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     let list = mergedRequests;
     const q = debouncedSearch.toLowerCase().trim();
     if (q)
@@ -535,18 +535,32 @@ export function TeamRequestsTab({ getPhoto }) {
           r.employeeId.toLowerCase().includes(q) ||
           r.id.toLowerCase().includes(q),
       );
+    if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
+    else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
+    if (leaveTypeF !== 'all') {
+      const qLower = leaveTypeF.toLowerCase().trim();
+      list = list.filter(
+        (r) =>
+          (r.leaveType ?? '').toLowerCase().trim() === qLower ||
+          (r.type === 'offshore' && qLower === 'offshore work'),
+      );
+    }
+    return list;
+  }, [mergedRequests, debouncedSearch, typeF, leaveTypeF]);
+
+  const statusCounts = useMemo(() => ({
+    all: baseFiltered.length,
+    pending: baseFiltered.filter((r) => r.status === 'pending').length,
+    approved: baseFiltered.filter((r) => r.status === 'approved').length,
+    rejected: baseFiltered.filter((r) => r.status === 'rejected' || r.status === 'self_rejected').length,
+  }), [baseFiltered]);
+
+  const filtered = useMemo(() => {
+    let list = baseFiltered;
     if (statusF !== 'all') {
       if (statusF === 'rejected') list = list.filter((r) => r.status === 'rejected' || r.status === 'self_rejected');
       else list = list.filter((r) => r.status === statusF);
     }
-    if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
-    else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
-    if (leaveTypeF !== 'all')
-      list = list.filter(
-        (r) =>
-          (r.leaveType ?? '') === leaveTypeF ||
-          (r.type === 'offshore' && leaveTypeF === 'Offshore Work'),
-      );
     return [...list].sort((a, b) => {
       if (tableSortField) {
         let aVal = a[tableSortField];
@@ -565,7 +579,7 @@ export function TeamRequestsTab({ getPhoto }) {
       if (sortBy === 'endDate') return a.endDate.localeCompare(b.endDate);
       return b.requestedOn.localeCompare(a.requestedOn);
     });
-  }, [requests, debouncedSearch, statusF, typeF, leaveTypeF, sortBy, tableSortField, tableSortOrder]);
+  }, [baseFiltered, statusF, sortBy, tableSortField, tableSortOrder]);
 
   const handleTableSort = (field) => {
     if (tableSortField === field) {
@@ -798,7 +812,7 @@ export function TeamRequestsTab({ getPhoto }) {
           data-active={innerTab === 'all'}
           onClick={() => setInnerTab('all')}
         >
-          All Requests<span className="tr-subtab-badge">{isLoading ? 0 : counts.all}</span>
+          All Requests<span className="tr-subtab-badge">{isLoading ? 0 : statusCounts.all}</span>
         </button>
         <button
           className="tr-subtab"
@@ -943,10 +957,10 @@ export function TeamRequestsTab({ getPhoto }) {
           {/* Status pills */}
           <div className="tr-chip-bar">
             {[
-              { key: 'all', label: 'All', count: counts.all },
-              { key: 'pending', label: 'Pending', count: counts.pending },
-              { key: 'approved', label: 'Approved', count: counts.approved },
-              { key: 'rejected', label: 'Rejected', count: counts.rejected },
+              { key: 'all', label: 'All', count: statusCounts.all },
+              { key: 'pending', label: 'Pending', count: statusCounts.pending },
+              { key: 'approved', label: 'Approved', count: statusCounts.approved },
+              { key: 'rejected', label: 'Rejected', count: statusCounts.rejected },
             ].map((c) => (
               <button
                 key={c.key}

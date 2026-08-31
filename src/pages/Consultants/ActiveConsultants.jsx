@@ -114,10 +114,10 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   return (
     <>
       <ConsultantsStats
-        total={totalConsultants}
-        active={activeConsultantsCount}
-        teams={teamsData?.length ?? filteredTeamsCount}
-        designations={designationsData?.length ?? filteredDesignationsCount}
+        total={filtered.length}
+        active={filtered.length}
+        teams={filteredTeamsCount}
+        designations={filteredDesignationsCount}
       />
       <div className="consultants-filter-panel-sticky">
         <div className="consultants-filter-row">

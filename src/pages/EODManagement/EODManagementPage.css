@@ -761,6 +761,13 @@
   table-layout: auto;  /* override fixed so cols auto-size */
 }
 
+.eod-tl-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 /* ── Modal overlay & container ───────────────────────────────── */
 .eod-modal-overlay {
   position: fixed;

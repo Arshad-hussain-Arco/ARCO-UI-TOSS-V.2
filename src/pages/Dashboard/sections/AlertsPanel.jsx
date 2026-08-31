@@ -171,6 +171,7 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
                   fontSize: '11px',
                   minHeight: '48px',
                   boxSizing: 'border-box',
+                  flexShrink: 0,
                   transition: 'all 0.15s ease',
                   cursor: 'default',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
