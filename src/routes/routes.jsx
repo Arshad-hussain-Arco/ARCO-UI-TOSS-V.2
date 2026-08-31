@@ -9,6 +9,7 @@ import { ROUTES } from '@constants/routes';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
 import { RequirePermission } from './RequirePermission';
+import { RootRoute } from './RootRoute';
 import { lazyPage } from './lazyPage';
 
 /* ── Pages ────────────────────────────────────────────────────────────────────
@@ -105,7 +106,7 @@ export const routes = [
   { path: ROUTES.DOCUMENTS_USER_GUIDE, element: <DocumentsUserGuidePage /> },
   {
     path: ROUTES.ROOT,
-    element: <Navigate to={ROUTES.DASHBOARD} replace />,
+    element: <RootRoute />,
   },
 
   // ── Public ────────────────────────────────────────────────────────────────

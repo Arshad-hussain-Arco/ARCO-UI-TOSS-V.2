@@ -7,6 +7,10 @@ const resolvePath = (relative) => fileURLToPath(new URL(relative, import.meta.ur
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    'import.meta.env.VITE_APP_START_TIME': JSON.stringify(Date.now().toString()),
+  },
+
 
   resolve: {
     alias: {

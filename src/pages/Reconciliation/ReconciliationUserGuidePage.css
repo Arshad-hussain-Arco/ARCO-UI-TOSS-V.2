@@ -132,7 +132,7 @@ code {
   margin: 24px 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .ru-math-label {
@@ -148,7 +148,7 @@ code {
 
 .ru-math-numerator {
   padding: 4px 8px;
-  border-bottom: 2px solid var(--bg-secondary);
+  border-bottom: 2px solid var(--text-primary);
   width: 100%;
 }
 
