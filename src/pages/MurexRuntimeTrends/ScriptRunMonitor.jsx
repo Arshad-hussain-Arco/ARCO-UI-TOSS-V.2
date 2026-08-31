@@ -329,7 +329,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     { label: 'Trend (slope)', value: `${slope >= 0 ? '+' : ''}${slope.toFixed(0)} s/run`, foot: slope >= 0 ? 'slowing down' : 'speeding up', cls: slope >= 0 ? 'up' : 'down' },
     { label: 'Std deviation', value: fmtSec(sd), foot: 'run-to-run spread' },
     { label: 'Runs logged', value: n, foot: `${history[0]?.date || 'N/A'}` },
-    { label: 'Bottleneck step', value: stepAggregation.bottleneckIdx >= 0 ? stepAggregation.names[stepAggregation.bottleneckIdx]?.replace(/Step \d\/\d\s?/, '') : 'N/A', foot: stepAggregation.bottleneckIdx >= 0 ? `${fmtSec(stepAggregation.avgElapsed[stepAggregation.bottleneckIdx])} avg` : '', cls: 'up' },
+    { label: 'Bottleneck step', value: stepAggregation.bottleneckIdx >= 0 ? stepAggregation.names[stepAggregation.bottleneckIdx]?.replace(/Step \d+\/\d+\s?/, '') : 'N/A', foot: stepAggregation.bottleneckIdx >= 0 ? `${fmtSec(stepAggregation.avgElapsed[stepAggregation.bottleneckIdx])} avg` : '', cls: 'up' },
     { label: 'DB vs CPU time', value: `${stepAggregation.dbShare.toFixed(0)}% DB`, foot: 'of total compute+db time' }
   ];
 
@@ -384,7 +384,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
   };
 
   const stepShareChartData = {
-    labels: stepAggregation.names.map(s => s.replace(/Step \d\/\d\s?/, '')),
+    labels: stepAggregation.names.map(s => s.replace(/Step \d+\/\d+\s?/, '')),
     datasets: [{
       data: stepAggregation.avgElapsed,
       backgroundColor: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7', '#e34948']
@@ -467,13 +467,13 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                   return (
                     <div className="gantt-row" key={i}>
                       <div className="step-name">
-                        <div>{i + 1}. {name.replace(/Step \d\/\d\s?/, '')}</div>
+                        <div>{i + 1}. {name.replace(/Step \d+\/\d+\s?/, '')}</div>
                         {isBottleneck && <div className="bottleneck-tag">SLOWEST</div>}
                       </div>
                       <div className="step-track">
                         <div className="step-seg" style={{ left: 0, width: `${(widthPct * idlePct) / 100}%`, background: '#CBD5E1' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#CBD5E1' }}></span>
                               Idle / Wait: {fmtSec(stepAggregation.avgIdle[i] || 0)}
@@ -482,7 +482,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         </div>
                         <div className="step-seg" style={{ left: `${(widthPct * idlePct) / 100}%`, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#B5790C' }}></span>
                               CPU time: {fmtSec(stepAggregation.avgCpu[i] || 0)}
@@ -491,7 +491,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         </div>
                         <div className="step-seg" style={{ left: `${(widthPct * (idlePct + cpuPct)) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#0F6E56' }}></span>
                               DB time: {fmtSec(stepAggregation.avgDb[i] || 0)}
