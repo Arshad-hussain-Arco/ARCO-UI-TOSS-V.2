@@ -57,14 +57,16 @@ export function ControlSection() {
           </button>
           {canExecute && (
             <button
+              type="button"
               className="eod-add-btn"
-              onClick={() =>
-                controlsEnvs.forEach((e) => {
-                  if (e.status !== 'running' && e.status !== 'paused') {
-                    handleStartEOD(e.id);
-                  }
-                })
-              }
+              onClick={() => {
+                const idleEnvs = controlsEnvs.filter(
+                  (e) => e.isActive !== false && e.status !== 'running' && e.status !== 'paused'
+                );
+                idleEnvs.forEach((e) => {
+                  handleStartEOD(e.id);
+                });
+              }}
             >
               <Play size={11} /> Run All Idle
             </button>

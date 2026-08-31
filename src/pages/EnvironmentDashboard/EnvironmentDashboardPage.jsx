@@ -366,22 +366,22 @@ export function EnvironmentDashboardPage() {
 
         <div className="env-accordion-content">
           {/* Config Filter / Actions Bar */}
-          <div className="env-toolbar">
-            <div className="env-toolbar-search">
-              <Search className="env-search-icon" size={14} />
-              <input
-                type="text"
-                placeholder="Search configurations..."
-                className="env-search-input"
-                value={configSearchQuery}
-                onChange={(e) => setConfigSearchQuery(e.target.value)}
-              />
-            </div>
+          <div className="env-toolbar" style={{ justifyContent: 'flex-end' }}>
             <div className="env-toolbar-actions">
+              <div className="env-toolbar-search" style={{ width: '320px' }}>
+                <Search className="env-search-icon" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search configurations..."
+                  className="env-search-input"
+                  value={configSearchQuery}
+                  onChange={(e) => setConfigSearchQuery(e.target.value)}
+                />
+              </div>
               {canCreate && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="primary"
+                  style={{ height: '32px', padding: '0 8px', borderRadius: '5px' }}
                   leadingIcon={FileUp}
                   onClick={() => {
                     setAddForm({ featureType: '', fileName: '', storageLocation: '' });
@@ -502,11 +502,8 @@ export function EnvironmentDashboardPage() {
           <div className="env-accordion-header-left">
             <Server size={14} />
             <span>Environment Details</span>
-          </div>
-
-          <div className="env-accordion-header-center">
             {/* Native text input & button stop click propagation cleanly without ESLint errors */}
-            <div className="env-details-path-container">
+            <div className="env-details-path-container" style={{ marginLeft: '16px' }}>
               <span className="env-details-path-label">Murex NPR Clients Location:</span>
               <input
                 type="text"

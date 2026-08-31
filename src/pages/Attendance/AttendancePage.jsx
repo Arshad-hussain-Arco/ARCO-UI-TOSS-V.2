@@ -1323,7 +1323,7 @@ export function AttendancePage() {
             {filteredOnWfhList.length === 0 && (
               <div className="attendance-empty">
                 <Home size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on WFH/Offshore Work today</p>
+                <p className="attendance-empty-text">No consultants on Remote / Other Present today</p>
               </div>
             )}
           </div>
