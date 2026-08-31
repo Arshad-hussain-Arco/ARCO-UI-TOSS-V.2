@@ -158,7 +158,7 @@ export const murexService = {
           title: runTitle,
           isOutlier: runStatus === 'error',
         };
-      }).reverse();
+      });
       
       // Calculate Trend according to provided logic
       let calculatedTrend = { direction: 'stable', percentage: 0 };
