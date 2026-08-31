@@ -2,13 +2,7 @@ import React, { memo, useState, useEffect } from 'react';
 import { 
   Bell, 
   X, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Calendar, 
-  BarChart3, 
-  TrendingUp, 
-  ShieldAlert, 
-  ArrowUpRight 
+  AlertTriangle 
 } from 'lucide-react';
 import { dashboardService } from '@services/dashboardService';
 
@@ -17,7 +11,6 @@ import { dashboardService } from '@services/dashboardService';
  */
 function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
   const [alerts, setAlerts] = useState([]);
-  const [showAllInsights, setShowAllInsights] = useState(false);
 
   useEffect(() => {
     const formatted = initialAlerts.map(a => ({
@@ -53,19 +46,6 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
       }
     }
   };
-
-  // Workforce Insights mock data (supports future API easily by replacing this array with a state variable)
-  const insights = [
-    { id: 'in1', text: 'Team availability falls below 70% on Friday.', severity: 'warning', icon: AlertTriangle, color: 'var(--c-warning)', badge: 'Warning' },
-    { id: 'in2', text: 'Three employees from the Development team are on leave next Monday.', severity: 'warning', icon: AlertTriangle, color: 'var(--c-warning)', badge: 'Warning' },
-    { id: 'in3', text: 'Five team members are scheduled to be on leave this week.', severity: 'info', icon: Calendar, color: 'var(--c-info)', badge: 'Info' },
-    { id: 'in4', text: 'Two leave requests have been pending approval for more than two days.', severity: 'critical', icon: ShieldAlert, color: 'var(--c-danger)', badge: 'Critical' },
-    { id: 'in5', text: 'Development department currently has the lowest availability.', severity: 'info', icon: BarChart3, color: 'var(--c-info)', badge: 'Info' },
-    { id: 'in6', text: 'Overall team availability this week is 92%.', severity: 'success', icon: CheckCircle2, color: 'var(--c-success)', badge: 'Good' },
-    { id: 'in7', text: 'No overlapping leaves in the QA team this week.', severity: 'success', icon: CheckCircle2, color: 'var(--c-success)', badge: 'Good' }
-  ];
-
-  const visibleInsights = showAllInsights ? insights : insights.slice(0, 4);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -124,102 +104,6 @@ function AlertsPanelComponent({ alerts: initialAlerts = [] }) {
           </div>
         </section>
       )}
-
-      {/* SECTION 2: Key Insights (Insights feed) */}
-      <section style={{ padding: '14px 14px 4px 14px', borderBottom: '1px solid var(--border-primary)' }} aria-label="Key Insights">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
-          <TrendingUp size={13} style={{ color: 'var(--c-primary)' }} />
-          <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Key Insights
-          </h2>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
-          {visibleInsights.map((insight) => {
-            const Icon = insight.icon;
-            
-            // Map colors based on severity
-            let statusColor = 'var(--c-info)'; // Blue for Info
-            let badgeBg = '#eff6ff';
-            let badgeColor = '#1e40af';
-            if (insight.severity === 'warning') {
-              statusColor = 'var(--c-warning)';
-              badgeBg = '#fef3c7';
-              badgeColor = '#92400e';
-            } else if (insight.severity === 'critical') {
-              statusColor = 'var(--c-danger)';
-              badgeBg = 'var(--c-danger-light)';
-              badgeColor = 'var(--c-danger)';
-            } else if (insight.severity === 'success') {
-              statusColor = 'var(--c-success)';
-              badgeBg = '#d1fae5';
-              badgeColor = '#065f46';
-            }
-
-            return (
-              <div 
-                key={insight.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '8px 12px',
-                  background: 'var(--bg-secondary, #F8FAFC)',
-                  border: '1px solid var(--border-primary)',
-                  borderLeft: `3px solid ${statusColor}`,
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  minHeight: '48px',
-                  boxSizing: 'border-box',
-                  flexShrink: 0,
-                  transition: 'all 0.15s ease',
-                  cursor: 'default',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-                }}
-                className="dc-insight-row-hover"
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: statusColor, flexShrink: 0 }}>
-                  <Icon size={13} />
-                </div>
-                <span 
-                  style={{ 
-                    flex: 1, 
-                    color: 'var(--text-primary)', 
-                    fontWeight: 500, 
-                    lineHeight: 1.35,
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word'
-                  }}
-                  title={insight.text}
-                >
-                  {insight.text}
-                </span>
-                <span className={`dc-alert-badge dc-alert-badge-${insight.severity}`}>
-                  {insight.badge}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* View All Insights toggle */}
-        <div style={{ marginTop: '8px', textAlign: 'center' }}>
-          <button
-            onClick={() => setShowAllInsights(!showAllInsights)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--c-primary)',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '2px 8px 10px 8px'
-            }}
-          >
-            {showAllInsights ? 'View Fewer' : 'View All Insights'}
-          </button>
-        </div>
-      </section>
 
     </div>
   );

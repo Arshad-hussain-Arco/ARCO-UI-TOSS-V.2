@@ -218,7 +218,7 @@ function TeamLeaveSummary({ getPhoto }) {
       }
     };
     fetchSummary();
-  }, [user?.emp_id, summaryTimePeriod]);
+  }, [user?.emp_id]);
 
   const mergedDepartmentData = useMemo(() => {
     if (!getPhoto) return departmentData;

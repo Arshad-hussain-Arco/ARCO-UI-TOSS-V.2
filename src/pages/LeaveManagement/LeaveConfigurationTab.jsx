@@ -371,26 +371,22 @@ export function LeaveConfigurationTab({ getPhoto }) {
           <td className="text-center">
             {isEditing ? (
               <div className="lc-inline-inputs">
-                <input type="number" className="lc-inline-num-input" value={editForm.carryOverBalance} onChange={(e) => setEditForm({ ...editForm, carryOverBalance: e.target.value })} />
-                <span className="lc-inline-slash">/</span>
-                <input type="number" className="lc-inline-num-input" value={editForm.carryOverLimit} onChange={(e) => setEditForm({ ...editForm, carryOverLimit: e.target.value })} />
+                <input type="number" className="lc-inline-num-input single" value={editForm.carryOverBalance} onChange={(e) => setEditForm({ ...editForm, carryOverBalance: e.target.value })} />
                 <span className="lc-inline-unit">d</span>
               </div>
             ) : (
-              <span className="lc-plain-val">{emp.carryOver.balance}d / {emp.carryOver.limit}d</span>
+              <span className="lc-plain-val">{emp.carryOver.balance}d</span>
             )}
           </td>
 
           <td className="text-center">
             {isEditing ? (
               <div className="lc-inline-inputs">
-                <input type="number" className="lc-inline-num-input" value={editForm.sickLeaveBalance} onChange={(e) => setEditForm({ ...editForm, sickLeaveBalance: e.target.value })} />
-                <span className="lc-inline-slash">/</span>
-                <input type="number" className="lc-inline-num-input" value={editForm.sickLeaveMaxQuota} onChange={(e) => setEditForm({ ...editForm, sickLeaveMaxQuota: e.target.value })} />
+                <input type="number" className="lc-inline-num-input single" value={editForm.sickLeaveBalance} onChange={(e) => setEditForm({ ...editForm, sickLeaveBalance: e.target.value })} />
                 <span className="lc-inline-unit">d</span>
               </div>
             ) : (
-              <span className="lc-plain-val">{emp.sickLeave.balance}d / {emp.sickLeave.maxQuota}d</span>
+              <span className="lc-plain-val">{emp.sickLeave.balance}d</span>
             )}
           </td>
 
@@ -409,10 +405,10 @@ export function LeaveConfigurationTab({ getPhoto }) {
             {isEditing ? (
               <div className="lc-inline-inputs">
                 <input type="number" className="lc-inline-num-input single" value={editForm.weekendWorkBalance} onChange={(e) => setEditForm({ ...editForm, weekendWorkBalance: e.target.value })} />
-                <span className="lc-inline-unit">cr</span>
+                <span className="lc-inline-unit">d</span>
               </div>
             ) : (
-              <span className="lc-plain-val">{emp.weekendWork.balance} cr</span>
+              <span className="lc-plain-val">{emp.weekendWork.balance}d</span>
             )}
           </td>
 
