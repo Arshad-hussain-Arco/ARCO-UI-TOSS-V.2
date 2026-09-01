@@ -1,27 +1,27 @@
 /* c:\Users\MohammadRiyazShaik\Desktop\Arco-Github\ARCO-UI-TOSS-V.2\src\pages\Home\HomePage.css */
 
 .home-dashboard-container {
-  padding: 16px;
+  padding: 32px 40px;
   min-height: calc(100vh - 64px);
-  background: var(--bg-primary);
-  animation: fadeIn 0.4s ease-out;
+  background: var(--bg-secondary, #f8fafc);
+  animation: fadeIn 0.5s ease-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .home-dashboard-header {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 
 .home-dashboard-title {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: var(--text-primary);
   margin: 0 0 8px 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -1px;
 }
 
 .home-dashboard-subtitle {
@@ -81,7 +81,7 @@
      into horizontal scroll instead of wrapping/clipping inside the card. */
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 .home-card-grid-item {
