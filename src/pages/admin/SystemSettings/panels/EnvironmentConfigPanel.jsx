@@ -131,7 +131,7 @@ function EnvironmentConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.clientDirectory}
-              placeholder="/upload/csvfiles/oss/"
+              placeholder="/path/to/client-directory"
               onChange={(e) => handleChange('clientDirectory', e.target.value)}
             />
           </div>
@@ -146,7 +146,7 @@ function EnvironmentConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.ImpLinksPath}
-              placeholder="/upload/CABCalendar"
+              placeholder="/path/to/important-links"
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
             />
           </div>
@@ -161,7 +161,7 @@ function EnvironmentConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.documentfilePath}
-              placeholder="/upload/Documents"
+              placeholder="/path/to/documents"
               onChange={(e) => handleChange('documentfilePath', e.target.value)}
             />
           </div>
@@ -176,7 +176,7 @@ function EnvironmentConfigPanelComponent() {
               type="number"
               className="ss-input"
               value={formData.systemHealthHeartbeat}
-              placeholder="20"
+              placeholder="Enter Health Heartbeat"
               onChange={(e) => handleChange('systemHealthHeartbeat', e.target.value)}
             />
           </div>
@@ -191,7 +191,7 @@ function EnvironmentConfigPanelComponent() {
               type="number"
               className="ss-input"
               value={formData.eodHeartbeatInterval}
-              placeholder="60"
+              placeholder="Enter Heartbeat Interval"
               onChange={(e) => handleChange('eodHeartbeatInterval', e.target.value)}
             />
           </div>
@@ -206,7 +206,7 @@ function EnvironmentConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.envConfigServerIp}
-              placeholder="192.168.0.98"
+              placeholder="Enter Server IP"
               onChange={(e) => handleChange('envConfigServerIp', e.target.value)}
             />
           </div>
@@ -221,7 +221,7 @@ function EnvironmentConfigPanelComponent() {
               type="number"
               className="ss-input"
               value={formData.envConfigPort}
-              placeholder="22"
+              placeholder="Enter Port No."
               onChange={(e) => handleChange('envConfigPort', e.target.value)}
             />
           </div>
@@ -236,7 +236,7 @@ function EnvironmentConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.envConfigUsername}
-              placeholder="sourcesftp"
+              placeholder="Enter Username"
               onChange={(e) => handleChange('envConfigUsername', e.target.value)}
             />
           </div>
@@ -252,6 +252,7 @@ function EnvironmentConfigPanelComponent() {
                 type={showPassword ? 'text' : 'password'}
                 className="ss-input with-right-icon"
                 value={formData.envConfigPassword}
+                placeholder="Enter Password"
                 onChange={(e) => handleChange('envConfigPassword', e.target.value)}
               />
               <button
