@@ -251,6 +251,7 @@ function ImportConfigPanelComponent() {
                   className="ss-input"
                   style={{ width: '100%' }}
                   value={formData.workOrderStatusFilePath}
+                  placeholder="/path/to/wo-file"
                   onChange={(e) => handleChange('workOrderStatusFilePath', e.target.value)}
                 />
               </div>
@@ -329,6 +330,7 @@ function ImportConfigPanelComponent() {
                   className="ss-input"
                   style={{ width: '100%' }}
                   value={formData.changeRequestFilePath}
+                  placeholder="/path/to/cr-file"
                   onChange={(e) => handleChange('changeRequestFilePath', e.target.value)}
                 />
               </div>
@@ -407,6 +409,7 @@ function ImportConfigPanelComponent() {
                   className="ss-input"
                   style={{ width: '100%' }}
                   value={formData.runTimeFilePath}
+                  placeholder="/path/to/runtime-trends-file"
                   onChange={(e) => handleChange('runTimeFilePath', e.target.value)}
                 />
               </div>
@@ -455,6 +458,7 @@ function ImportConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.ImpLinksPath}
+              placeholder="/path/to/important-links"
               onChange={(e) => handleChange('ImpLinksPath', e.target.value)}
             />
           </div>
@@ -469,6 +473,7 @@ function ImportConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.changeRequestServerIp}
+              placeholder="Enter Server IP"
               onChange={(e) => handleChange('changeRequestServerIp', e.target.value)}
             />
           </div>
@@ -483,6 +488,7 @@ function ImportConfigPanelComponent() {
               type="number"
               className="ss-input"
               value={formData.changeRequestPort}
+              placeholder="Enter Port No."
               onChange={(e) => handleChange('changeRequestPort', e.target.value)}
             />
           </div>
@@ -497,6 +503,7 @@ function ImportConfigPanelComponent() {
               type="text"
               className="ss-input"
               value={formData.changeRequestUsername}
+              placeholder="Enter Username"
               onChange={(e) => handleChange('changeRequestUsername', e.target.value)}
             />
           </div>
@@ -512,6 +519,7 @@ function ImportConfigPanelComponent() {
                 type={showPassword ? 'text' : 'password'}
                 className="ss-input with-right-icon"
                 value={formData.changeRequestPassword}
+                placeholder="Enter Password"
                 onChange={(e) => handleChange('changeRequestPassword', e.target.value)}
               />
               <button

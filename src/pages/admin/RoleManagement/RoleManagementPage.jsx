@@ -77,10 +77,25 @@ function buildPermissionCatalog(rows) {
     if (!byModule.has(module)) byModule.set(module, []);
     byModule.get(module).push({ code, label: description || code });
   });
-  return Array.from(byModule.entries()).map(([module, codes]) => ({
+
+  const orderedKeys = Object.keys(MODULE_LABELS);
+
+  const catalog = Array.from(byModule.entries()).map(([module, codes]) => ({
+    originalModule: module,
     module: formatModuleLabel(module),
     codes,
   }));
+
+  catalog.sort((a, b) => {
+    let indexA = orderedKeys.indexOf(a.originalModule);
+    let indexB = orderedKeys.indexOf(b.originalModule);
+    if (indexA === -1) indexA = 999;
+    if (indexB === -1) indexB = 999;
+    if (indexA === indexB) return a.originalModule.localeCompare(b.originalModule);
+    return indexA - indexB;
+  });
+
+  return catalog;
 }
 
 // Count assigned permission codes
@@ -649,15 +664,13 @@ export function RoleManagementPage() {
                                 const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                                 const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
 
-                                // Modules with no dedicated View code (e.g. Important Links —
-                                // Groups) have no real "master gate" — each permission stays
-                                // independently toggleable, and the master switch is just a
-                                // bulk allow-all/deny-all shortcut: it reads "on" as long as any
-                                // code is allowed, and only reads "off" once every code is denied.
                                 const isViewAllowed = viewCodeObj
                                   ? role.permissions.includes(viewCodeObj.code)
                                   : codes.some(c => role.permissions.includes(c.code));
-                                const gatesSiblings = !!viewCodeObj;
+                                
+                                // Force sibling gating for all modules so that turning off the toggle 
+                                // visually disables (greys out) the permission buttons.
+                                const gatesSiblings = true;
 
                                 const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -941,7 +954,10 @@ export function RoleManagementPage() {
                       const isViewAllowed = viewCodeObj
                         ? newRoleCodes.includes(viewCodeObj.code)
                         : codes.some(c => newRoleCodes.includes(c.code));
-                      const gatesSiblings = !!viewCodeObj;
+                      
+                      // Force sibling gating for all modules so that turning off the toggle 
+                      // visually disables (greys out) the permission buttons.
+                      const gatesSiblings = true;
 
                       const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
