@@ -1118,12 +1118,10 @@
   width: 130px;
   min-width: 130px;
   padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: left;
   font-size: 12px;
   border-right: 1px solid var(--border-primary);
-  color: var(--text-primary);
+  color:  var(--c-success);
 }
 
 .rrs-tr:hover .rrs-td-key {
