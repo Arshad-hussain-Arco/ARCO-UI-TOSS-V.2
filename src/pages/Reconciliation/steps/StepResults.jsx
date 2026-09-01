@@ -5,6 +5,7 @@ import { ROUTES } from '@constants/routes';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 function Pagination({ page, pages, onPageChange }) {
   if (!pages || pages <= 1) return null;
@@ -140,6 +141,67 @@ const renderValue = (val) => {
   return String(val);
 };
 
+function SimpleTooltip({ visible, title, targetRect }) {
+  if (!visible || !targetRect) return null;
+  
+  // Position to the right of the cell, vertically centered with the cell
+  const x = targetRect.right + 10;
+  const y = targetRect.top + (targetRect.height / 2);
+  
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: x,
+        top: y,
+        transform: 'translateY(-50%)',
+        zIndex: 10050,
+        background: 'var(--text-primary)',
+        color: 'var(--surface-primary)',
+        padding: '8px 12px',
+        borderRadius: '6px',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+        maxWidth: '300px',
+        fontSize: '11px',
+        lineHeight: '1.4',
+        pointerEvents: 'none',
+        wordWrap: 'break-word',
+        whiteSpace: 'normal',
+        fontFamily: 'monospace',
+      }}
+    >
+      {title}
+    </div>,
+    document.body
+  );
+}
+
+function TooltipKeyCell({ value, className = '' }) {
+  const [activeTooltip, setActiveTooltip] = useState(null);
+
+  return (
+    <>
+      <td
+        className={`rrs-td rrs-td-key ${className}`.trim()}
+        onMouseEnter={(e) => {
+          setActiveTooltip({
+            title: value,
+            targetRect: e.currentTarget.getBoundingClientRect(),
+          });
+        }}
+        onMouseLeave={() => setActiveTooltip(null)}
+      >
+        {value}
+      </td>
+      <SimpleTooltip
+        visible={!!activeTooltip}
+        title={activeTooltip?.title}
+        targetRect={activeTooltip?.targetRect}
+      />
+    </>
+  );
+}
+
 function MatchedTable({ rows, mappings, file1Name, file2Name }) {
   if (!rows.length) return <div className="rrs-empty">No matched records.</div>;
   const cols = mappings.map((m) => m.src);
@@ -164,7 +226,7 @@ function MatchedTable({ rows, mappings, file1Name, file2Name }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="rrs-tr">
-              <td className="rrs-td rrs-td-key">{renderValue(row._key)}</td>
+              <TooltipKeyCell value={renderValue(row._key)} />
               {cols.map((c) => (
                 <td key={c} className="rrs-td">
                   {renderValue(row[`_src_${c}`])}
@@ -327,7 +389,7 @@ function MismatchedTable({ rows, mappings, file1Name, file2Name }) {
                     onMouseEnter={() => setHoveredRow(i)}
                     onMouseLeave={() => setHoveredRow(null)}
                   >
-                    <td className="rrs-td rrs-td-key rrs-td-key--green">{renderValue(row._key)}</td>
+                    <TooltipKeyCell value={renderValue(row._key)} className="rrs-td-key--green" />
                     {cols.map((c) => (
                       <td key={`src_${c}`} className="rrs-td">
                         {hasDiff(row, c) ? (
@@ -508,7 +570,7 @@ function MissingTable({ rows, mappings, isSource }) {
             const data = r.row || r;
             return (
               <tr key={i} className="rrs-tr rrs-tr--missing">
-                <td className="rrs-td rrs-td-key">{renderValue(r._key)}</td>
+                <TooltipKeyCell value={renderValue(r._key)} />
                 {cols.map((c) => (
                   <td key={c} className="rrs-td">
                     {renderValue(data[c])}
@@ -554,7 +616,7 @@ function DuplicateTable({ rows, mappings, isSource }) {
             const data = r.row || r;
             return (
               <tr key={i} className="rrs-tr rrs-tr--duplicate">
-                <td className="rrs-td rrs-td-key">{renderValue(r._key)}</td>
+                <TooltipKeyCell value={renderValue(r._key)} />
                 <td className="rrs-td">
                   <span className="rrs-dup-badge">
                     {r.duplicateCount || r._count || data.duplicateCount || 1}
