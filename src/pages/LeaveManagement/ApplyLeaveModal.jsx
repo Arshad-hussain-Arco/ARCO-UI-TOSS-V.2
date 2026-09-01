@@ -22,10 +22,6 @@ import {
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { calculateLeaveDuration } from '@utils/leaveCalculations';
-import {
-  CURRENT_EMPLOYEE as SELF,
-  EXISTING_LEAVES,
-} from '@mocks/data/leaveApplication';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 
 import './ApplyLeaveModal.css';
@@ -136,12 +132,12 @@ function countHols(s, e, dayMap) {
 function countWknd(s, e, dayMap) {
   return eachDay(s, e).filter((d) => isRealWeekend(d, dayMap)).length;
 }
-function existingLeaveStatus(d) {
-  const s = dateStr(d);
-  for (const l of EXISTING_LEAVES) {
-    if (s >= l.start && s <= l.end) return l.status;
-  }
-  return null;
+// Existing-leave dot/highlight status for a day, sourced from the real
+// per-day calendar data (own_request) rather than a mock list.
+function existingLeaveStatus(d, dayMap) {
+  const own = getOwnRequest(d, dayMap);
+  if (!own) return null;
+  return own.status === 'APPROVED' ? 'approved' : 'pending';
 }
 function initials(name) {
   return name
@@ -237,7 +233,7 @@ function InlineCalendar({
       const statusClass = own.status === 'APPROVED' ? 'approved' : 'pending';
       cls.push(`al-cal-day-own-${categoryClass}-${statusClass}`);
     }
-    const ex = existingLeaveStatus(d);
+    const ex = existingLeaveStatus(d, calendarDayMap);
     if (ex === 'approved') cls.push('al-cal-day-approved-leave');
     else if (ex === 'pending') cls.push('al-cal-day-pending-leave');
     const t = d.getTime();
@@ -333,10 +329,10 @@ function InlineCalendar({
                 {isRealHoliday(d, calendarDayMap) && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-info)' }} />
                 )}
-                {existingLeaveStatus(d) === 'approved' && (
+                {existingLeaveStatus(d, calendarDayMap) === 'approved' && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-success)' }} />
                 )}
-                {existingLeaveStatus(d) === 'pending' && (
+                {existingLeaveStatus(d, calendarDayMap) === 'pending' && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-warning)' }} />
                 )}
               </div>
@@ -670,6 +666,14 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     }
   }, [startDate, endDate]);
 
+  const SELF = {
+    id: 'self',
+    name: user?.name || '',
+    department: user?.department || '',
+    designation: user?.designationName || user?.designation || '',
+    manager: user?.reportingManager || '',
+    employeeId: user?.emp_id || '',
+  };
   const activeEmp = applyFor === 'behalf' && behalfEmp ? behalfEmp : SELF;
   const effectiveEmpId = applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id;
   const [eligibleTypes, setEligibleTypes] = useState([]);

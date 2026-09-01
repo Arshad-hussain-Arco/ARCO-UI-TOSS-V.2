@@ -6,7 +6,6 @@ import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { useToast } from '@hooks/useToast';
 import { reconciliationService } from '@services/reconciliationService';
-import { MOCK_FILE1_COLUMNS } from '@mocks/data/reconciliation';
 
 import { StepUpload } from './steps/StepUpload';
 import { StepSelectKeys } from './steps/StepSelectKeys';
@@ -179,9 +178,7 @@ export function ReconciliationPage() {
   const [files, setFiles] = useState([null, null]);
   const [processingFiles, setProcessingFiles] = useState([false, false]);
   const [keyColumns, setKeyColumns] = useState({ file1: [], file2: [] });
-  const [colMappings, setColMappings] = useState(() =>
-    buildInitialMappings(MOCK_FILE1_COLUMNS, []),
-  );
+  const [colMappings, setColMappings] = useState(() => buildInitialMappings([], []));
   const [results, setResults] = useState(null);
   const [isReconciling, setIsReconciling] = useState(false);
   const [reconcilePhase, setReconcilePhase] = useState(0);
@@ -338,7 +335,7 @@ export function ReconciliationPage() {
     setStep(1);
     setFiles([null, null]);
     setKeyColumns({ file1: [], file2: [] });
-    setColMappings(buildInitialMappings(MOCK_FILE1_COLUMNS, []));
+    setColMappings(buildInitialMappings([], []));
     setResults(null);
     setReconcileError(null);
   }, []);

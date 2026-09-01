@@ -961,8 +961,6 @@ export function MurexRuntimeTrendsPage() {
 
   const runtimeSummary = data?.summary;
   const runtimeTrendData = data?.trend ?? [];
-  const hourlyHeatmap = data?.hourlyHeatmap ?? [];
-  const monthlyHeatmap = data?.monthlyHeatmap ?? [];
 
   /**
    * Pinning is a client-side preference layered over the loaded scripts, so it

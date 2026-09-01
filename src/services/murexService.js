@@ -1,8 +1,5 @@
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
-import * as murexMocks from '@mocks/handlers/murexHandlers';
-import { clone } from '@utils/async';
-import { MUREX_HOURLY_HEATMAP, MUREX_MONTHLY_HEATMAP } from '@mocks/data/murex';
 import { shapeOverviewRuns } from '@pages/MurexRuntimeTrends/overviewApiTransform';
 
 const formatTime = (totalMinutes) => {
@@ -21,7 +18,6 @@ const formatTime = (totalMinutes) => {
 };
 
 export const murexService = {
-  ...murexMocks,
   getRuntimeTrends: async (timeRange = '7d') => {
     try {
       let paramStr = '';
@@ -106,27 +102,14 @@ export const murexService = {
         summary,
         trend: globalTrend,
         scripts,
-        hourlyHeatmap: clone(MUREX_HOURLY_HEATMAP),
-        monthlyHeatmap: clone(MUREX_MONTHLY_HEATMAP),
       };
     } catch (err) {
       console.error('Failed to fetch runtime trends:', err);
-      
-      // If the backend explicitly returned a 'No runs found' message (or any 404), do not fall back to mocks
-      const errorMessage = err.response?.data?.detail || '';
-      if (errorMessage.toLowerCase().includes('no runs found') || err.response?.status === 404) {
-        return {
-          summary: { min: '0s', max: '0s', avg: '0s', latest: 'N/A', trend: 0, outliers: 0 },
-          trend: [],
-          scripts: [],
-          hourlyHeatmap: [],
-          monthlyHeatmap: [],
-        };
-      }
-
-      // Fallback to mock data if API is not fully up or it's a completely different error
-      const mock = await murexMocks.getRuntimeTrends();
-      return mock;
+      return {
+        summary: { min: '0s', max: '0s', avg: '0s', latest: 'N/A', trend: 0, outliers: 0 },
+        trend: [],
+        scripts: [],
+      };
     }
   },
   fetchScriptTimeseries: async (scriptName) => {
@@ -239,7 +222,7 @@ export const murexService = {
       return res.data?.dates || [];
     } catch (err) {
       console.error('Failed to fetch overview available dates:', err);
-      return murexMocks.getOverviewAvailableDates();
+      return [];
     }
   },
   getOverviewTimeline: async (isoDate) => {
@@ -255,8 +238,7 @@ export const murexService = {
         return { matrixJobs: [], timelineList: [] };
       }
       console.error('Failed to fetch overview timeline:', err);
-      const mockRuns = await murexMocks.getOverviewRuns(isoDate);
-      return shapeOverviewRuns(mockRuns, isoDate);
+      return { matrixJobs: [], timelineList: [] };
     }
   },
   getCategories: async () => {
