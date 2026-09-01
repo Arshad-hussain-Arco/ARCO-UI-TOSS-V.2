@@ -145,11 +145,18 @@ export function HomeCard({ card, className = '', style = {} }) {
 
   const renderContent = () => {
     if (card.card_type === 'html_code' || rawHtml) {
+      // Clean up hardcoded black/dark-grey/blue colors from the WYSIWYG editor
+      // so the text dynamically adapts to dark mode.
+      const themeAdaptiveHtml = (rawHtml || '')
+        .replace(/color:\s*(rgb\(0,\s*0,\s*0\)|#000000|#000|black)\s*;?/gi, 'color: var(--adaptive-text);')
+        .replace(/color:\s*(rgb\(51,\s*51,\s*51\)|#333333|#333)\s*;?/gi, 'color: var(--adaptive-text-secondary);')
+        .replace(/color:\s*(rgb\(17,\s*85,\s*204\)|rgb\(0,\s*0,\s*255\)|#0000ff|#1155cc|blue)\s*;?/gi, 'color: var(--adaptive-blue);');
+
       return (
         <div
           className="home-card-html-content"
           onClick={handleContentClick}
-          dangerouslySetInnerHTML={{ __html: attachHomeMediaToken(DOMPurify.sanitize(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(rawHtml || ''))), HOME_CARD_SANITIZE_CONFIG), mediaToken) }}
+          dangerouslySetInnerHTML={{ __html: attachHomeMediaToken(DOMPurify.sanitize(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(themeAdaptiveHtml))), HOME_CARD_SANITIZE_CONFIG), mediaToken) }}
         />
       );
     }
