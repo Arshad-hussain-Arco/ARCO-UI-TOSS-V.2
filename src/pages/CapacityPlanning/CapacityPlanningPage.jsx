@@ -387,10 +387,8 @@ export function CapacityPlanningPage() {
     const minStart = new Date(Math.min(...projects.map(p => p.startObj.getTime()), ref.getTime()));
     const maxEnd = new Date(Math.max(...projects.map(p => p.endObj.getTime()), ref.getTime()));
 
-    const rangeStart = new Date(minStart);
-    rangeStart.setDate(rangeStart.getDate() - 3);
-    const rangeEnd = new Date(maxEnd);
-    rangeEnd.setDate(rangeEnd.getDate() + 3);
+    const rangeStart = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
+    const rangeEnd = new Date(maxEnd.getFullYear(), maxEnd.getMonth() + 1, 0);
     const totalMs = rangeEnd.getTime() - rangeStart.getTime();
     const pct = (d) => totalMs > 0 ? ((d.getTime() - rangeStart.getTime()) / totalMs) * 100 : 0;
 
@@ -1383,18 +1381,51 @@ export function CapacityPlanningPage() {
             {ganttData.projects.length === 0 ? (
               <div className="cp-empty-state">No projects found matching the criteria</div>
             ) : (
-              <div className="cp-table-wrapper">
-                <div style={{ minWidth: '900px' }}>
+              <div className="cp-table-wrapper" style={{ overflowX: 'auto', paddingBottom: '16px' }}>
+                <div style={{ minWidth: '1200px', position: 'relative' }}>
+                  
+                  {/* Global Trackbar overlay for Gantt View */}
+                  {ganttData.todayPct !== null && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: '380px',
+                        right: 0,
+                        pointerEvents: 'none',
+                        zIndex: 11,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${ganttData.todayPct}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: '2px',
+                          background: '#ef4444',
+                        }}
+                        title="Today"
+                      />
+                    </div>
+                  )}
+
                   {/* Month axis header — sticky within cp-table-wrapper's own
                       scroll so it stays visible while scrolling through a
                       long project list, same as the other views' tables. */}
                   <div
                     style={{
                       display: 'flex', borderBottom: '2px solid var(--border-primary)',
-                      position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-secondary)',
+                      position: 'sticky', top: 0, zIndex: 15, background: 'var(--bg-secondary)',
                     }}
                   >
-                    <div style={{ width: '380px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    <div style={{ 
+                      position: 'sticky', left: 0, top: 0, zIndex: 13, background: 'var(--bg-secondary)',
+                      width: '380px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase',
+                      borderRight: '1px solid var(--border-primary)'
+                    }}>
                       Project
                     </div>
                     <div style={{ flex: 1, position: 'relative', height: '34px', overflow: 'hidden' }}>
@@ -1417,7 +1448,11 @@ export function CapacityPlanningPage() {
                   {/* Project rows */}
                   {ganttData.projects.map(p => (
                     <div key={p.key} className="cp-member-row" style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ width: '380px', flexShrink: 0, padding: '10px 14px' }}>
+                      <div style={{ 
+                        position: 'sticky', left: 0, zIndex: 12, background: 'var(--bg-primary)',
+                        width: '380px', flexShrink: 0, padding: '10px 14px',
+                        borderRight: '1px solid var(--border-primary)'
+                      }}>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <ProjectText projectStr={p.project} summary={p.summary} />
                         </div>
@@ -1435,21 +1470,16 @@ export function CapacityPlanningPage() {
                             }}
                           />
                         ))}
-                        {ganttData.todayPct !== null && (
-                          <div
-                            style={{
-                              position: 'absolute', left: `${ganttData.todayPct}%`, top: 0, bottom: 0,
-                              width: '2px', background: '#ef4444', zIndex: 2,
-                            }}
-                            title="Today"
-                          />
-                        )}
                         <div
                           style={{
                             position: 'absolute', left: `${p.leftPct}%`, width: `${p.widthPct}%`, top: '8px', height: '16px',
                             borderRadius: '4px', background: p.stageColor, minWidth: '4px', zIndex: 1,
                           }}
-                          title={`${p.summary} — ${p.status} (${p.stageName}) (${formatDateDMY(p.startDate)} - ${formatDateDMY(p.endDate)})`}
+                          onMouseEnter={(e) => setActiveTooltip({
+                            title: `${p.summary} — ${p.status} (${p.stageName}) (${formatDateDMY(p.startDate)} - ${formatDateDMY(p.endDate)})`,
+                            targetRect: e.currentTarget.getBoundingClientRect()
+                          })}
+                          onMouseLeave={() => setActiveTooltip(null)}
                         />
                         <div
                           style={{
