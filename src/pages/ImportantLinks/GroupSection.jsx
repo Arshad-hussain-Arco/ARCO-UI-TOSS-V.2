@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { ExternalLink, Edit, Eye, Trash, Users } from 'lucide-react';
+import { ExternalLink, Edit, Eye, Trash, Users, Type } from 'lucide-react';
 
 import './ImportantLinksPage.css';
 
@@ -146,7 +146,7 @@ function GroupCardComponent({ id, title, icon: Icon, links, isPinned, onTogglePi
               aria-label={`Rename ${title}`}
               onClick={onRenameGroup}
             >
-              <Edit size={12} />
+              <Type size={12} />
             </button>
           )}
           {onDeleteGroup && (

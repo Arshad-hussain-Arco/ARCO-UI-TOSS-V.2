@@ -1358,8 +1358,19 @@ export function LeaveConfigurationPage() {
                     </tr>
                   ) : filteredHolidays.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="lc-empty-state">
-                        No holidays match your search criteria.
+                      <td colSpan={7}>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          padding: '60px 20px', 
+                          color: 'var(--text-tertiary)',
+                          gap: '12px' 
+                        }}>
+                          <Calendar size={32} style={{ opacity: 0.6 }} />
+                          <span style={{ fontSize: '14px', fontWeight: 500 }}>No holidays match your search criteria.</span>
+                        </div>
                       </td>
                     </tr>
                   ) : (
