@@ -328,67 +328,6 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
 
           </div>
 
-          {/* BOTTOM PANEL: Compact Leave Summary Data Strip */}
-          {isManager && leaveSummary.length > 0 && (
-            <div className="cp-leave-summary-panel">
-              <div className="cp-panel-header">
-                <Calendar size={13} className="cp-panel-icon" />
-                <span>Leave Summary</span>
-                <span className="cp-panel-count">{leaveSummary.length} categories</span>
-              </div>
-
-              <div className="cp-leave-grid">
-                {leaveSummary.map((leave, idx) => {
-                  const total = (leave.entitled || 0) + (leave.carried_forward || 0);
-                  const used = leave.used || 0;
-                  const pending = leave.pending || 0;
-                  const available = leave.available ?? 0;
-
-                  const usedPct = total > 0 ? (used / total) * 100 : 0;
-                  const pendingPct = total > 0 ? (pending / total) * 100 : 0;
-
-                  return (
-                    <div className="cp-leave-item" key={idx}>
-                      <div className="cp-leave-item-top">
-                        <span className="cp-leave-name">{leave.leave_type || 'Leave'}</span>
-                        <div className="cp-leave-avail">
-                          <span className="cp-leave-avail-num">{available}</span>
-                          <span className="cp-leave-avail-lbl">Quota</span>
-                        </div>
-                      </div>
-
-                      <div className="cp-leave-bar">
-                        <div
-                          className="cp-bar-used"
-                          style={{ width: `${usedPct}%` }}
-                          title={`Used: ${used}`}
-                        />
-                        <div
-                          className="cp-bar-pending"
-                          style={{ width: `${pendingPct}%` }}
-                          title={`Pending: ${pending}`}
-                        />
-                      </div>
-
-                      <div className="cp-leave-substats">
-                        <span>Used: <strong>{used}</strong></span>
-                        <span>Pending: <strong>{pending}</strong></span>
-                      </div>
-                        {/* outstanding_debt is the live borrowed-against-next-year
-                            figure under the generic negative-balance model —
-                            advance_taken is a legacy field no longer updated
-                            by new leave requests. */}
-                        {leave.outstanding_debt > 0 && (
-                          <div className="cp-leave-substats" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                            <span>Advance: <strong>{leave.outstanding_debt}</strong></span>
-                          </div>
-                        )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

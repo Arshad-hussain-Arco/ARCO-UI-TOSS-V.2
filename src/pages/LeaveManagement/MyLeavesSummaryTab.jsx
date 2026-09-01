@@ -199,8 +199,8 @@ export function MyLeavesSummaryTab({
     <div className="my-leaves-summary-tab" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* Top Filter Card: Search, Dates, and Export */}
-      <div className="leave-filters-section" style={{ background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', width: '100%' }}>
+      <div className="leave-filters-section" style={{ background: 'var(--surface-primary)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
           {/* Leave Type Search */}
           <div className="tr-search-wrap" style={{ maxWidth: 200 }}>
             <Search className="tr-search-icon" />
@@ -213,26 +213,26 @@ export function MyLeavesSummaryTab({
           </div>
 
           {/* Date Filters */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ width: '130px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ width: '120px' }}>
               <Select 
                 value={selectedMonth} 
                 onChange={setSelectedMonth} 
                 options={MONTHS} 
                 placeholder="Select Month"
-                width="130px"
+                width="120px"
               />
             </div>
-            <div style={{ width: '100px' }}>
+            <div style={{ width: '90px' }}>
               <Select
                 value={selectedYear}
                 onChange={onYearChange}
                 options={YEARS}
                 placeholder="Select Year"
-                width="100px"
+                width="90px"
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
               <DatePicker
                 value={fromDate ? new Date(fromDate) : null}
@@ -241,7 +241,7 @@ export function MyLeavesSummaryTab({
                 width="110px"
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
               <DatePicker
                 value={toDate ? new Date(toDate) : null}

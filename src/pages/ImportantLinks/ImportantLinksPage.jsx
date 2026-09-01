@@ -695,33 +695,85 @@ export function ImportantLinksPage() {
           </>
         }
       >
-        <div style={{ padding: '16px 0' }}>
-          <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            Choose which roles can see this group's links, on this page and in the header
-            widget. Leave everything unchecked to hide this group from all roles (it will
-            still be visible here to anyone who can manage access).
+        <div style={{ padding: '8px 0 16px 0' }}>
+          <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+            Select which roles can see this group. Leaving all unchecked will hide the group completely from non-admin users.
           </p>
+          
           {isLoadingAccess ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
               <Loader message="Loading roles..." />
             </div>
           ) : allRoles.length === 0 ? (
-            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>No roles found.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No roles found.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
-              {allRoles.map((role) => (
-                <label
-                  key={role.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={accessRoleIds.includes(role.id)}
-                    onChange={() => toggleAccessRole(role.id)}
-                  />
-                  {role.role_name}
-                </label>
-              ))}
+            <div style={{ 
+              border: '1px solid var(--border-secondary)',
+              borderRadius: '6px',
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: '260px',
+                overflowY: 'auto'
+              }}>
+                {allRoles.map((role, idx) => {
+                  const isChecked = accessRoleIds.includes(role.id);
+                  const isLast = idx === allRoles.length - 1;
+                  return (
+                    <label
+                      key={role.id}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '12px',
+                        padding: '10px 14px', 
+                        borderBottom: isLast ? 'none' : '1px solid var(--border-secondary)',
+                        backgroundColor: isChecked ? 'rgba(0, 102, 51, 0.06)' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease',
+                        margin: 0
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = isChecked ? 'rgba(0, 102, 51, 0.1)' : 'var(--bg-secondary)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = isChecked ? 'rgba(0, 102, 51, 0.06)' : 'transparent';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleAccessRole(role.id)}
+                        style={{ display: 'none' }}
+                      />
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        border: isChecked ? '1px solid #006633' : '1px solid var(--border-primary)',
+                        borderRadius: '4px',
+                        backgroundColor: isChecked ? '#006633' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'all 0.15s ease'
+                      }}>
+                        {isChecked && <Check size={12} color="#fff" strokeWidth={3} />}
+                      </div>
+                      <span style={{ 
+                        fontSize: '13.5px', 
+                        fontWeight: 500, 
+                        color: 'var(--text-primary)',
+                        userSelect: 'none'
+                      }}>
+                        {role.role_name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
