@@ -38,7 +38,6 @@ import { TimelineCalendar } from '@components/data-display/TimelineCalendar/Time
 import { SortIcon } from './LeaveManagementPage';
 import { useToast } from '@hooks/useToast';
 import { useAuth } from '@hooks/useAuth';
-import { LEAVE_REQUESTS as INITIAL_REQUESTS } from '@mocks/data/leaveRequests';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import LeaveRequestDrawer from './components/LeaveRequestDrawer';
 import { EditLeaveModal } from './EditLeaveModal';

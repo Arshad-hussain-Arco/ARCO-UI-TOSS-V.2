@@ -20,6 +20,7 @@ const endpoints = {
     reconcile: '/reconciliation/reconciliation/reconcile/',
   },
   roles: {
+    permissionsCatalog: '/auth/permissions-catalog/',
     list: '/auth/role-permissions/',
     create: '/auth/role-permissions/create/',
     update: (id) => `/auth/role-permissions/${id}/update/`,

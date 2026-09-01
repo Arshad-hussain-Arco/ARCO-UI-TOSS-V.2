@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
-import { generatePreviewRows } from '@mocks/data/reconciliation';
 import { FileText, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@constants/routes';
@@ -72,10 +71,7 @@ export function StepSelectKeys({ files, processingFiles, keyColumns, onKeyColumn
   const file1Cols = useMemo(() => files[0]?.columns ?? [], [files]);
   const file2Cols = useMemo(() => files[1]?.columns ?? [], [files]);
 
-  const preview1Rows = useMemo(
-    () => files[0]?.rows ?? generatePreviewRows(file1Cols, 5),
-    [files, file1Cols],
-  );
+  const preview1Rows = useMemo(() => files[0]?.rows ?? [], [files]);
 
   const toggleKey = useCallback((fileIndex, col) => {
     const key = fileIndex === 0 ? 'file1' : 'file2';

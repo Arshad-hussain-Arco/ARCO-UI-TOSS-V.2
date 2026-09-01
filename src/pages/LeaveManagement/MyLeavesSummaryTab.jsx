@@ -29,12 +29,18 @@ const MONTHS = [
   { value: '11', label: 'December' },
 ];
 
+// Starting year for the filter — earliest leave data is expected from here.
+// The list always extends through the current year, so it never goes stale.
+const YEARS_START = 2024;
 const YEARS = [
   { value: 'all', label: 'All Years' },
-  { value: '2024', label: '2024' },
-  { value: '2025', label: '2025' },
-  { value: '2026', label: '2026' },
-  { value: '2027', label: '2027' },
+  ...Array.from(
+    { length: new Date().getFullYear() - YEARS_START + 1 },
+    (_, i) => {
+      const year = String(YEARS_START + i);
+      return { value: year, label: year };
+    },
+  ),
 ];
 
 export function MyLeavesSummaryTab({

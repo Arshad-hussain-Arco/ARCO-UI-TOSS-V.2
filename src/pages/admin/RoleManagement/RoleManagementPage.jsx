@@ -30,145 +30,58 @@ import consultantService from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './RoleManagementPage.css';
 
-// Permission catalog — mirrors the codes seeded by
-// ARCO-API-TOSS-V.2/rbac/management/commands/seed_permissions.py. Every
-// role's `permissions` is a flat list of these codes (never the old nested
-// module/Allow-Deny matrix). Admin Panel access (Roles & Permissions, Leave
-// Policy Management, System Settings) is a separate `isAdmin` flag and has
-// no codes of its own here.
-const PERMISSION_CATALOG = [
-  {
-    module: 'Project Monitoring',
-    codes: [
-      { code: 'PROJECT_MONITORING_VIEW', label: 'View' },
-      { code: 'PROJECT_MONITORING_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    module: 'Environment Dashboard',
-    codes: [
-      { code: 'ENVIRONMENT_DASHBOARD_VIEW', label: 'View' },
-      { code: 'ENVIRONMENT_DASHBOARD_CREATE', label: 'Create' },
-      { code: 'ENVIRONMENT_DASHBOARD_EDIT', label: 'Edit' },
-      { code: 'ENVIRONMENT_DASHBOARD_DELETE', label: 'Delete' },
-      { code: 'ENVIRONMENT_DASHBOARD_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    module: 'Murex Runtime Trends',
-    codes: [
-      { code: 'MUREX_RUNTIME_VIEW', label: 'View' },
-      // Script Management tab (category CRUD) — a mutable sub-feature of
-      // this otherwise read-only screen, gated separately.
-      { code: 'MUREX_SCRIPT_CATEGORY_CREATE', label: 'Create Category' },
-      { code: 'MUREX_SCRIPT_CATEGORY_EDIT', label: 'Edit Category' },
-      { code: 'MUREX_SCRIPT_CATEGORY_DELETE', label: 'Delete Category' },
-    ],
-  },
-  {
-    module: 'EOD Management — Overview',
-    codes: [{ code: 'EOD_OVERVIEW_VIEW', label: 'View' }],
-  },
-  {
-    module: 'EOD Management — Configuration',
-    codes: [
-      { code: 'EOD_CONFIG_VIEW', label: 'View' },
-      { code: 'EOD_CONFIG_CREATE', label: 'Create' },
-      { code: 'EOD_CONFIG_EDIT', label: 'Edit' },
-      { code: 'EOD_CONFIG_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'EOD Management — Schedules',
-    codes: [
-      { code: 'EOD_SCHEDULE_VIEW', label: 'View' },
-      { code: 'EOD_SCHEDULE_CREATE', label: 'Create' },
-      { code: 'EOD_SCHEDULE_EDIT', label: 'Edit' },
-      { code: 'EOD_SCHEDULE_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'EOD Management — Control',
-    codes: [
-      { code: 'EOD_CONTROL_VIEW', label: 'View' },
-      // Start/Stop/Pause/Resume/Run-All are one merged code, not split
-      // further, per explicit direction.
-      { code: 'EOD_CONTROL_EXECUTE', label: 'Execute' },
-      { code: 'EOD_CONTROL_VIEW_LOGS', label: 'View Logs' },
-    ],
-  },
-  {
-    // Sidebar label is "Consultants" — matched here so admins can find it.
-    module: 'Consultants',
-    codes: [
-      { code: 'EMPLOYEE_VIEW', label: 'View' },
-      { code: 'EMPLOYEE_VIEW_INACTIVE', label: 'View Inactive Consultants' },
-      { code: 'EMPLOYEE_CREATE', label: 'Create' },
-      // Resetting another employee's password rides on this same code —
-      // no separate "Reset Password" permission.
-      { code: 'EMPLOYEE_EDIT', label: 'Edit (incl. Reset Password)' },
-      // Not a real delete — the action soft-toggles ACTIVE/INACTIVE status.
-      { code: 'EMPLOYEE_ACTIVATE_DEACTIVATE', label: 'Activate / Deactivate' },
-    ],
-  },
-  {
-    module: 'Consultants — Teams',
-    codes: [
-      { code: 'TEAMS_VIEW', label: 'View' },
-      { code: 'TEAMS_CREATE', label: 'Create' },
-      { code: 'TEAMS_EDIT', label: 'Edit' },
-      { code: 'TEAMS_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    // Summary/Team views are two display modes over one dataset — no
-    // create/edit action exists on this screen. CR/WO column mapping
-    // lives under Admin Panel > System Settings instead (is_admin).
-    module: 'Capacity Planning',
-    codes: [
-      { code: 'CAPACITY_PLANNING_VIEW', label: 'View' },
-      { code: 'CAPACITY_PLANNING_EXPORT', label: 'Export' },
-    ],
-  },
-  {
-    // Upload + Run Reconciliation are two halves of one stateless
-    // workflow (CREATE) — no DB persistence exists to "edit".
-    // Upload/Run and Export fold into View — anyone let onto this screen
-    // can use the whole stateless workflow by default.
-    module: 'Reconciliation',
-    codes: [{ code: 'RECONCILIATION_VIEW', label: 'View (incl. Upload/Run/Export)' }],
-  },
-  {
-    module: 'Important Links',
-    codes: [
-      { code: 'IMPORTANT_LINKS_VIEW', label: 'View' },
-      { code: 'IMPORTANT_LINKS_CREATE', label: 'Create' },
-      { code: 'IMPORTANT_LINKS_EDIT', label: 'Edit' },
-      { code: 'IMPORTANT_LINKS_DELETE', label: 'Delete' },
-    ],
-  },
-  {
-    module: 'Important Links — Groups',
-    codes: [
-      { code: 'IMPORTANT_LINKS_GROUP_CREATE', label: 'Create' },
-      { code: 'IMPORTANT_LINKS_GROUP_EDIT', label: 'Rename' },
-      { code: 'IMPORTANT_LINKS_GROUP_DELETE', label: 'Delete' },
-      { code: 'IMPORTANT_LINKS_PIN_HEADER', label: 'Pin to Header' },
-      { code: 'IMPORTANT_LINKS_SHOW_HEADER', label: 'Show in Header' },
-      { code: 'IMPORTANT_LINKS_GROUP_ACCESS_CONTROL', label: 'Manage Group Access' },
-    ],
-  },
-  {
-    module: 'Documents',
-    codes: [
-      { code: 'DOCUMENTS_VIEW', label: 'View (tree only)' },
-      { code: 'DOCUMENTS_CREATE', label: 'Create' },
-      { code: 'DOCUMENTS_EDIT', label: 'Edit' },
-      { code: 'DOCUMENTS_DELETE', label: 'Delete' },
-      { code: 'DOCUMENTS_DOWNLOAD', label: 'Download / View Content' },
-    ],
-  },
-];
+// Display name for each backend Permission.module code — purely cosmetic
+// (the module row heading text); the actual set of modules/codes always
+// comes from GET /auth/permissions-catalog/ (roleService.getPermissionsCatalog),
+// never hardcoded here. Any module the backend adds before this map is
+// updated still renders correctly via the title-case fallback below.
+const MODULE_LABELS = {
+  PROJECT_MONITORING: 'Project Monitoring',
+  ENVIRONMENT_DASHBOARD: 'Environment Dashboard',
+  MUREX_RUNTIME: 'Murex Runtime Trends',
+  EOD_OVERVIEW: 'EOD Management — Overview',
+  EOD_CONFIG: 'EOD Management — Configuration',
+  EOD_SCHEDULE: 'EOD Management — Schedules',
+  EOD_CONTROL: 'EOD Management — Control',
+  // Sidebar label is "Consultants" — matched here so admins can find it.
+  EMPLOYEE: 'Consultants',
+  TEAMS: 'Consultants — Teams',
+  CAPACITY_PLANNING: 'Capacity Planning',
+  RECONCILIATION: 'Reconciliation',
+  IMPORTANT_LINKS: 'Important Links',
+  IMPORTANT_LINKS_GROUPS: 'Important Links — Groups',
+  DOCUMENTS: 'Documents',
+};
+
+function formatModuleLabel(module) {
+  return (
+    MODULE_LABELS[module] ||
+    module
+      .toLowerCase()
+      .split('_')
+      .map((word) => word[0]?.toUpperCase() + word.slice(1))
+      .join(' ')
+  );
+}
+
+// Groups the flat GET /auth/permissions-catalog/ response into the
+// [{ module, codes: [{ code, label }] }] shape the permission grid reads.
+// `label` uses the backend's `description` (e.g. "View employee records")
+// rather than a hardcoded per-code string — this also preserves the
+// module's "master view gate" detection below (codes.find label startsWith
+// 'View'), since every VIEW-action permission's description starts with
+// "View" by convention in seed_permissions.py.
+function buildPermissionCatalog(rows) {
+  const byModule = new Map();
+  rows.forEach(({ code, module, description }) => {
+    if (!byModule.has(module)) byModule.set(module, []);
+    byModule.get(module).push({ code, label: description || code });
+  });
+  return Array.from(byModule.entries()).map(([module, codes]) => ({
+    module: formatModuleLabel(module),
+    codes,
+  }));
+}
 
 // Count assigned permission codes
 const countPermissions = (codes) => (Array.isArray(codes) ? codes.length : 0);
@@ -213,6 +126,14 @@ export function RoleManagementPage() {
   const [roleToCancel, setRoleToCancel] = useState(null);
   const [dirtyRoles, setDirtyRoles] = useState(new Set());
   const [error, setError] = useState(null);
+  const [permissionCatalog, setPermissionCatalog] = useState([]);
+
+  useEffect(() => {
+    roleService
+      .getPermissionsCatalog()
+      .then((rows) => setPermissionCatalog(buildPermissionCatalog(Array.isArray(rows) ? rows : [])))
+      .catch((err) => console.error('Failed to fetch permissions catalog', err));
+  }, []);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -287,7 +208,7 @@ export function RoleManagementPage() {
   };
 
   const handleAllowAllModal = () => {
-    const allCodes = PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code));
+    const allCodes = permissionCatalog.flatMap(m => m.codes.map(c => c.code));
     setNewRoleCodes(allCodes);
   };
 
@@ -440,7 +361,7 @@ export function RoleManagementPage() {
         if (r.id === roleId) {
           return {
             ...r,
-            permissions: PERMISSION_CATALOG.flatMap(m => m.codes.map(c => c.code)),
+            permissions: permissionCatalog.flatMap(m => m.codes.map(c => c.code)),
           };
         }
         return r;
@@ -724,7 +645,7 @@ export function RoleManagementPage() {
                               <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 Module Target Scope
                               </div>
-                              {PERMISSION_CATALOG.map(({ module, codes }) => {
+                              {permissionCatalog.map(({ module, codes }) => {
                                 const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                                 const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
 
@@ -1013,7 +934,7 @@ export function RoleManagementPage() {
                     <div className="rm-list-subheader-row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-primary)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Module Target Scope
                     </div>
-                    {PERMISSION_CATALOG.map(({ module, codes }) => {
+                    {permissionCatalog.map(({ module, codes }) => {
                       const viewCodeObj = codes.find(c => c.label.startsWith('View'));
                       const nonViewCodes = viewCodeObj ? codes.filter(c => c.code !== viewCodeObj.code) : codes;
 
