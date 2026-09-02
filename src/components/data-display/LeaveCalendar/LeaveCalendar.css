@@ -109,11 +109,11 @@
 
 /* Org holiday (from team-employee-calendars API) */
 .leave-calendar-container .rbc-day-bg.rbc-day-holiday {
-  background-color: var(--c-warning-light) !important;
+  background-color: #eff6ff !important;
 }
 
 .leave-calendar-container .rbc-day-bg.rbc-day-holiday.rbc-today {
-  background-color: var(--c-warning-light) !important;
+  background-color: #eff6ff !important;
   filter: brightness(0.92);
 }
 
@@ -136,16 +136,17 @@
 }
 
 .leave-calendar-container .rbc-event.rbc-event {
-  background-color: #3174ad !important;
-  border: 2px solid transparent !important;
+  /* Provide defaults but allow inline styles to override */
+  background-color: #3174ad;
+  border: none;
   background-clip: padding-box !important;
-  border-radius: 6px !important;
-  padding: 3px 6px !important;
-  margin: 1px 0 !important;
-  color: #fff !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  margin: 1px 2px !important;
+  color: #fff;
   font-size: 11px !important;
   font-weight: 500 !important;
-  line-height: 1.3 !important;
+  line-height: 1.2 !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
@@ -163,27 +164,25 @@
   letter-spacing: 0.01em;
 }
 
-/* Status colors */
-.leave-calendar-container .rbc-event.rbc-event-approved {
-  background-color: var(--c-success) !important;
-  color: #fff !important;
+/* Custom Event Component Styles */
+.custom-rbc-event {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 
-.leave-calendar-container .rbc-event.rbc-event-pending {
-  background-color: var(--c-warning) !important;
-  color: #4a3200 !important;
+.custom-rbc-event-icon {
+  flex-shrink: 0;
 }
 
-.leave-calendar-container .rbc-event.rbc-event-rejected {
-  background-color: var(--c-danger) !important;
-  color: #fff !important;
+.custom-rbc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.leave-calendar-container .rbc-event.rbc-event-self_rejected,
-.leave-calendar-container .rbc-event.rbc-event-cancelled {
-  background-color: var(--text-tertiary) !important;
-  color: #fff !important;
-}
+/* Leave Type colors are now applied dynamically via inline styles in LeaveCalendar.jsx */
 
 /* Overlay Popup ("+N more" click-through list). react-big-calendar renders
    this via a portal appended outside .leave-calendar-container, so it
@@ -222,8 +221,9 @@
   display: block !important;
   width: 100% !important;
   box-sizing: border-box !important;
-  background-color: #3174ad !important;
-  border: 2px solid transparent !important;
+  /* background-color and border-color are injected via inline style */
+  background-color: #3174ad;
+  border: 2px solid transparent;
   border-radius: 6px !important;
   padding: 6px 8px !important;
   margin: 0 !important;
@@ -233,32 +233,7 @@
   flex-shrink: 0 !important;
 }
 
-.rbc-overlay .rbc-event.rbc-event-approved.rbc-event-approved {
-  background-color: var(--c-success) !important;
-  color: #fff !important;
-}
-
-.rbc-overlay .rbc-event.rbc-event-pending.rbc-event-pending {
-  background-color: var(--c-warning) !important;
-  color: #4a3200 !important;
-}
-
-.rbc-overlay .rbc-event.rbc-event-rejected.rbc-event-rejected {
-  background-color: var(--c-danger) !important;
-  color: #fff !important;
-}
-
-.rbc-overlay .rbc-event.rbc-event-self_rejected.rbc-event-self_rejected,
-.rbc-overlay .rbc-event.rbc-event-cancelled.rbc-event-cancelled {
-  background-color: var(--text-tertiary) !important;
-  color: #fff !important;
-}
-
-.rbc-overlay .rbc-event.rbc-event-holiday.rbc-event-holiday {
-  background-color: var(--c-warning-light) !important;
-  border-color: var(--c-warning) !important;
-  color: var(--text-primary) !important;
-}
+/* Overlay Popup overrides for specific leave types are now handled dynamically via inline styles */
 
 /* Show more button */
 .rbc-show-more {
@@ -266,12 +241,14 @@
   font-weight: 600;
   color: #3174ad !important;
   background-color: var(--surface-secondary);
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: 4px;
-  margin: 2px 4px;
+  margin: 1px 4px;
   display: inline-block;
   transition: all 0.2s ease;
   border: 1px solid var(--border-primary);
+  position: relative;
+  z-index: 5;
 }
 
 .rbc-show-more:hover {
@@ -280,13 +257,6 @@
   border-color: #3174ad;
 }
 
-/* Holiday specific styles */
-.leave-calendar-container .rbc-event.rbc-event-holiday {
-  background-color: var(--c-warning-light) !important;
-  border-color: var(--c-warning) !important;
-  color: var(--text-primary) !important;
-  font-weight: 600 !important;
-}
 
 /* Fix for current day background in dark theme */
 .rbc-day-bg.rbc-today {
@@ -296,55 +266,34 @@
 /* Legend */
 .leave-calendar-legend {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--border-primary);
+}
+
+.leave-calendar-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
 }
 
 .leave-calendar-legend-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
 }
 
-.leave-calendar-legend-dot {
-  width: 10px;
-  height: 10px;
+.legend-color-box {
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
   display: inline-block;
-  flex-shrink: 0;
-}
-
-.leave-calendar-legend-dot--approved {
-  background-color: var(--c-success);
-}
-
-.leave-calendar-legend-dot--pending {
-  background-color: var(--c-warning);
-}
-
-.leave-calendar-legend-dot--rejected {
-  background-color: var(--c-danger);
-}
-
-.leave-calendar-legend-dot--cancelled {
-  background-color: var(--text-tertiary);
-}
-
-.leave-calendar-legend-dot--holiday {
-  background-color: var(--c-warning-light);
-  border: 1px solid var(--c-warning);
-}
-
-.leave-calendar-legend-dot--weekend {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-primary);
 }
 
 /* Responsive */

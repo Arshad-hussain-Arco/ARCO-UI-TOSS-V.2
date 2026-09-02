@@ -75,7 +75,7 @@ const LEAVE_TYPE_OPTIONS = [
   'Compensatory Off',
   'Offshore Work',
   'Weekend Work',
-  'WFH',
+  'Work From Home',
   'Paternity Leave',
   'Visa Purpose',
 ];
@@ -318,7 +318,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
     const reasonLower = (req.leave_reason || '').toLowerCase();
     const typeLower = (req.leave_type || '').toLowerCase();
 
-    if (typeLower.includes('wfh') || reasonLower.includes('wfh')) type = 'wfh';
+    if (typeLower.includes('wfh') || typeLower.includes('work from home') || reasonLower.includes('wfh')) type = 'wfh';
     else if (typeLower.includes('offshore') || reasonLower.includes('offshore')) type = 'offshore';
     // The "comp"/"compoff" substring match alone only catches CCompOff —
     // it misses every other Claim-category leave type (e.g. 'CWW'/"Claim
@@ -586,7 +586,8 @@ export function TeamRequestsTab({ getPhoto }) {
       list = list.filter(
         (r) =>
           (r.leaveType ?? '') === leaveTypeF ||
-          (r.type === 'offshore' && leaveTypeF === 'Offshore Work'),
+          (r.type === 'offshore' && leaveTypeF === 'Offshore Work') ||
+          (r.type === 'wfh' && (leaveTypeF === 'WFH' || leaveTypeF === 'Work From Home')),
       );
     return list;
   }, [requests, debouncedSearch, leaveTypeF]);
@@ -1223,26 +1224,6 @@ export function TeamRequestsTab({ getPhoto }) {
               </button>
             ))}
 
-            <span className="tr-chip-divider" aria-hidden="true" />
-
-            {/* Type quick-filters — every status (pending/approved/rejected/
-                self-rejected) for just this type, since it combines with
-                the status pills above via AND (see `filtered` memo). */}
-            {[
-              { key: 'offshore', label: 'Offshore Work', count: counts.offshore },
-              { key: 'wfh', label: 'Work From Home', count: counts.wfh },
-            ].map((c) => (
-              <button
-                key={c.key}
-                className="tr-chip"
-                data-active={typeF === c.key}
-                onClick={() => handleTypeChipClick(c.key)}
-                title={`Show ${c.label} requests (all statuses)`}
-              >
-                {c.label}
-                <span className="tr-chip-count">{c.count}</span>
-              </button>
-            ))}
           </div>
         </>
       )}
