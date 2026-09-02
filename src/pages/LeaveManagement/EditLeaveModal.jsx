@@ -78,11 +78,11 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         nextYearAvailable: match?.next_year_available != null ? Number(match.next_year_available) : null,
         entitledDays: match?.entitled_days != null ? Number(match.entitled_days) : null,
         available: bal?.available != null ? Number(bal.available) : null,
-        // Actual (any mode) and Nominal leave types may be self-logged/
-        // edited into the past — mirrors the backend exemption in
+        // Actual leave types (any mode) may be self-logged/edited into the
+        // past — mirrors the backend exemption in
         // leaves.services.LeaveApplyService.apply's is_backdatable_category
         // check. Category-driven, not mode-driven.
-        allowPastDates: match?.category === 'ACTUAL' || match?.category === 'NOMINAL',
+        allowPastDates: match?.category === 'ACTUAL',
       });
     });
   }, [leave.emp_id, leave.leave_type, user?.emp_id]);

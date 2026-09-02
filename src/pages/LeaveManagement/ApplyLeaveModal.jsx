@@ -548,12 +548,12 @@ function buildLeaveTypeItem(entry, balances) {
     // outstanding advance-leave debt). null when not year-spanning-
     // eligible or unlimited — see EligibleLeaveTypesView.
     nextYearAvailable: entry.next_year_available != null ? Number(entry.next_year_available) : null,
-    // Actual (any mode) and Nominal leave types may be self-logged after
-    // the fact — mirrors the backend exemption in
+    // Actual leave types (any mode) may be self-logged after the fact —
+    // mirrors the backend exemption in
     // leaves.services.LeaveApplyService.apply's is_backdatable_category
     // check. Category-driven, not mode-driven. Not applicable to Claims,
     // which have their own always-past date picker.
-    allowPastDates: entry.category === 'ACTUAL' || entry.category === 'NOMINAL',
+    allowPastDates: entry.category === 'ACTUAL',
     minNoticeDays,
     noticePeriod:
       minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,

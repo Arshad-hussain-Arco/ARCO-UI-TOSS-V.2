@@ -79,6 +79,29 @@ const ALL_TABS = [
 // still-PENDING leave whose business_days hasn't been computed yet),
 // which showed up as Annual/Sick Leave incorrectly landing in claim-only
 // counts/filters.
+// Renders one balance-backed LeaveCard from `leaveBalances[code]` (the
+// per-leave-type object BalanceService.summary() returns), always wiring
+// isUnlimited from the API response — so a leave type's policy can be
+// flipped between Limited/Unlimited without any card needing its own
+// isUnlimited prop remembered by hand.
+function balanceCard(leaveBalances, isLoading, code, title, color, subtitle) {
+  const bal = leaveBalances?.[code];
+  return (
+    <LeaveCard
+      key={code}
+      title={title}
+      subtitle={subtitle}
+      isLoading={isLoading}
+      centerCount={bal?.entitled ?? 0}
+      left={bal?.available ?? 0}
+      used={bal?.used ?? 0}
+      total={bal?.entitled ?? 0}
+      isUnlimited={bal?.is_unlimited ?? false}
+      color={color}
+    />
+  );
+}
+
 function groupClaimLeaves(leaves) {
   const groups = new Map();
   const result = [];
@@ -972,55 +995,25 @@ export function LeaveManagementPage() {
             </div>
 
             <div className="leave-cards-grid">
-              <LeaveCard
-                title="Leave Quota"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.AL?.entitled ?? 0}
-                left={leaveBalances?.AL?.available ?? 0}
-                used={leaveBalances?.AL?.used ?? 0}
-                total={leaveBalances?.AL?.entitled ?? 0}
-                isUnlimited={leaveBalances?.AL?.is_unlimited}
-                color="#006633"
-              />
+              {/* Balance-backed cards are driven off `leaveBalances[code]`, keyed by
+                  the same leave type codes the backend's BalanceService.summary()
+                  returns — including is_unlimited. Reading isUnlimited from the API
+                  response here, once, per card means flipping a leave type's policy
+                  between Limited/Unlimited (Admin Panel > Leave Types and Policy) is
+                  reflected automatically without touching this page — no card can be
+                  left out and silently render wrong (as WFH's card previously did,
+                  since it never passed isUnlimited at all). */}
+              {balanceCard(leaveBalances, isLoading, 'AL', 'Leave Quota', '#006633')}
               <LeaveCard
                 title="Carry Over"
+                variant="simple"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.AL?.carried_forward ?? 0}
-                left={leaveBalances?.AL?.carried_forward ?? 0}
-                used={0}
-                total={leaveBalances?.AL?.carried_forward ?? 0}
                 color="#0891b2"
               />
-              <LeaveCard
-                title="Comp Off"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.CompOff?.entitled ?? 0}
-                left={leaveBalances?.CompOff?.available ?? 0}
-                used={leaveBalances?.CompOff?.used ?? 0}
-                total={leaveBalances?.CompOff?.entitled ?? 0}
-                isUnlimited={leaveBalances?.CompOff?.is_unlimited}
-                color="#8b5cf6"
-              />
-              <LeaveCard
-                title="Sick Leaves"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.SL?.entitled ?? 0}
-                left={leaveBalances?.SL?.available ?? 0}
-                used={leaveBalances?.SL?.used ?? 0}
-                total={leaveBalances?.SL?.entitled ?? 0}
-                isUnlimited={leaveBalances?.SL?.is_unlimited}
-                color="#dc2626"
-              />
-              <LeaveCard
-                title="Weekend Work"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.WW?.entitled ?? 0}
-                left={leaveBalances?.WW?.available ?? 0}
-                used={leaveBalances?.WW?.used ?? 0}
-                total={leaveBalances?.WW?.entitled ?? 0}
-                isUnlimited={leaveBalances?.WW?.is_unlimited}
-                color="#f59e0b"
-              />
+              {balanceCard(leaveBalances, isLoading, 'CompOff', 'Comp Off', '#8b5cf6')}
+              {balanceCard(leaveBalances, isLoading, 'SL', 'Sick Leaves', '#dc2626')}
+              {balanceCard(leaveBalances, isLoading, 'WW', 'Weekend Work', '#f59e0b')}
               <LeaveCard
                 title="Booked Leave"
                 isLoading={isLoading}
@@ -1048,27 +1041,8 @@ export function LeaveManagementPage() {
                 total={0}
                 color="#10b981"
               />
-              <LeaveCard
-                title="Offshore Work"
-                subtitle="Outside KSA"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.OW?.entitled ?? 0}
-                left={leaveBalances?.OW?.available ?? 0}
-                used={leaveBalances?.OW?.used ?? 0}
-                total={leaveBalances?.OW?.entitled ?? 0}
-                isUnlimited={leaveBalances?.OW?.is_unlimited}
-                color="#6366f1"
-              />
-              <LeaveCard
-                title="WFH"
-                subtitle="Inside KSA"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.WFH?.entitled ?? 0}
-                left={leaveBalances?.WFH?.available ?? 0}
-                used={leaveBalances?.WFH?.used ?? 0}
-                total={leaveBalances?.WFH?.entitled ?? 0}
-                color="#d97706"
-              />
+              {balanceCard(leaveBalances, isLoading, 'OW', 'Offshore Work', '#6366f1', 'Outside KSA')}
+              {balanceCard(leaveBalances, isLoading, 'WFH', 'WFH', '#d97706', 'Inside KSA')}
             </div>
 
             <div className="leave-content-split-section" style={{ display: 'block' }}>

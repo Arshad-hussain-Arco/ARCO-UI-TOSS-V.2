@@ -262,6 +262,16 @@
   pointer-events: none;
 }
 
+/* Simple variant — a single figure, no ring/left/used breakdown. Used for
+   values that don't have a "total" to chart against (e.g. Carry Over,
+   which is just a flat balance, not entitled-vs-used). */
+.leave-card-simple-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 8px 0;
+}
+
 .leave-card-stats {
   display: flex;
   justify-content: space-around;
@@ -275,6 +285,13 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+}
+
+/* Unlimited leave types: a single centered Used stat instead of the usual
+   Left/Used pair (see LeaveCard.jsx) — kept visually distinct from the
+   simple-variant value above it via the same label styling as Left/Used. */
+.leave-card-stats-single {
+  justify-content: center;
 }
 
 .leave-card-stat-value {
