@@ -10,7 +10,6 @@ import { useDocumentTitle } from '@hooks/useDocumentTitle';
 
 import { ColumnMappingPanel } from './panels/ColumnMappingPanel';
 import { EnvironmentConfigPanel } from './panels/EnvironmentConfigPanel';
-import { HomeManagementPanel } from './panels/HomeManagementPanel';
 import { ImportConfigPanel } from './panels/ImportConfigPanel';
 import './SystemSettingsPage.css';
 
@@ -19,7 +18,6 @@ const TABS = [
   { id: 'import-config', label: 'Import File Config', icon: UploadCloud },
   { id: 'cr-columns', label: 'CR File Matching Columns', icon: FileSpreadsheet },
   { id: 'wo-columns', label: 'WO File Matching Columns', icon: FileSpreadsheet },
-  { id: 'home-management', label: 'Home Management', icon: LayoutDashboard },
 ];
 
 /**
@@ -78,10 +76,6 @@ export function SystemSettingsPage() {
             type="WO"
             title="WO Column Names"
           />
-        ) : null}
-
-        {activeTab === 'home-management' ? (
-          <HomeManagementPanel />
         ) : null}
       </div>
     </div>

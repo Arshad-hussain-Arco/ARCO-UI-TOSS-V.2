@@ -553,6 +553,27 @@
 }
 
 /* Tables */
+.home-card-html-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  max-width: 100%;
+}
+
+.home-card-html-content table td,
+.home-card-html-content table th {
+  border: 1px solid var(--border-primary, #e2e8f0);
+  padding: 6px 10px;
+  vertical-align: top;
+  min-width: 40px;
+}
+
+.home-card-html-content table th {
+  background: var(--bg-secondary, #f8fafc);
+  font-weight: 700;
+  text-align: left;
+}
+
 .home-card-html-content table.rte-table {
   border-collapse: collapse;
   width: 100%;

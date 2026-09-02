@@ -14,6 +14,7 @@
     "format:check": "prettier --check \"src/**/*.{js,jsx,css,json}\""
   },
   "dependencies": {
+    "@fluentui/react": "^8.125.7",
     "@radix-ui/react-popover": "^1.1.23",
     "@radix-ui/react-select": "^2.1.6",
     "@react-pdf-viewer/core": "^3.12.0",
@@ -41,6 +42,8 @@
     "react-icons": "^5.7.0",
     "react-router-dom": "^7.1.1",
     "recharts": "^2.15.2",
+    "roosterjs": "^9.58.0",
+    "roosterjs-react": "^9.0.6",
     "tailwind-merge": "^3.2.0",
     "xlsx": "^0.18.5"
   },

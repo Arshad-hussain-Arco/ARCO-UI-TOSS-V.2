@@ -21,7 +21,7 @@
 }
 
 .rte-fullscreen-exit-hint {
-  position: fixed;
+  position: absolute;
   bottom: 16px;
   right: 16px;
   z-index: 2001;
@@ -633,6 +633,18 @@
   overflow: hidden;
   background: #0f172a;
   box-sizing: border-box;
+}
+
+.rooster-custom-container .ms-CommandBar {
+    padding: 0;
+}
+
+.rooster-custom-container .ms-Button-icon {
+    color: var(--text-secondary) !important;
+}
+
+.rooster-custom-container .ms-Button:hover .ms-Button-icon {
+    color: var(--c-primary) !important;
 }
 
 .rte-video-container {
