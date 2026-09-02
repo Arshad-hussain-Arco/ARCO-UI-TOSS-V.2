@@ -243,82 +243,127 @@ export function LeaveConfigurationTab({ getPhoto }) {
     }
 
     const currentYear = new Date().getFullYear();
-    const promises = [];
+    // Each entry pairs a field key (used to build the state patch below) with
+    // the request that updates it — lets us match Promise.allSettled's
+    // results back to the field that failed/succeeded.
+    const edits = [];
 
     // Check AL carryover change
     const newCarryOver = Number(editForm.carryOverBalance) || 0;
     if (newCarryOver !== emp.carryOver.balance) {
-      promises.push(
-        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+      edits.push({
+        key: 'carryOver',
+        label: 'Carry Over',
+        value: newCarryOver,
+        request: api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
           leave_type_code: "AL",
           field: "carried_forward",
           year: currentYear,
           new_value: newCarryOver
-        })
-      );
+        }),
+      });
     }
 
     // Check SL entitled change
     const newSickLeave = Number(editForm.sickLeaveBalance) || 0;
     if (newSickLeave !== emp.sickLeave.balance) {
-      promises.push(
-        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+      edits.push({
+        key: 'sickLeave',
+        label: 'Sick Leave',
+        value: newSickLeave,
+        request: api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
           leave_type_code: "SL",
           field: "entitled_days",
           year: currentYear,
           new_value: newSickLeave
-        })
-      );
+        }),
+      });
     }
 
     // Check CompOff entitled change
     const newCompOff = Number(editForm.compOffBalance) || 0;
     if (newCompOff !== emp.compOff.balance) {
-      promises.push(
-        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
-          leave_type_code: "CCompOff",
-          field: "entitled_days",
+      edits.push({
+        key: 'compOff',
+        label: 'Compensatory Off',
+        value: newCompOff,
+        request: api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "CompOff",
+          field: "accrued_days",
           year: currentYear,
           new_value: newCompOff
-        })
-      );
+        }),
+      });
     }
 
     // Check Weekend Work entitled change
     const newWeekendWork = Number(editForm.weekendWorkBalance) || 0;
     if (newWeekendWork !== emp.weekendWork.balance) {
-      promises.push(
-        api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
-          leave_type_code: "CWW",
-          field: "entitled_days",
+      edits.push({
+        key: 'weekendWork',
+        label: 'Weekend Work',
+        value: newWeekendWork,
+        request: api.post(endpoints.manager.updateQuota(user.emp_id, empId), {
+          leave_type_code: "WW",
+          field: "accrued_days",
           year: currentYear,
           new_value: newWeekendWork
+        }),
+      });
+    }
+
+    if (edits.length === 0) {
+      setEditingRowId(null);
+      setEditForm(null);
+      setIsSaving(false);
+      return;
+    }
+
+    const results = await Promise.allSettled(edits.map((e) => e.request));
+    const succeeded = [];
+    const failed = [];
+
+    results.forEach((result, i) => {
+      const edit = edits[i];
+      if (result.status === 'fulfilled') {
+        succeeded.push(edit);
+      } else {
+        const message =
+          result.reason?.response?.data?.message ||
+          result.reason?.message ||
+          `Failed to update ${edit.label}.`;
+        failed.push({ ...edit, message });
+      }
+    });
+
+    if (succeeded.length > 0) {
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id !== empId) return e;
+          const patch = { lastModified: new Date().toISOString().split('T')[0] };
+          succeeded.forEach((edit) => {
+            patch[edit.key] = { ...e[edit.key], balance: edit.value };
+          });
+          return { ...e, ...patch };
         })
+      );
+      toast.success(
+        succeeded.length === edits.length
+          ? 'Quota updated successfully.'
+          : `Updated ${succeeded.map((e) => e.label).join(', ')}.`
       );
     }
 
-    if (promises.length > 0) {
-      await Promise.allSettled(promises);
+    failed.forEach((edit) => {
+      toast.error(`${edit.label}: ${edit.message}`);
+    });
+
+    // Leave the row in edit mode when something failed, so the user can see
+    // which fields still hold their unsaved (rejected) values and retry.
+    if (failed.length === 0) {
+      setEditingRowId(null);
+      setEditForm(null);
     }
-
-    setEmployees((prev) =>
-      prev.map((e) => {
-        if (e.id === empId) {
-          return {
-            ...e,
-            carryOver: { ...e.carryOver, balance: newCarryOver },
-            sickLeave: { ...e.sickLeave, balance: newSickLeave },
-            compOff: { ...e.compOff, balance: newCompOff },
-            weekendWork: { ...e.weekendWork, balance: newWeekendWork },
-            lastModified: new Date().toISOString().split('T')[0],
-          };
-        }
-        return e;
-      })
-    );
-
-    setEditingRowId(null);
-    setEditForm(null);
     setIsSaving(false);
   };
 
