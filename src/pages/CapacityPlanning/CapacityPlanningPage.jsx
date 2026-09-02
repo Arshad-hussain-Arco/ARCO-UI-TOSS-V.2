@@ -536,8 +536,8 @@ export function CapacityPlanningPage() {
       // same overlap math as calculateProratedEffort — so the modal always
       // shows exactly the assignments that contributed to the Occupied MDs
       // figure. Previously this required End_Date to fall inside the
-      // window AND Status to be "Open"/"FAT Testing", which silently hid
-      // assignments that ran past the window or had any other status even
+      // window AND Status to be one of a fixed set of values, which silently
+      // hid assignments that ran past the window or had any other status even
       // though they were counted in the Occupied total.
       const overlapStart = new Date(Math.max(ref.getTime(), start.getTime()));
       const overlapEnd = new Date(Math.min(end.getTime(), windowEnd.getTime()));
@@ -651,29 +651,7 @@ export function CapacityPlanningPage() {
     return `${day}/${month}/${year}`;
   };
 
-  // Substring fragments used to fuzzy-match a status so minor casing/spacing
-  // variance in the source data doesn't silently miss the Tester role.
-  const TESTING_STATUS_FRAGMENTS = [
-    'sit entry',
-    'sit in progress',
-    'smoke',
-    'uat entry',
-    'uat inprogress',
-    'uat in progress',
-    'uat sign off',
-    'fat testing'
-  ];
-
   const getDerivedRole = (alloc) => {
-    const statusLower = (alloc.status || '').toLowerCase().trim();
-    if (TESTING_STATUS_FRAGMENTS.some(fragment => statusLower.includes(fragment))) {
-      return {
-        label: 'Tester',
-        icon: <CheckSquare size={14} className="role-icon tester-dev" />,
-        class: 'dev-badge dev-tester',
-        tooltip: `${alloc.status} Role`
-      };
-    }
     if (alloc.isAssignedProgrammer) {
       return {
         label: 'Primary Developer',
