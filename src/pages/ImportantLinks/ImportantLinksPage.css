@@ -645,6 +645,24 @@
   line-height: 1.5;
 }
 
+/* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
+   inside the SimpleRichTextEditor (.il-rte-content) so it doesn't render as 
+   invisible white-on-white text in dark mode. */
+[data-theme="dark"] .il-rte-content * {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .il-rte-content a,
+[data-theme="dark"] .il-rte-content a * {
+  color: #60a5fa !important;
+}
+
+/* Explicit override for table headers so they don't look completely transparent */
+[data-theme="dark"] .il-rte-content table th {
+  background-color: var(--bg-secondary, #374151) !important;
+}
+
 .il-input-error {
   border-color: var(--c-danger) !important;
 }

@@ -23,7 +23,8 @@ import {
   ArrowUpDown,
   MessageCircle,
   Bell,
-  ScissorsLineDashed
+  ScissorsLineDashed,
+  Globe2
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -58,8 +59,8 @@ import './TeamRequests.css';
 // manager hierarchy (managerOnly), never by role or permission — see
 // `isManager` above, derived from user.mySubordinates.
 const ALL_TABS = [
-  { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
-  { id: 'my-leaves-summary', label: 'My Leaves Summary', icon: FileText },
+  { id: 'my-leaves', label: 'My Leaves', icon: Calendar },
+  { id: 'my-leaves-summary', label: 'My Leaves History', icon: FileText },
   { id: 'team-requests', label: 'Team Leave Requests', icon: Users, managerOnly: true },
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3, managerOnly: true },
   { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, managerOnly: true },
@@ -124,8 +125,8 @@ function groupClaimLeaves(leaves) {
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
   { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: '#006633' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: '#006633' },
-  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: '#006633' },
+  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#3b82f6' },
   { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
 
@@ -941,17 +942,7 @@ export function LeaveManagementPage() {
         {activeTab === 'my-leaves' && (
           <>
             <div className="my-leaves-toolbar">
-              <div className="my-leaves-search-wrapper">
-                <Search className="my-leaves-search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search leaves..." 
-                  className="my-leaves-search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="my-leaves-actions">
+              <div className="my-leaves-actions" style={{ marginLeft: 'auto' }}>
                 {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category, icon: Icon, color }) => {
                   const eligible = isActionEligible(codes, category);
                   return (
@@ -1143,32 +1134,19 @@ export function LeaveManagementPage() {
                         <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.is_mod_request).length}</span>
                       </button>
 
-                      <div style={{ width: '1px', height: '28px', background: 'var(--border-primary)', margin: '0 4px', alignSelf: 'center' }} />
-
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterType === 'offshore'}
-                        // Kept separate from filterStatus (see filterType
-                        // above) so this combines with an active status pill
-                        // via AND instead of resetting it — e.g. Approved +
-                        // Offshore Work narrows to just approved offshore
-                        // requests.
-                        onClick={() => setFilterType((prev) => (prev === 'offshore' ? 'all' : 'offshore'))}
-                      >
-                        <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.leave_type === 'OW').length}</span>
-                      </button>
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterType === 'wfh'}
-                        onClick={() => setFilterType((prev) => (prev === 'wfh' ? 'all' : 'wfh'))}
-                      >
-                        <span className="leave-filter-label">Work From Home</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : searchFilteredLeaves.filter(l => l.leave_type === 'WFH').length}</span>
-                      </button>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div className="my-leaves-search-wrapper" style={{ width: '300px' }}>
+                        <Search className="my-leaves-search-icon" size={14} />
+                        <input 
+                          type="text" 
+                          placeholder="Search leaves..." 
+                          className="my-leaves-search"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
                       <div className="view-mode-segmented">
                         <button
                           className="view-mode-segment"
@@ -1438,6 +1416,7 @@ export function LeaveManagementPage() {
                     dayFlags={calendarDayFlags}
                     onPrevMonth={handlePrevMonth}
                     onNextMonth={handleNextMonth}
+                    style={{ border: 'none', boxShadow: 'none', padding: 0 }}
                   />
                 )}
               </div>
