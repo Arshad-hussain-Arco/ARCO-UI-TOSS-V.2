@@ -290,6 +290,20 @@
   outline: none;
 }
 
+/* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
+   so it doesn't render as invisible white-on-white text in dark mode. 
+   We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
+[data-theme="dark"] .rte-editable *:not([class*="rte-"]):not([class*="media-"]) {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .rte-editable a,
+[data-theme="dark"] .rte-editable a span,
+[data-theme="dark"] .rte-editable a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: #60a5fa !important;
+}
+
 .rte-root.rte-fullscreen .rte-editable {
   max-height: none;
   flex: 1;

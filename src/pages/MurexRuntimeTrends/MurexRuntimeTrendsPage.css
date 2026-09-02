@@ -393,7 +393,7 @@
 }
 
 .murex-overview-job-title {
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
@@ -404,7 +404,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-secondary);
@@ -482,7 +482,7 @@
 
 
 /* New Tabular Job - Duration Matrix Layout */
-.murex-matrix-card-new { 
+.murex-matrix-card-new {
   padding: 16px 20px;
 }
 
@@ -491,7 +491,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px; 
+  gap: 4px;
   width: 100%;
 }
 
@@ -532,7 +532,8 @@
 .murex-matrix-list-body {
   display: flex;
   flex-direction: column;
-  max-height: 380px; /* Limits height roughly same as before */
+  max-height: 380px;
+  /* Limits height roughly same as before */
   overflow-y: auto;
 }
 
@@ -540,14 +541,17 @@
 .murex-matrix-list-body::-webkit-scrollbar {
   width: 6px;
 }
+
 .murex-matrix-list-body::-webkit-scrollbar-track {
   background: var(--bg-secondary, #f8fafc);
   border-radius: 4px;
 }
+
 .murex-matrix-list-body::-webkit-scrollbar-thumb {
   background: var(--border-secondary, #cbd5e1);
   border-radius: 4px;
 }
+
 .murex-matrix-list-body::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary, #94a3b8);
 }
@@ -555,7 +559,7 @@
 .murex-matrix-list-row {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 5px 10px;
   border-bottom: 1px solid var(--border-secondary, #f1f5f9);
   transition: background-color 0.15s ease;
   cursor: pointer;
@@ -632,11 +636,13 @@
   font-weight: bold;
   color: var(--text-secondary, #64748b);
 }
-.mxl-total-duration-text{
+
+.mxl-total-duration-text {
   font-size: 16px;
   font-weight: 700;
-  color : var(--c-primary,  );
+  color: var(--c-primary, );
 }
+
 .mxl-start-end-text {
   font-size: 11px;
   font-weight: 500;
@@ -647,7 +653,7 @@
 /* Single "Run Details" section heading, shown once above all job cards */
 .murex-run-details-heading {
   margin: 0;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-primary, #0f172a);
   letter-spacing: -0.2px;
@@ -678,7 +684,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 8px 16px;
   cursor: pointer;
   background: linear-gradient(180deg, var(--surface-primary) 0%, var(--bg-secondary) 100%);
   user-select: none;
@@ -691,16 +697,17 @@
 
 .murex-timeline-accordion-header-left {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
 }
 
 .murex-timeline-accordion-chevron-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
   border-radius: 50%;
@@ -1206,7 +1213,7 @@
   justify-content: center;
   gap: 4px;
   padding: 7px;
-  background:  #006633;
+  background: #006633;
   border: none;
   border-radius: 3px;
   font-size: 10px;
@@ -2571,13 +2578,19 @@
 }
 
 @keyframes spin-infinite {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spin {
   animation: spin-infinite 1s linear infinite;
 }
+
 .murex-matrix-list-footer {
   display: flex;
   padding: 8px 18px 8px 12px;
@@ -2590,7 +2603,6 @@
 
 /* Round Plotly annotation backgrounds for the count badges */
 .js-plotly-plot .annotation-text-g rect.bg {
-    rx: 50px;
-    ry: 50px;
+  rx: 50px;
+  ry: 50px;
 }
-
