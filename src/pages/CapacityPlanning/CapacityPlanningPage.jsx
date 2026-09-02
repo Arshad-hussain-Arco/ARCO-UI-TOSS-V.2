@@ -93,11 +93,16 @@ export function CapacityPlanningPage() {
   // Gantt View / Project Monitoring, kept independent so switching one
   // tab's mode doesn't affect the other.
   const [projectViewLifecycleMode, setProjectViewLifecycleMode] = useState('business');
+  // Clicking a legend chip filters the table to that stage; clicking the
+  // same chip again clears it. Reset whenever the lifecycle mode toggles
+  // since the stage id set (7-stage vs 17-stage) changes underneath it.
+  const [projectStageFilter, setProjectStageFilter] = useState(null);
 
   // Gantt View — SDLC (7-stage) vs Tech (17-stage) lifecycle, same toggle
   // concept as Project Monitoring, reusing its actual PMStatusGroups/PMStatus
   // stage definitions rather than a separate guessed color mapping.
   const [ganttLifecycleMode, setGanttLifecycleMode] = useState('business');
+  const [ganttStageFilter, setGanttStageFilter] = useState(null);
 
 
 
@@ -334,22 +339,56 @@ export function CapacityPlanningPage() {
         : PMStatusGroups.find(sg => sg.id === statusGroup);
       return {
         ...g,
+        stageKey: stage ? stage.id : null,
         stageName: stage ? stage.name : 'Unmapped',
         stageColor: stage ? stage.color : '#9ca3af',
       };
     });
 
-    return withStage.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
-  }, [allProjectGroups, debouncedProjectSearchQuery, projectViewLifecycleMode]);
+    const byStage = projectStageFilter
+      ? withStage.filter(g => g.stageKey === projectStageFilter)
+      : withStage;
 
-  // Count of distinct projects (from the currently searched/filtered set)
-  // whose own span overlaps each window — independent of the 7/30/90 toggle,
-  // so all three counts are visible together in the Project View stats strip.
-  const projectCountsByWindow = useMemo(() => ({
-    next7: projectGroups.filter(g => g.overlaps7).length,
-    next30: projectGroups.filter(g => g.overlaps30).length,
-    next90: projectGroups.filter(g => g.overlaps90).length,
-  }), [projectGroups]);
+    // The Next 7/30/90 Days toggle filters the table to projects whose own
+    // span overlaps that window — same overlap flags used by the stats
+    // strip below, so clicking a window button and clicking a legend chip
+    // compose into one combined filter instead of the toggle only relabeling
+    // the effort column.
+    const windowKey = `overlaps${projectViewTimeframe}`;
+    const byWindow = byStage.filter(g => g[windowKey]);
+
+    return byWindow.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
+  }, [allProjectGroups, debouncedProjectSearchQuery, projectViewLifecycleMode, projectStageFilter, projectViewTimeframe]);
+
+  // Count of distinct projects (from the currently searched + stage-filtered
+  // set, but BEFORE the Next-N-Days window filter) whose own span overlaps
+  // each window — independent of the 7/30/90 toggle, so all three counts
+  // stay visible together in the stats strip regardless of which window is
+  // currently selected in the table above.
+  const projectCountsByWindow = useMemo(() => {
+    const q = debouncedProjectSearchQuery.toLowerCase().trim();
+    const filtered = q
+      ? allProjectGroups.filter(g =>
+          g.project.toLowerCase().includes(q) ||
+          g.summary.toLowerCase().includes(q) ||
+          g.developers.some(d => d.name.toLowerCase().includes(q))
+        )
+      : allProjectGroups;
+
+    const byStage = projectStageFilter
+      ? filtered.filter(g => {
+          const { statusId, statusGroup } = mapStatusToIds(g.status);
+          const stageKey = projectViewLifecycleMode === 'development' ? statusId : statusGroup;
+          return stageKey === projectStageFilter;
+        })
+      : filtered;
+
+    return {
+      next7: byStage.filter(g => g.overlaps7).length,
+      next30: byStage.filter(g => g.overlaps30).length,
+      next90: byStage.filter(g => g.overlaps90).length,
+    };
+  }, [allProjectGroups, debouncedProjectSearchQuery, projectStageFilter, projectViewLifecycleMode]);
 
   const toggleProjectCollapse = (key) => {
     setCollapsedProjects(prev => {
@@ -374,7 +413,16 @@ export function CapacityPlanningPage() {
         )
       : allProjectGroups;
 
-    const projects = searched
+    const withStageKey = searched.map(g => {
+      const { statusId, statusGroup } = mapStatusToIds(g.status);
+      const stageKey = ganttLifecycleMode === 'development' ? statusId : statusGroup;
+      return { ...g, stageKey };
+    });
+    const byStage = ganttStageFilter
+      ? withStageKey.filter(g => g.stageKey === ganttStageFilter)
+      : withStageKey;
+
+    const projects = byStage
       .map(g => ({ ...g, startObj: parseDate(g.startDate), endObj: parseDate(g.endDate) }))
       .filter(g => g.startObj && g.endObj && g.endObj >= g.startObj)
       .sort((a, b) => a.startObj - b.startObj);
@@ -419,7 +467,7 @@ export function CapacityPlanningPage() {
     }
 
     return { projects: projectsWithBars, todayPct: pct(ref), monthTicks };
-  }, [allProjectGroups, debouncedGanttSearchQuery, referenceDate, ganttLifecycleMode]);
+  }, [allProjectGroups, debouncedGanttSearchQuery, referenceDate, ganttLifecycleMode, ganttStageFilter]);
 
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
@@ -835,14 +883,14 @@ export function CapacityPlanningPage() {
                     <button
                       type="button"
                       className={`switcher-btn ${projectViewLifecycleMode === 'business' ? 'active' : ''}`}
-                      onClick={() => setProjectViewLifecycleMode('business')}
+                      onClick={() => { setProjectViewLifecycleMode('business'); setProjectStageFilter(null); }}
                     >
                       SDLC View (7 Stages)
                     </button>
                     <button
                       type="button"
                       className={`switcher-btn ${projectViewLifecycleMode === 'development' ? 'active' : ''}`}
-                      onClick={() => setProjectViewLifecycleMode('development')}
+                      onClick={() => { setProjectViewLifecycleMode('development'); setProjectStageFilter(null); }}
                     >
                       Tech View (17 Stages)
                     </button>
@@ -866,14 +914,14 @@ export function CapacityPlanningPage() {
                     <button
                       type="button"
                       className={`switcher-btn ${ganttLifecycleMode === 'business' ? 'active' : ''}`}
-                      onClick={() => setGanttLifecycleMode('business')}
+                      onClick={() => { setGanttLifecycleMode('business'); setGanttStageFilter(null); }}
                     >
                       SDLC View (7 Stages)
                     </button>
                     <button
                       type="button"
                       className={`switcher-btn ${ganttLifecycleMode === 'development' ? 'active' : ''}`}
-                      onClick={() => setGanttLifecycleMode('development')}
+                      onClick={() => { setGanttLifecycleMode('development'); setGanttStageFilter(null); }}
                     >
                       Tech View (17 Stages)
                     </button>
@@ -1224,11 +1272,21 @@ export function CapacityPlanningPage() {
             </div>
             <div className="cp-legend-container" style={{ paddingTop: '10px' }}>
               {(projectViewLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
-                <span key={stage.id} className="cp-legend-item">
+                <button
+                  key={stage.id}
+                  type="button"
+                  className={`cp-legend-item cp-legend-filter ${projectStageFilter === stage.id ? 'active' : ''}`}
+                  onClick={() => setProjectStageFilter(prev => prev === stage.id ? null : stage.id)}
+                >
                   <span className="cp-legend-indicator" style={{ background: stage.color }} />
                   {stage.name}
-                </span>
+                </button>
               ))}
+              {projectStageFilter && (
+                <button type="button" className="cp-legend-clear" onClick={() => setProjectStageFilter(null)}>
+                  Clear filter ×
+                </button>
+              )}
             </div>
             <div className="cp-table-wrapper">
               <table className="cp-data-table">
@@ -1350,11 +1408,21 @@ export function CapacityPlanningPage() {
           <div className="cp-table-card">
             <div className="cp-legend-container">
               {(ganttLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
-                <span key={stage.id} className="cp-legend-item">
+                <button
+                  key={stage.id}
+                  type="button"
+                  className={`cp-legend-item cp-legend-filter ${ganttStageFilter === stage.id ? 'active' : ''}`}
+                  onClick={() => setGanttStageFilter(prev => prev === stage.id ? null : stage.id)}
+                >
                   <span className="cp-legend-indicator" style={{ background: stage.color }} />
                   {stage.name}
-                </span>
+                </button>
               ))}
+              {ganttStageFilter && (
+                <button type="button" className="cp-legend-clear" onClick={() => setGanttStageFilter(null)}>
+                  Clear filter ×
+                </button>
+              )}
             </div>
             {ganttData.projects.length === 0 ? (
               <div className="cp-empty-state">No projects found matching the criteria</div>

@@ -1170,6 +1170,47 @@
   border-color: var(--border-secondary);
 }
 
+.cp-legend-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  outline: none;
+  font: inherit;
+  line-height: normal;
+  cursor: pointer;
+}
+
+.cp-legend-filter.active {
+  background-color: var(--accent-primary, #2563eb);
+  border-color: var(--accent-primary, #2563eb);
+  color: #fff;
+}
+
+.cp-legend-clear {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  outline: none;
+  font: inherit;
+  line-height: normal;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-secondary);
+  border-radius: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cp-legend-clear:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
 .cp-legend-indicator {
   width: 10px;
   height: 10px;
