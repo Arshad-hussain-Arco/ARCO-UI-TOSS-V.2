@@ -1,12 +1,18 @@
-import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile, readFileAsDataUrl } from './mediaUtils';
 import { getFileTypeIconSvg } from './fileTypeIcons';
 
 const MAX_PDF_MB = 40;
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_PDF_MB);
-  const result = await uploadMediaFile(file);
-  return { ...result, mime: result.mime || 'application/pdf' };
+  try {
+    const result = await uploadMediaFile(file);
+    return { ...result, mime: result.mime || 'application/pdf' };
+  } catch (err) {
+    // Fallback to data URL if backend is unavailable
+    const dataUrl = await readFileAsDataUrl(file);
+    return { url: dataUrl, mime: 'application/pdf' };
+  }
 }
 
 export function isPdfFile(file) {

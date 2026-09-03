@@ -39,6 +39,41 @@ function stripHtml(htmlStr) {
 }
 
 /**
+ * Detects when editor-exported HTML contains HTML source code stored as text
+ * (i.e. the user pasted raw HTML into the WYSIWYG editor, which escapes the tags
+ * as &lt;table&gt; etc.). If found, decode the entities and sanitize so the
+ * Live Preview can render actual HTML elements instead of showing raw source.
+ * Falls back to the original HTML for normal rich-text content.
+ */
+function resolveHtmlForPreview(html) {
+  if (!html) return html;
+  // Quick check: does the content contain HTML-escaped angle brackets?
+  if (!/&lt;\s*\/?(?:table|thead|tbody|tfoot|tr|td|th|div|p|h[1-6]|ul|ol|li|dl|dt|dd|span|a|img|section|article|header|footer|nav|main|aside|strong|em|b|i|u|br|hr|blockquote|pre|code|figure|figcaption|details|summary|caption|colgroup|col)\b/i.test(html)) {
+    return html; // No escaped HTML tags found — return original content
+  }
+  // Decode: parse as HTML, extract the text content (which is the raw HTML source)
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const decoded = doc.body.textContent || '';
+    // Verify the decoded text actually contains real HTML tags
+    if (/<\s*(?:table|div|p|h[1-6]|ul|ol|li|section|article|header|footer|nav|main|blockquote|pre|figure|details|dl)\b[^>]*>/i.test(decoded)) {
+      // Sanitize for safety (strips <script>, onclick, javascript: etc.)
+      return DOMPurify.sanitize(decoded, {
+        ADD_TAGS: ['style', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
+          'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary'],
+        ADD_ATTR: ['style', 'class', 'colspan', 'rowspan', 'border', 'cellpadding',
+          'cellspacing', 'width', 'height', 'align', 'valign', 'scope', 'headers',
+          'target', 'rel', 'href', 'src', 'alt', 'title'],
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
+          'onsubmit', 'onchange', 'onkeydown', 'onkeyup', 'onkeypress'],
+      });
+    }
+  } catch { /* parsing failed — fall through to original */ }
+  return html;
+}
+
+/**
  * Home Management Panel - Split-Screen Preview Modal & Stable Event Handling
  */
 function HomeManagementPanelComponent() {
@@ -171,16 +206,12 @@ function HomeManagementPanelComponent() {
     const bareVideoUrl = card.video_url ? toAbsoluteMediaUrl(card.video_url) : null;
     const widthVal = card.display_width || '100%';
 
-    if (card.card_type === 'html_code') {
+    if (card.card_type === 'html_code' || card.card_type === 'content_card') {
       setActiveTab('html');
-      setHtmlContent(card.html_content || '');
+      setHtmlContent(card.html_content || card.text_content || '');
       setHtmlWidth(widthVal);
     } else {
-      // person_card maps directly. The old content_card type (separate
-      // "Content" sub-tab, since removed) only ever had text_content +
-      // an optional photo ΓÇö loads into the same Article form here with
-      // Title/Sub Head left blank; saving it back out now writes it as a
-      // person_card going forward.
+      // person_card maps directly.
       setActiveTab('text');
       setPersonName(card.person_name || '');
       setPersonDesignation(card.designation || '');
@@ -274,12 +305,12 @@ function HomeManagementPanelComponent() {
     // except needing *something* to actually show on the card). Rich Text
     // still requires actual content since an empty editor renders nothing.
     if (activeTab === 'text') {
-      if (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile && !personExistingVideoUrl) {
+      if (!(personName || '').trim() && !(personDesignation || '').trim() && !(personBio || '').trim() && !personFile && !personExistingVideoUrl) {
         toast.error('Add at least a title, description, or media to save this card.');
         return;
       }
     } else {
-      if (!htmlContent.trim()) {
+      if (!(htmlContent || '').trim()) {
         toast.error('HTML Code is required.');
         return;
       }
@@ -291,9 +322,9 @@ function HomeManagementPanelComponent() {
 
       if (activeTab === 'text') {
         payload.append('card_type', 'person_card');
-        payload.append('person_name', personName.trim());
-        payload.append('designation', personDesignation.trim());
-        payload.append('bio', personBio.trim());
+        payload.append('person_name', (personName || '').trim());
+        payload.append('designation', (personDesignation || '').trim());
+        payload.append('bio', (personBio || '').trim());
         payload.append('display_width', personWidth);
         if (personFile && personMediaType === 'video') {
           // Video bytes never touch the `photo` BLOB column ΓÇö upload to the
@@ -314,7 +345,7 @@ function HomeManagementPanelComponent() {
         }
       } else {
         payload.append('card_type', 'html_code');
-        payload.append('html_content', htmlContent.trim());
+        payload.append('html_content', resolveHtmlForPreview((htmlContent || '').trim()));
         payload.append('display_width', htmlWidth);
       }
 
@@ -338,8 +369,8 @@ function HomeManagementPanelComponent() {
 
   const isSaveDisabled = isUploading || (
     activeTab === 'text'
-      ? (!personName.trim() && !personDesignation.trim() && !personBio.trim() && !personFile && !personExistingVideoUrl)
-      : !htmlContent.trim()
+      ? (!(personName || '').trim() && !(personDesignation || '').trim() && !(personBio || '').trim() && !personFile && !personExistingVideoUrl)
+      : !(htmlContent || '').trim()
   );
 
   // Bare `personExistingVideoUrl` gets the current mediaToken attached here
@@ -915,7 +946,7 @@ function HomeManagementPanelComponent() {
                   }}
                 >
                   {/* Left Column: Form Inputs */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
                     {activeTab === 'text' ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {/* Card Display Width */}
@@ -982,7 +1013,7 @@ function HomeManagementPanelComponent() {
                   </div>
 
                   {/* Right Column: Live Card Preview */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: 0, minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
                       LIVE CARD PREVIEW
                     </h4>
@@ -997,12 +1028,12 @@ function HomeManagementPanelComponent() {
                       overflowY: 'auto',
                       overflowX: 'auto',
                     }}>
-                      {activeTab === 'html' && htmlContent ? (
+                      {activeTab === 'html' && !(!htmlContent || (htmlContent || '').trim() === '' || (htmlContent || '').trim() === '<div><br></div>' || (htmlContent || '').trim() === '<br>' || (htmlContent || '').trim() === '<p><br></p>') ? (
                         <HomeCard
                           card={{
                             card_type: 'html_code',
                             display_width: htmlWidth,
-                            html_content: htmlContent,
+                            html_content: resolveHtmlForPreview(htmlContent),
                           }}
                         />
                       ) : activeTab === 'text' && (personName || personBio || personPreviewUrl) ? (

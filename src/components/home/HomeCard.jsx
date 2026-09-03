@@ -13,7 +13,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
   // already in DOMPurify's default allowlist, but listed explicitly here
   // too so this stays correct if that default ever changes.
   ADD_TAGS: ['embed', 'video', 'source', 'button', 'svg', 'path', 'rect', 'circle',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col'],
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'style'],
   ADD_ATTR: [
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',

@@ -1,37 +1,40 @@
-import React, { useRef, useMemo, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
 import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken } from './mediaUtils';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
-import './RichEditor.css'; 
+
+import './RichEditor.css';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
 
 initializeIcons(undefined, { disableWarnings: true });
 
-import { 
-  createRibbonPlugin, 
-  Ribbon, 
-  Rooster, 
+import {
+  createRibbonPlugin,
+  Ribbon,
+  Rooster,
   undoButton,
   redoButton,
-  boldButton, 
-  italicButton, 
-  underlineButton, 
-  fontButton, 
-  fontSizeButton, 
+  boldButton,
+  italicButton,
+  underlineButton,
+  fontButton,
+  fontSizeButton,
   textColorButton,
-  backgroundColorButton, 
-  bulletedListButton, 
-  numberedListButton, 
-  decreaseIndentButton, 
+  backgroundColorButton,
+  bulletedListButton,
+  numberedListButton,
+  decreaseIndentButton,
   increaseIndentButton,
-  insertLinkButton, 
+  insertLinkButton,
   removeLinkButton,
-  insertImageButton, 
-  insertTableButton, 
-  alignLeftButton, 
-  alignCenterButton, 
+  insertImageButton,
+  insertTableButton,
+  alignLeftButton,
+  alignCenterButton,
   alignRightButton,
   alignJustifyButton,
   blockQuoteButton,
@@ -54,58 +57,450 @@ import {
   setImageBorder,
   setImageBoxShadow,
   changeImage,
-  adjustImageSelection
+  adjustImageSelection,
+  exportContent,
+  TableEditPlugin,
+  ImageEditPlugin
 } from 'roosterjs';
+
+// ── Code Language Detection ─────────────────────────────────────────────
+const CODE_PATTERNS = [
+  { lang: 'html', badge: 'HTML', cls: 'rte-code-lang-badge-html', re: /(?:<\/?(?:html|head|body|div|span|p|a|img|table|form|input|button|script|style|link|meta|section|article|header|footer|nav|main|aside|ul|ol|li|h[1-6])\b[^>]*>|<!DOCTYPE\s+html)/i },
+  { lang: 'javascript', badge: 'JavaScript', cls: 'rte-code-lang-badge-js', re: /(?:^|\n)\s*(?:(?:const|let|var|function|class|import|export|return|if|else|for|while|switch|case|try|catch|async|await)\s|=>|console\.log|document\.|window\.|require\(|module\.exports)/ },
+  { lang: 'python', badge: 'Python', cls: 'rte-code-lang-badge-python', re: /(?:^|\n)\s*(?:def\s+\w+\s*\(|class\s+\w+|import\s+\w|from\s+\w+\s+import|print\s*\(|if\s+__name__|elif\s|except\s|raise\s|lambda\s|self\.)/ },
+  { lang: 'css', badge: 'CSS', cls: 'rte-code-lang-badge-css', re: /(?:^|\n)\s*(?:[.#@]\w[\w-]*\s*\{|\w[\w-]*\s*:\s*[\w#(]+.*;|@media\s|@keyframes\s|@import\s)/ },
+];
+
+function detectCodeLanguage(text) {
+  if (!text || text.trim().length < 10) return null;
+  for (const p of CODE_PATTERNS) {
+    if (p.re.test(text)) return p;
+  }
+  // Fallback: if it has 3+ lines and looks "codey" (lots of braces/semicolons/indentation)
+  const lines = text.split('\n');
+  if (lines.length >= 3) {
+    const codeChars = (text.match(/[{};()=<>]/g) || []).length;
+    if (codeChars / text.length > 0.03) {
+      return { lang: 'code', badge: 'Code', cls: '', re: null };
+    }
+  }
+  return null;
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildCodePreviewHtml(code, langInfo) {
+  const escaped = escapeHtml(code);
+  const isHtml = langInfo.lang === 'html';
+  let html = `<div class="rte-code-preview" contenteditable="false">` +
+    `<div class="rte-code-header">` +
+    `<span class="rte-code-lang-badge ${langInfo.cls}"><span class="rte-code-lang-dot"></span>${langInfo.badge}</span>` +
+    `<button class="rte-code-copy-btn" data-code-copy="true" type="button" title="Copy code">` +
+    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>` +
+    `Copy` +
+    `</button>` +
+    `</div>` +
+    `<div class="rte-code-body"><pre><code>${escaped}</code></pre></div>`;
+
+  if (isHtml) {
+    const sanitized = DOMPurify.sanitize(code, { ADD_TAGS: ['style'], ADD_ATTR: ['style'] });
+    html += `<div class="rte-code-html-preview">` +
+      `<div class="rte-code-html-preview-header">` +
+      `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>` +
+      `Live Preview` +
+      `</div>` +
+      `<div class="rte-code-html-preview-body">${sanitized}</div>` +
+      `</div>`;
+  }
+
+  html += `</div><p><br></p>`;
+  return html;
+}
+
+// ── Fullscreen Insert Link Modal Component ──────────────────────────────
+function InsertLinkModal({ isOpen, onClose, onInsert }) {
+  const [url, setUrl] = useState('');
+  const [displayText, setDisplayText] = useState('');
+  const [openInNewTab, setOpenInNewTab] = useState(true);
+  const [urlError, setUrlError] = useState('');
+  const urlInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setUrl('');
+      setDisplayText('');
+      setOpenInNewTab(true);
+      setUrlError('');
+      setTimeout(() => urlInputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    document.addEventListener('keydown', handleKey);
+    const orig = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = orig;
+    };
+  }, [isOpen, onClose]);
+
+  const handleSubmit = () => {
+    let finalUrl = url.trim();
+    if (!finalUrl) { setUrlError('Please enter a URL.'); return; }
+    try {
+      new URL(finalUrl.startsWith('http') ? finalUrl : `https://${finalUrl}`);
+    } catch {
+      setUrlError('Please enter a valid URL.'); return;
+    }
+    if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
+    onInsert({ url: finalUrl, text: displayText.trim() || finalUrl, newTab: openInNewTab });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return ReactDOM.createPortal(
+    <div className="rte-link-modal-overlay" onClick={onClose}>
+      <div className="rte-link-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="rte-link-modal-header">
+          <h3 className="rte-link-modal-title">
+            <span className="rte-link-modal-title-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            </span>
+            Insert Link
+          </h3>
+          <button type="button" className="rte-link-modal-close" onClick={onClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div className="rte-link-modal-body">
+          <div className="rte-link-modal-field">
+            <label className="rte-link-modal-label">URL <span className="rte-link-modal-required">*</span></label>
+            <input
+              ref={urlInputRef}
+              type="url"
+              className={`rte-link-modal-input ${urlError ? 'rte-link-modal-input-error' : ''}`}
+              placeholder="https://example.com"
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setUrlError(''); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+            />
+            {urlError && <span className="rte-link-modal-error">{urlError}</span>}
+          </div>
+
+          <div className="rte-link-modal-field">
+            <label className="rte-link-modal-label">Display Text</label>
+            <input
+              type="text"
+              className="rte-link-modal-input"
+              placeholder="Text to display (defaults to URL)"
+              value={displayText}
+              onChange={(e) => setDisplayText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+            />
+          </div>
+
+          <label className="rte-link-modal-checkbox-row" onClick={() => setOpenInNewTab(v => !v)}>
+            <input
+              type="checkbox"
+              className="rte-link-modal-checkbox"
+              checked={openInNewTab}
+              onChange={(e) => setOpenInNewTab(e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div>
+              <div className="rte-link-modal-checkbox-label">Open in new tab</div>
+              <div className="rte-link-modal-checkbox-hint">Link will open in a separate browser tab</div>
+            </div>
+          </label>
+        </div>
+
+        <div className="rte-link-modal-footer">
+          <button type="button" className="rte-link-modal-btn rte-link-modal-btn-cancel" onClick={onClose}>Cancel</button>
+          <button type="button" className="rte-link-modal-btn rte-link-modal-btn-submit" onClick={handleSubmit} disabled={!url.trim()}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            Insert Link
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+const getEditorHtml = (editor) => {
+  if (!editor) return '';
+  try {
+    // ALWAYS prioritize grabbing the raw innerHTML directly to bypass RoosterJS's strict ContentModel
+    // which silently strips out complex layouts like flexbox and CSS gradients.
+    const editorDiv = document.querySelector('.rte-root div[contenteditable="true"]');
+    if (editorDiv) return editorDiv.innerHTML;
+    
+    // Fallback only
+    return exportContent(editor);
+  } catch (e) {
+    console.warn("RoosterJS HTML extraction error:", e);
+    return null; // Return null so we don't wipe the editor data on failure
+  }
+};
 
 export function RichEditor({ value = '', onChange, placeholder }) {
   const toast = useToast();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('Main');
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const wrapperRef = useRef(null);
   const editorRef = useRef(null);
   const imgInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const pdfInputRef = useRef(null);
   const fileInputRef = useRef(null);
-  
+  const isInitialized = useRef(false);
+
   const mediaToken = useHomeMediaToken();
   const displayHtml = (html) => attachHomeMediaToken(html, mediaToken) || html;
-  
+
   const initialValue = useMemo(() => {
     return displayHtml(value);
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      isInitialized.current = true;
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Force roosterjs to accept complex HTML on mount, bypassing its strict ContentModel stripping
+  useEffect(() => {
+    if (editorRef.current && initialValue) {
+      setTimeout(() => {
+        try {
+          let root = document.querySelector('.rte-root div[contenteditable="true"]');
+          if (root && (root.innerHTML === '' || root.innerHTML === '<div><br></div>')) {
+            root.innerHTML = initialValue;
+          }
+        } catch (err) {}
+      }, 50); // slight delay to let roosterjs initialize first
+    }
+  }, [initialValue]);
 
   const handleChange = useCallback((newContent) => {
     const stripped = stripHomeMediaToken(newContent);
     onChange?.(stripped);
   }, [onChange]);
 
-  const editorSyncPlugin = useMemo(() => ({
-    getName: () => 'EditorSyncPlugin',
-    initialize: (editor) => {
-      editorRef.current = editor;
-    },
-    dispose: () => {
-      editorRef.current = null;
-    },
-    onPluginEvent: (e) => {
-      if (
-        e.eventType === 0 || 
-        e.eventType === 'contentChanged' || 
-        e.eventType === 'input'
-      ) {
-        if (editorRef.current) {
-          handleChange(editorRef.current.getContent());
+  const editorSyncPlugin = useMemo(() => {
+    let timeout;
+    return {
+      getName: () => 'EditorSyncPlugin',
+      initialize: (editor) => {
+        editorRef.current = editor;
+      },
+      dispose: () => {
+        editorRef.current = null;
+        clearTimeout(timeout);
+      },
+      onPluginEvent: (e) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          if (editorRef.current) {
+            const currentHtml = getEditorHtml(editorRef.current);
+            if (currentHtml === null) return; // Prevent wipe on critical extraction error
+            // Prevent overwriting initial value with empty state during mount
+            if (!isInitialized.current && (!currentHtml || currentHtml === '<div><br></div>') && initialValue) {
+              return;
+            }
+            handleChange(currentHtml);
+          }
+        }, 150);
+      }
+    };
+  }, [handleChange]);
+
+  // Code paste detection plugin — intercepts paste events to wrap code in preview blocks
+  const codePastePlugin = useMemo(() => {
+    return {
+      getName: () => 'CodePastePlugin',
+      initialize: () => { },
+      dispose: () => { },
+      onPluginEvent: (e) => {
+        // PluginEventType.BeforePaste = 9 in roosterjs v8
+        if (e.eventType === 9 && e.clipboardData) {
+          const plainText = e.clipboardData.text || '';
+          const htmlData = e.clipboardData.html || '';
+          // Only trigger on plain-text pastes that look like code (not rich content from other editors)
+          const isPlainCodePaste = plainText && (!htmlData || htmlData.includes('<!--StartFragment-->'));
+          if (isPlainCodePaste) {
+            const langInfo = detectCodeLanguage(plainText);
+            if (langInfo) {
+              if (langInfo.lang === 'html') {
+                // HTML pastes: render as actual HTML content (tables, headings, etc.)
+                // so the Live Preview shows the rendered output, not raw source code.
+                // DOMPurify strips <script>, onclick, javascript: URLs, etc. for safety.
+                const sanitized = DOMPurify.sanitize(plainText, {
+                  ADD_TAGS: ['style', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
+                    'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary'],
+                  ADD_ATTR: ['style', 'class', 'colspan', 'rowspan', 'border', 'cellpadding',
+                    'cellspacing', 'width', 'height', 'align', 'valign', 'scope', 'headers',
+                    'target', 'rel', 'href', 'src', 'alt', 'title'],
+                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select'],
+                  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
+                    'onsubmit', 'onchange', 'onkeydown', 'onkeyup', 'onkeypress'],
+                });
+                const renderedHtml = sanitized + '<p><br></p>';
+                e.fragment = (() => {
+                  const template = document.createElement('template');
+                  template.innerHTML = renderedHtml;
+                  return template.content;
+                })();
+                if (e.clipboardData) {
+                  e.clipboardData.html = renderedHtml;
+                  e.clipboardData.text = '';
+                }
+              } else {
+                // Non-HTML code (JS, Python, CSS, etc.): wrap in formatted code preview block
+                // — displayed as code text, never executed
+                const codeHtml = buildCodePreviewHtml(plainText, langInfo);
+                e.fragment = (() => {
+                  const template = document.createElement('template');
+                  template.innerHTML = codeHtml;
+                  return template.content;
+                })();
+                if (e.clipboardData) {
+                  e.clipboardData.html = codeHtml;
+                  e.clipboardData.text = '';
+                }
+              }
+            }
+          }
         }
       }
-    }
-  }), [handleChange]);
+    };
+  }, []);
 
   const ribbonPlugin = useMemo(createRibbonPlugin, []);
-  const plugins = useMemo(() => [ribbonPlugin, editorSyncPlugin], [ribbonPlugin, editorSyncPlugin]);
-  
+  const plugins = useMemo(() => [
+    ribbonPlugin, 
+    editorSyncPlugin, 
+    codePastePlugin, 
+    new ImageEditPlugin(), 
+    new TableEditPlugin()
+  ], [ribbonPlugin, editorSyncPlugin, codePastePlugin]);
+
+  // Custom insert link button that opens the fullscreen modal
+  const customInsertLinkButton = useMemo(() => ({
+    ...insertLinkButton,
+    key: 'customInsertLink',
+    onClick: () => {
+      if (!isFullscreen) setIsFullscreen(true);
+      setShowLinkModal(true);
+    }
+  }), [isFullscreen]);
+
+  // Custom code button that toggles HTML Source Edit mode instead of inline code
+  const customCodeButton = useMemo(() => ({
+    ...codeButton,
+    key: 'customCodeButton',
+    unlocalizedText: 'Show generated HTML preview',
+    onClick: () => {
+      setShowHtmlPreview((prev) => !prev);
+    }
+  }), []);
+
+  // Handle link insertion from the fullscreen modal
+  const handleLinkInsert = useCallback(({ url, text, newTab }) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const target = newTab ? '_blank' : '';
+    const rel = newTab ? 'noopener noreferrer' : '';
+    const anchor = `<a href="${url}"${target ? ` target="${target}"` : ''}${rel ? ` rel="${rel}"` : ''}>${escapeHtml(text)}</a>&nbsp;`;
+
+    editor.focus();
+    const doc = typeof editor.getDocument === 'function' ? editor.getDocument() : document;
+    doc.execCommand('insertHTML', false, anchor);
+    handleChange(getEditorHtml(editor));
+  }, [handleChange]);
+
+  const insertRawHtml = useCallback((editor, html) => {
+    if (!editor) return;
+    editor.focus();
+    const doc = typeof editor.getDocument === 'function' ? editor.getDocument() : document;
+    doc.execCommand('insertHTML', false, html);
+    handleChange(getEditorHtml(editor));
+  }, [getEditorHtml, handleChange]);
+
+  const getSelectedImage = useCallback(() => {
+    try {
+      if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('img');
+    } catch(e) {}
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      let node = sel.anchorNode;
+      if (node.nodeType === 3) node = node.parentNode;
+      if (node.tagName === 'IMG') return node;
+      if (node.querySelector) return node.querySelector('img');
+    }
+    return document.querySelector('.rte-root img.rooster-image-selected') || document.querySelector('.rte-root img') || null;
+  }, []);
+
+  const getSelectedVideo = useCallback(() => {
+    try {
+      if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('video');
+    } catch(e) {}
+    const sel = window.getSelection();
+    if (sel && sel.anchorNode) {
+      let node = sel.anchorNode;
+      if (node.nodeType === 3) node = node.parentNode;
+      if (node.tagName === 'VIDEO') return node;
+      if (node.querySelector) return node.querySelector('video');
+    }
+    return document.querySelector('.rte-root video.rooster-video-selected') || document.querySelector('.rte-root video') || null;
+  }, []);
+
+  const formatPainterButton = useMemo(() => ({
+    key: 'formatPainter',
+    unlocalizedText: 'Format Painter',
+    iconName: 'Brush',
+    onClick: () => {}
+  }), []);
+
+
+
+  // Handle code-copy button clicks inside the editor
+  const handleEditorClick = useCallback((e) => {
+    const copyBtn = e.target.closest('[data-code-copy]');
+    if (copyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const codeBlock = copyBtn.closest('.rte-code-preview');
+      const codeEl = codeBlock?.querySelector('.rte-code-body code');
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent).then(() => {
+          copyBtn.classList.add('rte-code-copied');
+          const origHtml = copyBtn.innerHTML;
+          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied!`;
+          setTimeout(() => {
+            copyBtn.classList.remove('rte-code-copied');
+            copyBtn.innerHTML = origHtml;
+          }, 2000);
+        });
+      }
+    }
+  }, []);
+
   // Categorized Buttons matched exactly to the screenshot's order
   const mainButtons = [
+    formatPainterButton,
     clearFormatButton,
     boldButton,
     italicButton,
@@ -125,64 +520,63 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     alignCenterButton,
     alignRightButton,
     alignJustifyButton,
-    insertLinkButton,
+    customInsertLinkButton,
     removeLinkButton,
     insertTableButton,
-    insertImageButton,
     superscriptButton,
     subscriptButton,
     strikethroughButton,
     setHeadingLevelButton,
-    codeButton,
+    customCodeButton,
     ltrButton,
     rtlButton,
     {
-        key: 'clearFormatCustom',
-        unlocalizedText: 'Clear Format',
-        iconName: 'ClearFormattingA',
-        onClick: () => {}
+      key: 'clearFormatCustom',
+      unlocalizedText: 'Clear Format',
+      iconName: 'ClearFormattingA',
+      onClick: () => { }
     },
     {
-        key: 'lineSpacing',
-        unlocalizedText: 'Line Spacing',
-        iconName: 'LineSpacing',
-        onClick: () => {}
+      key: 'lineSpacing',
+      unlocalizedText: 'Line Spacing',
+      iconName: 'LineSpacing',
+      onClick: () => { }
     },
     {
-        key: 'bulletListCustom',
-        unlocalizedText: 'Bulleted List',
-        iconName: 'BulletedList',
-        onClick: () => {}
+      key: 'bulletListCustom',
+      unlocalizedText: 'Bulleted List',
+      iconName: 'BulletedList',
+      onClick: () => { }
     },
     {
-        key: 'numberedListCustom',
-        unlocalizedText: 'Numbered List',
-        iconName: 'NumberedList',
-        onClick: () => {}
+      key: 'numberedListCustom',
+      unlocalizedText: 'Numbered List',
+      iconName: 'NumberedList',
+      onClick: () => { }
     },
     {
-        key: 'optionsDropdown',
-        unlocalizedText: 'Options',
-        iconName: 'Settings',
-        onClick: () => {}
+      key: 'optionsDropdown',
+      unlocalizedText: 'Options',
+      iconName: 'Settings',
+      onClick: () => { }
     },
     {
-        key: 'tableEdit',
-        unlocalizedText: 'Table Options',
-        iconName: 'Table',
-        onClick: () => {}
+      key: 'tableEdit',
+      unlocalizedText: 'Table Options',
+      iconName: 'Table',
+      onClick: () => { }
     },
     {
-        key: 'imageEdit',
-        unlocalizedText: 'Image Options',
-        iconName: 'PictureCenter',
-        onClick: () => {}
+      key: 'imageEdit',
+      unlocalizedText: 'Image Options',
+      iconName: 'PictureCenter',
+      onClick: () => { }
     }
   ];
 
   const textButtons = useMemo(() => [
-    fontButton, fontSizeButton, boldButton, italicButton, underlineButton, strikethroughButton, 
-    subscriptButton, superscriptButton, textColorButton, backgroundColorButton, 
+    fontButton, fontSizeButton, formatPainterButton, boldButton, italicButton, underlineButton, strikethroughButton,
+    subscriptButton, superscriptButton, textColorButton, backgroundColorButton,
     decreaseFontSizeButton, increaseFontSizeButton, clearFormatButton
   ], []);
 
@@ -197,71 +591,73 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     alignRightButton,
     alignJustifyButton,
     setHeadingLevelButton,
-    codeButton,
+    customCodeButton,
     ltrButton,
     rtlButton,
     {
-        key: 'listFormatParagraph',
-        unlocalizedText: 'List Format',
-        iconName: 'NumberField',
-        onClick: (editor, key, strings, uiUtilities) => {
-            showInputDialog(uiUtilities, 'menuNameListNumberEdit', 'Set numbering value', {
-                startNumber: {
-                    labelKey: 'menuNameListNumberEdit',
-                    unlocalizedLabel: 'Start numbering at:',
-                    initValue: '1',
-                    autoFocus: true
-                }
-            }, strings, () => {});
+      key: 'listFormatParagraph',
+      unlocalizedText: 'List Format',
+      iconName: 'NumberField',
+      onClick: (editor, key, strings, uiUtilities) => {
+        try { window.prompt('Start numbering at:', '1'); } catch(e) {}
+      }
+    },
+    {
+      key: 'lineSpacingParagraph',
+      unlocalizedText: 'Line Spacing',
+      iconName: 'LineSpacing',
+      dropDownMenu: {
+        items: {
+          '1.0': '1.0', '1.15': '1.15', '1.5': '1.5', '2.0': '2.0'
         }
+      },
+      onClick: () => { }
     },
     {
-        key: 'lineSpacingParagraph',
-        unlocalizedText: 'Line Spacing',
-        iconName: 'LineSpacing',
-        dropDownMenu: { items: { 
-            '1.0': '1.0', '1.15': '1.15', '1.5': '1.5', '2.0': '2.0'
-        } },
-        onClick: () => {}
+      key: 'moveUpParagraph',
+      unlocalizedText: 'Move Up',
+      iconName: 'Up',
+      onClick: () => { }
     },
     {
-        key: 'moveUpParagraph',
-        unlocalizedText: 'Move Up',
-        iconName: 'Up',
-        onClick: () => {}
+      key: 'moveDownParagraph',
+      unlocalizedText: 'Move Down',
+      iconName: 'Down',
+      onClick: () => { }
     },
     {
-        key: 'moveDownParagraph',
-        unlocalizedText: 'Move Down',
-        iconName: 'Down',
-        onClick: () => {}
+      key: 'copyParagraph',
+      unlocalizedText: 'Copy',
+      iconName: 'Copy',
+      onClick: () => { }
     },
     {
-        key: 'copyParagraph',
-        unlocalizedText: 'Copy',
-        iconName: 'Copy',
-        onClick: () => {}
-    },
-    {
-        key: 'pasteParagraph',
-        unlocalizedText: 'Paste',
-        iconName: 'Paste',
-        onClick: () => {}
+      key: 'pasteParagraph',
+      unlocalizedText: 'Paste',
+      iconName: 'Paste',
+      onClick: () => { }
     }
   ];
 
-  const insertButtons = useMemo(() => [
-    insertLinkButton, removeLinkButton, insertImageButton, insertTableButton, codeButton
-  ], []);
+  const insertButtons = useMemo(() => {
+    const btns = [
+      customInsertLinkButton,
+      insertTableButton
+    ];
+    if (isFullscreen) {
+      btns.push(insertImageButton, removeLinkButton);
+    }
+    return btns;
+  }, [isFullscreen, customInsertLinkButton, insertTableButton, insertImageButton, removeLinkButton]);
 
   const tableButtons = [
     insertTableButton,
-    { 
-      key: 'table2', 
-      unlocalizedText: 'Format Table', 
-      iconName: 'TableComputed', 
-      dropDownMenu: { 
-        items: { 
+    {
+      key: 'table2',
+      unlocalizedText: 'Format Table',
+      iconName: 'TableComputed',
+      dropDownMenu: {
+        items: {
           'Table Grid': 'Table Grid',
           'Table Grid Light': 'Table Grid Light',
           'Plain Table 1': 'Plain Table 1',
@@ -275,8 +671,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           'List Table 1 Light': 'List Table 1 Light',
           'List Table 2': 'List Table 2',
           'List Table 3': 'List Table 3'
-        } 
-      }, 
+        }
+      },
       onClick: (editor, key) => {
         // Map common table formats to metadata
         const formats = {
@@ -288,60 +684,50 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         formatTable(editor, format);
       }
     },
-    { 
+    {
       ...backgroundColorButton,
-      key: 'table3', 
-      unlocalizedText: 'Set table shade color', 
+      key: 'table3',
+      unlocalizedText: 'Set table shade color',
       iconName: 'BackgroundColor',
       onClick: (editor, key) => {
         if (key) setTableCellShade(editor, key);
-      } 
+      }
     },
-    { 
-      key: 'table4', 
-      unlocalizedText: 'Table Title', 
-      iconName: 'TableComputed', 
+    {
+      key: 'table4',
+      unlocalizedText: 'Table Title',
+      iconName: 'TableComputed',
       onClick: (editor, key, strings, uiUtilities) => {
-        showInputDialog(
-          uiUtilities, 
-          'insertTable', 
-          'Insert Table', 
-          {
-            title: {
-              labelKey: 'tableTitle',
-              unlocalizedLabel: 'Title',
-              initValue: '',
-              autoFocus: true
-            }
-          }, 
-          strings, 
-          () => {}
-        );
-      } 
+        try { window.prompt('Enter Table Title:', ''); } catch(e) {}
+      }
     },
-    { 
-      key: 'table5', 
-      unlocalizedText: 'Options', 
-      iconName: '', 
-      commandBarProperties: { text: 'Options', name: 'Options', iconOnly: false }, 
-      dropDownMenu: { items: { 
-        'Header Row': 'Header Row',
-        'First Column': 'First Column',
-        'Banded Columns': 'Banded Columns',
-        'Banded Rows': 'Banded Rows'
-      } }, 
-      onClick: () => {} 
+    {
+      key: 'table5',
+      unlocalizedText: 'Options',
+      iconName: '',
+      commandBarProperties: { text: 'Options', name: 'Options', iconOnly: false },
+      dropDownMenu: {
+        items: {
+          'Header Row': 'Header Row',
+          'First Column': 'First Column',
+          'Banded Columns': 'Banded Columns',
+          'Banded Rows': 'Banded Rows'
+        }
+      },
+      onClick: () => { }
     },
-    { 
-      key: 'table6', 
-      unlocalizedText: 'Insert', 
-      iconName: 'InsertColumnsRight', 
-      dropDownMenu: { items: { 
-        'Insert above': 'Insert above',
-        'Insert below': 'Insert below',
-        'Insert left': 'Insert left',
-        'Insert right': 'Insert right'
-      } }, 
+    {
+      key: 'table6',
+      unlocalizedText: 'Insert',
+      iconName: 'InsertColumnsRight',
+      dropDownMenu: {
+        items: {
+          'Insert above': 'Insert above',
+          'Insert below': 'Insert below',
+          'Insert left': 'Insert left',
+          'Insert right': 'Insert right'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
           'Insert above': 'insertAbove',
@@ -352,19 +738,21 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         import('roosterjs').then(({ editTable }) => {
           if (opMap[key]) editTable(editor, opMap[key]);
         });
-      } 
+      }
     },
-    { 
-      key: 'table7', 
-      unlocalizedText: 'Delete', 
-      iconName: 'DeleteTable', 
-      dropDownMenu: { items: { 
-        'Delete column': 'Delete column',
-        'Delete row': 'Delete row',
-        'Delete table': 'Delete table',
-        'Shift cells up': 'Shift cells up',
-        'Shift cells left': 'Shift cells left'
-      } }, 
+    {
+      key: 'table7',
+      unlocalizedText: 'Delete',
+      iconName: 'DeleteTable',
+      dropDownMenu: {
+        items: {
+          'Delete column': 'Delete column',
+          'Delete row': 'Delete row',
+          'Delete table': 'Delete table',
+          'Shift cells up': 'Shift cells up',
+          'Shift cells left': 'Shift cells left'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
           'Delete column': 'deleteColumn',
@@ -376,22 +764,24 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         import('roosterjs').then(({ editTable }) => {
           if (opMap[key]) editTable(editor, opMap[key]);
         });
-      } 
+      }
     },
-    { 
-      key: 'table8', 
-      unlocalizedText: 'Table Border', 
-      iconName: 'TableComputed', 
-      dropDownMenu: { items: { 
-        'All Borders': 'All Borders',
-        'No Borders': 'No Borders',
-        'Left Borders': 'Left Borders',
-        'Right Borders': 'Right Borders',
-        'Top Borders': 'Top Borders',
-        'Bottom Borders': 'Bottom Borders',
-        'Inside Borders': 'Inside Borders',
-        'Outside Borders': 'Outside Borders'
-      } }, 
+    {
+      key: 'table8',
+      unlocalizedText: 'Table Border',
+      iconName: 'TableComputed',
+      dropDownMenu: {
+        items: {
+          'All Borders': 'All Borders',
+          'No Borders': 'No Borders',
+          'Left Borders': 'Left Borders',
+          'Right Borders': 'Right Borders',
+          'Top Borders': 'Top Borders',
+          'Bottom Borders': 'Bottom Borders',
+          'Inside Borders': 'Inside Borders',
+          'Outside Borders': 'Outside Borders'
+        }
+      },
       onClick: (editor, key) => {
         import('roosterjs').then(({ applyTableBorderFormat }) => {
           // RoosterJS TableBorder enum equivalent: All=1, No=2, Left=3, Right=4, Top=5, Bottom=6, Inside=7, Outside=8
@@ -403,43 +793,49 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         });
       }
     },
-    { 
-      ...textColorButton, 
-      key: 'table9', 
-      unlocalizedText: 'Table Border Color', 
-      iconName: 'ColorSolid', 
-      onClick: () => {} 
+    {
+      ...textColorButton,
+      key: 'table9',
+      unlocalizedText: 'Table Border Color',
+      iconName: 'ColorSolid',
+      onClick: () => { }
     },
-    { 
-      key: 'table10', 
-      unlocalizedText: 'Table Border Width', 
-      iconName: 'LineThickness', 
-      dropDownMenu: { items: { 
-        '1/4 pt': '1/4 pt', '1/2 pt': '1/2 pt', '3/4 pt': '3/4 pt', '1 pt': '1 pt', 
-        '1 1/2 pt': '1 1/2 pt', '2 1/4 pt': '2 1/4 pt', '3 pt': '3 pt', '4 1/2 pt': '4 1/2 pt', '6 pt': '6 pt'
-      } }, 
-      onClick: () => {} 
+    {
+      key: 'table10',
+      unlocalizedText: 'Table Border Width',
+      iconName: 'LineThickness',
+      dropDownMenu: {
+        items: {
+          '1/4 pt': '1/4 pt', '1/2 pt': '1/2 pt', '3/4 pt': '3/4 pt', '1 pt': '1 pt',
+          '1 1/2 pt': '1 1/2 pt', '2 1/4 pt': '2 1/4 pt', '3 pt': '3 pt', '4 1/2 pt': '4 1/2 pt', '6 pt': '6 pt'
+        }
+      },
+      onClick: () => { }
     },
-    { 
-      key: 'table11', 
-      unlocalizedText: 'Table Border Style', 
-      iconName: 'LineStyle', 
-      dropDownMenu: { items: { 
-        'Solid': 'Solid', 'Dashed': 'Dashed', 'Dotted': 'Dotted', 'Double': 'Double'
-      } }, 
-      onClick: () => {} 
+    {
+      key: 'table11',
+      unlocalizedText: 'Table Border Style',
+      iconName: 'LineStyle',
+      dropDownMenu: {
+        items: {
+          'Solid': 'Solid', 'Dashed': 'Dashed', 'Dotted': 'Dotted', 'Double': 'Double'
+        }
+      },
+      onClick: () => { }
     },
-    { 
-      key: 'table12', 
-      unlocalizedText: 'Merge', 
-      iconName: '', 
-      commandBarProperties: { text: 'Merge', name: 'Merge', iconOnly: false }, 
-      dropDownMenu: { items: { 
-        'Merge cells': 'Merge cells', 'Merge right': 'Merge right', 'Merge down': 'Merge down', 'Merge above': 'Merge above', 'Merge left': 'Merge left', 'Unmerge cells': 'Unmerge cells'
-      } }, 
+    {
+      key: 'table12',
+      unlocalizedText: 'Merge',
+      iconName: '',
+      commandBarProperties: { text: 'Merge', name: 'Merge', iconOnly: false },
+      dropDownMenu: {
+        items: {
+          'Merge cells': 'Merge cells', 'Merge right': 'Merge right', 'Merge down': 'Merge down', 'Merge above': 'Merge above', 'Merge left': 'Merge left', 'Unmerge cells': 'Unmerge cells'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
-          'Merge cells': 'mergeCells', 'Merge right': 'mergeRight', 'Merge down': 'mergeBelow', 
+          'Merge cells': 'mergeCells', 'Merge right': 'mergeRight', 'Merge down': 'mergeBelow',
           'Merge above': 'mergeAbove', 'Merge left': 'mergeLeft'
         };
         import('roosterjs').then(({ editTable }) => {
@@ -447,14 +843,16 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         });
       }
     },
-    { 
-      key: 'table13', 
-      unlocalizedText: 'Split', 
-      iconName: '', 
-      commandBarProperties: { text: 'Split', name: 'Split', iconOnly: false }, 
-      dropDownMenu: { items: { 
-        'Split cell horizontally': 'Split cell horizontally', 'Split cell vertically': 'Split cell vertically'
-      } }, 
+    {
+      key: 'table13',
+      unlocalizedText: 'Split',
+      iconName: '',
+      commandBarProperties: { text: 'Split', name: 'Split', iconOnly: false },
+      dropDownMenu: {
+        items: {
+          'Split cell horizontally': 'Split cell horizontally', 'Split cell vertically': 'Split cell vertically'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
           'Split cell horizontally': 'splitHorizontally', 'Split cell vertically': 'splitVertically'
@@ -462,18 +860,20 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         import('roosterjs').then(({ editTable }) => {
           if (opMap[key]) editTable(editor, opMap[key]);
         });
-      } 
+      }
     },
-    { 
-      key: 'table14', 
-      unlocalizedText: 'Align table cell', 
-      iconName: '', 
-      commandBarProperties: { text: 'Align table cell', name: 'Align table cell', iconOnly: false }, 
-      dropDownMenu: { items: { 
-        'Top left': 'Top left', 'Top center': 'Top center', 'Top right': 'Top right',
-        'Middle left': 'Middle left', 'Middle center': 'Middle center', 'Middle right': 'Middle right',
-        'Bottom left': 'Bottom left', 'Bottom center': 'Bottom center', 'Bottom right': 'Bottom right'
-      } }, 
+    {
+      key: 'table14',
+      unlocalizedText: 'Align table cell',
+      iconName: '',
+      commandBarProperties: { text: 'Align table cell', name: 'Align table cell', iconOnly: false },
+      dropDownMenu: {
+        items: {
+          'Top left': 'Top left', 'Top center': 'Top center', 'Top right': 'Top right',
+          'Middle left': 'Middle left', 'Middle center': 'Middle center', 'Middle right': 'Middle right',
+          'Bottom left': 'Bottom left', 'Bottom center': 'Bottom center', 'Bottom right': 'Bottom right'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
           'Top left': ['alignCellTop', 'alignCellLeft'], 'Top center': ['alignCellTop', 'alignCellCenter'], 'Top right': ['alignCellTop', 'alignCellRight'],
@@ -488,14 +888,16 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         });
       }
     },
-    { 
-      key: 'table15', 
-      unlocalizedText: 'Align table', 
-      iconName: '', 
-      commandBarProperties: { text: 'Align table', name: 'Align table', iconOnly: false }, 
-      dropDownMenu: { items: { 
-        'Left': 'Left', 'Center': 'Center', 'Right': 'Right'
-      } }, 
+    {
+      key: 'table15',
+      unlocalizedText: 'Align table',
+      iconName: '',
+      commandBarProperties: { text: 'Align table', name: 'Align table', iconOnly: false },
+      dropDownMenu: {
+        items: {
+          'Left': 'Left', 'Center': 'Center', 'Right': 'Right'
+        }
+      },
       onClick: (editor, key) => {
         const opMap = {
           'Left': 'alignLeft', 'Center': 'alignCenter', 'Right': 'alignRight'
@@ -503,158 +905,216 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         import('roosterjs').then(({ editTable }) => {
           if (opMap[key]) editTable(editor, opMap[key]);
         });
-      } 
+      }
     }
   ];
 
   const imageButtons = useMemo(() => [
     insertImageButton,
     {
-      ...textColorButton,
-      key: 'imageBorderColor',
-      unlocalizedText: 'Image Border Color',
-      iconName: 'Picture',
-      commandBarProperties: { text: 'Image Border Color', iconOnly: true },
-      onClick: (editor, key) => {
-        if (key) setImageBorder(editor, { color: key });
-      }
-    },
-    {
-      key: 'imageBorderWidth',
-      unlocalizedText: 'Image Border Width',
-      iconName: 'Picture',
-      commandBarProperties: { text: 'Image Border Width', iconOnly: true },
-      dropDownMenu: { items: { 
-        '1/4 pt': '1/4 pt', '1/2 pt': '1/2 pt', '3/4 pt': '3/4 pt', '1 pt': '1 pt', 
-        '1 1/2 pt': '1 1/2 pt', '2 1/4 pt': '2 1/4 pt', '3 pt': '3 pt', '4 1/2 pt': '4 1/2 pt', '6 pt': '6 pt'
-      } },
-      onClick: (editor, key) => {
-        const pt = key.replace(' pt', '');
-        const width = pt === '1/4' ? '0.25pt' : pt === '1/2' ? '0.5pt' : pt === '3/4' ? '0.75pt' : pt === '1 1/2' ? '1.5pt' : pt === '2 1/4' ? '2.25pt' : pt === '4 1/2' ? '4.5pt' : `${pt}pt`;
-        setImageBorder(editor, { width });
-      }
-    },
-    {
-      key: 'imageBorderStyle',
-      unlocalizedText: 'Image Border Style',
-      iconName: 'BorderDash',
-      commandBarProperties: { text: 'Image Border Style', iconOnly: true },
-      dropDownMenu: { items: { 
-        'Solid': 'Solid', 'Dashed': 'Dashed', 'Dotted': 'Dotted', 'Double': 'Double'
-      } },
-      onClick: (editor, key) => {
-        setImageBorder(editor, { style: key.toLowerCase() });
-      }
-    },
-    {
-      key: 'removeImageBorder',
-      unlocalizedText: 'Remove Image Border',
-      iconName: 'Cancel',
-      commandBarProperties: { text: 'Remove Image Border', iconOnly: true },
-      onClick: (editor) => {
-        setImageBorder(editor, null);
-      }
-    },
-    {
-      key: 'changeImage',
-      unlocalizedText: 'Change Image',
-      iconName: 'ImageSearch',
-      commandBarProperties: { text: 'Change Image', iconOnly: true },
-      onClick: () => {}
-    },
-    {
-      key: 'imageShadow',
-      unlocalizedText: 'Image Shadow',
-      iconName: 'Picture',
-      commandBarProperties: { text: 'Image Shadow', iconOnly: true },
-      dropDownMenu: { items: { 
-        'noShadow': 'noShadow', 'bottomRight': 'bottomRight', 'bottom': 'bottom', 'bottomLeft': 'bottomLeft',
-        'right': 'right', 'center': 'center', 'left': 'left', 'topRight': 'topRight', 'top': 'top', 'topLeft': 'topLeft'
-      } },
-      onClick: (editor, key) => {
-        const shadowMap = {
-          'noShadow': '',
-          'bottomRight': '2px 2px 5px rgba(0,0,0,0.5)',
-          'bottom': '0px 2px 5px rgba(0,0,0,0.5)',
-          'bottomLeft': '-2px 2px 5px rgba(0,0,0,0.5)',
-          'right': '2px 0px 5px rgba(0,0,0,0.5)',
-          'center': '0px 0px 5px rgba(0,0,0,0.5)',
-          'left': '-2px 0px 5px rgba(0,0,0,0.5)',
-          'topRight': '2px -2px 5px rgba(0,0,0,0.5)',
-          'top': '0px -2px 5px rgba(0,0,0,0.5)',
-          'topLeft': '-2px -2px 5px rgba(0,0,0,0.5)'
-        };
-        setImageBoxShadow(editor, shadowMap[key] || '');
-      }
-    },
-    {
-      key: 'imageCrop',
-      unlocalizedText: 'Crop',
-      iconName: 'Crop',
-      commandBarProperties: { text: 'Crop', iconOnly: true },
-      onClick: () => {}
-    },
+      key: 'imageOptionsDropdown',
+      unlocalizedText: 'More options',
+      iconName: 'More',
+      commandBarProperties: {
+        text: 'More options',
+        iconOnly: true,
+        subMenuProps: {
+          items: [
+            {
+              key: 'imageBorderColor',
+              text: 'Image Border Color',
+              iconProps: { iconName: 'ColorSolid' },
+              subMenuProps: {
+                items: ['#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#00ffff', '#ff00ff', '#cccccc', 'transparent'].map(color => ({
+                  key: color,
+                  text: color === 'transparent' ? 'Transparent' : color,
+                  onClick: () => {
+                    if (editorRef.current) setImageBorder(editorRef.current, { color });
+                  }
+                }))
+              }
+            },
+            {
+              key: 'imageBorderWidth',
+              text: 'Image Border Width',
+              iconProps: { iconName: 'LineThickness' },
+              subMenuProps: {
+                items: ['1/4 pt', '1/2 pt', '3/4 pt', '1 pt', '1 1/2 pt', '2 1/4 pt', '3 pt', '4 1/2 pt', '6 pt'].map(pt => ({
+                  key: pt,
+                  text: pt,
+                  onClick: () => {
+                    const width = pt === '1/4 pt' ? '0.25pt' : pt === '1/2 pt' ? '0.5pt' : pt === '3/4 pt' ? '0.75pt' : pt === '1 1/2 pt' ? '1.5pt' : pt === '2 1/4 pt' ? '2.25pt' : pt === '4 1/2 pt' ? '4.5pt' : pt;
+                    if (editorRef.current) setImageBorder(editorRef.current, { width });
+                  }
+                }))
+              }
+            },
+            {
+              key: 'imageBorderStyle',
+              text: 'Image Border Style',
+              iconProps: { iconName: 'BorderDash' },
+              subMenuProps: {
+                items: ['Solid', 'Dashed', 'Dotted', 'Double'].map(style => ({
+                  key: style,
+                  text: style,
+                  onClick: () => {
+                    if (editorRef.current) setImageBorder(editorRef.current, { style: style.toLowerCase() });
+                  }
+                }))
+              }
+            },
+            {
+              key: 'removeImageBorder',
+              text: 'Remove Image Border',
+              iconProps: { iconName: 'Cancel' },
+              onClick: () => {
+                if (editorRef.current) setImageBorder(editorRef.current, null);
+              }
+            },
+            {
+              key: 'changeImage',
+              text: 'Change Image',
+              iconProps: { iconName: 'ImageSearch' },
+              onClick: () => { }
+            },
+            {
+              key: 'imageShadow',
+              text: 'Image Shadow',
+              iconProps: { iconName: 'Picture' },
+              subMenuProps: {
+                items: ['noShadow', 'bottomRight', 'bottom', 'bottomLeft', 'right', 'center', 'left', 'topRight', 'top', 'topLeft'].map(key => ({
+                  key,
+                  text: key,
+                  onClick: () => {
+                    const shadowMap = {
+                      'noShadow': '', 'bottomRight': '2px 2px 5px rgba(0,0,0,0.5)', 'bottom': '0px 2px 5px rgba(0,0,0,0.5)',
+                      'bottomLeft': '-2px 2px 5px rgba(0,0,0,0.5)', 'right': '2px 0px 5px rgba(0,0,0,0.5)', 'center': '0px 0px 5px rgba(0,0,0,0.5)',
+                      'left': '-2px 0px 5px rgba(0,0,0,0.5)', 'topRight': '2px -2px 5px rgba(0,0,0,0.5)', 'top': '0px -2px 5px rgba(0,0,0,0.5)', 'topLeft': '-2px -2px 5px rgba(0,0,0,0.5)'
+                    };
+                    if (editorRef.current) setImageBoxShadow(editorRef.current, shadowMap[key] || '');
+                  }
+                }))
+              }
+            },
+            {
+              key: 'imageCrop',
+              text: 'Crop',
+              iconProps: { iconName: 'Crop' },
+              onClick: () => { }
+            },
+            {
+              key: 'imageRotate',
+              text: 'Rotate image',
+              iconProps: { iconName: 'Sync' },
+              subMenuProps: {
+                items: ['Left', 'Right'].map(dir => ({
+                  key: dir,
+                  text: dir,
+                  onClick: () => {
+                    if (!editorRef.current) return;
+                    const selectedImg = getSelectedImage();
+                    if (selectedImg && selectedImg.tagName === 'IMG') {
+                      const rotate = dir === 'Left' ? 'rotate(-90deg)' : 'rotate(90deg)';
+                      selectedImg.style.transform = selectedImg.style.transform === rotate ? '' : rotate;
+                    }
+                  }
+                }))
+              }
+            },
+            {
+              key: 'imageFlip',
+              text: 'Flip image',
+              iconProps: { iconName: 'Sort' },
+              subMenuProps: {
+                items: ['Flip Horizontally', 'Flip Vertically'].map(flip => ({
+                  key: flip,
+                  text: flip,
+                  onClick: () => {
+                    if (!editorRef.current) return;
+                    const selectedImg = getSelectedImage();
+                    if (selectedImg && selectedImg.tagName === 'IMG') {
+                      const scale = flip === 'Flip Horizontally' ? 'scaleX(-1)' : 'scaleY(-1)';
+                      selectedImg.style.transform = selectedImg.style.transform === scale ? '' : scale;
+                    }
+                  }
+                }))
+              }
+            },
+            {
+              key: 'imageSize',
+              text: 'Size',
+              iconProps: { iconName: 'SizeLegacy' },
+              subMenuProps: {
+                items: ['Best fit', 'Small', 'Medium', 'Original'].map(size => ({
+                  key: size,
+                  text: size,
+                  onClick: () => {
+                    if (!editorRef.current) return;
+                    const selectedImg = getSelectedImage();
+                    if (selectedImg && selectedImg.tagName === 'IMG') {
+                      if (size === 'Best fit') { selectedImg.style.width = '100%'; selectedImg.style.height = 'auto'; }
+                      else if (size === 'Small') { selectedImg.style.width = '25%'; selectedImg.style.height = 'auto'; }
+                      else if (size === 'Medium') { selectedImg.style.width = '50%'; selectedImg.style.height = 'auto'; }
+                      else if (size === 'Original') { selectedImg.style.width = ''; selectedImg.style.height = ''; }
+                    }
+                  }
+                }))
+              }
+            }
+          ]
+        }
+      },
+      onClick: () => { }
+    }
+  ], [getSelectedImage]);
 
+  const videoButtons = useMemo(() => [
     {
-      key: 'imageRotate',
-      unlocalizedText: 'Rotate image',
-      iconName: 'Sync',
-      commandBarProperties: { text: 'Rotate image', iconOnly: true },
-      dropDownMenu: { items: { 'Left': 'Left', 'Right': 'Right' } },
-      onClick: (editor, key) => {
-        const selectedImg = editor.getElementAtCursor('img, span[class^="rooster-image"] img');
-        if (selectedImg && selectedImg.tagName === 'IMG') {
-           const rotate = key === 'Left' ? 'rotate(-90deg)' : 'rotate(90deg)';
-           selectedImg.style.transform = selectedImg.style.transform === rotate ? '' : rotate;
-        }
-      }
-    },
-    {
-      key: 'imageFlip',
-      unlocalizedText: 'Flip image',
-      iconName: 'Sort',
-      commandBarProperties: { text: 'Flip image', iconOnly: true },
-      dropDownMenu: { items: { 'Flip Horizontally': 'Flip Horizontally', 'Flip Vertically': 'Flip Vertically' } },
-      onClick: (editor, key) => {
-        const selectedImg = editor.getElementAtCursor('img, span[class^="rooster-image"] img');
-        if (selectedImg && selectedImg.tagName === 'IMG') {
-           const scale = key === 'Flip Horizontally' ? 'scaleX(-1)' : 'scaleY(-1)';
-           selectedImg.style.transform = selectedImg.style.transform === scale ? '' : scale;
-        }
-      }
-    },
-    {
-      key: 'imageSize',
-      unlocalizedText: 'Size',
+      key: 'videoWidth',
+      unlocalizedText: 'Width',
       iconName: 'SizeLegacy',
-      commandBarProperties: { text: 'Size', iconOnly: true },
-      dropDownMenu: { items: { 'Best fit': 'Best fit', 'Small': 'Small', 'Medium': 'Medium', 'Original': 'Original' } },
+      dropDownMenu: { items: { '25%': '25%', '50%': '50%', '100%': '100%' } },
       onClick: (editor, key) => {
-        const selectedImg = editor.getElementAtCursor('img, span[class^="rooster-image"] img');
-        if (selectedImg && selectedImg.tagName === 'IMG') {
-           if (key === 'Best fit') { selectedImg.style.width = '100%'; selectedImg.style.height = 'auto'; }
-           else if (key === 'Small') { selectedImg.style.width = '25%'; selectedImg.style.height = 'auto'; }
-           else if (key === 'Medium') { selectedImg.style.width = '50%'; selectedImg.style.height = 'auto'; }
-           else if (key === 'Original') { selectedImg.style.width = ''; selectedImg.style.height = ''; }
-        }
+        const vid = getSelectedVideo();
+        if (vid) vid.style.width = key;
+      }
+    },
+    {
+      key: 'videoAutoplay',
+      unlocalizedText: 'Toggle Autoplay',
+      iconName: 'Play',
+      onClick: () => {
+        const vid = getSelectedVideo();
+        if (vid) vid.autoplay = !vid.autoplay;
+      }
+    },
+    {
+      key: 'videoControls',
+      unlocalizedText: 'Toggle Controls',
+      iconName: 'Settings',
+      onClick: () => {
+        const vid = getSelectedVideo();
+        if (vid) vid.controls = !vid.controls;
       }
     }
-  ], []);
+  ], [getSelectedVideo]);
 
   // Global right-side buttons handled inline to access state
 
   const handleContainerBlur = useCallback(() => {
     if (editorRef.current) {
-      handleChange(editorRef.current.getContent());
+      handleChange(getEditorHtml(editorRef.current));
     }
   }, [handleChange]);
 
-  // Opens fullscreen then triggers the file picker
   const handleMediaBtnClick = useCallback((inputRef) => {
-    setIsFullscreen(true);
-    // Small delay so fullscreen renders before focus shifts
-    setTimeout(() => inputRef.current?.click(), 80);
-  }, []);
+    if (isFullscreen) {
+      inputRef.current?.click();
+    } else {
+      setIsFullscreen(true);
+      setTimeout(() => inputRef.current?.click(), 80);
+    }
+  }, [isFullscreen]);
 
   const handleImageUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -664,8 +1124,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;" />`;
-        editorRef.current.insertContent(img);
-        handleChange(editorRef.current.getContent());
+        insertRawHtml(editorRef.current, img);
+        handleChange(getEditorHtml(editorRef.current));
       };
       reader.readAsDataURL(file);
     } catch (err) {
@@ -685,8 +1145,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       toast.info?.('Uploading video…');
       const result = await VideoHandler.ingestFile(file);
       const markup = VideoHandler.buildVideoMarkup({ url: result.url, filename: file.name, filesize: file.size, mime: file.type });
-      editorRef.current.insertContent(markup);
-      handleChange(editorRef.current.getContent());
+      insertRawHtml(editorRef.current, markup);
+      handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
       toast.error('Video upload failed');
     }
@@ -700,8 +1160,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       toast.info?.('Uploading PDF…');
       const result = await PdfHandler.ingestFile(file);
       const markup = PdfHandler.buildPdfMarkup({ id: result.id, url: result.url, filename: file.name, filesize: file.size });
-      editorRef.current.insertContent(markup);
-      handleChange(editorRef.current.getContent());
+      insertRawHtml(editorRef.current, markup);
+      handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
       toast.error('PDF upload failed');
     }
@@ -719,19 +1179,27 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       toast.info?.('Uploading file…');
       const result = await AttachmentHandler.ingestFile(file);
       const markup = AttachmentHandler.buildAttachmentMarkup({ id: result.id, url: result.url, filename: file.name, filesize: file.size, mime: file.type });
-      editorRef.current.insertContent(markup);
-      handleChange(editorRef.current.getContent());
+      insertRawHtml(editorRef.current, markup);
+      handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
       toast.error('File upload failed');
     }
   }, [handleChange, toast]);
 
-  const tabs = ['Main', 'Text', 'Paragraph', 'Insert', 'Table', 'Image'];
+  const tabs = ['Main', 'Text', 'Paragraph', 'Insert', 'Table', 'Image', 'Video'];
+
+  const chunkArray = (array, size) => {
+    const chunked = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunked.push(array.slice(i, i + size));
+    }
+    return chunked;
+  };
 
   const getActiveButtons = () => {
     switch (activeTab) {
       case 'Main': {
-        const all = [...mainButtons, ...tableButtons, ...imageButtons];
+        const all = [...mainButtons, ...tableButtons, ...imageButtons, ...videoButtons];
         // Deduplicate buttons (like insertImageButton) which exist in both main and contextual arrays
         return all.filter((btn, idx) => all.indexOf(btn) === idx);
       }
@@ -740,6 +1208,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       case 'Insert': return insertButtons;
       case 'Table': return tableButtons;
       case 'Image': return imageButtons;
+      case 'Video': return videoButtons;
       default:
         return mainButtons;
     }
@@ -748,269 +1217,274 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   // We removed maroonBase and maroonLight; styling will use CSS variables.
 
   return (
-    <div 
-      className={`rte-root rooster-custom-container ${isFullscreen ? 'rte-fullscreen' : ''}`} 
-      style={isFullscreen ? { zIndex: 9999, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' } : {}}
-      onBlur={handleContainerBlur}
-      onKeyUp={handleContainerBlur}
-    >
-      <div style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '0', display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-primary, #e2e8f0)' }}>
-        
-        {/* Top Row: Tabs + Global Tools */}
-        {isFullscreen && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
-            
-            {/* Left side: Tabs */}
-            <div style={{ display: 'flex', gap: '6px', padding: '8px 16px 0 16px' }}>
-              {tabs.map(tab => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    padding: '8px 18px',
-                    height: '38px',
-                    backgroundColor: activeTab === tab ? 'var(--surface-primary)' : 'var(--surface-primary)',
-                    color: activeTab === tab ? 'var(--c-primary)' : 'var(--text-secondary)',
-                    border: '1px solid var(--border-primary)',
-                    borderBottom: activeTab === tab ? '1px solid var(--surface-primary)' : 'none',
-                    borderRadius: '8px 8px 0 0',
-                    cursor: 'pointer',
-                    fontWeight: activeTab === tab ? '600' : '500',
-                    fontSize: '13px',
-                    zIndex: activeTab === tab ? 2 : 1,
-                    outline: 'none',
-                    marginBottom: activeTab === tab ? '-1px' : '0',
-                    boxShadow: activeTab === tab ? '0 -2px 6px rgba(0, 0, 0, 0.02)' : 'none'
-                  }}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+    <>
+      <div
+        className={`rte-root rooster-custom-container ${isFullscreen ? 'rte-fullscreen' : ''}`}
+        style={isFullscreen ? { zIndex: 9999, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' } : {}}
+        onBlur={handleContainerBlur}
+        onKeyUp={handleContainerBlur}
+        onClick={handleEditorClick}
+        onContextMenu={(e) => {
+          if (isFullscreen) e.preventDefault();
+        }}
+      >
+        <div style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '0', display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-primary, #e2e8f0)' }}>
 
-            {/* Right side: Global Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', paddingRight: '8px' }}>
-              <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton]} />
-              <Ribbon plugin={ribbonPlugin} buttons={[
-                {
-                  key: 'zoomDropdown',
-                  unlocalizedText: 'Zoom',
-                  iconName: 'ZoomIn',
-                  dropDownMenu: {
-                    items: {
-                      '50': '50%',
-                      '75': '75%',
-                      '100': '100%',
-                      '200': '200%'
-                    }
-                  },
-                  onClick: () => {}
-                },
-                {
-                  key: 'darkModeToggle',
-                  unlocalizedText: 'Dark Mode',
-                  iconName: 'ClearNight',
-                  onClick: () => {}
-                },
-                {
-                  key: 'exportDropdown',
-                  unlocalizedText: 'Export',
-                  iconName: 'PageRight',
-                  dropDownMenu: {
-                    items: {
-                      'html': 'as HTML',
-                      'html_fast': 'as HTML (fast version)',
-                      'text': 'as Plain Text'
-                    }
-                  },
-                  onClick: () => {}
-                }
-              ]} />
-              <Ribbon plugin={ribbonPlugin} buttons={[
-                {
-                  key: 'fullScreenToggle',
-                  unlocalizedText: isFullscreen ? 'Exit Full Screen' : 'Full Screen',
-                  iconName: isFullscreen ? 'BackToWindow' : 'FullScreen',
-                  onClick: () => setIsFullscreen(!isFullscreen)
-                }
-              ]} />
-            </div>
-          </div>
-        )}
+          {/* Top Row: Tabs + Global Tools */}
+          {isFullscreen && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
 
-        {/* Toolbar: Non-fullscreen — 4 row layout matching the reference image */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ flexGrow: 1, minWidth: 0 }}>
-             {!isFullscreen ? (
+              {/* Left side: Tabs */}
+              <div style={{ display: 'flex', gap: '6px', padding: '8px 16px 0 16px' }}>
+                {tabs.map(tab => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: '8px 18px',
+                      height: '38px',
+                      backgroundColor: activeTab === tab ? 'var(--surface-primary)' : 'var(--surface-primary)',
+                      color: activeTab === tab ? 'var(--c-primary)' : 'var(--text-secondary)',
+                      border: '1px solid var(--border-primary)',
+                      borderBottom: activeTab === tab ? '1px solid var(--surface-primary)' : 'none',
+                      borderRadius: '8px 8px 0 0',
+                      cursor: 'pointer',
+                      fontWeight: activeTab === tab ? '600' : '500',
+                      fontSize: '13px',
+                      zIndex: activeTab === tab ? 2 : 1,
+                      outline: 'none',
+                      marginBottom: activeTab === tab ? '-1px' : '0',
+                      boxShadow: activeTab === tab ? '0 -2px 6px rgba(0, 0, 0, 0.02)' : 'none'
+                    }}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Right side: Global Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', paddingRight: '8px' }}>
+                <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton]} />
+                <Ribbon plugin={ribbonPlugin} buttons={[
+                  {
+                    key: 'zoomDropdown',
+                    unlocalizedText: 'Zoom',
+                    iconName: 'ZoomIn',
+                    dropDownMenu: {
+                      items: {
+                        '50': '50%',
+                        '75': '75%',
+                        '100': '100%',
+                        '200': '200%'
+                      }
+                    },
+                    onClick: () => { }
+                  },
+                  {
+                    key: 'darkModeToggle',
+                    unlocalizedText: 'Dark Mode',
+                    iconName: 'ClearNight',
+                    onClick: () => { }
+                  },
+                  {
+                    key: 'exportDropdown',
+                    unlocalizedText: 'Export',
+                    iconName: 'PageRight',
+                    dropDownMenu: {
+                      items: {
+                        'html': 'as HTML',
+                        'html_fast': 'as HTML (fast version)',
+                        'text': 'as Plain Text'
+                      }
+                    },
+                    onClick: () => { }
+                  }
+                ]} />
+                <Ribbon plugin={ribbonPlugin} buttons={[
+                  {
+                    key: 'fullScreenToggle',
+                    unlocalizedText: isFullscreen ? 'Exit Full Screen' : 'Full Screen',
+                    iconName: isFullscreen ? 'BackToWindow' : 'FullScreen',
+                    onClick: () => setIsFullscreen(!isFullscreen)
+                  }
+                ]} />
+              </div>
+            </div>
+          )}
+
+          {/* Toolbar: Non-fullscreen — 3 row layout matching the reference image */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flexGrow: 1, minWidth: 0 }}>
+              {!isFullscreen ? (
                 // ── Non-fullscreen compact toolbar ──
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0', width: '100%' }}>
-                  {/* Row 1: Undo/Redo + Text formatting (B/I/U/S/font/size…) */}
+                  {/* Row 1: Undo/Redo + Text formatting */}
                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border-primary, #e2e8f0)', padding: '2px 4px' }}>
-                    <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton]} />
-                    <Ribbon plugin={ribbonPlugin} buttons={textButtons} />
+                    <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton, ...textButtons]} />
                   </div>
-                  {/* Row 2: Paragraph / Alignment / List formatting */}
+                  {/* Row 2: Paragraph formatting */}
                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border-primary, #e2e8f0)', padding: '2px 4px' }}>
                     <Ribbon plugin={ribbonPlugin} buttons={paragraphButtons} />
                   </div>
-                  {/* Row 3: Insert buttons | Image · Video · PDF labeled buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', borderBottom: '1px solid var(--border-primary, #e2e8f0)', padding: '2px 4px' }}>
-                    <Ribbon plugin={ribbonPlugin} buttons={insertButtons} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingLeft: '6px' }}>
-                      {/* Image */}
+                  {/* Row 3: Insert / Media / Fullscreen */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '2px 4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                      <Ribbon plugin={ribbonPlugin} buttons={insertButtons} />
+                      <div style={{ width: '1px', height: '16px', background: 'var(--border-primary, #e2e8f0)', margin: '0 4px' }} />
                       <button type="button" onClick={() => handleMediaBtnClick(imgInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="14" height="14" rx="2"/><circle cx="5.5" cy="5.5" r="1.5"/><path d="M1 11l4-4 3 3 2-2 5 5"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="14" height="14" rx="2" /><circle cx="5.5" cy="5.5" r="1.5" /><path d="M1 11l4-4 3 3 2-2 5 5" /></svg>
                         Image
                       </button>
-                      {/* Video */}
                       <button type="button" onClick={() => handleMediaBtnClick(videoInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="10" height="10" rx="1.5"/><path d="M11 6l4-2v8l-4-2V6z"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="10" height="10" rx="1.5" /><path d="M11 6l4-2v8l-4-2V6z" /></svg>
                         Video
                       </button>
-                      {/* PDF */}
                       <button type="button" onClick={() => handleMediaBtnClick(pdfInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 1H3a1 1 0 00-1 1v12a1 1 0 001 1h10a1 1 0 001-1V6L9 1z"/><path d="M9 1v5h5"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 1H3a1 1 0 00-1 1v12a1 1 0 001 1h10a1 1 0 001-1V6L9 1z" /><path d="M9 1v5h5" /></svg>
                         PDF
                       </button>
-                    </div>
-                  </div>
-                  {/* Row 4: File + Table align buttons + Table | Fullscreen (green) */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '2px 4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {/* File */}
                       <button type="button" onClick={() => handleMediaBtnClick(fileInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2a1 1 0 011-1h7l4 4v9a1 1 0 01-1 1H3a1 1 0 01-1-1V2z"/><path d="M9 1v4h4"/></svg>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2a1 1 0 011-1h7l4 4v9a1 1 0 01-1 1H3a1 1 0 01-1-1V2z" /><path d="M9 1v4h4" /></svg>
                         File
                       </button>
-                      <Ribbon plugin={ribbonPlugin} buttons={[alignLeftButton, alignCenterButton, alignRightButton, insertTableButton]} />
                     </div>
                     {/* Fullscreen green button */}
                     <button
                       type="button"
                       onClick={() => setIsFullscreen(true)}
-                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '4px', border: 'none', background: '#006633', color: '#fff', cursor: 'pointer', flexShrink: 0 }}
+                      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '4px', border: 'none', background: '#006633', color: '#fff', cursor: 'pointer', flexShrink: 0, marginLeft: '8px' }}
                       title="Full Screen"
                     >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h5v1.5H2.5V7H1V1zm9 0h5v6h-1.5V2.5H10V1zM1 9h1.5v4.5H7V15H1V9zm13 4.5H10V15h5V9h-1.5v4.5z"/></svg>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 1h5v1.5H2.5V7H1V1zm9 0h5v6h-1.5V2.5H10V1zM1 9h1.5v4.5H7V15H1V9zm13 4.5H10V15h5V9h-1.5v4.5z" /></svg>
                     </button>
                   </div>
                 </div>
-             ) : (
+              ) : (
                 // Fullscreen mode format toolbar
-                <div style={{ width: '100%' }}>
-                  <Ribbon plugin={ribbonPlugin} buttons={getActiveButtons()} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', padding: '2px 4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexGrow: 1, flexWrap: 'wrap' }}>
+                    {activeTab === 'Main' ? (
+                      <Ribbon plugin={ribbonPlugin} buttons={getActiveButtons()} />
+                    ) : (
+                      getActiveButtons().map((btn, index) => (
+                        <Ribbon key={btn.key || index} plugin={ribbonPlugin} buttons={[btn]} />
+                      ))
+                    )}
+                  </div>
                 </div>
-             )}
+              )}
+            </div>
           </div>
+
+          {/* Hidden file inputs for media upload */}
+          <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+          <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" style={{ display: 'none' }} onChange={handleVideoUpload} />
+          <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+          <input ref={fileInputRef} type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={handleFileUpload} />
+
+          {/* Fullscreen bottom border line under tools */}
+          {isFullscreen && <div style={{ borderBottom: '1px solid var(--border-primary)', marginTop: '4px', marginBottom: '4px' }} />}
         </div>
 
-        {/* Hidden file inputs for media upload */}
-        <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-        <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" style={{ display: 'none' }} onChange={handleVideoUpload} />
-        <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
-        <input ref={fileInputRef} type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={handleFileUpload} />
-        
-        {/* Fullscreen bottom border line under tools */}
-        {isFullscreen && <div style={{ borderBottom: '1px solid var(--border-primary)', marginTop: '4px', marginBottom: '4px' }} />}
-      </div>
-      
-      {/* Editor area: In fullscreen split left=HTML preview, right=editor */}
-      {isFullscreen ? (
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
-          {/* Left: Generated HTML Preview */}
-          <div style={{
-            flex: '0 0 340px',
-            borderRight: '1px solid var(--border-primary)',
-            background: 'var(--bg-secondary)',
-            overflowY: 'auto',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Generated HTML Preview</div>
-            <pre style={{
-              fontSize: '11px',
-              color: 'var(--text-primary)',
-              background: 'var(--surface-primary)',
-              border: '1px solid var(--border-primary)',
-              borderRadius: '6px',
-              padding: '12px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              flex: 1,
-              margin: 0,
-              overflowY: 'auto',
-              fontFamily: 'monospace'
-            }}>{value || '<!-- No content yet -->'}</pre>
-          </div>
-          {/* Right: Editor */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#ffffff' }}>
-              <Rooster 
-                plugins={plugins} 
-                initialContent={initialValue} 
+        {/* Editor area: In fullscreen split left=HTML preview, right=editor */}
+        <div style={{ display: 'flex', flexDirection: isFullscreen ? 'row' : 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
+            <div
+              ref={wrapperRef}
+              className={!value || value.trim() === '<div><br></div>' || value.trim() === '' || value.trim() === '<p><br></p>' || value.trim() === '<br>' ? 'rte-empty' : ''}
+              data-placeholder={placeholder}
+              style={{ position: 'relative', borderTop: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderLeft: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderRight: isFullscreen ? 'none' : '1px solid var(--border-primary)', flex: 1, minHeight: isFullscreen ? 0 : '300px', padding: '16px', background: '#ffffff', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: isFullscreen ? 'none' : (showHtmlPreview ? 'none' : '1px solid var(--border-primary)'), overflowY: 'auto' }}>
+              <Rooster
+                plugins={plugins}
+                initialContent={initialValue}
               />
             </div>
-            {/* ESC button — bottom right of fullscreen */}
-            <button
-              className="rte-fullscreen-exit-hint"
-              onClick={() => setIsFullscreen(false)}
-            >
-              Press ESC or click here to exit fullscreen
-            </button>
+            <div style={{ borderTop: showHtmlPreview ? 'none' : '1px solid var(--border-primary)', borderLeft: '1px solid var(--border-primary)', borderRight: '1px solid var(--border-primary)', borderBottom: '1px solid var(--border-primary)', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', background: 'var(--surface-primary)' }}>
+              <button
+                type="button"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '8px 0 8px 12px',
+                  color: 'var(--c-primary)',
+                  borderBottom: showHtmlPreview ? '1px solid var(--border-primary)' : 'none'
+                }}
+                onClick={() => setShowHtmlPreview(p => !p)}
+              >
+                {showHtmlPreview ? 'Hide generated HTML preview' : 'Show generated HTML preview'}
+              </button>
+              {showHtmlPreview && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', background: 'var(--bg-secondary)', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', maxHeight: '400px', overflowY: 'auto' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Generated HTML Code</span>
+                    </div>
+                    <textarea style={{
+                      width: '100%',
+                      minHeight: '200px',
+                      margin: 0,
+                      padding: '12px 14px',
+                      fontSize: '11px',
+                      color: 'var(--text-primary)',
+                      background: 'var(--surface-primary)',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      fontFamily: 'monospace',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: '6px',
+                      resize: 'vertical'
+                    }}
+                    readOnly
+                    value={editorRef.current ? getEditorHtml(editorRef.current) : value}
+                  />
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
+
+
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ border: '1px solid var(--border-primary)', minHeight: '300px', padding: '16px', background: '#ffffff', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: showHtmlPreview ? 'none' : undefined, overflowY: 'auto' }}>
-            <Rooster 
-              plugins={plugins} 
-              initialContent={initialValue} 
-            />
-          </div>
-          {/* Show generated HTML preview toggle */}
-          <div style={{ borderTop: showHtmlPreview ? 'none' : '1px solid var(--border-primary)', border: '1px solid var(--border-primary)', borderTop: showHtmlPreview ? 'none' : '1px solid var(--border-primary)', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', background: 'var(--surface-primary)' }}>
-            <button
-              type="button"
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '8px 14px',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: 'var(--c-primary)',
-                borderBottom: showHtmlPreview ? '1px solid var(--border-primary)' : 'none'
-              }}
-              onClick={() => setShowHtmlPreview(p => !p)}
-            >
-              {showHtmlPreview ? 'Hide generated HTML preview' : 'Show generated HTML preview'}
-            </button>
-            {showHtmlPreview && (
-              <pre style={{
-                margin: 0,
-                padding: '12px 14px',
-                fontSize: '11px',
-                color: 'var(--text-primary)',
-                background: 'var(--bg-secondary)',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                fontFamily: 'monospace',
-                maxHeight: '160px',
-                overflowY: 'auto',
-                borderBottomLeftRadius: '6px',
-                borderBottomRightRadius: '6px'
-              }}>{value || '<!-- No content yet -->'}</pre>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        {isFullscreen && (
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(false)}
+            style={{
+              position: 'absolute',
+              bottom: '24px',
+              right: '24px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              border: '1px solid var(--c-primary)',
+              borderRadius: '6px',
+              background: 'var(--c-primary)',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 9999
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            Back
+          </button>
+        )}
+
+      </div>
+      <InsertLinkModal
+        isOpen={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        onInsert={handleLinkInsert}
+      />
+    </>
   );
 }
 

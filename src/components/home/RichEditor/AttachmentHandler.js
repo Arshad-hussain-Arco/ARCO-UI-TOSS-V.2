@@ -1,4 +1,4 @@
-import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile, readFileAsDataUrl } from './mediaUtils';
 import { getFileTypeIconSvg } from './fileTypeIcons';
 
 const MAX_ATTACHMENT_MB = 40;
@@ -16,7 +16,13 @@ export function isSupportedAttachment(file) {
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_ATTACHMENT_MB);
-  return uploadMediaFile(file);
+  try {
+    return await uploadMediaFile(file);
+  } catch (err) {
+    // Fallback to data URL if backend is unavailable
+    const dataUrl = await readFileAsDataUrl(file);
+    return { url: dataUrl, mime: file.type };
+  }
 }
 
 /**
