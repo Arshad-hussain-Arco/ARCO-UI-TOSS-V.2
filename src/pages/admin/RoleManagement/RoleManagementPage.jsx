@@ -21,6 +21,7 @@ import {
   UserCog,
 } from 'lucide-react';
 import { activatable, dismissBackdrop } from '@utils/interactive';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
 import { useAuth } from '@hooks/useAuth';
@@ -138,6 +139,7 @@ export function RoleManagementPage() {
     unassigned_roles: 0,
   });
   const [roleToDelete, setRoleToDelete] = useState(null);
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
   const [roleToCancel, setRoleToCancel] = useState(null);
   const [dirtyRoles, setDirtyRoles] = useState(new Set());
   const [error, setError] = useState(null);
@@ -279,6 +281,7 @@ export function RoleManagementPage() {
 
   const confirmDeleteRole = async () => {
     if (!roleToDelete) return;
+    setIsDeletingRole(true);
     try {
       await roleService.deleteRole(roleToDelete.id);
       toast.success('Role deleted successfully.');
@@ -287,6 +290,7 @@ export function RoleManagementPage() {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to delete role.');
     } finally {
+      setIsDeletingRole(false);
       setRoleToDelete(null);
     }
   };
@@ -782,6 +786,7 @@ export function RoleManagementPage() {
               <button
                 type="button"
                 className="rm-btn-secondary"
+                disabled={isDeletingRole}
                 {...activatable(() => setRoleToDelete(null), { label: 'Cancel' })}
               >
                 Cancel
@@ -789,10 +794,11 @@ export function RoleManagementPage() {
               <button
                 type="button"
                 className="rm-btn-primary"
-                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
+                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', minWidth: '90px' }}
+                disabled={isDeletingRole}
                 {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
               >
-                Delete
+                {isDeletingRole ? <Spinner size="sm" /> : 'Delete'}
               </button>
             </div>
           </div>

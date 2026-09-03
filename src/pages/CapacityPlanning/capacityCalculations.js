@@ -1,3 +1,5 @@
+import { env } from '@config/env';
+
 export function parseDate(val) {
   if (!val) return null;
   const d = new Date(val);
@@ -14,9 +16,7 @@ export function resolvePhotoUrl(raw) {
   if (v.startsWith('data:image')) return v;
   if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('blob:')) return v;
   if (v.startsWith('/')) {
-    const apiOrigin = (typeof import.meta !== 'undefined'
-      ? (import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
-      : 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+    const apiOrigin = env.apiBaseUrl;
     return `${apiOrigin}${v}`;
   }
   // Assume raw base64

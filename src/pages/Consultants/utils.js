@@ -1,3 +1,5 @@
+import { env } from '@config/env';
+
 export const normalizeConsultant = (c, isActive = true) => {
   if (!c) return null;
 
@@ -26,8 +28,7 @@ export const normalizeConsultant = (c, isActive = true) => {
       // Absolute URL — use as-is
     } else if (avatarUrl.startsWith('/')) {
       // Relative URL path from the API server — prepend API origin
-      const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
-        .replace(/\/api\/?$/, '');
+      const apiOrigin = env.apiBaseUrl.replace(/\/api\/?$/, '');
       avatarUrl = `${apiOrigin}${avatarUrl}`;
     } else {
       // Assume it's raw base64 data — try to detect common base64 JPEG/PNG headers

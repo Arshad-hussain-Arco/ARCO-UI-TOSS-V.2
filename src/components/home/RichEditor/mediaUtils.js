@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
+import { env } from '@config/env';
 import { isOfficePreviewable } from '@components/media/officeViewer';
 import { getFileTypeIconSvg } from './fileTypeIcons';
 
@@ -141,8 +142,7 @@ export function assertWithinSizeLimit(file, maxMb) {
  */
 export function toAbsoluteMediaUrl(path) {
   if (!path || !path.startsWith('/')) return path;
-  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8001/api')
-    .replace(/\/api\/?$/, '');
+  const apiOrigin = env.apiBaseUrl.replace(/\/api\/?$/, '');
   return `${apiOrigin}${path}`;
 }
 
