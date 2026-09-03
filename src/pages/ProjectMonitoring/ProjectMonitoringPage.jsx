@@ -141,6 +141,20 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
   const roleText = stage.roleLabel || '';
   const memberNameText = stage.memberName || stage.name || stage.label;
 
+  const getBadgeColor = (key) => {
+    switch (key) {
+      case 'inception': return '#8b5cf6';
+      case 'planning': return 'var(--c-info)';
+      case 'building': return '#06b6d4';
+      case 'testing': return 'var(--c-warning)';
+      case 'release': return '#fb923c';
+      case 'deployed': return 'var(--c-success)';
+      case 'completed': return 'var(--c-success)';
+      default: return 'var(--c-primary)';
+    }
+  };
+  const badgeBg = getBadgeColor(stage.key);
+
   return (
     <div className="pm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div className="pm-modal-panel" onClick={(e) => e.stopPropagation()}>
@@ -152,13 +166,13 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                 <span className="pm-modal-member-role">{roleText}</span>
               </div>
               <div className="pm-modal-member-meta">
-                <span className="pm-modal-count-badge">{matchedProjects.length} Records</span>
+                <span className="pm-modal-count-badge" style={{ backgroundColor: badgeBg }}>{matchedProjects.length}</span>
               </div>
             </div>
           ) : (
             <div className="pm-modal-title-row">
               <h2 className="pm-modal-title">{titleText}</h2>
-              <span className="pm-modal-count-badge">{matchedProjects.length} Records</span>
+              <span className="pm-modal-count-badge" style={{ backgroundColor: badgeBg }}>{matchedProjects.length}</span>
             </div>
           )}
           <button type="button" className="pm-modal-close-btn" onClick={onClose} aria-label="Close modal">

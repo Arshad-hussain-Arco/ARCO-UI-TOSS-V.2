@@ -3,6 +3,7 @@ import { Search, ArrowUpDown, Edit, Check, X, Users, ChevronDown, ChevronRight, 
 import { Select } from '@components/forms/Select/Select';
 import { useToast } from '@hooks/useToast';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Spinner } from '@components/feedback/Spinner/Spinner';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
@@ -417,7 +418,7 @@ export function LeaveConfigurationTab({ getPhoto }) {
               isEditing ? (
                 <div className="lc-action-btns">
                   <button className="lc-save-btn" onClick={() => handleSaveEdit(emp.id)} disabled={isSaving}>
-                    {isSaving ? <Loader size="sm" /> : <Check size={14} />}
+                    {isSaving ? <Spinner size="sm" /> : <Check size={14} />}
                   </button>
                   <button className="lc-cancel-btn" onClick={handleCancelEdit} disabled={isSaving}><X size={14} /></button>
                 </div>

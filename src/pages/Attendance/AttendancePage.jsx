@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { env } from '@config/env';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -949,7 +950,7 @@ export function AttendancePage() {
       if (src.startsWith('data:image') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
         // Use as-is
       } else if (src.startsWith('/')) {
-        const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+        const apiOrigin = env.apiBaseUrl.replace(/\/api\/?$/, '');
         src = `${apiOrigin}${src}`;
       } else if (src.length > 100) {
         src = `data:image/jpeg;base64,${src}`;
