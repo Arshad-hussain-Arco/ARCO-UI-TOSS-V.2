@@ -129,10 +129,22 @@ export const leaveService = {
   },
   // Which dates in [start, end] qualify as claimable for a given Claim leave
   // type, per its configured claim_date_rule. Returns { eligible_dates: [...] }.
-  getClaimEligibleDates: async ({ emp_id, leave_type_code, start, end }) => {
+  // `exclude_leave_ids` (array of Leave ids) lets an in-progress edit of an
+  // existing claim batch exclude its own rows from "already claimed".
+  getClaimEligibleDates: async ({ emp_id, leave_type_code, start, end, exclude_leave_ids }) => {
     const response = await httpClient.get(endpoints.me.claimEligibleDates, {
-      params: { emp_id, leave_type_code, start, end },
+      params: {
+        emp_id, leave_type_code, start, end,
+        ...(exclude_leave_ids?.length ? { exclude_leave_ids: exclude_leave_ids.join(',') } : {}),
+      },
     });
+    return response.data;
+  },
+  // Edit an existing Claim submission's whole batch of dates — payload:
+  // { emp_id, dates: [...], reason, modification_reason }. `dates` is the
+  // full desired set of dates after the edit, not a delta.
+  modifyClaim: async (leaveId, payload) => {
+    const response = await httpClient.patch(endpoints.me.claimModify(leaveId), payload);
     return response.data;
   },
   requestWfh: async (payload) => {
@@ -209,6 +221,12 @@ export const leaveService = {
   },
   editLeaveOnBehalf: async (leaveId, payload) => {
     const response = await httpClient.patch(endpoints.manager.editOnBehalf(leaveId), payload);
+    return response.data;
+  },
+  // Edit a Claim submission on behalf of an employee — payload:
+  // { manager_id, dates: [...], reason }. Auto-approved after edit.
+  editClaimOnBehalf: async (leaveId, payload) => {
+    const response = await httpClient.patch(endpoints.manager.editClaimOnBehalf(leaveId), payload);
     return response.data;
   },
   approveLeave: async (leaveId, payload) => {

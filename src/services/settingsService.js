@@ -79,6 +79,17 @@ export const settingsService = {
     return response.data;
   },
 
+  // Runtime Trends File Matching Columns
+  getRuntimeColumns: async () => {
+    const response = await httpClient.get(endpoints.systemSettings.runtimeColumns);
+    return response.data;
+  },
+
+  updateRuntimeColumn: async (id, data) => {
+    const response = await httpClient.put(endpoints.systemSettings.updateRuntimeColumn(id), data);
+    return response.data;
+  },
+
   // Weekend Configuration
   getWeekendConfig: async () => {
     const response = await httpClient.get(endpoints.systemSettings.weekendConfig);

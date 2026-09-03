@@ -19,11 +19,12 @@ const TABS = [
   { id: 'import-config', label: 'Import File Config', icon: UploadCloud },
   { id: 'cr-columns', label: 'CR File Matching Columns', icon: FileSpreadsheet },
   { id: 'wo-columns', label: 'WO File Matching Columns', icon: FileSpreadsheet },
+  { id: 'runtime-columns', label: 'Runtime Trends Matching Columns', icon: FileSpreadsheet },
   { id: 'home-management', label: 'Home Management', icon: LayoutDashboard },
 ];
 
 /**
- * Admin system configuration module with 5 tabs. Each panel fetches and
+ * Admin system configuration module with 6 tabs. Each panel fetches and
  * saves its own data via settingsService — this page only owns tab
  * navigation.
  */
@@ -77,6 +78,13 @@ export function SystemSettingsPage() {
           <ColumnMappingPanel
             type="WO"
             title="WO Column Names"
+          />
+        ) : null}
+
+        {activeTab === 'runtime-columns' ? (
+          <ColumnMappingPanel
+            type="Runtime"
+            title="Runtime Trends Column Names"
           />
         ) : null}
 

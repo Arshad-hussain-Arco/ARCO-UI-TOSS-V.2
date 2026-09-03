@@ -41,6 +41,7 @@ import { useAuth } from '@hooks/useAuth';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import LeaveRequestDrawer from './components/LeaveRequestDrawer';
 import { EditLeaveModal } from './EditLeaveModal';
+import { EditClaimModal } from './EditClaimModal';
 import { CancelLeaveModal } from './CancelLeaveModal';
 import './TeamRequests.css';
 import { activatable } from '@utils/interactive';
@@ -330,7 +331,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
     // business_days hasn't been computed yet), misclassifying Annual/Sick
     // Leave as claims. req.leave_category is the real, authoritative
     // signal — the backend now sends the LMSLeaveType.category
-    // ('CLAIM'/'ACTUAL'/'NOMINAL') straight from get_leaves_for_employee_ids
+    // ('CLAIM'/'ACTUAL') straight from get_leaves_for_employee_ids
     // (leaves/services.py), so this can be an exact match instead of a guess.
     else if (typeLower.includes('comp') || reasonLower.includes('comp') || req.leave_category === 'CLAIM') type = 'compoff';
 
@@ -392,23 +393,40 @@ export async function fetchAndMapTeamLeaves(managerId) {
 // own approve/reject endpoints — they never show up in getTeamLeaves(). This
 // maps them into the same row shape the table/drawer already render, so they
 // appear in "Team Leave Requests" alongside ordinary pending leave requests.
-export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) {
+export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, leaveTypeById = {}) {
   const response = await leaveService.getPendingModRequests(managerId);
   const results = Array.isArray(response) ? response : (response?.results || []);
 
-  return results.map((req) => {
+  const mapped = results.map((req) => {
     const dir = employeeDirectory[req.emp_id];
     return {
       id: `mod-${req.id}`,
       modRequestId: req.id,
+      modRequestIds: [req.id],
       leaveId: req.leave_id,
+      leaveIds: [req.leave_id],
+      // Pure-addition marker (see ClaimService._create_claim_mod_request):
+      // orig_in_days === 0 means the wrapped leave never existed as an
+      // approved row before this edit — it should be hidden from the
+      // plain leave list (it's fully represented by this mod-request row),
+      // unlike a normal wrapped leave which stays visible in its own
+      // status until the edit is decided.
+      pureAdditionLeaveIds: Number(req.orig_in_days) === 0 ? [req.leave_id] : [],
+      origInDays: Number(req.orig_in_days),
+      origDuration: req.orig_duration === 'FIRST_HALF' ? 'morning' : req.orig_duration === 'SECOND_HALF' ? 'afternoon' : 'full',
+      batchKey: req.batch_key || null,
       isModRequest: true,
       employeeId: `EMP${req.emp_id}`,
       employeeName: dir?.employeeName || `Employee #${req.emp_id}`,
       team: dir?.team || '—',
       designation: dir?.designation,
       manager: dir?.manager,
-      type: dir?.type || 'leave',
+      // Looked up off the wrapped leave's OWN id — employeeDirectory's
+      // `type` is only a per-employee fallback (built from whichever leave
+      // row happened to be first for that employee), which misattributes
+      // type when one employee has both a claim and a regular leave
+      // pending at once. leaveTypeById is exact per-row.
+      type: leaveTypeById[req.leave_id] || dir?.type || 'leave',
       leaveType: 'Modification Request',
       startDate: req.new_start_date,
       endDate: req.new_end_date,
@@ -430,6 +448,44 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}) 
       conflicts: [],
     };
   });
+
+  // A Claim batch edit (see ClaimService.modify_claim_batch) creates one
+  // LeaveModificationRequest per date, all sharing `batch_key` — group
+  // them back into a single row (claimDates shape matches groupClaimRows)
+  // so the manager sees and actions the whole edited claim as one request
+  // instead of one row per date. Regular (non-claim) mod requests have no
+  // batch_key, so each stays its own group.
+  const byGroup = new Map();
+  mapped.forEach((m) => {
+    const key = m.batchKey || `single-${m.modRequestId}`;
+    if (!byGroup.has(key)) byGroup.set(key, []);
+    byGroup.get(key).push(m);
+  });
+
+  const grouped = [];
+  byGroup.forEach((group) => {
+    group.sort((a, b) => (a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0));
+    if (group.length === 1) {
+      grouped.push(group[0]);
+      return;
+    }
+    const first = group[0];
+    const last = group[group.length - 1];
+    grouped.push({
+      ...first,
+      id: `mod-${first.modRequestId}`,
+      modRequestIds: group.map((g) => g.modRequestId),
+      leaveIds: group.map((g) => g.leaveId),
+      pureAdditionLeaveIds: group.flatMap((g) => g.pureAdditionLeaveIds || []),
+      startDate: first.startDate,
+      endDate: last.endDate,
+      inDays: group.reduce((sum, g) => sum + (Number(g.inDays) || 0), 0),
+      bizDays: group.reduce((sum, g) => sum + (Number(g.bizDays) || 0), 0),
+      claimDates: group.map((g) => ({ id: g.leaveId, date: g.startDate, duration: g.duration, inDays: g.inDays, origInDays: g.origInDays })),
+    });
+  });
+
+  return grouped;
 }
 
 export function TeamRequestsTab({ getPhoto }) {
@@ -438,6 +494,7 @@ export function TeamRequestsTab({ getPhoto }) {
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editModalLeave, setEditModalLeave] = useState(null);
+  const [editModalClaim, setEditModalClaim] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
   const [calendarHolidays, setCalendarHolidays] = useState([]);
 
@@ -455,6 +512,12 @@ export function TeamRequestsTab({ getPhoto }) {
       // rows (which the backend returns with no employee name/team) can
       // still display something meaningful instead of just an emp_id.
       const employeeDirectory = {};
+      // mappedLeaves is already grouped (groupClaimRows) by the time it
+      // gets here, so a multi-date claim's individual leave ids only
+      // survive under its group's `claimDates` — map every one of them
+      // (not just the group's own `.id`) so a mod-request wrapping any
+      // date of that claim still resolves to the correct type below.
+      const leaveTypeById = {};
       mappedLeaves.forEach((r) => {
         const empId = Number(String(r.employeeId).replace('EMP', ''));
         if (!employeeDirectory[empId]) {
@@ -463,9 +526,14 @@ export function TeamRequestsTab({ getPhoto }) {
             designation: r.designation, manager: r.manager, type: r.type,
           };
         }
+        if (r.claimDates && r.claimDates.length > 1) {
+          r.claimDates.forEach((cd) => { leaveTypeById[cd.id] = r.type; });
+        } else {
+          leaveTypeById[Number(r.id)] = r.type;
+        }
       });
 
-      const mappedModRequests = await fetchAndMapModRequests(managerId, employeeDirectory)
+      const mappedModRequests = await fetchAndMapModRequests(managerId, employeeDirectory, leaveTypeById)
         .catch((error) => {
           console.error('Failed to fetch modification requests:', error);
           return [];
@@ -495,7 +563,23 @@ export function TeamRequestsTab({ getPhoto }) {
         console.error("Failed to fetch holidays", e);
       }
 
-      const combined = [...mappedLeaves, ...mappedModRequests];
+      // A mod request normally wraps an already-APPROVED leave — that
+      // original row should stay visible exactly as it is (still
+      // Approved) alongside the pending mod-request row, only getting
+      // replaced once the manager actually approves the edit. The one
+      // exception is a Claim "add a date to an approved claim" mod
+      // request, which wraps a leave that's itself still PENDING and was
+      // never approved before (see ClaimService.modify_claim_batch's
+      // orig_in_days=0 addition marker on the backend) — left unfiltered,
+      // THAT leave would show up twice: once as its own plain Pending
+      // row, once as this mod-request row, for a date that was never
+      // really "its own" claim to begin with. Only that pure-addition
+      // case gets dropped from the plain list.
+      const pureAdditionLeaveIds = new Set(
+        mappedModRequests.filter((m) => m.status === 'pending').flatMap((m) => m.pureAdditionLeaveIds || []),
+      );
+      const leavesWithoutModWrapped = mappedLeaves.filter((r) => !pureAdditionLeaveIds.has(Number(r.id)));
+      const combined = [...leavesWithoutModWrapped, ...mappedModRequests];
       setRequests(combined);
     } catch (error) {
       console.error("Failed to fetch team leaves:", error);
@@ -1288,7 +1372,14 @@ export function TeamRequestsTab({ getPhoto }) {
                           today.setHours(0, 0, 0, 0);
                           const startDateObj = new Date(req.startDate);
                           startDateObj.setHours(0, 0, 0, 0);
-                          const isApprovedPastOrPresent = req.status === 'approved' && startDateObj <= today;
+                          // A Claim is always submitted for a past date by
+                          // design (see ClaimService.submit_claim), so the
+                          // approved-and-already-past gate below — meant to
+                          // stop editing/cancelling ordinary leave once it's
+                          // underway or over — would otherwise block every
+                          // approved claim unconditionally. req.claimDates is
+                          // set for every claim row by groupClaimRows above.
+                          const isApprovedPastOrPresent = !req.claimDates && req.status === 'approved' && startDateObj <= today;
                           const canModify = !isApprovedPastOrPresent;
                           return (
                             <tr key={req.id} className="tr-row" data-selected={liveReq?.id === req.id}>
@@ -1337,15 +1428,36 @@ export function TeamRequestsTab({ getPhoto }) {
                                   // so list each claimed date with its own duration
                                   // instead of collapsing to a start-end span.
                                   <div className="tr-dates-cell">
-                                    {req.claimDates.map((cd) => (
-                                      <div key={cd.id} className="tr-date-range" style={{ fontSize: 12 }}>
-                                        {fmtFullDate(cd.date)}
-                                        <span className="tr-date-subtext">
-                                          {' '}({cd.inDays} {cd.inDays === 1 ? 'day' : 'days'})
-                                          {getDurationDisplay({ duration: cd.duration }) ? ` • ${getDurationDisplay({ duration: cd.duration })}` : ''}
-                                        </span>
-                                      </div>
-                                    ))}
+                                    {req.claimDates.map((cd) => {
+                                      // A grouped Modification Request row includes a
+                                      // 0-day entry for every date being REMOVED from
+                                      // the claim, and — for a brand-new date — one
+                                      // whose ORIGINAL in_days was 0. Flag both instead
+                                      // of showing either as a plain "(N days)" that
+                                      // gives no hint the claim is actually changing
+                                      // shape (same visual language EditClaimModal
+                                      // uses for a row marked for removal/newly added).
+                                      const isRemoval = req.isModRequest && Number(cd.inDays) === 0;
+                                      const isAddition = req.isModRequest && Number(cd.origInDays) === 0 && Number(cd.inDays) > 0;
+                                      return (
+                                        <div
+                                          key={cd.id}
+                                          className="tr-date-range"
+                                          style={{ fontSize: 12, ...(isRemoval ? { textDecoration: 'line-through', opacity: 0.7 } : {}) }}
+                                        >
+                                          {fmtFullDate(cd.date)}
+                                          {isRemoval ? (
+                                            <span className="tr-date-subtext" style={{ color: 'var(--c-danger)', textDecoration: 'none' }}> (Removed)</span>
+                                          ) : (
+                                            <span className="tr-date-subtext">
+                                              {' '}({cd.inDays} {cd.inDays === 1 ? 'day' : 'days'})
+                                              {getDurationDisplay({ duration: cd.duration }) ? ` • ${getDurationDisplay({ duration: cd.duration })}` : ''}
+                                              {isAddition ? <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span> : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 ) : (
                                   <div className="tr-dates-cell">
@@ -1408,24 +1520,20 @@ export function TeamRequestsTab({ getPhoto }) {
                                       <X size={10} />
                                     </button>
                                   )}
-                                  {/* Edit on behalf is hidden for ANY claim request
-                                      (single-date or grouped multi-date) — a Claim
-                                      isn't really "editable" the way a normal leave
-                                      is (its dates come from the claim-eligible-dates
-                                      picker, not free-form start/end fields, and for
-                                      a grouped submission req.raw is only ever the
-                                      FIRST date's row — which date would it edit?).
-                                      req.claimDates is set for every claim row by
-                                      groupClaimRows above, even solo ones. Approve/
-                                      Reject above already cascade to every date in
-                                      the same submission either way. */}
-                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify
-                                    && !req.claimDates && (
+                                  {/* Edit on behalf — for a grouped multi-date Claim
+                                      row (req.claimDates, set by groupClaimRows above
+                                      even for a solo claim date) this opens
+                                      EditClaimModal instead, which edits the whole
+                                      batch of sibling Leave rows rather than a single
+                                      row's free-form start/end fields. Approve/Reject
+                                      above already cascade to every date in the same
+                                      submission either way. */}
+                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
                                     <>
                                       <button
                                         className="tr-act-btn"
                                         title="Edit on behalf"
-                                        onClick={() => setEditModalLeave(req.raw)}
+                                        onClick={() => (req.claimDates ? setEditModalClaim(req) : setEditModalLeave(req.raw))}
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                       </button>
@@ -1722,7 +1830,7 @@ export function TeamRequestsTab({ getPhoto }) {
                                 <button
                                   className="tr-act-btn"
                                   title="Edit on behalf"
-                                  onClick={() => setEditModalLeave(req.raw)}
+                                  onClick={() => (req.claimDates ? setEditModalClaim(req) : setEditModalLeave(req.raw))}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"></path></svg>
                                 </button>
@@ -1779,6 +1887,16 @@ export function TeamRequestsTab({ getPhoto }) {
           onClose={() => setEditModalLeave(null)}
           onSuccess={() => {
             setEditModalLeave(null);
+            refetch();
+          }}
+        />
+      )}
+      {editModalClaim && (
+        <EditClaimModal
+          leaveGroup={editModalClaim}
+          onClose={() => setEditModalClaim(null)}
+          onSuccess={() => {
+            setEditModalClaim(null);
             refetch();
           }}
         />
