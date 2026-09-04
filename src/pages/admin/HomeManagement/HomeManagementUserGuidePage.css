@@ -1,0 +1,167 @@
+.hmu-guide-page {
+  padding: 40px;
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.hmu-guide-document {
+  background: var(--surface-primary);
+  width: 100%;
+  max-width: 900px;
+  padding: 60px 80px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-secondary);
+}
+
+.hmu-doc-title {
+  text-align: center;
+  background-color: #ffff00;
+  color: #000;
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hmu-doc-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+
+.hmu-doc-section {
+  margin-bottom: 40px;
+}
+
+.hmu-doc-section h2 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  color: #000;
+}
+
+.hmu-doc-section h3 {
+  background-color: #ffff00;
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 12px;
+  color: #000;
+}
+
+.hmu-doc-section p {
+  margin-bottom: 12px;
+}
+
+.hmu-doc-section ul,
+.hmu-doc-section ol {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.hmu-doc-section li {
+  margin-bottom: 8px;
+}
+
+.hmu-doc-highlight {
+  background-color: #ffff00;
+  padding: 2px 6px;
+  display: inline-block;
+  margin: 16px 0;
+  font-weight: 600;
+  color: #000;
+}
+
+.hmu-doc-callout {
+  background: var(--bg-secondary);
+  border-left: 4px solid var(--c-primary, #006838);
+  padding: 12px 16px;
+  margin: 16px 0;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.hmu-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13px;
+}
+
+.hmu-doc-table th,
+.hmu-doc-table td {
+  border: 1px solid var(--border-secondary);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.hmu-doc-table th {
+  background: var(--bg-secondary);
+  font-weight: 700;
+}
+
+.hmu-doc-table code {
+  white-space: nowrap;
+}
+
+.hmu-doc-section pre {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 12px 0 20px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.hmu-doc-section pre code {
+  background: none;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+.hmu-doc-section code {
+  background-color: var(--bg-secondary);
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--text-primary);
+}
+
+.hmu-doc-checklist {
+  list-style: none;
+  padding-left: 0 !important;
+}
+
+.hmu-doc-checklist li {
+  padding-left: 26px;
+  position: relative;
+}
+
+.hmu-doc-checklist li::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--c-primary, #006838);
+  font-weight: 700;
+}

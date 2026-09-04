@@ -1,6 +1,8 @@
 import { memo, useRef, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import '../SystemSettings/SystemSettingsPage.css';
-import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle, Video, RefreshCw, Trash2, Film } from 'lucide-react';
+import { Edit, LayoutGrid, Loader2, Plus, Trash, Upload, User, X, Code, FileText, Image as ImageIcon, AlertTriangle, Video, RefreshCw, Trash2, Film, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { ROUTES } from '@constants/routes';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -23,19 +25,6 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
- * Helper to strip HTML tags for clean plain text display in cards.
- */
-function stripHtml(htmlStr) {
-  if (!htmlStr) return '';
-  try {
-    const doc = new DOMParser().parseFromString(htmlStr, 'text/html');
-    return doc.body.textContent || '';
-  } catch {
-    return htmlStr.replace(/<[^>]*>?/gm, '');
-  }
 }
 
 /**
@@ -139,7 +128,7 @@ function HomeManagementPanelComponent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await settingsService.getHomeData();
+      const res = await settingsService.getHomeData(true); // admin screen also sees inactive cards
       setCards(res || []);
     } catch (error) {
       console.error('Failed to fetch home data:', error);
@@ -244,6 +233,50 @@ function HomeManagementPanelComponent() {
       toast.error('Failed to delete home card');
     } finally {
       setCardToDelete(null);
+    }
+  };
+
+  const handleToggleActive = async (card) => {
+    const nextActive = !(card.is_active !== false); // treat missing/undefined as active
+    // Optimistic update so the toggle feels instant; reverted on failure.
+    setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, is_active: nextActive } : c)));
+    try {
+      const payload = new FormData();
+      payload.append('is_active', String(nextActive));
+      await settingsService.updateHomeData(card.id, payload);
+      toast.success(nextActive ? 'Card activated' : 'Card deactivated');
+    } catch (error) {
+      console.error('Failed to toggle card status:', error);
+      toast.error('Failed to update card status');
+      setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, is_active: card.is_active } : c)));
+    }
+  };
+
+  const handleMoveCard = async (card, direction) => {
+    const index = cards.findIndex((c) => c.id === card.id);
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (index === -1 || swapIndex < 0 || swapIndex >= cards.length) return;
+
+    const reordered = [...cards];
+    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
+    setCards(reordered); // optimistic reorder
+
+    // Legacy rows can share sort_order 0, so a plain value-swap between the
+    // two moved cards wouldn't be enough to fix their relative order —
+    // renumber every card to its new position instead.
+    try {
+      await Promise.all(
+        reordered.map((c, i) => {
+          const payload = new FormData();
+          payload.append('sort_order', String(i));
+          return settingsService.updateHomeData(c.id, payload);
+        })
+      );
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to reorder home cards:', error);
+      toast.error('Failed to reorder cards');
+      await fetchData();
     }
   };
 
@@ -643,8 +676,33 @@ function HomeManagementPanelComponent() {
       <div className="ss-main-content">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* 3. Top Header Bar & Action Alignment */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', marginBottom: '8px' }}>
 
+            <Link
+              to={ROUTES.ADMIN_HOME_MANAGEMENT_USER_GUIDE}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '38px',
+                padding: '0 16px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                background: 'var(--surface-primary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <FileText size={14} />
+              <span>User Guide</span>
+              <ExternalLink size={14} />
+            </Link>
 
             <button
               type="button"
@@ -682,10 +740,10 @@ function HomeManagementPanelComponent() {
             </div>
           ) : (
             <div className="hm-cards-grid">
-              {cards.map((card) => {
-                const displayPhotoUrl = card.photo ? `data:image/jpeg;base64,${card.photo}` : null;
+              {cards.map((card, cardIndex) => {
                 const width = card.display_width || '100%';
                 const isFullWidth = width === '100%';
+                const isActive = card.is_active !== false;
 
                 return (
                   <div
@@ -702,12 +760,109 @@ function HomeManagementPanelComponent() {
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                       padding: '12px',
                       boxSizing: 'border-box',
-                      minHeight: '180px',
+                      minHeight: '210px',
                       position: 'relative',
+                      opacity: isActive ? 1 : 0.55,
                     }}
                   >
-                    {/* Actions in top right */}
-                    <div className="hm-card-actions" style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '4px', zIndex: 10 }}>
+                    {isActive ? null : (
+                      <span style={{ position: 'absolute', top: '8px', left: '8px', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--c-danger, #dc2626)', color: '#fff', zIndex: 10 }}>
+                        INACTIVE
+                      </span>
+                    )}
+
+                    {/* Actions in top right ΓÇö grouped into a single pill so five
+                    icons read as one toolbar instead of five loose circles. */}
+                    <div
+                      className="hm-card-actions"
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        padding: '4px',
+                        borderRadius: '20px',
+                        background: 'var(--surface-primary)',
+                        border: '1px solid var(--border-primary)',
+                        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
+                        zIndex: 10,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveCard(card, 'up');
+                        }}
+                        disabled={cardIndex === 0}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: cardIndex === 0 ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                          cursor: cardIndex === 0 ? 'not-allowed' : 'pointer',
+                          opacity: cardIndex === 0 ? 0.5 : 1,
+                        }}
+                        title="Move Up"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveCard(card, 'down');
+                        }}
+                        disabled={cardIndex === cards.length - 1}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: cardIndex === cards.length - 1 ? 'var(--text-tertiary)' : 'var(--text-secondary)',
+                          cursor: cardIndex === cards.length - 1 ? 'not-allowed' : 'pointer',
+                          opacity: cardIndex === cards.length - 1 ? 0.5 : 1,
+                        }}
+                        title="Move Down"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+
+                      <span style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 2px' }} />
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleActive(card);
+                        }}
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: isActive ? 'var(--text-secondary)' : 'var(--c-warning, #d97706)',
+                          cursor: 'pointer',
+                        }}
+                        title={isActive ? 'Deactivate Card' : 'Activate Card'}
+                      >
+                        {isActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
                       <button
                         type="button"
                         className="action-icon-btn edit"
@@ -716,11 +871,11 @@ function HomeManagementPanelComponent() {
                           handleOpenEditModal(card);
                         }}
                         style={{
-                          width: '26px',
-                          height: '26px',
+                          width: '24px',
+                          height: '24px',
                           borderRadius: '50%',
-                          border: '1px solid var(--border-primary)',
-                          background: 'var(--surface-primary)',
+                          border: 'none',
+                          background: 'transparent',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -739,11 +894,11 @@ function HomeManagementPanelComponent() {
                           handleDeleteCard(card);
                         }}
                         style={{
-                          width: '26px',
-                          height: '26px',
+                          width: '24px',
+                          height: '24px',
                           borderRadius: '50%',
-                          border: '1px solid var(--border-primary)',
-                          background: 'var(--surface-primary)',
+                          border: 'none',
+                          background: 'transparent',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -756,30 +911,42 @@ function HomeManagementPanelComponent() {
                       </button>
                     </div>
 
-                    {/* Card Body with Dynamic Preview Render */}
-                    <div className="hm-card-body" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '8px', width: '100%' }}>
-                      {displayPhotoUrl && (
-                        <div className="hm-image-container" style={{ width: '100%', height: '80px', borderRadius: '6px', overflow: 'hidden', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
-                          <img src={displayPhotoUrl} alt="Card preview" className="hm-image-fit" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }} />
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, paddingRight: '56px' }}>
-                        {card.card_type === 'person_card' ? (
-                          <>
-                            <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{card.person_name}</h4>
-                            <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-tertiary)' }}>{card.designation}</div>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.bio}</p>
-                          </>
-                        ) : card.card_type === 'content_card' ? (
-                          <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{card.text_content}</p>
-                        ) : (
-                          <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.3, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontFamily: 'monospace' }}>{stripHtml(card.html_content)}</p>
-                        )}
+                    {/* Card Body — renders the SAME HomeCard component the
+                    published Homepage uses, so the admin list is a true
+                    thumbnail of what employees will actually see, not a
+                    separately-maintained text summary. Clipped to a fixed
+                    height (cards can be much taller than this tile) and
+                    non-interactive (no video/PDF triggers inside a listing
+                    tile — Edit opens the real editor for that). */}
+                    <div
+                      className="hm-card-body"
+                      style={{
+                        marginTop: '32px',
+                        width: '100%',
+                        // `.hm-card-body` (SystemSettingsPage.css) sets
+                        // `flex: 1`, i.e. flex-basis: 0 — on the column-flex
+                        // parent that makes the browser size this element by
+                        // flex-grow, not by its `height`, so `flex` has to be
+                        // overridden here too or the 220px clip is ignored.
+                        flex: '0 0 220px',
+                        height: '220px',
+                        overflow: 'hidden',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-primary)',
+                        background: 'var(--bg-secondary)',
+                        pointerEvents: 'none',
+                        position: 'relative',
+                      }}
+                    >
+                      <div style={{ transform: 'scale(0.85)', transformOrigin: 'top left', width: '117.6%' }}>
+                        <HomeCard card={card} />
                       </div>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)', alignSelf: 'flex-start', marginTop: '4px' }}>
-                        {width} Width
-                      </span>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '32px', background: 'linear-gradient(to bottom, transparent, var(--bg-secondary))' }} />
                     </div>
+
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-primary)', alignSelf: 'flex-start', marginTop: '8px' }}>
+                      {width} Width
+                    </span>
                   </div>
                 );
               })}

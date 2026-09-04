@@ -6,6 +6,57 @@ import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, a
 import './HomeCard.css';
 
 /**
+ * Classifies an arbitrary inline color (from pasted Word/Outlook/browser
+ * HTML) into one of the adaptive buckets HomeCard.css defines, or null if
+ * it doesn't clearly fit one — in which case the dark-mode blanket rule in
+ * HomeCard.css (which strips any remaining hardcoded color to
+ * var(--text-primary) for readability) is the correct fallback.
+ * Named colors are deliberately NOT resolved here — browsers always
+ * serialize inline `color` as rgb()/rgba() once parsed, so raw HTML only
+ * ever contains a name if it was written by hand, which the WYSIWYG editor
+ * itself never produces.
+ */
+function classifyAdaptiveColor(r, g, b) {
+  if (r < 60 && g < 60 && b < 60) return 'var(--adaptive-text)';
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max - min < 20 && max < 130) return 'var(--adaptive-text-secondary)';
+  if (b > r + 20 && b > g + 10) return 'var(--adaptive-blue)';
+  return null;
+}
+
+/**
+ * Rewrites every inline `color:` declaration in pasted/authored HTML to an
+ * adaptive CSS variable where it's confidently classifiable (black/dark-grey
+ * text, mid-grey text, blue links/emphasis) — `!important` on the
+ * replacement is required: HomeCard.css's dark-mode rule that strips any
+ * OTHER hardcoded color to var(--text-primary) also uses `!important`, and
+ * a plain inline style always loses to any `!important` stylesheet rule
+ * regardless of selector specificity. Without it here, a correctly
+ * classified color would still render as flat white in dark mode.
+ */
+function themeAdaptiveColors(html) {
+  return (html || '').replace(
+    /color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
+    (match, r, g, b, hex) => {
+      let rr = r, gg = g, bb = b;
+      if (hex) {
+        const h = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
+        rr = parseInt(h.slice(0, 2), 16);
+        gg = parseInt(h.slice(2, 4), 16);
+        bb = parseInt(h.slice(4, 6), 16);
+      } else {
+        rr = Number(r);
+        gg = Number(g);
+        bb = Number(b);
+      }
+      const adaptive = classifyAdaptiveColor(rr, gg, bb);
+      return adaptive ? `color: ${adaptive} !important;` : match;
+    }
+  );
+}
+
+/**
  * DOMPurify configuration extending default allowlist for media cards.
  */
 const HOME_CARD_SANITIZE_CONFIG = {
@@ -18,7 +69,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',
     'data-mime', 'data-pdf-src', 'data-pdf-name',
-    'data-office-src', 'data-office-name', 'data-video-src', 'aria-label',
+    'data-office-src', 'data-office-name', 'data-video-src', 'data-copy-text', 'aria-label',
     'viewBox', 'aria-hidden', 'focusable', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
     // Table attributes
     'colspan', 'rowspan', 'border', 'cellpadding', 'cellspacing', 'width', 'height',
@@ -93,6 +144,39 @@ export function HomeCard({ card, className = '', style = {} }) {
   const rawText = card.bio || card.text_content || null;
 
   const handleContentClick = (e) => {
+    // DOMPurify strips onclick/<script> from admin-authored HTML (see
+    // sanitize.js's FORBID_TAGS/FORBID_ATTR), so a "Copy" button can't wire
+    // itself up via inline JS. `data-copy-text` is the supported, sanitizer-safe
+    // alternative: any element carrying it becomes a working copy-to-clipboard
+    // button here instead.
+    const copyBtn = e.target.closest('[data-copy-text]');
+    if (copyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const text = copyBtn.dataset.copyText || '';
+      const showCopied = () => {
+        const original = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('rte-copy-btn-copied');
+        setTimeout(() => {
+          copyBtn.textContent = original;
+          copyBtn.classList.remove('rte-copy-btn-copied');
+        }, 1500);
+      };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied).catch(() => {});
+      } else {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        showCopied();
+      }
+      return;
+    }
+
     const playBtn = e.target.closest('.rte-video-play-trigger');
     if (playBtn) {
       e.preventDefault();
@@ -152,12 +236,10 @@ export function HomeCard({ card, className = '', style = {} }) {
 
   const renderContent = () => {
     if (card.card_type === 'html_code' || rawHtml) {
-      // Clean up hardcoded black/dark-grey/blue colors from the WYSIWYG editor
-      // so the text dynamically adapts to dark mode.
-      const themeAdaptiveHtml = (rawHtml || '')
-        .replace(/color:\s*(rgb\(0,\s*0,\s*0\)|#000000|#000|black)\s*;?/gi, 'color: var(--adaptive-text);')
-        .replace(/color:\s*(rgb\(51,\s*51,\s*51\)|#333333|#333)\s*;?/gi, 'color: var(--adaptive-text-secondary);')
-        .replace(/color:\s*(rgb\(17,\s*85,\s*204\)|rgb\(0,\s*0,\s*255\)|#0000ff|#1155cc|blue)\s*;?/gi, 'color: var(--adaptive-blue);');
+      // Clean up hardcoded black/dark-grey/blue colors from the WYSIWYG
+      // editor (or pasted Word/Outlook HTML) so the text dynamically adapts
+      // to dark mode — see themeAdaptiveColors() above.
+      const themeAdaptiveHtml = themeAdaptiveColors(rawHtml);
 
       return (
         <div

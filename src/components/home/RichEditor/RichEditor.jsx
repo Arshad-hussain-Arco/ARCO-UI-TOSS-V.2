@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
 import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken } from './mediaUtils';
+import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
@@ -407,6 +408,30 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     }
   }), [isFullscreen]);
 
+  // Replaces RoosterJS's stock insertImageButton wherever it would
+  // otherwise appear (fullscreen ribbon's Main/Insert/Image tabs). The
+  // stock button inserts the picked file as a raw base64 data: URI directly
+  // into the DOM — entirely bypassing the SFTP-backed HomeMedia upload
+  // pipeline (no size/type validation, no server storage, bloats the saved
+  // html_content). Clicking imgInputRef instead routes through the same
+  // handleImageUpload the non-fullscreen "Image" button uses, so image
+  // handling is identical regardless of which toolbar mode inserted it.
+  // (Same open-the-hidden-input logic as handleMediaBtnClick below, inlined
+  // here since that helper is declared later and this button is built
+  // before it.)
+  const customInsertImageButton = useMemo(() => ({
+    ...insertImageButton,
+    key: 'customInsertImage',
+    onClick: () => {
+      if (isFullscreen) {
+        imgInputRef.current?.click();
+      } else {
+        setIsFullscreen(true);
+        setTimeout(() => imgInputRef.current?.click(), 80);
+      }
+    }
+  }), [isFullscreen]);
+
   // Custom code button that toggles HTML Source Edit mode instead of inline code
   const customCodeButton = useMemo(() => ({
     ...codeButton,
@@ -435,9 +460,15 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     if (!editor) return;
     editor.focus();
     const doc = typeof editor.getDocument === 'function' ? editor.getDocument() : document;
-    doc.execCommand('insertHTML', false, html);
+    // Newly-inserted media markup carries a bare (untokenized) URL — fine
+    // for video/pdf/attachment since those lazy-load on click, but an
+    // <img src="..."> fetches immediately and would show broken until the
+    // card is reopened (whenever `value` next flows through displayHtml()).
+    // Attach the current token now; handleChange strips it again on the way
+    // out via stripHomeMediaToken, so the saved html_content stays bare.
+    doc.execCommand('insertHTML', false, attachHomeMediaToken(html, mediaToken) || html);
     handleChange(getEditorHtml(editor));
-  }, [getEditorHtml, handleChange]);
+  }, [getEditorHtml, handleChange, mediaToken]);
 
   const getSelectedImage = useCallback(() => {
     try {
@@ -645,10 +676,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       insertTableButton
     ];
     if (isFullscreen) {
-      btns.push(insertImageButton, removeLinkButton);
+      btns.push(customInsertImageButton, removeLinkButton);
     }
     return btns;
-  }, [isFullscreen, customInsertLinkButton, insertTableButton, insertImageButton, removeLinkButton]);
+  }, [isFullscreen, customInsertLinkButton, insertTableButton, customInsertImageButton, removeLinkButton]);
 
   const tableButtons = [
     insertTableButton,
@@ -910,7 +941,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   ];
 
   const imageButtons = useMemo(() => [
-    insertImageButton,
+    customInsertImageButton,
     {
       key: 'imageOptionsDropdown',
       unlocalizedText: 'More options',
@@ -1066,7 +1097,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       },
       onClick: () => { }
     }
-  ], [getSelectedImage]);
+  ], [getSelectedImage, customInsertImageButton]);
 
   const videoButtons = useMemo(() => [
     {
@@ -1116,20 +1147,28 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     }
   }, [isFullscreen]);
 
+  // Mirrors handleVideoUpload/handlePdfUpload/handleFileUpload below — all
+  // three upload to the SFTP-backed HomeMedia pipeline via their handler's
+  // ingestFile() and insert a URL-based markup. This one used to instead
+  // FileReader.readAsDataURL() the image straight into the DOM as a raw
+  // base64 <img src="data:...">, bypassing upload entirely: no size/type
+  // validation, no SFTP storage, and bloating the saved html_content (and
+  // the Oracle CLOB it's stored in) with inline image bytes on every save.
+  // ImageHandler.ingestFile/buildImageMarkup already existed and are used
+  // correctly by paste/drag-drop (EditableArea.jsx) — this toolbar button
+  // just never called them.
   const handleImageUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file || !editorRef.current) return;
     e.target.value = '';
     try {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = `<img src="${ev.target.result}" style="max-width:100%;height:auto;" />`;
-        insertRawHtml(editorRef.current, img);
-        handleChange(getEditorHtml(editorRef.current));
-      };
-      reader.readAsDataURL(file);
+      toast.info?.('Uploading image…');
+      const result = await ImageHandler.ingestFile(file);
+      const markup = ImageHandler.buildImageMarkup({ url: result.url, alt: file.name });
+      insertRawHtml(editorRef.current, markup);
+      handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
-      toast.error('Failed to insert image');
+      toast.error(err?.message || 'Image upload failed');
     }
   }, [handleChange, toast]);
 
@@ -1148,7 +1187,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       insertRawHtml(editorRef.current, markup);
       handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
-      toast.error('Video upload failed');
+      // assertWithinSizeLimit's message (e.g. "'clip.mp4' is 25.3 MB — the
+      // limit is 19MB.") was previously discarded in favor of this generic
+      // text, so a video rejected for being too large looked identical to
+      // any other failure — the user just saw "upload failed" with no way
+      // to tell it was a size cap. EditableArea's own paste/drag-drop path
+      // already surfaces err.message; this now matches it.
+      toast.error(err?.message || 'Video upload failed');
     }
   }, [handleChange, toast]);
 
@@ -1163,7 +1208,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       insertRawHtml(editorRef.current, markup);
       handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
-      toast.error('PDF upload failed');
+      toast.error(err?.message || 'PDF upload failed');
     }
   }, [handleChange, toast]);
 
@@ -1182,7 +1227,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       insertRawHtml(editorRef.current, markup);
       handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
-      toast.error('File upload failed');
+      toast.error(err?.message || 'File upload failed');
     }
   }, [handleChange, toast]);
 
@@ -1394,7 +1439,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
               ref={wrapperRef}
               className={!value || value.trim() === '<div><br></div>' || value.trim() === '' || value.trim() === '<p><br></p>' || value.trim() === '<br>' ? 'rte-empty' : ''}
               data-placeholder={placeholder}
-              style={{ position: 'relative', borderTop: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderLeft: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderRight: isFullscreen ? 'none' : '1px solid var(--border-primary)', flex: 1, minHeight: isFullscreen ? 0 : '300px', padding: '16px', background: '#ffffff', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: isFullscreen ? 'none' : (showHtmlPreview ? 'none' : '1px solid var(--border-primary)'), overflowY: 'auto' }}>
+              style={{ position: 'relative', borderTop: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderLeft: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderRight: isFullscreen ? 'none' : '1px solid var(--border-primary)', flex: 1, minHeight: isFullscreen ? 0 : '300px', padding: '16px', background: 'var(--surface-primary)', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: isFullscreen ? 'none' : (showHtmlPreview ? 'none' : '1px solid var(--border-primary)'), overflowY: 'auto' }}>
               <Rooster
                 plugins={plugins}
                 initialContent={initialValue}

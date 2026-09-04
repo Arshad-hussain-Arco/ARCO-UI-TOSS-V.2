@@ -26,6 +26,7 @@ export const RTE_SANITIZE_CONFIG = {
     'data-filename', 'data-filesize', 'data-mime', 'data-checked',
     'data-media-type', 'data-src', 'data-pdf-src', 'data-pdf-name',
     'data-media-id', 'data-office-src', 'data-office-name', 'data-video-src',
+    'data-copy-text',
     'preload', 'playsinline', 'contenteditable', 'width', 'height', 'aria-label',
     // SVG icon attributes
     'viewBox', 'xmlns', 'aria-hidden', 'focusable', 'd', 'fill', 'stroke',

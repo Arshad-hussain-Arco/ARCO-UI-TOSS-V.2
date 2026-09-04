@@ -59,6 +59,10 @@ const DocumentsUserGuidePage = lazyPage(
   () => import('@pages/Documents/DocumentsUserGuidePage'),
   'DocumentsUserGuidePage',
 );
+const HomeManagementUserGuidePage = lazyPage(
+  () => import('@pages/admin/HomeManagement/HomeManagementUserGuidePage'),
+  'HomeManagementUserGuidePage',
+);
 const ProjectMonitoringPage = lazyPage(
   () => import('@pages/ProjectMonitoring/ProjectMonitoringPage'),
   'ProjectMonitoringPage',
@@ -107,6 +111,7 @@ const PreferencesPage = lazyPage(
 export const routes = [
   { path: ROUTES.RECONCILIATION_USER_GUIDE, element: <ReconciliationUserGuidePage /> },
   { path: ROUTES.DOCUMENTS_USER_GUIDE, element: <DocumentsUserGuidePage /> },
+  { path: ROUTES.ADMIN_HOME_MANAGEMENT_USER_GUIDE, element: <HomeManagementUserGuidePage /> },
   {
     path: ROUTES.ROOT,
     element: <Navigate to={ROUTES.DASHBOARD} replace />,

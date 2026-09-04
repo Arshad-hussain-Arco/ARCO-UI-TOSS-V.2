@@ -72,6 +72,42 @@ export function MediaViewerModal({
   const isPdf = mediaType === 'pdf';
   const isOffice = mediaType === 'office';
 
+  // Server always sends office/attachment files with
+  // Content-Disposition: attachment (see HomeMediaContentView.get) — there's
+  // no browser-native way to preview an xlsx/docx/pptx inline, so linking
+  // "Open in New Tab" straight at `src` (like the pdf/video case does) just
+  // silently downloads it instead of opening anything. Open the SAME
+  // client-rendered preview the modal already shows, in its own tab,
+  // instead of the raw file.
+  const handleOpenOfficeInNewTab = () => {
+    if (officeState.status !== 'ready') return;
+    const doc = `<!doctype html><html><head><meta charset="utf-8">` +
+      `<title>${fileName}</title><style>` +
+      `html,body{margin:0;padding:0;background:#f1f5f9;font-family:system-ui,sans-serif;min-height:100%;}` +
+      `.media-office-content{width:100%;box-sizing:border-box;margin:0;padding:32px 40px;background:#fff;` +
+      `min-height:100vh;color:#0f172a;}` +
+      `.media-office-content p{margin:0 0 10px;line-height:1.6;}` +
+      `.media-office-content h1,.media-office-content h2,.media-office-content h3{margin:18px 0 10px;}` +
+      `.media-office-content ul,.media-office-content ol{margin:0 0 10px;padding-left:24px;}` +
+      `.office-sheet{margin-bottom:28px;overflow-x:auto;}` +
+      `.office-sheet-title{margin:0 0 8px;font-size:13px;font-weight:700;color:#006838;text-transform:uppercase;letter-spacing:.04em;}` +
+      `.office-sheet table{border-collapse:collapse;font-size:12px;min-width:100%;}` +
+      `.office-sheet table td,.office-sheet table th{border:1px solid #e2e8f0;padding:4px 8px;white-space:nowrap;}` +
+      `.office-slide{margin-bottom:20px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;}` +
+      `.office-slide-title{margin:0 0 8px;font-size:13px;font-weight:700;color:#006838;}` +
+      `.office-slide-lines{margin:0;padding-left:20px;}` +
+      `.office-slide-lines li{margin-bottom:4px;line-height:1.5;}` +
+      `.office-slide-empty{margin:0;color:#94a3b8;font-style:italic;font-size:13px;}` +
+      `</style></head><body>` +
+      `<div class="media-office-content">${DOMPurify.sanitize(officeState.html, OFFICE_SANITIZE_CONFIG)}</div>` +
+      `</body></html>`;
+    const blob = new Blob([doc], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    // Revoke once the new tab has had a chance to load it.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  };
+
   return ReactDOM.createPortal(
     <div className="media-viewer-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className={`media-viewer-modal ${isOffice ? 'media-viewer-modal-office' : ''}`} onClick={(e) => e.stopPropagation()}>
@@ -86,16 +122,29 @@ export function MediaViewerModal({
 
           <div className="media-viewer-actions">
             {/* Open in New Tab */}
-            <a
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="media-viewer-action-btn"
-              title="Open in new tab"
-            >
-              <ExternalLink size={14} />
-              <span>Open in New Tab</span>
-            </a>
+            {isOffice ? (
+              <button
+                type="button"
+                onClick={handleOpenOfficeInNewTab}
+                disabled={officeState.status !== 'ready'}
+                className="media-viewer-action-btn"
+                title={officeState.status === 'ready' ? 'Open in new tab' : 'Preview not ready yet'}
+              >
+                <ExternalLink size={14} />
+                <span>Open in New Tab</span>
+              </button>
+            ) : (
+              <a
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="media-viewer-action-btn"
+                title="Open in new tab"
+              >
+                <ExternalLink size={14} />
+                <span>Open in New Tab</span>
+              </a>
+            )}
 
             {/* Download */}
             <a
