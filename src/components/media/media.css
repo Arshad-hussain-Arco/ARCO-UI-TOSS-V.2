@@ -246,6 +246,16 @@
   color: #ffffff;
 }
 
+.media-viewer-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.media-viewer-action-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
 .media-viewer-close-btn {
   display: inline-flex;
   align-items: center;

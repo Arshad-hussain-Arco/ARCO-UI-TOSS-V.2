@@ -9,6 +9,35 @@ import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, a
  * column — this is the raw-HTML-accurate secondary view.
  */
 function handlePreviewClick(e) {
+  // Mirrors HomeCard.jsx's data-copy-text handling — see the comment there
+  // for why onclick/<script> copy buttons don't work post-sanitize.
+  const copyBtn = e.target.closest('[data-copy-text]');
+  if (copyBtn) {
+    e.preventDefault();
+    const text = copyBtn.dataset.copyText || '';
+    const showCopied = () => {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      copyBtn.classList.add('rte-copy-btn-copied');
+      setTimeout(() => {
+        copyBtn.textContent = original;
+        copyBtn.classList.remove('rte-copy-btn-copied');
+      }, 1500);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(showCopied).catch(() => {});
+    } else {
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      showCopied();
+    }
+    return;
+  }
+
   const playBtn = e.target.closest('.rte-video-play-trigger');
   if (!playBtn) return;
   e.preventDefault();

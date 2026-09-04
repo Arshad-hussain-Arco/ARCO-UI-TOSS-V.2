@@ -36,6 +36,7 @@ import * as XLSX from 'xlsx';
 
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { EditLeaveModal } from './EditLeaveModal';
+import { EditClaimModal } from './EditClaimModal';
 import { CancelLeaveModal } from './CancelLeaveModal';
 import { PartialCancelLeaveModal } from './PartialCancelLeaveModal';
 import { MyLeavesSummaryTab } from './MyLeavesSummaryTab';
@@ -290,6 +291,7 @@ export function LeaveManagementPage() {
   }, [tabParam]);
   const [modalType, setModalType] = useState(null);
   const [editModalLeave, setEditModalLeave] = useState(null);
+  const [editModalClaim, setEditModalClaim] = useState(null);
   const [cancelModalLeave, setCancelModalLeave] = useState(null);
   const [partialCancelModalLeave, setPartialCancelModalLeave] = useState(null);
   const [viewModalLeave, setViewModalLeave] = useState(null);
@@ -543,26 +545,75 @@ export function LeaveManagementPage() {
   // re-approval is visible. Approved/rejected mod requests aren't shown
   // here — their outcome is already reflected on the original leave row.
   const leavesWithModRequests = useMemo(() => {
-    const pendingMods = modRequests
-      .filter((m) => m.status === 'PENDING')
-      .map((m) => ({
-        id: `mod-${m.id}`,
-        leave_type: leaves.find((l) => l.id === m.leave_id)?.leave_type || 'Leave',
-        start_date: m.new_start_date,
-        end_date: m.new_end_date,
-        in_days: m.new_in_days,
-        business_days: m.new_business_days,
-        leave_reason: m.new_leave_reason || m.modification_reason,
+    const pendingModsRaw = modRequests.filter((m) => m.status === 'PENDING');
+
+    // A Claim batch edit (see ClaimService.modify_claim_batch) creates one
+    // LeaveModificationRequest per date, all sharing `batch_key` — group
+    // them back into a single display row (same claimDates shape as
+    // groupClaimLeaves) so the whole edited claim shows as ONE
+    // Modification-Pending entry instead of one row per date. Regular
+    // (non-claim) mod requests have no batch_key, so each is its own group.
+    const byGroup = new Map();
+    pendingModsRaw.forEach((m) => {
+      const key = m.batch_key || `single-${m.id}`;
+      if (!byGroup.has(key)) byGroup.set(key, []);
+      byGroup.get(key).push(m);
+    });
+
+    const pendingMods = [];
+    byGroup.forEach((mods) => {
+      mods.sort((a, b) => (a.new_start_date < b.new_start_date ? -1 : a.new_start_date > b.new_start_date ? 1 : 0));
+      const first = mods[0];
+      const last = mods[mods.length - 1];
+      const row = {
+        id: `mod-${first.id}`,
+        leave_type: leaves.find((l) => l.id === first.leave_id)?.leave_type || 'Leave',
+        start_date: first.new_start_date,
+        end_date: last.new_end_date,
+        in_days: mods.reduce((sum, m) => sum + (Number(m.new_in_days) || 0), 0),
+        business_days: mods.reduce((sum, m) => sum + (Number(m.new_business_days) || 0), 0),
+        leave_reason: first.new_leave_reason || first.modification_reason,
         status_code: 'MOD_PENDING',
-        comments: m.modification_reason || 'Awaiting manager re-approval',
-        requested_date: m.created_at,
+        comments: first.modification_reason || 'Awaiting manager re-approval',
+        requested_date: first.created_at,
         is_mod_request: true,
-        mod_request_id: m.id,
-        original_leave_id: m.leave_id,
-        orig_start_date: m.orig_start_date,
-        orig_end_date: m.orig_end_date,
-      }));
-    return [...leaves, ...pendingMods];
+        mod_request_id: first.id,
+        mod_request_ids: mods.map((m) => m.id),
+        original_leave_id: first.leave_id,
+        original_leave_ids: mods.map((m) => m.leave_id),
+        orig_start_date: mods[0].orig_start_date,
+        orig_end_date: last.orig_end_date,
+        orig_duration: first.orig_duration,
+        leave_duration: first.new_duration,
+      };
+      if (mods.length > 1) {
+        row.claimDates = mods.map((m) => ({
+          id: m.leave_id, date: m.new_start_date, duration: m.new_duration, in_days: m.new_in_days,
+          orig_in_days: m.orig_in_days,
+        }));
+      }
+      pendingMods.push(row);
+    });
+
+    // A mod request normally wraps an already-APPROVED leave — the
+    // original row should stay visible exactly as it is (still Approved)
+    // right alongside this synthetic MOD_PENDING overlay, only getting
+    // replaced once the manager actually approves the edit. The one
+    // exception is a Claim "add a date to my approved claim" mod request,
+    // which wraps a leave that's itself still PENDING and has never been
+    // approved before (see ClaimService.modify_claim_batch /
+    // _create_claim_mod_request's orig_in_days=0 addition marker) — left
+    // in `leaves` unfiltered, THAT row would show up twice: once as a
+    // plain Pending claim, once as this Mod-Pending overlay, for a date
+    // that was never really "its own" claim to begin with. Only that pure-
+    // addition case gets dropped from the plain list; every other wrapped
+    // leave (unchanged, duration-changed, or proposed-for-removal) keeps
+    // showing normally until the edit is decided.
+    const pureAdditionLeaveIds = new Set(
+      pendingModsRaw.filter((m) => Number(m.orig_in_days) === 0).map((m) => m.leave_id),
+    );
+    const leavesWithoutModWrapped = leaves.filter((l) => !pureAdditionLeaveIds.has(l.id));
+    return [...leavesWithoutModWrapped, ...pendingMods];
   }, [leaves, modRequests]);
 
   const handleCancelModRequest = async (modRequestId) => {
@@ -842,6 +893,17 @@ export function LeaveManagementPage() {
         />
       )}
 
+      {editModalClaim && (
+        <EditClaimModal
+          leaveGroup={editModalClaim}
+          onClose={() => setEditModalClaim(null)}
+          onSuccess={() => {
+            setEditModalClaim(null);
+            setRefreshKey(k => k + 1);
+          }}
+        />
+      )}
+
       {cancelModalLeave && (
         <CancelLeaveModal
           leave={cancelModalLeave}
@@ -926,9 +988,19 @@ export function LeaveManagementPage() {
             requestedOn: viewModalLeave.requested_date ? viewModalLeave.requested_date.split('T')[0] : '',
             status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
-            duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
+            duration: viewModalLeave.leave_duration || (viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day'),
             fromDateDuration: viewModalLeave.from_date_duration,
             toDateDuration: viewModalLeave.to_date_duration,
+            // Needed for the drawer's mod-request-specific rows (Original
+            // Dates/Reason/Duration, and the claimDates Removed/Added tags)
+            // and for hiding "Team Availability" on a claim — see
+            // leavesWithModRequests for where these are set.
+            isModRequest: !!viewModalLeave.is_mod_request,
+            origStartDate: viewModalLeave.orig_start_date,
+            origEndDate: viewModalLeave.orig_end_date,
+            origReason: viewModalLeave.orig_leave_reason,
+            origDuration: viewModalLeave.orig_duration,
+            type: viewModalLeave.leave_category === 'CLAIM' ? 'compoff' : undefined,
             // Grouped multi-date claim submission (see groupClaimLeaves) —
             // lets the drawer list each claimed date individually instead
             // of a misleading single Start/End Date range.
@@ -1059,7 +1131,12 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'pending' || l.status_code === 'MOD_PENDING').length}</span>
+                        {/* Matches the table's own filter below (which
+                            normalizes MOD_PENDING -> 'mod-pending', never
+                            'pending') — a Mod-Pending row belongs only in
+                            the Modification Requests count, not counted
+                            here too. */}
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
                       </button>
 
                       <button
@@ -1213,15 +1290,25 @@ export function LeaveManagementPage() {
                           today.setHours(0, 0, 0, 0);
                           const startDateObj = new Date(leave.start_date);
                           startDateObj.setHours(0, 0, 0, 0);
-                          const isPast = startDateObj < today;
-                          const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
-                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent && !isPast;
                           // Same authoritative signal groupClaimLeaves uses. A
                           // claim's dates come from the claim-eligible-dates
                           // picker, not free-form start/end fields, so "Edit"
-                          // (which opens EditLeaveModal for a normal leave's
-                          // date range) doesn't apply to it at all.
+                          // opens EditClaimModal (whole-batch edit) instead of
+                          // EditLeaveModal for these rows — see below.
                           const isClaimRequest = leave.leave_category === 'CLAIM';
+
+                          // A Claim's start_date is *always* in the past by
+                          // design (you're claiming a day you already
+                          // worked — see ClaimService.submit_claim's
+                          // past-date requirement), so the isPast/
+                          // isApprovedPastOrPresent gates below — meant to
+                          // stop editing/cancelling an ordinary leave once
+                          // it's already underway or over — would otherwise
+                          // block Edit/Cancel on every claim unconditionally.
+                          // Claims exempt themselves from both checks.
+                          const isPast = !isClaimRequest && startDateObj < today;
+                          const isApprovedPastOrPresent = !isClaimRequest && statusStr === 'approved' && startDateObj <= today;
+                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent && !isPast;
 
                           // Partial cancel: only once the leave has actually started (ongoing) —
                           // before it starts, Edit + full Cancel already cover every case.
@@ -1246,15 +1333,37 @@ export function LeaveManagementPage() {
                                   // so list each claimed date with its own duration
                                   // instead of collapsing to a start-end span.
                                   <div className="leave-table-dates">
-                                    {leave.claimDates.map((cd) => (
-                                      <div key={cd.id} className="leave-table-date-text text-[14px]">
-                                        {new Date(cd.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-                                        <span className="leave-table-date-duration">
-                                          {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
-                                          {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
-                                        </span>
-                                      </div>
-                                    ))}
+                                    {leave.claimDates.map((cd) => {
+                                      // A grouped Modification Request row (see
+                                      // leavesWithModRequests) includes a 0-day entry
+                                      // for every date being REMOVED from the claim,
+                                      // and — for a brand-new date — one whose ORIGINAL
+                                      // in_days was 0 (see _create_claim_mod_request's
+                                      // orig_in_days=0 addition marker). Flag both
+                                      // instead of showing either as a plain "(N days)"
+                                      // that gives no hint the claim is actually
+                                      // changing shape.
+                                      const isRemoval = leave.is_mod_request && Number(cd.in_days) === 0;
+                                      const isAddition = leave.is_mod_request && Number(cd.orig_in_days) === 0 && Number(cd.in_days) > 0;
+                                      return (
+                                        <div
+                                          key={cd.id}
+                                          className="leave-table-date-text text-[14px]"
+                                          style={isRemoval ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}
+                                        >
+                                          {new Date(cd.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                          {isRemoval ? (
+                                            <span className="leave-table-date-duration" style={{ color: 'var(--c-danger)', textDecoration: 'none' }}> (Removed)</span>
+                                          ) : (
+                                            <span className="leave-table-date-duration">
+                                              {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
+                                              {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
+                                              {isAddition ? <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span> : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 ) : (
                                   <div className="leave-table-dates">
@@ -1320,25 +1429,24 @@ export function LeaveManagementPage() {
                                     </button>
                                   ) : canModify ? (
                                     <>
-                                      {/* Edit operates on one Leave row's own
-                                          start/end dates via EditLeaveModal —
-                                          not meaningful for a Claim at all (its
-                                          dates come from the claim-eligible-
-                                          dates picker, not free-form fields),
-                                          single-date or grouped multi-date, so
-                                          it's hidden for every claim row. Cancel
-                                          still applies — LeaveModifyService.
-                                          cancel() now cascades to every date in
-                                          the same submission, see backend. */}
-                                      {!isClaimRequest && (
-                                        <button
-                                          className="tr-act-btn tr-act-edit"
-                                          title="Edit Request"
-                                          onClick={() => setEditModalLeave(leave)}
-                                        >
-                                          <Edit className="leave-table-action-icon" />
-                                        </button>
-                                      )}
+                                      {/* A Claim's dates come from the claim-
+                                          eligible-dates picker, not free-form
+                                          start/end fields — EditLeaveModal
+                                          doesn't apply, so a claim row (single
+                                          or grouped multi-date) opens
+                                          EditClaimModal instead, which edits
+                                          the whole batch of sibling Leave
+                                          rows. Cancel still applies —
+                                          LeaveModifyService.cancel() cascades
+                                          to every date in the same submission,
+                                          see backend. */}
+                                      <button
+                                        className="tr-act-btn tr-act-edit"
+                                        title="Edit Request"
+                                        onClick={() => (isClaimRequest ? setEditModalClaim(leave) : setEditModalLeave(leave))}
+                                      >
+                                        <Edit className="leave-table-action-icon" />
+                                      </button>
                                       <button
                                         className="tr-act-btn tr-act-reject"
                                         title={leave.claimDates && leave.claimDates.length > 1 ? 'Cancel Request (all dates)' : 'Cancel Request'}

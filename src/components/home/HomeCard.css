@@ -52,6 +52,7 @@
   justify-content: center;
   overflow: hidden;
   box-sizing: border-box;
+  padding: 16px;
 }
 
 [data-theme="dark"] .home-card-50 .home-card-media-wrapper {
@@ -63,6 +64,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border-radius: 10px;
   transition: transform 0.5s ease;
 }
 
@@ -97,12 +99,14 @@
   justify-content: center;
   overflow: hidden;
   box-sizing: border-box;
+  padding: 16px;
 }
 
 .home-card-100 .home-card-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border-radius: 10px;
   transition: transform 0.5s ease;
 }
 
@@ -199,8 +203,13 @@
   color: var(--text-primary) !important;
 }
 
-[data-theme="dark"] .home-card-html-content a,
-[data-theme="dark"] .home-card-html-content a span,
+/* Same .rte-*/.media-* exclusion as the blanket rule above — without it,
+   this was forcing plain hyperlink-blue text onto the PDF/attachment
+   "Download"/"View" action buttons (.media-card-action-btn), which have
+   their own intentional button styling (border, background, muted text),
+   making them look like broken inline links instead of buttons. */
+[data-theme="dark"] .home-card-html-content a:not([class*="rte-"]):not([class*="media-"]),
+[data-theme="dark"] .home-card-html-content a span:not([class*="rte-"]):not([class*="media-"]),
 [data-theme="dark"] .home-card-html-content a *:not([class*="rte-"]):not([class*="media-"]) {
   color: #60a5fa !important;
 }
@@ -289,6 +298,87 @@
   display: block;
 }
 
+/* Click-to-play overlay for a deferred (data-video-src, no src yet) video —
+   see mediaUtils.js's deferPublicVideoLoad(). RichEditor.css defines the
+   same classes for the editor's own live preview, but RichEditor.css is
+   never loaded on the published Homepage that actually renders HomeCard,
+   so without these the video fell back to a bare, unstyled, sourceless
+   native <video controls> — no black letterboxing, no centered play icon,
+   clicks landing on non-functional native controls instead of the real
+   play trigger underneath.
+   Fixed (not max-) height on purpose: before the real video loads, the
+   browser only knows its own generic placeholder aspect ratio (2:1); once
+   metadata loads the real ratio can require a taller box, so a max-height
+   alone still lets the player visibly resize itself the moment Play is
+   pressed. Pinning an actual height here keeps the box identical before
+   and after playback — content letterboxes via object-fit instead. */
+.home-card-html-content .rte-video-container {
+  width: 100%;
+  height: 280px;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-card-html-content .rte-video-element {
+  width: 100%;
+  height: 280px;
+  object-fit: contain;
+  display: block;
+  margin: 0;
+  border-radius: 0;
+}
+
+.home-card-html-content .rte-video-lazy-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Higher specificity than .rte-video-element (extra tag selector) — has to
+   repeat height/object-fit or it wins and drops them, letting the video
+   resize to its real intrinsic aspect ratio the moment playback starts and
+   metadata loads instead of staying pinned to the fixed box above. */
+.home-card-html-content .rte-video-lazy-wrap video {
+  display: block;
+  max-width: 100%;
+  height: 280px;
+  object-fit: contain;
+}
+
+.home-card-html-content .rte-video-play-trigger {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.65);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.home-card-html-content .rte-video-play-trigger::after {
+  content: '';
+  border-style: solid;
+  border-width: 10px 0 10px 16px;
+  border-color: transparent transparent transparent #ffffff;
+  margin-left: 3px;
+}
+
+.home-card-html-content .rte-video-play-trigger:hover {
+  background: rgba(15, 23, 42, 0.8);
+}
+
 .home-card-html-content .rte-media-wrap,
 .home-card-html-content .media-block {
   max-width: 100%;
@@ -330,6 +420,16 @@
   border-color: var(--border-hover, #cbd5e1);
 }
 
+/* Momentary "Copied!" state applied by HomeCard.jsx's data-copy-text click
+   handler to whatever element the card author styled as their copy button —
+   !important since it must win over the author's own inline/class styling
+   for the brief confirmation flash. */
+.home-card-html-content [data-copy-text].rte-copy-btn-copied {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: #fff !important;
+}
+
 .home-card-html-content .media-card-action-primary {
   background: var(--c-primary, #006838);
   border-color: var(--c-primary, #006838);
@@ -352,6 +452,13 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
+  /* These rules override RichEditor.css's .rte-media-card as a base —
+     but RichEditor.css is only loaded on the admin editor page, never on
+     the published Homepage that renders this component, so justify-content
+     and the info block's flex-grow (below) have to be set here directly or
+     the View/Download actions just sit flush against the filename instead
+     of being pushed to the right edge of the card. */
+  justify-content: space-between;
   padding: 6px 10px;
   gap: 8px;
   margin: 6px 0;
@@ -372,6 +479,8 @@
   flex-direction: row;
   align-items: baseline;
   gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .home-card-html-content .rte-media-card-name {
@@ -456,6 +565,27 @@
 }
 
 /* Tables */
+.home-card-html-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+  max-width: 100%;
+}
+
+.home-card-html-content table td,
+.home-card-html-content table th {
+  border: 1px solid var(--border-primary, #e2e8f0);
+  padding: 6px 10px;
+  vertical-align: top;
+  min-width: 40px;
+}
+
+.home-card-html-content table th {
+  background: var(--bg-secondary, #f8fafc);
+  font-weight: 700;
+  text-align: left;
+}
+
 .home-card-html-content table.rte-table {
   border-collapse: collapse;
   width: 100%;

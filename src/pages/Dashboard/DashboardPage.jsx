@@ -24,6 +24,7 @@ import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
 import { EmployeeCapacitySection } from './sections/EmployeeCapacitySection';
+import { CardLoader } from './sections/CardLoader';
 import { leaveService } from '@services/leaveService';
 import { dashboardService } from '@services/dashboardService';
 import { consultantService } from '@services/consultantService';
@@ -64,92 +65,60 @@ export function DashboardPage() {
   const [orgPhotos, setOrgPhotos] = useState([]);
   const [documentData, setDocumentData] = useState({ files: [], folderTree: [] });
 
-  const fetchLiveDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const empId = user?.employee_id || user?.emp_id || user?.id;
+  // Per-section loading flags: each card shows its own loader until its
+  // own endpoint(s) settle, instead of hiding blank or waiting on the rest.
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [loadingEod, setLoadingEod] = useState(true);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+  const [loadingCapacity, setLoadingCapacity] = useState(true);
+  const [loadingMurex, setLoadingMurex] = useState(true);
+  const [loadingDocuments, setLoadingDocuments] = useState(true);
+  const [loadingHolidays, setLoadingHolidays] = useState(true);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [loadingApprovals, setLoadingApprovals] = useState(true);
 
-      const today = new Date();
-      const nextWeek = addDays(today, 7);
-      const startStr = format(today, 'yyyy-MM-dd');
-      const endStr = format(nextWeek, 'yyyy-MM-dd');
+  // Each endpoint is fired independently and updates its own state slice as
+  // soon as it resolves, instead of the whole page waiting behind a single
+  // Promise.allSettled - so sections render progressively as their data
+  // arrives rather than all-or-nothing once every endpoint has responded.
+  const fetchLiveDashboardData = useCallback(() => {
+    setError(null);
+    setLoading(true);
 
-      const hasEODView = hasPermission('EOD_OVERVIEW_VIEW');
-      const hasMurexView = hasPermission('MUREX_RUNTIME_VIEW');
-      const hasCapacityView = hasPermission('CAPACITY_PLANNING_VIEW');
-      const hasAttendanceView = hasPermission('ATTENDANCE_VIEW');
-      const hasTeamView = hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW');
-      const hasDocumentsView = hasPermission('DOCUMENTS_VIEW');
+    const empId = user?.employee_id || user?.emp_id || user?.id;
 
-      const promises = [
-        dashboardService.getSummary(),
-        hasAttendanceView ? dashboardService.getLeaveUtilization() : Promise.resolve(null),
-        hasEODView ? eodService.getEodRecords() : Promise.resolve([]),
-        hasTeamView ? httpClient.get('/employees/teams/') : Promise.resolve({ data: [] }),
-        hasTeamView ? consultantService.getEmployeesList() : Promise.resolve([]),
-        dashboardService.getAnnouncements(),
-        hasCapacityView ? capacityService.getCapacityPlanning() : Promise.resolve([]),
-        hasAttendanceView ? dashboardService.getLeaveRequestsTrend({ days: 7 }) : Promise.resolve(null),
-        hasAttendanceView ? dashboardService.getDepartmentStats() : Promise.resolve([]),
-        hasAttendanceView ? dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }) : Promise.resolve([]),
-        leaveService.listHolidays(),
-        hasMurexView ? murexService.getRuntimeTrends() : Promise.resolve(null),
-        hasTeamView ? consultantService.getEmployeePhotos({ includeInactive: true }) : Promise.resolve([]),
-        hasDocumentsView ? documentService.getDocuments() : Promise.resolve({ files: [], folderTree: [] }),
-      ];
+    const today = new Date();
+    const nextWeek = addDays(today, 7);
+    const startStr = format(today, 'yyyy-MM-dd');
+    const endStr = format(nextWeek, 'yyyy-MM-dd');
 
-      if (empId) {
-        promises.push(dashboardService.getPendingApprovals({ manager_id: empId }));
-      } else {
-        promises.push(Promise.resolve([]));
-      }
+    const hasEODView = hasPermission('EOD_OVERVIEW_VIEW');
+    const hasMurexView = hasPermission('MUREX_RUNTIME_VIEW');
+    const hasCapacityView = hasPermission('CAPACITY_PLANNING_VIEW');
+    const hasAttendanceView = hasPermission('ATTENDANCE_VIEW');
+    const hasTeamView = hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW');
+    const hasDocumentsView = hasPermission('DOCUMENTS_VIEW');
 
-      const results = await Promise.allSettled(promises);
+    const track = (promise, onSuccess, label, onDone) =>
+      promise.then(onSuccess).catch((e) => console.error(`Dashboard: ${label} failed:`, e)).finally(onDone);
 
-      // Extract results since service methods return response.data directly
-      if (results[0]?.status === 'fulfilled') setApiSummary(results[0].value);
-      if (results[1]?.status === 'fulfilled') setLeaveUtilization(results[1].value);
-      if (results[2]?.status === 'fulfilled') {
-        const data = results[2].value;
-        setEodRecords(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[3]?.status === 'fulfilled') {
-        const data = results[3].value.data; // Still using httpClient for teams
-        setTeams(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[4]?.status === 'fulfilled') {
-        const data = results[4].value;
-        setEmployees(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value);
-      if (results[6]?.status === 'fulfilled') {
-        const data = results[6].value;
-        setCapacityRecords(Array.isArray(data) ? data : data?.result || data?.results || data?.consultants || data?.data || []);
-      }
-      if (results[7]?.status === 'fulfilled') setTrendData(results[7].value);
-      if (results[8]?.status === 'fulfilled') {
-        const data = results[8].value;
-        setDepartmentStats(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[9]?.status === 'fulfilled') {
-        const data = results[9].value;
-        setOnLeaveRecords(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[10]?.status === 'fulfilled') {
-        const data = results[10].value;
+    setLoadingSummary(true);
+    setLoadingAnnouncements(true);
+    setLoadingHolidays(true);
+
+    const inFlight = [
+      track(dashboardService.getSummary(), setApiSummary, 'getSummary', () => setLoadingSummary(false)),
+      track(dashboardService.getAnnouncements(), setAnnouncements, 'getAnnouncements', () => setLoadingAnnouncements(false)),
+      track(leaveService.listHolidays(), (data) => {
         const holidaysArr = Array.isArray(data) ? data : data?.results || [];
-
-        // Filter and sort for upcoming holidays only
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
         const upcoming = holidaysArr
           .filter(h => {
             const dateStr = h.dates && h.dates.length > 0 ? h.dates[0] : (h.date || h.start_date || h.holiday_date);
             if (!dateStr) return false;
-            const hDate = new Date(dateStr);
-            return hDate >= today;
+            return new Date(dateStr) >= todayStart;
           })
           .sort((a, b) => {
             const aDate = a.dates && a.dates.length > 0 ? a.dates[0] : (a.date || a.start_date || a.holiday_date);
@@ -157,29 +126,91 @@ export function DashboardPage() {
             return new Date(aDate) - new Date(bDate);
           })
           .slice(0, 4); // Take top 4
-
         setUpcomingHolidays(upcoming);
-      }
-      if (results[11]?.status === 'fulfilled') {
-        setMurexData(results[11].value);
-      }
-      if (results[12]?.status === 'fulfilled') {
-        const data = results[12].value;
-        setOrgPhotos(Array.isArray(data) ? data : data?.results || []);
-      }
-      if (results[13]?.status === 'fulfilled') {
-        setDocumentData(results[13].value || { files: [], folderTree: [] });
-      }
-      if (empId && results[14]?.status === 'fulfilled') {
-        const data = results[14].value;
-        setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
-      }
-    } catch (e) {
-      console.error('Live Dashboard API error:', e);
-      setError(e);
-    } finally {
-      setLoading(false);
+      }, 'listHolidays', () => setLoadingHolidays(false)),
+    ];
+
+    if (hasAttendanceView) {
+      setLoadingAttendance(true);
+      inFlight.push(
+        Promise.allSettled([
+          dashboardService.getLeaveUtilization().then(setLeaveUtilization).catch((e) => console.error('Dashboard: getLeaveUtilization failed:', e)),
+          dashboardService.getLeaveRequestsTrend({ days: 7 }).then(setTrendData).catch((e) => console.error('Dashboard: getLeaveRequestsTrend failed:', e)),
+          dashboardService.getDepartmentStats().then((data) => setDepartmentStats(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getDepartmentStats failed:', e)),
+          dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }).then((data) => setOnLeaveRecords(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getOnLeave failed:', e)),
+        ]).finally(() => setLoadingAttendance(false)),
+      );
+    } else {
+      setLoadingAttendance(false);
     }
+
+    if (hasEODView) {
+      setLoadingEod(true);
+      inFlight.push(
+        track(eodService.getEodRecords(), (data) => setEodRecords(Array.isArray(data) ? data : data?.results || []), 'getEodRecords', () => setLoadingEod(false)),
+      );
+    } else {
+      setLoadingEod(false);
+    }
+
+    if (hasTeamView) {
+      setLoadingTeams(true);
+      inFlight.push(
+        Promise.allSettled([
+          httpClient.get('/employees/teams/').then((res) => {
+            const data = res.data;
+            setTeams(Array.isArray(data) ? data : data?.results || []);
+          }).catch((e) => console.error('Dashboard: teams failed:', e)),
+          consultantService.getEmployeesList().then((data) => setEmployees(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getEmployeesList failed:', e)),
+          consultantService.getEmployeePhotos({ includeInactive: true }).then((data) => setOrgPhotos(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getEmployeePhotos failed:', e)),
+        ]).finally(() => setLoadingTeams(false)),
+      );
+    } else {
+      setLoadingTeams(false);
+    }
+
+    if (hasCapacityView) {
+      setLoadingCapacity(true);
+      inFlight.push(
+        track(capacityService.getCapacityPlanning(), (data) => setCapacityRecords(Array.isArray(data) ? data : data?.result || data?.results || data?.consultants || data?.data || []), 'getCapacityPlanning', () => setLoadingCapacity(false)),
+      );
+    } else {
+      setLoadingCapacity(false);
+    }
+
+    if (hasMurexView) {
+      setLoadingMurex(true);
+      inFlight.push(
+        track(murexService.getRuntimeTrends(), setMurexData, 'getRuntimeTrends', () => setLoadingMurex(false)),
+      );
+    } else {
+      setLoadingMurex(false);
+    }
+
+    if (hasDocumentsView) {
+      setLoadingDocuments(true);
+      inFlight.push(
+        track(documentService.getDocuments(), (data) => setDocumentData(data || { files: [], folderTree: [] }), 'getDocuments', () => setLoadingDocuments(false)),
+      );
+    } else {
+      setLoadingDocuments(false);
+    }
+
+    if (empId) {
+      setLoadingApprovals(true);
+      inFlight.push(
+        track(dashboardService.getPendingApprovals({ manager_id: empId }), (data) => setPendingApprovals(Array.isArray(data) ? data : data?.results || []), 'getPendingApprovals', () => setLoadingApprovals(false)),
+      );
+    } else {
+      setLoadingApprovals(false);
+    }
+
+    // Don't block the page on every endpoint settling - each `track()` call
+    // above already updates its own state (and thus renders its own section)
+    // the moment it resolves. `loading` only covers the instant before the
+    // very first response of this cycle arrives.
+    setLoading(false);
+    void Promise.allSettled(inFlight);
   }, [user?.employee_id, user?.emp_id, user?.id, hasPermission]);
 
   useEffect(() => {
@@ -191,14 +222,17 @@ export function DashboardPage() {
   // ───────────────────────────────────────────────────────────────────────────
 
   const mappedSummary = useMemo(() => {
-    if (!apiSummary) return null;
+    // Never bail to null: sections should render with whatever's in yet
+    // (zeros/empty lists) rather than the whole page waiting on this one
+    // endpoint before anything appears.
+    const summary = apiSummary || {};
 
     // Derived counts
-    const totalEmps = apiSummary.total_employees ?? 0;
-    const activeEmps = apiSummary.active_employees ?? 0;
-    const presentEmps = apiSummary.present_count ?? 0;
-    const leaveEmps = apiSummary.employees_on_leave_today ?? 0;
-    const wfhEmps = apiSummary.wfh_count ?? 0;
+    const totalEmps = summary.total_employees ?? 0;
+    const activeEmps = summary.active_employees ?? 0;
+    const presentEmps = summary.present_count ?? 0;
+    const leaveEmps = summary.employees_on_leave_today ?? 0;
+    const wfhEmps = summary.wfh_count ?? 0;
 
     const eodActiveCount = eodRecords.filter(r => r.is_active === 'Yes' || r.is_active === 1 || r.is_active === true).length;
     const eodTotal = eodRecords.length;
@@ -480,7 +514,7 @@ export function DashboardPage() {
             description={error.message || String(error)}
             onRetry={fetchLiveDashboardData}
           />
-        ) : loading || !mappedSummary ? (
+        ) : loading ? (
           <Loader message="Loading live dashboard…" />
         ) : (
           <>
@@ -491,51 +525,78 @@ export function DashboardPage() {
                 <div className="dc-main-col">
                   {(hasPermission('EMPLOYEE_VIEW') || hasPermission('TEAMS_VIEW')) && (
                     <div className="dc-span-12">
-                      <KpiStrip kpis={mappedSummary.kpis} />
+                      {loadingSummary ? (
+                        <CardLoader label="Loading consultant counts…" minHeight={110} />
+                      ) : (
+                        <KpiStrip kpis={mappedSummary.kpis} />
+                      )}
                     </div>
                   )}
 
                   {hasPermission('EOD_OVERVIEW_VIEW') && (
                     <div className="dc-span-12">
-                      <EnvironmentStatusStrip eodRecords={eodRecords} />
+                      {loadingEod ? (
+                        <CardLoader label="Loading EOD batch jobs…" minHeight={140} />
+                      ) : (
+                        <EnvironmentStatusStrip eodRecords={eodRecords} />
+                      )}
                     </div>
                   )}
 
                   {(hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW')) && (
-                    <TeamAvailabilityOverview
-                      departmentStats={departmentStats}
-                    />
+                    loadingAttendance ? (
+                      <div className="dc-span-12"><CardLoader label="Loading team availability…" minHeight={260} /></div>
+                    ) : (
+                      <TeamAvailabilityOverview
+                        departmentStats={departmentStats}
+                      />
+                    )
                   )}
 
                   {hasPermission('MUREX_RUNTIME_VIEW') && (
-                    <SystemHealthSection
-                      systemHealth={mappedSummary.systemHealth}
-                      runtimeTrend={mappedSummary.runtimeTrend}
-                      insights={mappedSummary.runtimeInsights}
-                    />
+                    loadingEod || loadingMurex ? (
+                      <div className="dc-span-12"><CardLoader label="Loading system health…" minHeight={260} /></div>
+                    ) : (
+                      <SystemHealthSection
+                        systemHealth={mappedSummary.systemHealth}
+                        runtimeTrend={mappedSummary.runtimeTrend}
+                        insights={mappedSummary.runtimeInsights}
+                      />
+                    )
                   )}
 
 
 
                   {hasPermission('ATTENDANCE_VIEW') && (
                     <div className="dc-span-12">
-                      <LeaveSnapshotSection
-                        leaveDistribution={mappedSummary.leaveDistribution}
-                        upcomingLeaves={mappedSummary.upcomingLeaves}
-                        attendanceStatus={mappedSummary.attendanceStatus}
-                      />
+                      {loadingSummary || loadingAttendance ? (
+                        <CardLoader label="Loading leave snapshot…" minHeight={260} />
+                      ) : (
+                        <LeaveSnapshotSection
+                          leaveDistribution={mappedSummary.leaveDistribution}
+                          upcomingLeaves={mappedSummary.upcomingLeaves}
+                          attendanceStatus={mappedSummary.attendanceStatus}
+                        />
+                      )}
                     </div>
                   )}
 
-                  {hasPermission('CAPACITY_PLANNING_VIEW') && mappedSummary.capacityByTeam.length > 0 && (
-                    <>
-                      <div className="dc-span-6">
-                        <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
-                      </div>
-                      <div className="dc-span-6">
-                        <EmployeeCapacitySection consultants={mappedSummary.topAvailableConsultants} />
-                      </div>
-                    </>
+                  {hasPermission('CAPACITY_PLANNING_VIEW') && (
+                    loadingCapacity || loadingTeams ? (
+                      <>
+                        <div className="dc-span-6"><CardLoader label="Loading capacity…" /></div>
+                        <div className="dc-span-6"><CardLoader label="Loading available consultants…" /></div>
+                      </>
+                    ) : mappedSummary.capacityByTeam.length > 0 && (
+                      <>
+                        <div className="dc-span-6">
+                          <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
+                        </div>
+                        <div className="dc-span-6">
+                          <EmployeeCapacitySection consultants={mappedSummary.topAvailableConsultants} />
+                        </div>
+                      </>
+                    )
                   )}
 
                 </div>
@@ -551,7 +612,11 @@ export function DashboardPage() {
 
                 {hasPermission('DOCUMENTS_VIEW') && (
                   <div className="dc-span-6">
-                    <DocumentsActivitySection documents={mappedSummary.documents} />
+                    {loadingDocuments ? (
+                      <CardLoader label="Loading recent documents…" />
+                    ) : (
+                      <DocumentsActivitySection documents={mappedSummary.documents} />
+                    )}
                   </div>
                 )}
               </div>
@@ -559,16 +624,28 @@ export function DashboardPage() {
 
             <aside className="dc-right-rail">
               {hasPermission('ATTENDANCE_VIEW') && (
-                <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+                loadingAnnouncements || loadingApprovals ? (
+                  <CardLoader label="Loading notifications…" minHeight={120} />
+                ) : (
+                  <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+                )
               )}
 
-              <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+              {loadingHolidays ? (
+                <CardLoader label="Loading holidays…" minHeight={140} />
+              ) : (
+                <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+              )}
 
-              {pendingApprovals && pendingApprovals.length > 0 && (
-                <PendingApprovalsActionSection
-                  pendingApprovals={pendingApprovals}
-                  onActionComplete={fetchLiveDashboardData}
-                />
+              {loadingApprovals ? (
+                <CardLoader label="Loading pending approvals…" minHeight={140} />
+              ) : (
+                pendingApprovals && pendingApprovals.length > 0 && (
+                  <PendingApprovalsActionSection
+                    pendingApprovals={pendingApprovals}
+                    onActionComplete={fetchLiveDashboardData}
+                  />
+                )
               )}
             </aside>
           </>

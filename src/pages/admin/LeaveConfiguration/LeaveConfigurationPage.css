@@ -560,10 +560,6 @@
   background-color: #eff6ff;
 }
 
-.lc-category-tag.lc-tag-nominal {
-  color: var(--text-tertiary);
-}
-
 .lc-category-tag.lc-tag-actual {
   color: var(--c-primary);
   border-color: #d1fae5;

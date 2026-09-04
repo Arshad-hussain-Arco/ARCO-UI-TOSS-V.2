@@ -59,6 +59,10 @@ const DocumentsUserGuidePage = lazyPage(
   () => import('@pages/Documents/DocumentsUserGuidePage'),
   'DocumentsUserGuidePage',
 );
+const HomeManagementUserGuidePage = lazyPage(
+  () => import('@pages/admin/HomeManagement/HomeManagementUserGuidePage'),
+  'HomeManagementUserGuidePage',
+);
 const ProjectMonitoringPage = lazyPage(
   () => import('@pages/ProjectMonitoring/ProjectMonitoringPage'),
   'ProjectMonitoringPage',
@@ -75,6 +79,10 @@ const DocumentsPage = lazyPage(() => import('@pages/Documents/DocumentsPage'), '
 const RoleManagementPage = lazyPage(
   () => import('@pages/admin/RoleManagement/RoleManagementPage'),
   'RoleManagementPage',
+);
+const HomeManagementPage = lazyPage(
+  () => import('@pages/admin/HomeManagement/HomeManagementPage'),
+  'HomeManagementPage',
 );
 const LeaveConfigurationPage = lazyPage(
   () => import('@pages/admin/LeaveConfiguration/LeaveConfigurationPage'),
@@ -103,6 +111,7 @@ const PreferencesPage = lazyPage(
 export const routes = [
   { path: ROUTES.RECONCILIATION_USER_GUIDE, element: <ReconciliationUserGuidePage /> },
   { path: ROUTES.DOCUMENTS_USER_GUIDE, element: <DocumentsUserGuidePage /> },
+  { path: ROUTES.ADMIN_HOME_MANAGEMENT_USER_GUIDE, element: <HomeManagementUserGuidePage /> },
   {
     path: ROUTES.ROOT,
     element: <Navigate to={ROUTES.DASHBOARD} replace />,
@@ -274,6 +283,7 @@ export const routes = [
                 ),
                 children: [
                   { index: true, element: <Navigate to={ROUTES.ADMIN_ROLES} replace /> },
+                  { path: 'home-management', element: <HomeManagementPage /> },
                   { path: 'roles', element: <RoleManagementPage /> },
                   { path: 'leave-configurations', element: <LeaveConfigurationPage /> },
                   { path: 'settings', element: <SystemSettingsPage /> },

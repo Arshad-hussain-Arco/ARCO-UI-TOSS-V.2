@@ -4,8 +4,20 @@ import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 
+const FETCHERS = {
+  CR: settingsService.getCrColumns,
+  WO: settingsService.getWoColumns,
+  Runtime: settingsService.getRuntimeColumns,
+};
+
+const UPDATERS = {
+  CR: settingsService.updateCrColumn,
+  WO: settingsService.updateWoColumn,
+  Runtime: settingsService.updateRuntimeColumn,
+};
+
 /**
- * TAB 3 & TAB 4: CR and WO File Matching Columns Table
+ * TAB 3, 4 & 5: CR, WO and Runtime Trends File Matching Columns Table
  */
 function ColumnMappingPanelComponent({ type = 'CR', title }) {
   const toast = useToast();
@@ -29,9 +41,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = type === 'CR' 
-        ? await settingsService.getCrColumns()
-        : await settingsService.getWoColumns();
+      const res = await FETCHERS[type]();
       setData(res || []);
     } catch (error) {
       console.error(`Failed to fetch ${type} columns:`, error);
@@ -76,12 +86,8 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
         excel_col: editExcel,
       };
 
-      if (type === 'CR') {
-        await settingsService.updateCrColumn(editRow.id, payload);
-      } else {
-        await settingsService.updateWoColumn(editRow.id, payload);
-      }
-      
+      await UPDATERS[type](editRow.id, payload);
+
       setData((prev) =>
         prev.map((item) =>
           item.id === editRow.id ? { ...item, code_col: editCode, excel_col: editExcel } : item,

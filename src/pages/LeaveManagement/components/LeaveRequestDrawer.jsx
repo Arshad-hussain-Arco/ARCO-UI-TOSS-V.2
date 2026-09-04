@@ -42,6 +42,16 @@ export function LeaveRequestDrawer({
       : 0;
   }
 
+  // Same normalization the inline "Duration" row below already does —
+  // shared here so "Original Duration" can reuse it instead of repeating
+  // the ternary chain.
+  function durationLabel(d) {
+    if (d === 'full' || d === 'Full Day' || !d) return 'Full Day';
+    if (d === 'morning' || d === 'First Half' || d === 'FIRST_HALF') return 'First Half';
+    if (d === 'afternoon' || d === 'Second Half' || d === 'SECOND_HALF') return 'Second Half';
+    return d;
+  }
+
   return (
     <div className={`tr-drawer${open ? ' open' : ''}`}>
       {showConfirm && (
@@ -158,10 +168,27 @@ export function LeaveRequestDrawer({
                     : cd.duration === 'afternoon' || cd.duration === 'SECOND_HALF'
                       ? 'Second Half'
                       : null;
+                  // A grouped Modification Request row includes a 0-day
+                  // entry for every date being REMOVED from the claim, and
+                  // — for a brand-new date — one whose ORIGINAL in_days was
+                  // 0 (see the matching table-cell treatment in
+                  // TeamRequestsTab/LeaveManagementPage). Flag both instead
+                  // of silently showing either as a plain claimed date.
+                  const inDays = cd.inDays ?? cd.in_days;
+                  const origInDays = cd.origInDays ?? cd.orig_in_days;
+                  const isRemoval = liveReq.isModRequest && Number(inDays) === 0;
+                  const isAddition = liveReq.isModRequest && Number(origInDays) === 0 && Number(inDays) > 0;
                   return (
-                    <div key={cd.id}>
+                    <div key={cd.id} style={isRemoval ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}>
                       {fmtDate(cd.date)}
-                      {halfLabel && <> ({halfLabel})</>}
+                      {isRemoval ? (
+                        <span style={{ color: 'var(--c-danger)', textDecoration: 'none' }}> (Removed)</span>
+                      ) : (
+                        <>
+                          {halfLabel && <> ({halfLabel})</>}
+                          {isAddition && <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span>}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -189,9 +216,19 @@ export function LeaveRequestDrawer({
               <span className="tr-drow-value" style={{ color: 'var(--text-tertiary)' }}>{liveReq.origReason}</span>
             </div>
           )}
+          {liveReq.isModRequest && liveReq.origDuration != null
+            && !(liveReq.claimDates && liveReq.claimDates.length > 1)
+            && durationLabel(liveReq.origDuration) !== durationLabel(liveReq.duration) && (
+            <div className="tr-drow">
+              <span className="tr-drow-label">Original Duration</span>
+              <span className="tr-drow-value" style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
+                {durationLabel(liveReq.origDuration)}
+              </span>
+            </div>
+          )}
           {liveReq.type !== 'offshore' && !(liveReq.claimDates && liveReq.claimDates.length > 1) && (
             <div className="tr-drow">
-              <span className="tr-drow-label">Duration</span>
+              <span className="tr-drow-label">{liveReq.isModRequest ? 'New Duration' : 'Duration'}</span>
               <span className="tr-drow-value">
                 {liveReq.fromDateDuration || liveReq.toDateDuration ? (
                   // Multi-day leave with a half-day boundary set on the
@@ -202,13 +239,7 @@ export function LeaveRequestDrawer({
                   }) → ${fmtDate(liveReq.endDate)} (${
                     liveReq.toDateDuration === 'FIRST_HALF' ? 'First Half' : 'Full Day'
                   })`
-                ) : liveReq.duration === 'full' || liveReq.duration === 'Full Day' || !liveReq.duration
-                  ? 'Full Day'
-                  : liveReq.duration === 'morning' || liveReq.duration === 'First Half'
-                    ? 'First Half'
-                    : liveReq.duration === 'afternoon' || liveReq.duration === 'Second Half'
-                      ? 'Second Half'
-                      : liveReq.duration}
+                ) : durationLabel(liveReq.duration)}
               </span>
             </div>
           )}
@@ -310,8 +341,11 @@ export function LeaveRequestDrawer({
           </div>
         )}
 
-        {/* Team Availability */}
-        {teamAvailability && teamAvailability.total > 0 && (
+        {/* Team Availability — not meaningful for a Claim (Weekend Work /
+            Comp Off): a claim is always for a date the employee already
+            worked in the past, so "who else is on leave that day" isn't a
+            capacity signal the way it is for a regular leave request. */}
+        {liveReq.type !== 'compoff' && teamAvailability && teamAvailability.total > 0 && (
           <div className="tr-dsec">
             <div className="tr-dsec-title">Team Availability — Same Dates</div>
             <div className="tr-avail-grid">

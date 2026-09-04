@@ -79,6 +79,17 @@ export const settingsService = {
     return response.data;
   },
 
+  // Runtime Trends File Matching Columns
+  getRuntimeColumns: async () => {
+    const response = await httpClient.get(endpoints.systemSettings.runtimeColumns);
+    return response.data;
+  },
+
+  updateRuntimeColumn: async (id, data) => {
+    const response = await httpClient.put(endpoints.systemSettings.updateRuntimeColumn(id), data);
+    return response.data;
+  },
+
   // Weekend Configuration
   getWeekendConfig: async () => {
     const response = await httpClient.get(endpoints.systemSettings.weekendConfig);
@@ -91,8 +102,14 @@ export const settingsService = {
   },
 
   // Home Management
-  getHomeData: async () => {
-    const response = await httpClient.get(endpoints.systemSettings.homeData);
+  // includeInactive: true also returns deactivated cards — only honored by
+  // the backend for an actual admin (see HomeDataListView), so passing it
+  // from a non-admin screen has no effect. The public Homepage must never
+  // pass this; only Home Content Management does.
+  getHomeData: async (includeInactive = false) => {
+    const response = await httpClient.get(endpoints.systemSettings.homeData, {
+      params: includeInactive ? { include_inactive: 'true' } : undefined,
+    });
     return response.data;
   },
 

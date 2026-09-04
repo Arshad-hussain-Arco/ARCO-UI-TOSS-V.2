@@ -13,6 +13,13 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
   const isOnBehalf = leave.emp_id != null && user?.emp_id != null && leave.emp_id !== user.emp_id;
   const ownerLabel = isOnBehalf ? (leave.emp_name || `employee #${leave.emp_id}`) + "'s" : 'your';
 
+  // A grouped multi-date claim (see groupClaimLeaves/groupClaimRows) carries
+  // one entry per claimed date under `claimDates` — cancelling it cascades
+  // to every sibling row of that same submission on the backend (see
+  // LeaveModifyService.cancel), so the confirmation must list every date
+  // being cancelled, not just the single leave.start_date it defaults to.
+  const claimDates = leave.claimDates && leave.claimDates.length > 1 ? leave.claimDates : null;
+
   const handleCancel = async () => {
     try {
       setIsSubmitting(true);
@@ -49,10 +56,23 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
           </button>
         </div>
         <div className="al-body" style={{ padding: '20px' }}>
-          <p style={{ marginBottom: '16px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-            Are you sure you want to cancel {ownerLabel} {leave.leave_type} request for {new Date(leave.start_date).toLocaleDateString()}?
-          </p>
-          
+          {claimDates ? (
+            <>
+              <p style={{ marginBottom: '10px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                Are you sure you want to cancel {ownerLabel} {leave.leave_type} request covering these {claimDates.length} dates?
+              </p>
+              <ul style={{ margin: '0 0 16px', paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                {claimDates.map((cd) => (
+                  <li key={cd.id ?? cd.date}>{new Date(cd.date).toLocaleDateString()}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p style={{ marginBottom: '16px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+              Are you sure you want to cancel {ownerLabel} {leave.leave_type} request for {new Date(leave.start_date).toLocaleDateString()}?
+            </p>
+          )}
+
           <div className="al-form-group">
             <label className="al-label">Reason for cancellation (optional)</label>
             <textarea
