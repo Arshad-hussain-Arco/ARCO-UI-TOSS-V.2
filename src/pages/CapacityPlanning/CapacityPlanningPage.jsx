@@ -1284,7 +1284,7 @@ export function CapacityPlanningPage() {
               ))}
               {projectStageFilter && (
                 <button type="button" className="cp-legend-clear" onClick={() => setProjectStageFilter(null)}>
-                  Clear filter ×
+                  Show All
                 </button>
               )}
             </div>

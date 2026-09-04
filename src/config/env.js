@@ -13,7 +13,10 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+
+// Ensure consistency by stripping trailing slashes so manual string concatenation doesn't break.
+const apiBaseUrl = rawApiBaseUrl ? rawApiBaseUrl.replace(/\/+$/, '') : '';
 
 export const env = Object.freeze({
   apiBaseUrl,
@@ -24,7 +27,7 @@ export const env = Object.freeze({
    * no backend URL has been configured yet. Pointing VITE_API_BASE_URL at a real
    * backend and setting VITE_USE_MOCKS=false is the only change required to go live.
    */
-  useMocks: toBoolean(import.meta.env.VITE_USE_MOCKS, true) || apiBaseUrl === '',
+  useMocks: toBoolean(import.meta.env.VITE_USE_MOCKS, true) || rawApiBaseUrl === '',
   mockDelay: toNumber(import.meta.env.VITE_MOCK_DELAY, 250),
 
   isDevelopment: import.meta.env.DEV,

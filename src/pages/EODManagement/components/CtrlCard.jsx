@@ -3,6 +3,7 @@ import { Play, Pause, Square, Server, Clock, Eye } from 'lucide-react';
 import eodService from '../../../services/eodService';
 import { settingsService } from '../../../services/settingsService';
 import { LogViewerModal } from './LogViewerModal';
+import { env as appEnv } from '../../../config/env';
 
 const formatSeconds = (totalSecs) => {
   const hrs = String(Math.floor(totalSecs / 3600)).padStart(2, '0');
@@ -69,10 +70,15 @@ export function CtrlCard({ env, onStart, onPause, onStop, canExecute, canViewLog
       return;
     }
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.port === '3000' ? '127.0.0.1:8000' : window.location.host;
     const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || '';
-    const wsUrl = `${wsProtocol}//${wsHost}/ws/eod-jobs/${env.id}/${token ? `?token=${token}` : ''}`;
+    
+    // Derive WS base from the centralized API config (convert http(s) to ws(s))
+    // Fall back to window.location if appEnv.apiBaseUrl is empty
+    const wsBase = appEnv.apiBaseUrl 
+      ? appEnv.apiBaseUrl.replace(/^http/, 'ws') 
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+      
+    const wsUrl = `${wsBase}/ws/eod-jobs/${env.id}/${token ? `?token=${token}` : ''}`;
     let ws = null;
     let pollInterval = null;
 

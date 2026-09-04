@@ -288,7 +288,7 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
                   <div className="cp-info-row">
                     <div className="cp-info-block">
                       <div className="cp-info-label">
-                        <Building2 size={12} /> Location
+                        <MapPin size={12} /> Location
                       </div>
                       <div className="cp-info-value">
                         {info.location || <span className="cp-muted">—</span>}
