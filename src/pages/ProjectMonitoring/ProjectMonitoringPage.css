@@ -3494,7 +3494,7 @@
 .pm-project-info-title {
   font-size: 16px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;

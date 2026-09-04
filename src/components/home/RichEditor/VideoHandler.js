@@ -1,12 +1,18 @@
-import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile, readFileAsDataUrl } from './mediaUtils';
 
 const MAX_VIDEO_MB = 19;
 const ACCEPTED_MIME = ['video/mp4', 'video/webm', 'video/ogg'];
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_VIDEO_MB);
-  const result = await uploadMediaFile(file);
-  return { ...result, mime: result.mime || 'video/mp4' };
+  try {
+    const result = await uploadMediaFile(file);
+    return { ...result, mime: result.mime || 'video/mp4' };
+  } catch (err) {
+    // Fallback to data URL if backend is unavailable
+    const dataUrl = await readFileAsDataUrl(file);
+    return { url: dataUrl, mime: 'video/mp4' };
+  }
 }
 
 export function isSupportedVideoFile(file) {
@@ -38,7 +44,7 @@ export function buildVideoMarkup({ url, filename, filesize, mime, align = 'cente
     `<div class="rte-video-block ${alignClass}" data-media-type="video" data-src="${escapeAttr(url)}"${filenameAttr}${sizeAttr}${mimeAttr} contenteditable="false">` +
     `<div class="rte-video-container">` +
     `<div class="rte-video-lazy-wrap">` +
-    `<video data-video-src="${escapeAttr(url)}" controls preload="none" playsinline class="rte-video-element"></video>` +
+    `<video src="${escapeAttr(url)}" data-video-src="${escapeAttr(url)}" controls preload="none" playsinline class="rte-video-element"></video>` +
     `<button type="button" class="rte-video-play-trigger" aria-label="Play video"></button>` +
     `</div>` +
     `</div>` +

@@ -76,6 +76,10 @@ const RoleManagementPage = lazyPage(
   () => import('@pages/admin/RoleManagement/RoleManagementPage'),
   'RoleManagementPage',
 );
+const HomeManagementPage = lazyPage(
+  () => import('@pages/admin/HomeManagement/HomeManagementPage'),
+  'HomeManagementPage',
+);
 const LeaveConfigurationPage = lazyPage(
   () => import('@pages/admin/LeaveConfiguration/LeaveConfigurationPage'),
   'LeaveConfigurationPage',
@@ -274,6 +278,7 @@ export const routes = [
                 ),
                 children: [
                   { index: true, element: <Navigate to={ROUTES.ADMIN_ROLES} replace /> },
+                  { path: 'home-management', element: <HomeManagementPage /> },
                   { path: 'roles', element: <RoleManagementPage /> },
                   { path: 'leave-configurations', element: <LeaveConfigurationPage /> },
                   { path: 'settings', element: <SystemSettingsPage /> },

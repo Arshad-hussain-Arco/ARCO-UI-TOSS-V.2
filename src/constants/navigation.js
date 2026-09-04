@@ -131,6 +131,7 @@ export const SIDEBAR_NAVIGATION = [
     to: ROUTES.ADMIN,
     admin: true,
     children: [
+      { id: 'admin-home-management', label: 'Home Content Management', to: ROUTES.ADMIN_HOME_MANAGEMENT },
       { id: 'admin-roles', label: 'Roles & Permissions', to: ROUTES.ADMIN_ROLES },
       {
         id: 'admin-leave-config',

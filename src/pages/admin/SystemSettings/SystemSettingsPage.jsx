@@ -10,7 +10,6 @@ import { useDocumentTitle } from '@hooks/useDocumentTitle';
 
 import { ColumnMappingPanel } from './panels/ColumnMappingPanel';
 import { EnvironmentConfigPanel } from './panels/EnvironmentConfigPanel';
-import { HomeManagementPanel } from './panels/HomeManagementPanel';
 import { ImportConfigPanel } from './panels/ImportConfigPanel';
 import './SystemSettingsPage.css';
 
@@ -20,7 +19,6 @@ const TABS = [
   { id: 'cr-columns', label: 'CR File Matching Columns', icon: FileSpreadsheet },
   { id: 'wo-columns', label: 'WO File Matching Columns', icon: FileSpreadsheet },
   { id: 'runtime-columns', label: 'Runtime Trends Matching Columns', icon: FileSpreadsheet },
-  { id: 'home-management', label: 'Home Management', icon: LayoutDashboard },
 ];
 
 /**
@@ -88,10 +86,7 @@ export function SystemSettingsPage() {
           />
         ) : null}
 
-        {activeTab === 'home-management' ? (
-          <HomeManagementPanel />
-        ) : null}
-      </div>
+        </div>
     </div>
   );
 }

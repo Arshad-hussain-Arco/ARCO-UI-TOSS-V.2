@@ -12,15 +12,22 @@ const HOME_CARD_SANITIZE_CONFIG = {
   // svg/path/rect/circle (fileTypeIcons.js's inline file-type icons) are
   // already in DOMPurify's default allowlist, but listed explicitly here
   // too so this stays correct if that default ever changes.
-  ADD_TAGS: ['embed', 'video', 'source', 'button', 'svg', 'path', 'rect', 'circle'],
+  ADD_TAGS: ['embed', 'video', 'source', 'button', 'svg', 'path', 'rect', 'circle',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'style'],
   ADD_ATTR: [
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',
     'data-mime', 'data-pdf-src', 'data-pdf-name',
     'data-office-src', 'data-office-name', 'data-video-src', 'aria-label',
     'viewBox', 'aria-hidden', 'focusable', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+    // Table attributes
+    'colspan', 'rowspan', 'border', 'cellpadding', 'cellspacing', 'width', 'height',
+    'align', 'valign', 'scope', 'headers',
+    // Allow inline styles so table borders/widths from the editor render correctly
+    'style',
   ],
   ADD_DATA_URI_TAGS: ['embed', 'a', 'video', 'source'],
+  FORCE_BODY: true,
 };
 
 /**

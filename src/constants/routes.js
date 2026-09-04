@@ -31,6 +31,7 @@ export const ROUTES = Object.freeze({
 
   // Protected — admin section
   ADMIN: '/admin',
+  ADMIN_HOME_MANAGEMENT: '/admin/home-management',
   ADMIN_ROLES: '/admin/roles',
   ADMIN_LEAVE_CONFIGURATIONS: '/admin/leave-configurations',
   ADMIN_SETTINGS: '/admin/settings',
