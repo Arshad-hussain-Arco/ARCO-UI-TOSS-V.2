@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
-import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken } from './mediaUtils';
+import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile } from './mediaUtils';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -253,6 +253,100 @@ const getEditorHtml = (editor) => {
   }
 };
 
+// Resize-handle positions for a selected image/video (.rte-media-wrap).
+// Ported from the pre-RoosterJS EditableArea.jsx implementation — that file
+// is dead code now (RichEditor.jsx switched to RoosterJS's <Rooster> as the
+// actual contenteditable surface), but its remove-button/resize logic was
+// never re-wired into the new editor, which is why neither worked at all
+// after the migration: nothing in RichEditor.jsx ever listened for
+// `.rte-media-remove-btn` clicks or attached handles to `.rte-media-wrap`.
+const MEDIA_HANDLE_POSITIONS = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+function clearMediaResizeHandles(root) {
+  if (!root) return;
+  root.querySelectorAll('.rte-resize-handle').forEach((h) => h.remove());
+  root.querySelectorAll('.rte-media-wrap.rte-selected').forEach((w) => w.classList.remove('rte-selected'));
+}
+
+function startMediaResize(e, pos, mediaEl, containerEl, onDone) {
+  e.preventDefault();
+  e.stopPropagation();
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const rect = mediaEl.getBoundingClientRect();
+  const startWidth = rect.width;
+  const startHeight = rect.height;
+  const aspect = startWidth / (startHeight || 1);
+  const isCorner = pos.length === 2;
+  const dirX = pos.includes('e') ? 1 : pos.includes('w') ? -1 : 0;
+  const containerWidth = containerEl?.clientWidth || 9999;
+
+  const onMove = (moveEvt) => {
+    let newWidth = startWidth;
+    let newHeight = startHeight;
+
+    if (pos === 'n' || pos === 's') {
+      const dirY = pos === 's' ? 1 : -1;
+      const dy = (moveEvt.clientY - startY) * dirY;
+      newHeight = Math.max(40, startHeight + dy);
+    } else {
+      const dx = (moveEvt.clientX - startX) * dirX;
+      newWidth = Math.max(40, Math.min(containerWidth, startWidth + dx));
+      if (isCorner) newHeight = newWidth / aspect;
+    }
+
+    mediaEl.style.width = `${newWidth}px`;
+    mediaEl.style.height = pos === 'n' || pos === 's' ? `${newHeight}px` : 'auto';
+  };
+
+  const onUp = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    onDone?.();
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+// Fluent UI's <CommandBar> (rendered internally by roosterjs-react's <Ribbon>)
+// looked like the white toolbar bar itself was hardcoded, but the bar's own
+// root is basically invisible either way — the real paint comes from EACH
+// individual button. CommandBarButton's default styles set
+// `backgroundColor: theme.palette.white` on its own root
+// (CommandBarButton.styles.js), and since the buttons tile edge-to-edge
+// across the row, THAT is what forms the solid white bar, regardless of
+// what the CommandBar root itself is set to. `selectors` is Fluent's own
+// nested-selector styling API, resolved into the same generated stylesheet
+// rule Fluent computes its own theme colors into — overriding `.ms-Button`
+// here is what actually reaches the button backgrounds; a plain external
+// CSS override on `.ms-CommandBar` never touched them.
+const RIBBON_STYLES = {
+  root: {
+    backgroundColor: 'var(--surface-primary)',
+    selectors: {
+      // `.ms-Button-icon`/`.ms-Button-label` are two separate slots — each
+      // defaults to its own dark `theme.palette.neutralPrimary`/
+      // `neutralDark` text color (BaseButton.styles.js / CommandBarButton.
+      // styles.js), so overriding just the icon left every text label
+      // (dropdown captions like "Merge"/"Split"/"Options") black-on-dark
+      // and effectively invisible.
+      '.ms-Button': { backgroundColor: 'transparent', color: 'var(--text-secondary)' },
+      '.ms-Button-icon': { color: 'var(--text-secondary)' },
+      '.ms-Button-label': { color: 'var(--text-secondary)' },
+      '.ms-Button-menuIcon': { color: 'var(--text-secondary)' },
+      // Disabled buttons (e.g. "Merge"/"Split" with no table selected) get
+      // Fluent's own `is-disabled` class — dim them instead of leaving
+      // them at full text-secondary so the disabled state stays legible.
+      '.ms-Button.is-disabled, .ms-Button.is-disabled .ms-Button-icon, .ms-Button.is-disabled .ms-Button-label': {
+        color: 'var(--text-tertiary)',
+      },
+      '.ms-Button:hover': { backgroundColor: 'var(--bg-secondary)' },
+      '.ms-Button:hover .ms-Button-icon, .ms-Button:hover .ms-Button-label': { color: 'var(--c-primary)' },
+    },
+  },
+};
+
 export function RichEditor({ value = '', onChange, placeholder }) {
   const toast = useToast();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -261,6 +355,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const wrapperRef = useRef(null);
   const editorRef = useRef(null);
+  const selectedMediaRef = useRef(null);
   const imgInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const pdfInputRef = useRef(null);
@@ -498,6 +593,49 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     return document.querySelector('.rte-root video.rooster-video-selected') || document.querySelector('.rte-root video') || null;
   }, []);
 
+  // "Change Image" in the Image tab's dropdown was a bare `onClick: () => {}`
+  // no-op — clicking it did nothing at all. Routes through the same
+  // SFTP-backed upload pipeline as every other image insertion (see
+  // handleImageUpload further below) rather than roosterjs's own
+  // `changeImage()` helper, which embeds the picked file as a raw base64
+  // data: URI — exactly the bypass this codebase deliberately avoids
+  // elsewhere. Declared here (before imageButtons) rather than next to
+  // handleImageUpload — imageButtons' useMemo dependency array references
+  // it, and that array is evaluated immediately, so it must already be
+  // initialized by the time imageButtons is declared.
+  const handleChangeSelectedImage = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selectedImg = getSelectedImage();
+    if (!selectedImg || selectedImg.tagName !== 'IMG') {
+      toast.error('Select an image first.');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      try {
+        toast.info?.('Uploading image…');
+        const result = await ImageHandler.ingestFile(file);
+        selectedImg.setAttribute('src', result.url);
+        selectedImg.setAttribute('alt', file.name);
+        const wrap = selectedImg.closest('.rte-media-wrap');
+        if (wrap) wrap.setAttribute('data-src', result.url);
+        handleChange(getEditorHtml(editor));
+      } catch (err) {
+        toast.error(err?.message || 'Image upload failed');
+      }
+    });
+    document.body.appendChild(input);
+    input.click();
+  }, [getSelectedImage, handleChange, toast]);
+
   const formatPainterButton = useMemo(() => ({
     key: 'formatPainter',
     unlocalizedText: 'Format Painter',
@@ -507,7 +645,11 @@ export function RichEditor({ value = '', onChange, placeholder }) {
 
 
 
-  // Handle code-copy button clicks inside the editor
+  // Handle code-copy button clicks, image/video remove, and image/video
+  // resize-handle selection inside the editor. Remove + resize used to be
+  // handled by EditableArea.jsx's onMouseDown — that file is dead code
+  // since the RoosterJS migration, so both silently stopped working; this
+  // ports that logic onto the actual current editor surface.
   const handleEditorClick = useCallback((e) => {
     const copyBtn = e.target.closest('[data-code-copy]');
     if (copyBtn) {
@@ -526,8 +668,59 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           }, 2000);
         });
       }
+      return;
     }
-  }, []);
+
+    const removeBtn = e.target.closest('.rte-media-remove-btn');
+    if (removeBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetBlock = removeBtn.closest('.rte-media-card, .rte-video-block, .rte-media-wrap, .rte-media-block, .rte-pdf-wrap, .rte-attachment-card, .media-pdf-card');
+      if (targetBlock) {
+        const mediaEl = targetBlock.querySelector('img, video');
+        const src = targetBlock.dataset.src || mediaEl?.getAttribute('src');
+        if (src && src.startsWith('blob:')) {
+          try { URL.revokeObjectURL(src); } catch { /* ignore */ }
+        }
+        const mediaId = targetBlock.dataset.mediaId;
+        if (selectedMediaRef.current === targetBlock) selectedMediaRef.current = null;
+        targetBlock.remove();
+        if (editorRef.current) handleChange(getEditorHtml(editorRef.current));
+        if (mediaId) deleteMediaFile(mediaId);
+      }
+      return;
+    }
+
+    const root = wrapperRef.current;
+    const wrap = e.target.closest('.rte-media-wrap');
+    if (wrap && root?.contains(wrap)) {
+      if (selectedMediaRef.current !== wrap) {
+        clearMediaResizeHandles(root);
+        const mediaEl = wrap.querySelector('img, video');
+        if (mediaEl) {
+          wrap.classList.add('rte-selected');
+          MEDIA_HANDLE_POSITIONS.forEach((pos) => {
+            const handle = document.createElement('div');
+            handle.className = `rte-resize-handle rte-resize-${pos}`;
+            handle.setAttribute('contenteditable', 'false');
+            handle.addEventListener('pointerdown', (ev) =>
+              startMediaResize(ev, pos, mediaEl, root, () => {
+                if (editorRef.current) handleChange(getEditorHtml(editorRef.current));
+              })
+            );
+            wrap.appendChild(handle);
+          });
+          selectedMediaRef.current = wrap;
+        }
+      }
+      return;
+    }
+
+    if (selectedMediaRef.current) {
+      clearMediaResizeHandles(root);
+      selectedMediaRef.current = null;
+    }
+  }, [handleChange]);
 
   // Categorized Buttons matched exactly to the screenshot's order
   const mainButtons = [
@@ -1006,7 +1199,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
               key: 'changeImage',
               text: 'Change Image',
               iconProps: { iconName: 'ImageSearch' },
-              onClick: () => { }
+              onClick: () => handleChangeSelectedImage()
             },
             {
               key: 'imageShadow',
@@ -1047,6 +1240,11 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     if (selectedImg && selectedImg.tagName === 'IMG') {
                       const rotate = dir === 'Left' ? 'rotate(-90deg)' : 'rotate(90deg)';
                       selectedImg.style.transform = selectedImg.style.transform === rotate ? '' : rotate;
+                      // Mutating .style directly never fires a RoosterJS
+                      // plugin event, so editorSyncPlugin never re-syncs —
+                      // the rotation looked applied but was silently lost on
+                      // Save (never included in the saved html_content).
+                      handleChange(getEditorHtml(editorRef.current));
                     }
                   }
                 }))
@@ -1066,6 +1264,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     if (selectedImg && selectedImg.tagName === 'IMG') {
                       const scale = flip === 'Flip Horizontally' ? 'scaleX(-1)' : 'scaleY(-1)';
                       selectedImg.style.transform = selectedImg.style.transform === scale ? '' : scale;
+                      handleChange(getEditorHtml(editorRef.current));
                     }
                   }
                 }))
@@ -1087,6 +1286,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                       else if (size === 'Small') { selectedImg.style.width = '25%'; selectedImg.style.height = 'auto'; }
                       else if (size === 'Medium') { selectedImg.style.width = '50%'; selectedImg.style.height = 'auto'; }
                       else if (size === 'Original') { selectedImg.style.width = ''; selectedImg.style.height = ''; }
+                      handleChange(getEditorHtml(editorRef.current));
                     }
                   }
                 }))
@@ -1097,7 +1297,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       },
       onClick: () => { }
     }
-  ], [getSelectedImage, customInsertImageButton]);
+  ], [getSelectedImage, customInsertImageButton, handleChange, handleChangeSelectedImage]);
 
   const videoButtons = useMemo(() => [
     {
@@ -1310,8 +1510,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
 
               {/* Right side: Global Actions */}
               <div style={{ display: 'flex', alignItems: 'center', paddingRight: '8px' }}>
-                <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton]} />
-                <Ribbon plugin={ribbonPlugin} buttons={[
+                <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[undoButton, redoButton]} />
+                <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[
                   {
                     key: 'zoomDropdown',
                     unlocalizedText: 'Zoom',
@@ -1346,7 +1546,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     onClick: () => { }
                   }
                 ]} />
-                <Ribbon plugin={ribbonPlugin} buttons={[
+                <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[
                   {
                     key: 'fullScreenToggle',
                     unlocalizedText: isFullscreen ? 'Exit Full Screen' : 'Full Screen',
@@ -1366,16 +1566,16 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0', width: '100%' }}>
                   {/* Row 1: Undo/Redo + Text formatting */}
                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border-primary, #e2e8f0)', padding: '2px 4px' }}>
-                    <Ribbon plugin={ribbonPlugin} buttons={[undoButton, redoButton, ...textButtons]} />
+                    <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[undoButton, redoButton, ...textButtons]} />
                   </div>
                   {/* Row 2: Paragraph formatting */}
                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid var(--border-primary, #e2e8f0)', padding: '2px 4px' }}>
-                    <Ribbon plugin={ribbonPlugin} buttons={paragraphButtons} />
+                    <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={paragraphButtons} />
                   </div>
                   {/* Row 3: Insert / Media / Fullscreen */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '2px 4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                      <Ribbon plugin={ribbonPlugin} buttons={insertButtons} />
+                      <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={insertButtons} />
                       <div style={{ width: '1px', height: '16px', background: 'var(--border-primary, #e2e8f0)', margin: '0 4px' }} />
                       <button type="button" onClick={() => handleMediaBtnClick(imgInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="14" height="14" rx="2" /><circle cx="5.5" cy="5.5" r="1.5" /><path d="M1 11l4-4 3 3 2-2 5 5" /></svg>
@@ -1410,10 +1610,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', padding: '2px 4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexGrow: 1, flexWrap: 'wrap' }}>
                     {activeTab === 'Main' ? (
-                      <Ribbon plugin={ribbonPlugin} buttons={getActiveButtons()} />
+                      <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={getActiveButtons()} />
                     ) : (
                       getActiveButtons().map((btn, index) => (
-                        <Ribbon key={btn.key || index} plugin={ribbonPlugin} buttons={[btn]} />
+                        <Ribbon key={btn.key || index} plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[btn]} />
                       ))
                     )}
                   </div>

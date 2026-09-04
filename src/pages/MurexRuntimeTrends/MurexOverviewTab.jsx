@@ -510,6 +510,7 @@ export function MurexOverviewTab() {
                 let startTimeStr = '--';
                 let endTimeStr = '--';
                 let durationStr = '--';
+                let endIsNextDay = false;
 
                 if (matrixJobs.length > 0) {
                   const times = matrixJobs.map(job => {
@@ -531,6 +532,9 @@ export function MurexOverviewTab() {
 
                     startTimeStr = formatTime(s);
                     endTimeStr = formatTime(e);
+                    endIsNextDay = e.getFullYear() !== s.getFullYear() ||
+                      e.getMonth() !== s.getMonth() ||
+                      e.getDate() !== s.getDate();
 
                     const durHours = Math.floor(durationMs / 3600000);
                     const durMins = Math.floor((durationMs % 3600000) / 60000);
@@ -547,7 +551,7 @@ export function MurexOverviewTab() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ width: '4px', height: '18px', background: 'var(--c-success)', borderRadius: '2px' }} />
                         <h3 className="murex-matrix-card-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-                          EOD - Job execution timings
+                          EOD - Job Execution Timings
                         </h3>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '12px', color: '#059669', fontSize: '12px', fontWeight: 600 }}>
@@ -580,7 +584,7 @@ export function MurexOverviewTab() {
                           <Clock size={16} style={{ color: 'var(--text-tertiary)' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD start</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD Start</span>
                           <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{startTimeStr}</span>
                         </div>
                       </div>
@@ -591,8 +595,10 @@ export function MurexOverviewTab() {
                           <Flag size={16} style={{ color: 'var(--text-tertiary)' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD end</span>
-                          <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{endTimeStr}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD End</span>
+                          <span style={{ fontSize: '14px', color: endIsNextDay ? '#dc2626' : 'var(--text-primary)', fontWeight: 600 }}>
+                            {endTimeStr}{endIsNextDay && <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '4px' }}>+1d</span>}
+                          </span>
                         </div>
                       </div>
 
@@ -602,7 +608,7 @@ export function MurexOverviewTab() {
                           <Timer size={16} style={{ color: '#7c3aed' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD duration</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD Duration</span>
                           <span style={{ fontSize: '14px', color: '#7c3aed', fontWeight: 600 }}>{durationStr}</span>
                         </div>
                       </div>

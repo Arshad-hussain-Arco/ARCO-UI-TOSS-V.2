@@ -615,6 +615,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   // 'compoff'/'weekend' choice, see claimTypeItems below.
   const [claimType, setClaimType] = useState(null);
   const [claimEligibleDates, setClaimEligibleDates] = useState(null); // null = not yet loaded/not applicable
+  const [isClaimEligibleLoading, setIsClaimEligibleLoading] = useState(false);
   // { 'YYYY-MM-DD': ['FIRST_HALF', ...] } — halves already covered by an
   // existing PENDING/APPROVED claim of this type, per claimEligibleDates.
   const [claimedPortions, setClaimedPortions] = useState({});
@@ -635,6 +636,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+  const currentYearStart = useMemo(() => new Date(today.getFullYear(), 0, 1), [today]);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [hoverDate, setHoverDate] = useState(null);
@@ -836,7 +838,12 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   // real Holiday records — replaces the old isSaudiWeekend()/
   // PUBLIC_HOLIDAYS mocks entirely.
   useEffect(() => {
-    if (!effectiveEmpId) {
+    // Claims don't use the InlineCalendar grid at all (they use the
+    // Claim Date(s) picker, gated on claimEligibleDates instead) — skip
+    // fetching this until a claim type is actually picked, so opening
+    // the Submit Claim modal doesn't fire a calendar request for data
+    // nothing renders yet.
+    if (!effectiveEmpId || (isClaimType && !claimType)) {
       setCalendarDayMap({});
       return;
     }
@@ -879,7 +886,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     return () => {
       active = false;
     };
-  }, [effectiveEmpId, calYear, calMonth, startDate, end, datePickerMonth]);
+  }, [effectiveEmpId, calYear, calMonth, startDate, end, datePickerMonth, isClaimType, claimType]);
   // Claims are retroactive — once a Claim type is selected, fetch which
   // dates in the last 12 months actually qualify under its configured
   // rule (Weekend/Company Holiday/Custom Dates), so the date picker can
@@ -892,12 +899,18 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     if (!isClaimType || !claimType || !effectiveEmpId) {
       setClaimEligibleDates(null);
       setClaimedPortions({});
+      setIsClaimEligibleLoading(false);
       return;
     }
     let active = true;
     const queryStart = new Date(today);
     queryStart.setDate(queryStart.getDate() - 365);
     const queryEnd = new Date(today.getTime() - 864e5); // yesterday — claims never include today
+    // Dates aren't known-eligible until this resolves — clear the previous
+    // type's list immediately so the picker disables everything rather than
+    // briefly allowing clicks against stale (or no) eligibility data.
+    setClaimEligibleDates(null);
+    setIsClaimEligibleLoading(true);
     leaveService
       .getClaimEligibleDates({
         emp_id: effectiveEmpId,
@@ -913,12 +926,14 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
         // (e.g. First Half already claimed, Second Half still available).
         setClaimEligibleDates(data?.eligible_dates || []);
         setClaimedPortions(data?.claimed_portions || {});
+        setIsClaimEligibleLoading(false);
       })
       .catch((err) => {
         console.error('Failed to fetch claim-eligible dates', err);
         if (active) {
           setClaimEligibleDates([]);
           setClaimedPortions({});
+          setIsClaimEligibleLoading(false);
         }
       });
     return () => {
@@ -1495,10 +1510,16 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                           else if (!unavailable.has('SECOND_HALF')) setPendingClaimDuration('SECOND_HALF');
                         }
                       }}
+                      minDate={currentYearStart}
                       maxDate={new Date(today.getTime() - 864e5)}
                       isDateDisabled={
-                        claimType && claimEligibleDates
-                          ? (d) => {
+                        !claimType || isClaimEligibleLoading || !claimEligibleDates
+                          ? // No claim type chosen yet, or eligibility hasn't
+                            // finished loading for the current one — disable
+                            // every date rather than letting clicks through
+                            // against stale/absent eligibility data.
+                            () => true
+                          : (d) => {
                               if (!claimEligibleDates.includes(dateStr(d))) return true;
                               // Only disable the date outright when BOTH
                               // halves are taken — FULL_DAY being taken
@@ -1508,10 +1529,16 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                               const unavailable = unavailablePortionsFor(d);
                               return unavailable.has('FIRST_HALF') && unavailable.has('SECOND_HALF');
                             }
-                          : undefined
                       }
-                      placeholder={claimType ? 'Select a date' : 'Select a claim type first'}
+                      placeholder={
+                        !claimType
+                          ? 'Select a claim type first'
+                          : isClaimEligibleLoading
+                            ? 'Loading eligible dates…'
+                            : 'Select a date'
+                      }
                       disabled={!claimType}
+                      isLoading={isClaimEligibleLoading}
                       width="220px"
                     />
                     {/* Half-day selector — lets a claimant mark only the

@@ -669,19 +669,43 @@
 
 .rooster-custom-container .ms-CommandBar {
     padding: 0;
-    /* Fluent UI ships its own hardcoded white background on this root
-       (via its generated css-* class), ignoring the app's theme entirely —
-       without this override every toolbar row stayed a bright white bar
-       regardless of dark mode. !important is required since Fluent's own
-       rule carries real specificity too, not just an inline style. */
+    /* The primary fix for the toolbar's background/icon colors is the
+       RIBBON_STYLES object passed as the `styles` prop to every <Ribbon> in
+       RichEditor.jsx — Fluent resolves that INTO the same generated class
+       it computes its own theme colors into, so there's no cascade/
+       specificity fight to lose. These external rules (kept here as a
+       fallback) target the same elements from outside instead. */
     background: var(--surface-primary) !important;
 }
 
-.rooster-custom-container .ms-Button-icon {
+/* CommandBarButton's OWN root defaults to a hardcoded
+   `backgroundColor: theme.palette.white` (CommandBarButton.styles.js) —
+   since the buttons tile edge-to-edge across each toolbar row, this
+   per-button fill (not the bar's own root) is what actually painted the
+   solid white bar, regardless of what the CommandBar root itself was set
+   to. */
+.rooster-custom-container .ms-Button {
+    background-color: transparent !important;
+}
+
+.rooster-custom-container .ms-Button-icon,
+.rooster-custom-container .ms-Button-label,
+.rooster-custom-container .ms-Button-menuIcon {
     color: var(--text-secondary) !important;
 }
 
-.rooster-custom-container .ms-Button:hover .ms-Button-icon {
+/* Dropdown captions ("Merge", "Split", "Align table cell", etc.) default to
+   Fluent's own dark neutralPrimary/neutralDark text color, same root cause
+   as the icon override above — without this they render black-on-dark and
+   are effectively invisible. */
+.rooster-custom-container .ms-Button.is-disabled,
+.rooster-custom-container .ms-Button.is-disabled .ms-Button-icon,
+.rooster-custom-container .ms-Button.is-disabled .ms-Button-label {
+    color: var(--text-tertiary) !important;
+}
+
+.rooster-custom-container .ms-Button:hover .ms-Button-icon,
+.rooster-custom-container .ms-Button:hover .ms-Button-label {
     color: var(--c-primary) !important;
 }
 
