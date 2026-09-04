@@ -23,12 +23,15 @@ import { EnvironmentStatusStrip } from './sections/EnvironmentStatusStrip';
 import { DepartmentStatsSection } from './sections/DepartmentStatsSection';
 import { PendingApprovalsActionSection } from './sections/PendingApprovalsActionSection';
 import { UpcomingHolidaysPanel } from './sections/UpcomingHolidaysPanel';
+import { EmployeeCapacitySection } from './sections/EmployeeCapacitySection';
 import { leaveService } from '@services/leaveService';
 import { dashboardService } from '@services/dashboardService';
 import { consultantService } from '@services/consultantService';
 import { eodService } from '@services/eodService';
 import { capacityService } from '@services/capacityService';
 import { murexService } from '@services/murexService';
+import { documentService } from '@services/documentService';
+import { processCapacityData } from '../CapacityPlanning/capacityCalculations';
 import './DashboardPage.css';
 
 /**
@@ -39,7 +42,7 @@ import './DashboardPage.css';
  */
 export function DashboardPage() {
   useDocumentTitle('Dashboard');
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,6 +62,7 @@ export function DashboardPage() {
   const [upcomingHolidays, setUpcomingHolidays] = useState([]);
   const [murexData, setMurexData] = useState(null);
   const [orgPhotos, setOrgPhotos] = useState([]);
+  const [documentData, setDocumentData] = useState({ files: [], folderTree: [] });
 
   const fetchLiveDashboardData = useCallback(async () => {
     try {
@@ -71,24 +75,34 @@ export function DashboardPage() {
       const startStr = format(today, 'yyyy-MM-dd');
       const endStr = format(nextWeek, 'yyyy-MM-dd');
 
+      const hasEODView = hasPermission('EOD_OVERVIEW_VIEW');
+      const hasMurexView = hasPermission('MUREX_RUNTIME_VIEW');
+      const hasCapacityView = hasPermission('CAPACITY_PLANNING_VIEW');
+      const hasAttendanceView = hasPermission('ATTENDANCE_VIEW');
+      const hasTeamView = hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW');
+      const hasDocumentsView = hasPermission('DOCUMENTS_VIEW');
+
       const promises = [
         dashboardService.getSummary(),
-        dashboardService.getLeaveUtilization(),
-        eodService.getEodRecords(),
-        httpClient.get('/employees/teams/'),
-        consultantService.getEmployeesList(),
+        hasAttendanceView ? dashboardService.getLeaveUtilization() : Promise.resolve(null),
+        hasEODView ? eodService.getEodRecords() : Promise.resolve([]),
+        hasTeamView ? httpClient.get('/employees/teams/') : Promise.resolve({ data: [] }),
+        hasTeamView ? consultantService.getEmployeesList() : Promise.resolve([]),
         dashboardService.getAnnouncements(),
-        capacityService.getCapacityPlanning(),
-        dashboardService.getLeaveRequestsTrend({ days: 7 }),
-        dashboardService.getDepartmentStats(),
-        dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }),
+        hasCapacityView ? capacityService.getCapacityPlanning() : Promise.resolve([]),
+        hasAttendanceView ? dashboardService.getLeaveRequestsTrend({ days: 7 }) : Promise.resolve(null),
+        hasAttendanceView ? dashboardService.getDepartmentStats() : Promise.resolve([]),
+        hasAttendanceView ? dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }) : Promise.resolve([]),
         leaveService.listHolidays(),
-        murexService.getRuntimeTrends(),
-        consultantService.getEmployeePhotos({ includeInactive: true }),
+        hasMurexView ? murexService.getRuntimeTrends() : Promise.resolve(null),
+        hasTeamView ? consultantService.getEmployeePhotos({ includeInactive: true }) : Promise.resolve([]),
+        hasDocumentsView ? documentService.getDocuments() : Promise.resolve({ files: [], folderTree: [] }),
       ];
 
       if (empId) {
         promises.push(dashboardService.getPendingApprovals({ manager_id: empId }));
+      } else {
+        promises.push(Promise.resolve([]));
       }
 
       const results = await Promise.allSettled(promises);
@@ -111,7 +125,7 @@ export function DashboardPage() {
       if (results[5]?.status === 'fulfilled') setAnnouncements(results[5].value);
       if (results[6]?.status === 'fulfilled') {
         const data = results[6].value;
-        setCapacityRecords(Array.isArray(data) ? data : data?.results || []);
+        setCapacityRecords(Array.isArray(data) ? data : data?.result || data?.results || data?.consultants || data?.data || []);
       }
       if (results[7]?.status === 'fulfilled') setTrendData(results[7].value);
       if (results[8]?.status === 'fulfilled') {
@@ -153,8 +167,11 @@ export function DashboardPage() {
         const data = results[12].value;
         setOrgPhotos(Array.isArray(data) ? data : data?.results || []);
       }
-      if (empId && results[13]?.status === 'fulfilled') {
-        const data = results[13].value;
+      if (results[13]?.status === 'fulfilled') {
+        setDocumentData(results[13].value || { files: [], folderTree: [] });
+      }
+      if (empId && results[14]?.status === 'fulfilled') {
+        const data = results[14].value;
         setPendingApprovals(Array.isArray(data) ? data : data?.results || []);
       }
     } catch (e) {
@@ -163,7 +180,7 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.employee_id, user?.emp_id, user?.id]);
+  }, [user?.employee_id, user?.emp_id, user?.id, hasPermission]);
 
   useEffect(() => {
     fetchLiveDashboardData();
@@ -319,25 +336,87 @@ export function DashboardPage() {
       { id: 'qs2', label: 'Open Issues', value: '0', tone: 'green' }
     ];
 
-    // 6. Capacity By Team
-    // Group records by TeamName, sum Effort_in_MDs
-    const capacityMap = {};
-    capacityRecords.forEach(record => {
-      const team = record.TeamName || 'Unassigned';
-      if (!capacityMap[team]) {
-        capacityMap[team] = { team, used: 0, available: 100 }; // Mock available capacity to 100 MDs for demo
-      }
-      const effort = parseFloat(record.Effort_in_MDs) || 0;
-      capacityMap[team].used += effort;
-    });
+    // 6. Capacity By Team & Top 5 Available Consultants (Next 7 days)
+    let capacityByTeam = [];
+    let topAvailableConsultants = [];
+    try {
+      const processed = processCapacityData(capacityRecords, [5, 6], new Date(), new Set(), new Map());
+      
+      const empCapacityMap = new Map();
+      
+      // 1. Pre-fill with all active employees
+      employees.forEach(emp => {
+        if (emp.status === 'Inactive' || emp.is_active === false) return;
+        
+        const eId = String(emp.id || emp.emp_id);
+        const eName = emp.name || emp.full_name || emp.first_name || 'Unknown';
+        const eTeam = emp.team_name || emp.team || 'Unassigned Team';
+        
+        empCapacityMap.set(eId, {
+          id: eId,
+          name: eName,
+          teamName: eTeam,
+          photo: emp.photo_url_base64 || emp.photo || null,
+          next7Days: { occupied: 0, available: 5 },
+          availableMDs: 5
+        });
+      });
 
-    // Convert map to array and compute percentage
-    const capacityByTeam = Object.values(capacityMap).map(c => ({
-      team: c.team,
-      used: Math.round(c.used),
-      available: c.available,
-      percentage: Math.min(100, Math.round((c.used / c.available) * 100))
-    }));
+      // 2. Merge processed assignments
+      processed.forEach(c => {
+        const id = String(c.id);
+        let matched = empCapacityMap.get(id);
+        
+        // Fallback match by name
+        if (!matched) {
+          matched = Array.from(empCapacityMap.values()).find(
+            e => e.name.toLowerCase() === c.name.toLowerCase()
+          );
+        }
+
+        if (matched) {
+          matched.next7Days = c.next7Days;
+          matched.availableMDs = c.next7Days?.available || 0;
+        } else {
+          empCapacityMap.set(id, {
+            ...c,
+            availableMDs: c.next7Days?.available || 0
+          });
+        }
+      });
+
+      const availableConsultants = Array.from(empCapacityMap.values());
+      
+      // 3. Aggregate by Team
+      const teamMap = {};
+      availableConsultants.forEach(c => {
+        const available = c.next7Days?.available || 0;
+        const occupied = c.next7Days?.occupied || 0;
+        
+        const tName = c.teamName || 'Unassigned';
+        if (!teamMap[tName]) teamMap[tName] = { team: tName, used: 0, available: 0 };
+        teamMap[tName].used += occupied;
+        teamMap[tName].available += available;
+      });
+
+      capacityByTeam = Object.values(teamMap).map(t => {
+        const total = t.used + t.available;
+        const util = total > 0 ? Math.min(100, Math.round((t.used / total) * 100)) : 0;
+        return {
+          team: t.team,
+          used: Math.round(t.used),
+          available: Math.round(t.available),
+          percentage: util,
+          utilization: util
+        };
+      });
+
+      // 4. Sort and get top 5 available consultants
+      availableConsultants.sort((a, b) => b.availableMDs - a.availableMDs);
+      topAvailableConsultants = availableConsultants.slice(0, 5);
+    } catch (e) {
+      console.error("Failed to process capacity planning data", e);
+    }
 
     return {
       kpis,
@@ -348,14 +427,17 @@ export function DashboardPage() {
       upcomingLeaves,
       attendanceStatus,
       capacityByTeam,
+      topAvailableConsultants,
       projectRisk: { total: 0, atRisk: 0, offTrack: 0 },
       projectsByStatus: [],
-      documents: { total: 0, updated: 0, mostViewed: [] },
-      recentActivity: [],
+      documents: { 
+        folderTree: documentData.folderTree || [],
+        files: documentData.files || [],
+      },
       alerts,
       quickStats,
     };
-  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees, orgPhotos]);
+  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees, orgPhotos, documentData]);
 
   // 6. Team Headcount
   const mappedTeams = useMemo(() => {
@@ -407,43 +489,58 @@ export function DashboardPage() {
               <div className="dc-layout-grid">
                 {/* LEFT COLUMN / FULL WIDTH ITEMS */}
                 <div className="dc-main-col">
-                  <div className="dc-span-12">
-                    <KpiStrip kpis={mappedSummary.kpis} />
-                  </div>
-
-                  <div className="dc-span-12">
-                    <EnvironmentStatusStrip eodRecords={eodRecords} />
-                  </div>
-
-                  <TeamAvailabilityOverview
-                    departmentStats={departmentStats}
-                  />
-
-                  <SystemHealthSection
-                    systemHealth={mappedSummary.systemHealth}
-                    runtimeTrend={mappedSummary.runtimeTrend}
-                    insights={mappedSummary.runtimeInsights}
-                  />
-
-
-
-                  <div className="dc-span-12">
-                    <LeaveSnapshotSection
-                      leaveDistribution={mappedSummary.leaveDistribution}
-                      upcomingLeaves={mappedSummary.upcomingLeaves}
-                      attendanceStatus={mappedSummary.attendanceStatus}
-                    />
-                  </div>
-
-                  {mappedSummary.capacityByTeam.length > 0 && (
-                    <div className="dc-span-6">
-                      <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
+                  {(hasPermission('EMPLOYEE_VIEW') || hasPermission('TEAMS_VIEW')) && (
+                    <div className="dc-span-12">
+                      <KpiStrip kpis={mappedSummary.kpis} />
                     </div>
+                  )}
+
+                  {hasPermission('EOD_OVERVIEW_VIEW') && (
+                    <div className="dc-span-12">
+                      <EnvironmentStatusStrip eodRecords={eodRecords} />
+                    </div>
+                  )}
+
+                  {(hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW')) && (
+                    <TeamAvailabilityOverview
+                      departmentStats={departmentStats}
+                    />
+                  )}
+
+                  {hasPermission('MUREX_RUNTIME_VIEW') && (
+                    <SystemHealthSection
+                      systemHealth={mappedSummary.systemHealth}
+                      runtimeTrend={mappedSummary.runtimeTrend}
+                      insights={mappedSummary.runtimeInsights}
+                    />
+                  )}
+
+
+
+                  {hasPermission('ATTENDANCE_VIEW') && (
+                    <div className="dc-span-12">
+                      <LeaveSnapshotSection
+                        leaveDistribution={mappedSummary.leaveDistribution}
+                        upcomingLeaves={mappedSummary.upcomingLeaves}
+                        attendanceStatus={mappedSummary.attendanceStatus}
+                      />
+                    </div>
+                  )}
+
+                  {hasPermission('CAPACITY_PLANNING_VIEW') && mappedSummary.capacityByTeam.length > 0 && (
+                    <>
+                      <div className="dc-span-6">
+                        <CapacitySection capacityByTeam={mappedSummary.capacityByTeam} />
+                      </div>
+                      <div className="dc-span-6">
+                        <EmployeeCapacitySection consultants={mappedSummary.topAvailableConsultants} />
+                      </div>
+                    </>
                   )}
 
                 </div>
 
-                {mappedSummary.projectsByStatus.length > 0 && (
+                {hasPermission('PROJECT_MONITORING_VIEW') && mappedSummary.projectsByStatus.length > 0 && (
                   <div className="dc-span-6">
                     <ProjectRiskSection
                       projectRisk={mappedSummary.projectRisk}
@@ -452,19 +549,18 @@ export function DashboardPage() {
                   </div>
                 )}
 
-                {mappedSummary.documents.total > 0 && (
+                {hasPermission('DOCUMENTS_VIEW') && (
                   <div className="dc-span-6">
-                    <DocumentsActivitySection
-                      documents={mappedSummary.documents}
-                      recentActivity={mappedSummary.recentActivity}
-                    />
+                    <DocumentsActivitySection documents={mappedSummary.documents} />
                   </div>
                 )}
               </div>
             </div>
 
             <aside className="dc-right-rail">
-              <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+              {hasPermission('ATTENDANCE_VIEW') && (
+                <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+              )}
 
               <UpcomingHolidaysPanel holidays={upcomingHolidays} />
 

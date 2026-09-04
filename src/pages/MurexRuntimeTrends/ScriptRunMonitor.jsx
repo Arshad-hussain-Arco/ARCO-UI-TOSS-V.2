@@ -83,6 +83,36 @@ const clockFromTimestamp = (ts) => {
   return timePart || null;
 };
 
+const MONTH_ABBR = {
+  JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+};
+
+// Parses a raw Murex CMP timestamp ("04-AUG-2026 20:40:14") or an ISO one
+// into epoch ms, for sorting runs chronologically. Returns null if unparseable.
+const parseTimestampMs = (ts) => {
+  if (!ts) return null;
+  const str = String(ts).trim();
+  const cmpMatch = str.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})[ T](\d{1,2}):(\d{2}):(\d{2})/);
+  if (cmpMatch) {
+    const [, day, monAbbr, year, h, m, s] = cmpMatch;
+    const monthIdx = MONTH_ABBR[monAbbr.toUpperCase()];
+    if (monthIdx === undefined) return null;
+    return new Date(Number(year), monthIdx, Number(day), Number(h), Number(m), Number(s)).getTime();
+  }
+  const parsed = new Date(str.replace(' ', 'T')).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+// The earliest step start-timestamp for a run, used to sort runs oldest-first.
+const runStartMs = (run) => {
+  for (const step of run.steps || []) {
+    const ms = parseTimestampMs(step.startTs);
+    if (ms !== null) return ms;
+  }
+  return null;
+};
+
 const RunCard = ({ run, index }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -211,9 +241,12 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
   const { isDarkMode } = useTheme();
   
   // If cellDetails are provided (from heatmap click), we use its runs. Otherwise, use full script.history.
+  // Sorted oldest-first by each run's earliest step timestamp (falling back to
+  // the incoming order when no timestamps are available), so both the "Run
+  // duration over time" chart and the Run log below number runs identically.
   const history = useMemo(() => {
-    if (cellDetails && cellDetails.runs) {
-      return cellDetails.runs.map((r, i) => ({
+    const ordered = (cellDetails && cellDetails.runs)
+      ? cellDetails.runs.map((r) => ({
         date: cellDetails.date || 'Unknown',
         durationMin: r.seconds / 60,
         isOutlier: r.isOutlier,
@@ -228,26 +261,33 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           startTs: s.startTs || null,
           endTs: s.endTs || null,
         }))
-      }));
-    }
-    return [...(script.history || [])].reverse().map(r => ({
-      ...r,
-      steps: (r.steps || []).map(s => ({
-        name: s.name,
-        cpuTime: s.cpu_time,
-        dbTime: s.db_time,
-        idleTime: s.idle_time || 0,
-        elapsed: s.elapsed_time,
-        startTs: s.date_time_cmp || null,
-        endTs: s.finished_time || null,
       }))
-    }));
+      : [...(script.history || [])].map(r => ({
+        ...r,
+        steps: (r.steps || []).map(s => ({
+          name: s.name,
+          cpuTime: s.cpu_time,
+          dbTime: s.db_time,
+          idleTime: s.idle_time || 0,
+          elapsed: s.elapsed_time,
+          startTs: s.date_time_cmp || null,
+          endTs: s.finished_time || null,
+        }))
+      }));
+
+    // Re-sort oldest-first by actual step timestamps when available, so we
+    // don't depend on the API always returning runs in chronological order.
+    const withTimes = ordered.map((run, i) => ({ run, i, ms: runStartMs(run) }));
+    if (withTimes.every(w => w.ms !== null)) {
+      withTimes.sort((a, b) => a.ms - b.ms);
+    }
+    return withTimes.map(w => w.run);
   }, [script.history, cellDetails]);
   
   // Convert all durations to seconds
   const durS = useMemo(() => history.map(h => (h.durationMin || 0) * 60), [history]);
   const n = durS.length;
-  
+
   const avgDur = mean(durS);
   const p95Dur = percentile(durS, 95);
   const sd = stddev(durS);
@@ -289,7 +329,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
     { label: 'Trend (slope)', value: `${slope >= 0 ? '+' : ''}${slope.toFixed(0)} s/run`, foot: slope >= 0 ? 'slowing down' : 'speeding up', cls: slope >= 0 ? 'up' : 'down' },
     { label: 'Std deviation', value: fmtSec(sd), foot: 'run-to-run spread' },
     { label: 'Runs logged', value: n, foot: `${history[0]?.date || 'N/A'}` },
-    { label: 'Bottleneck step', value: stepAggregation.bottleneckIdx >= 0 ? stepAggregation.names[stepAggregation.bottleneckIdx]?.replace(/Step \d\/\d\s?/, '') : 'N/A', foot: stepAggregation.bottleneckIdx >= 0 ? `${fmtSec(stepAggregation.avgElapsed[stepAggregation.bottleneckIdx])} avg` : '', cls: 'up' },
+    { label: 'Bottleneck step', value: stepAggregation.bottleneckIdx >= 0 ? stepAggregation.names[stepAggregation.bottleneckIdx]?.replace(/Step \d+\/\d+\s?/, '') : 'N/A', foot: stepAggregation.bottleneckIdx >= 0 ? `${fmtSec(stepAggregation.avgElapsed[stepAggregation.bottleneckIdx])} avg` : '', cls: 'up' },
     { label: 'DB vs CPU time', value: `${stepAggregation.dbShare.toFixed(0)}% DB`, foot: 'of total compute+db time' }
   ];
 
@@ -344,7 +384,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
   };
 
   const stepShareChartData = {
-    labels: stepAggregation.names.map(s => s.replace(/Step \d\/\d\s?/, '')),
+    labels: stepAggregation.names.map(s => s.replace(/Step \d+\/\d+\s?/, '')),
     datasets: [{
       data: stepAggregation.avgElapsed,
       backgroundColor: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7', '#e34948']
@@ -371,9 +411,8 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
       <header className="top">
         <div>
           <p className="job-title">{script.name}</p>
-          <p className="job-sub"><span className="num">{n}</span> runs tracked · latest <span className="num">{history[history.length - 1]?.date}</span></p>
+          <p className="job-sub"><span className="num">{n}</span> runs tracked · latest <span className="num">{history[history.length - 1]?.date}</span> ({fmtSec(latest)})</p>
         </div>
-        <span className="status-chip"><span className="dot"></span>{script.status === 'error' ? 'Failed' : 'Within SLA'}</span>
       </header>
 
       <div className="kpi-grid">
@@ -428,13 +467,13 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                   return (
                     <div className="gantt-row" key={i}>
                       <div className="step-name">
-                        <div>{i + 1}. {name.replace(/Step \d\/\d\s?/, '')}</div>
+                        <div>{i + 1}. {name.replace(/Step \d+\/\d+\s?/, '')}</div>
                         {isBottleneck && <div className="bottleneck-tag">SLOWEST</div>}
                       </div>
                       <div className="step-track">
                         <div className="step-seg" style={{ left: 0, width: `${(widthPct * idlePct) / 100}%`, background: '#CBD5E1' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#CBD5E1' }}></span>
                               Idle / Wait: {fmtSec(stepAggregation.avgIdle[i] || 0)}
@@ -443,7 +482,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         </div>
                         <div className="step-seg" style={{ left: `${(widthPct * idlePct) / 100}%`, width: `${(widthPct * cpuPct) / 100}%`, background: '#B5790C' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#B5790C' }}></span>
                               CPU time: {fmtSec(stepAggregation.avgCpu[i] || 0)}
@@ -452,7 +491,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
                         </div>
                         <div className="step-seg" style={{ left: `${(widthPct * (idlePct + cpuPct)) / 100}%`, width: `${(widthPct * dbPct) / 100}%`, background: '#0F6E56' }}>
                           <div className="step-seg-tooltip">
-                            <div className="tooltip-title">{name.replace(/Step \d\/\d\s?/, '')}</div>
+                            <div className="tooltip-title">{name.replace(/Step \d+\/\d+\s?/, '')}</div>
                             <div className="tooltip-value">
                               <span className="tooltip-color-box" style={{ background: '#0F6E56' }}></span>
                               DB time: {fmtSec(stepAggregation.avgDb[i] || 0)}
@@ -487,7 +526,7 @@ export const ScriptRunMonitor = ({ script, cellDetails }) => {
           <span className="section-note">Expand a run for its step-by-step CPU / DB waterfall</span>
         </div>
         <div id="runLog">
-          {[...history].reverse().map((run, i) => (
+          {history.map((run, i) => (
             <RunCard key={i} run={run} index={i} />
           ))}
         </div>

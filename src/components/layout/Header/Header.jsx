@@ -60,6 +60,19 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
 
   const [activeGroupDropdown, setActiveGroupDropdown] = useState(null);
 
+  const hoverTimeoutRef = useRef(null);
+
+  const handleMouseEnter = (groupId) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setActiveGroupDropdown(groupId);
+  };
+
+  const handleMouseLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setActiveGroupDropdown(null);
+    }, 200);
+  };
+
   const groupDropdownRef = useRef(null);
   useOnClickOutside(groupDropdownRef, () => setActiveGroupDropdown(null), activeGroupDropdown !== null);
 
@@ -94,7 +107,12 @@ export function Header({ user, onLogout, onOpenProfileSettings, onOpenChangePass
           {pinnedLinks.map((group) => {
             const isOpen = activeGroupDropdown === group.groupId;
             return (
-              <div key={group.groupId} className="header-pinned-dropdown-wrapper">
+              <div 
+                key={group.groupId} 
+                className="header-pinned-dropdown-wrapper"
+                onMouseEnter={() => handleMouseEnter(group.groupId)}
+                onMouseLeave={handleMouseLeave}
+              >
                 <button
                   type="button"
                   className="header-pinned-item"

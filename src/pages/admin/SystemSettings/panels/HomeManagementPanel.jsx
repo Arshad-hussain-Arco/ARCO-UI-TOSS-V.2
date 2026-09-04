@@ -777,7 +777,10 @@ function HomeManagementPanelComponent() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
+              background: 'var(--bg-overlay)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+              zIndex: 1000,
               border: 'none',
               padding: 0,
               margin: 0,

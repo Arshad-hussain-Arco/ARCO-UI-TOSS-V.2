@@ -645,6 +645,77 @@
   line-height: 1.5;
 }
 
+/* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
+   inside the SimpleRichTextEditor (.il-rte-content) and Viewer (.il-rte-viewer) 
+   so it doesn't render as invisible white-on-white text in dark mode. */
+[data-theme="dark"] .il-rte-content *:not([data-copy], [data-copy] *),
+[data-theme="dark"] .il-rte-viewer *:not([data-copy], [data-copy] *) {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .il-rte-content a:not([data-copy], [data-copy] *),
+[data-theme="dark"] .il-rte-content a *:not([data-copy], [data-copy] *),
+[data-theme="dark"] .il-rte-viewer a:not([data-copy], [data-copy] *),
+[data-theme="dark"] .il-rte-viewer a *:not([data-copy], [data-copy] *) {
+  color: #60a5fa !important;
+}
+
+/* Explicit override for table headers so they don't look completely transparent */
+[data-theme="dark"] .il-rte-content table th,
+[data-theme="dark"] .il-rte-viewer table th {
+  background-color: var(--bg-secondary, #374151) !important;
+}
+
+/* Explicitly style the Copy buttons inside the viewer */
+.il-content-page [data-copy],
+.il-content-viewer [data-copy],
+.il-rte-content [data-copy],
+.il-rte-viewer [data-copy],
+.il-rte-viewer button,
+.il-rte-content button,
+.il-dynamic-copy-btn,
+[data-theme="dark"] .il-content-page [data-copy],
+[data-theme="dark"] .il-content-viewer [data-copy],
+[data-theme="dark"] .il-rte-content [data-copy],
+[data-theme="dark"] .il-rte-viewer [data-copy],
+[data-theme="dark"] .il-rte-viewer button,
+[data-theme="dark"] .il-rte-content button,
+[data-theme="dark"] .il-dynamic-copy-btn {
+  background: #3b82f6 !important;
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  display: inline-block !important;
+  text-decoration: none !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.il-content-page [data-copy]:hover,
+.il-content-viewer [data-copy]:hover,
+.il-rte-content [data-copy]:hover,
+.il-rte-viewer [data-copy]:hover,
+.il-rte-viewer button:hover,
+.il-rte-content button:hover,
+.il-dynamic-copy-btn:hover,
+[data-theme="dark"] .il-content-page [data-copy]:hover,
+[data-theme="dark"] .il-content-viewer [data-copy]:hover,
+[data-theme="dark"] .il-rte-content [data-copy]:hover,
+[data-theme="dark"] .il-rte-viewer [data-copy]:hover,
+[data-theme="dark"] .il-rte-viewer button:hover,
+[data-theme="dark"] .il-rte-content button:hover,
+[data-theme="dark"] .il-dynamic-copy-btn:hover {
+  background: #2563eb !important;
+  background-color: #2563eb !important;
+  opacity: 0.9 !important;
+}
+
+
 .il-input-error {
   border-color: var(--c-danger) !important;
 }
@@ -1334,4 +1405,49 @@
 .il-rte-content table th,
 .il-rte-viewer table th {
   background: var(--surface-secondary);
+}
+
+/* ==========================================================================
+   ULTIMATE FALLBACK FOR COPY BUTTON IN DARK THEME
+   This targets any element with data-copy, or any button inside the viewer in dark mode.
+   ========================================================================== */
+html[data-theme="dark"] body #root .il-rte-viewer [data-copy],
+html[data-theme="dark"] body #root .il-rte-content [data-copy],
+html[data-theme="dark"] body #root .il-content-page [data-copy],
+html[data-theme="dark"] body #root .il-rte-viewer *[data-copy],
+html[data-theme="dark"] body #root .il-rte-content *[data-copy],
+html[data-theme="dark"] body #root .il-rte-viewer button,
+html[data-theme="dark"] body #root .il-rte-content button,
+html[data-theme="dark"] body #root .il-rte-viewer [class*="copy"],
+html[data-theme="dark"] body #root .il-rte-content [class*="copy"],
+html[data-theme="dark"] body #root .il-rte-viewer [id*="copy"],
+html[data-theme="dark"] body #root .il-rte-content [id*="copy"] {
+  background: #3b82f6 !important;
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  display: inline-block !important;
+  text-decoration: none !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+html[data-theme="dark"] body #root .il-rte-viewer [data-copy]:hover,
+html[data-theme="dark"] body #root .il-rte-content [data-copy]:hover,
+html[data-theme="dark"] body #root .il-content-page [data-copy]:hover,
+html[data-theme="dark"] body #root .il-rte-viewer *[data-copy]:hover,
+html[data-theme="dark"] body #root .il-rte-content *[data-copy]:hover,
+html[data-theme="dark"] body #root .il-rte-viewer button:hover,
+html[data-theme="dark"] body #root .il-rte-content button:hover,
+html[data-theme="dark"] body #root .il-rte-viewer [class*="copy"]:hover,
+html[data-theme="dark"] body #root .il-rte-content [class*="copy"]:hover,
+html[data-theme="dark"] body #root .il-rte-viewer [id*="copy"]:hover,
+html[data-theme="dark"] body #root .il-rte-content [id*="copy"]:hover {
+  background: #2563eb !important;
+  background-color: #2563eb !important;
+  opacity: 0.9 !important;
 }

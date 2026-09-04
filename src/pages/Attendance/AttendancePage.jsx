@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { env } from '@config/env';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -37,7 +38,6 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { ATTENDANCE_TEAMS } from '@mocks/data/attendance';
 import { attendanceService } from '@services/attendanceService';
 import { leaveService } from '@services/leaveService';
 import { activatable } from '@utils/interactive';
@@ -264,10 +264,10 @@ function LeaveTypeNameLegend({ leaveTypes }) {
 export function AttendancePage() {
   useDocumentTitle('Attendance');
 
-  const { user, hasPermission } = useAuth();
-  const canExport = hasPermission('ATTENDANCE_EXPORT');
+  const { user } = useAuth();
+  const isManager = Boolean(user?.isManager);
+  const canExport = isManager;
 
-  const isManager = Boolean(user?.mySubordinates?.length > 0);
   const { getPhoto: getTeamPhoto } = useEmployeePhotos({
     managerId: user?.emp_id,
     enabled: isManager && !!user?.emp_id,
@@ -950,7 +950,7 @@ export function AttendancePage() {
       if (src.startsWith('data:image') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
         // Use as-is
       } else if (src.startsWith('/')) {
-        const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+        const apiOrigin = env.apiBaseUrl.replace(/\/api\/?$/, '');
         src = `${apiOrigin}${src}`;
       } else if (src.length > 100) {
         src = `data:image/jpeg;base64,${src}`;
@@ -1323,7 +1323,7 @@ export function AttendancePage() {
             {filteredOnWfhList.length === 0 && (
               <div className="attendance-empty">
                 <Home size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on WFH/Offshore Work today</p>
+                <p className="attendance-empty-text">No consultants on Remote / Other Present today</p>
               </div>
             )}
           </div>

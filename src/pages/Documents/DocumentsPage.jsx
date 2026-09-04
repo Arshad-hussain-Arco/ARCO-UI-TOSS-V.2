@@ -9,7 +9,7 @@ import {
   FileText,
   ExternalLink,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@constants/routes';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -42,14 +42,26 @@ export function DocumentsPage() {
   // Local React state for folders and files
   const [folderTreeState, setFolderTreeState] = useState([]);
   const [filesState, setFilesState] = useState([]);
+  const location = useLocation();
 
   // Load initial data
   useEffect(() => {
     if (data) {
       setFolderTreeState(data.folderTree ?? []);
-      setFilesState(data.files ?? []);
+      const fState = data.files ?? [];
+      setFilesState(fState);
+
+      // Handle deep linking from dashboard
+      if (location.state?.selectedFileId) {
+        const fileToSelect = fState.find(f => f.id === location.state.selectedFileId);
+        if (fileToSelect) {
+          setSelectedFile(fileToSelect);
+          setSelectedFolder(fileToSelect.folderId);
+          setExpandedFolders(prev => new Set([...prev, fileToSelect.folderId]));
+        }
+      }
     }
-  }, [data]);
+  }, [data, location.state]);
 
   const [expandedFolders, setExpandedFolders] = useState(
     new Set(['root', 'project-docs', 'q1-releases'])

@@ -185,7 +185,7 @@ export function StepUpload({ files, processingFiles, onProcessingChange, onFiles
 
   const handleNext = useCallback(() => {
     if (!bothLoaded) {
-      toast.warning('⚠️ Please upload both Source and Destination files before proceeding.');
+      toast.warning(' Please upload both Source and Destination files before proceeding.');
       return;
     }
     onNext();

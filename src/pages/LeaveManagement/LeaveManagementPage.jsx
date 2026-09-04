@@ -23,7 +23,8 @@ import {
   ArrowUpDown,
   MessageCircle,
   Bell,
-  ScissorsLineDashed
+  ScissorsLineDashed,
+  Globe2
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -49,7 +50,6 @@ import leaveService from '@services/leaveService';
 import consultantService from '@services/consultantService';
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
-import { MY_LEAVE_EVENTS } from '@mocks/data/leave';
 
 import './LeaveManagementPage.css';
 import './LeaveTable.css';
@@ -59,12 +59,84 @@ import './TeamRequests.css';
 // manager hierarchy (managerOnly), never by role or permission — see
 // `isManager` above, derived from user.mySubordinates.
 const ALL_TABS = [
-  { id: 'my-leaves', label: 'Apply Leave', icon: Calendar },
-  { id: 'my-leaves-summary', label: 'My Leaves Summary', icon: FileText },
+  { id: 'my-leaves', label: 'My Leaves', icon: Calendar },
+  { id: 'my-leaves-summary', label: 'My Leaves History', icon: FileText },
   { id: 'team-requests', label: 'Team Leave Requests', icon: Users, managerOnly: true },
   { id: 'team-summary', label: 'Team Leave Summary', icon: BarChart3, managerOnly: true },
   { id: 'leave-config', label: 'Leave Configuration', icon: SlidersHorizontal, managerOnly: true },
 ];
+
+// A multi-date claim submission (see ApplyLeaveModal's Claim flow) creates
+// one Leave row per claimed date/half on the backend — the employee applied
+// under one Claim Type + reason in a single "Submit Claim" click, though,
+// so showing N separate rows here (and in Team Leave Requests) would look
+// like N unrelated requests. The backend stamps every row from one
+// submit_claim() call with the identical requested_date instant (no
+// dedicated batch-id column exists on the Leave table), so that plus
+// leave_type is the grouping key. leave_category (LMSLeaveType.category,
+// sent by the backend's LeaveSerializer) is the authoritative "is this a
+// claim" signal — business_days === 0 was tried first and reverted, since
+// it also false-positives on ordinary Actual/Nominal leave rows (e.g. a
+// still-PENDING leave whose business_days hasn't been computed yet),
+// which showed up as Annual/Sick Leave incorrectly landing in claim-only
+// counts/filters.
+// Renders one balance-backed LeaveCard from `leaveBalances[code]` (the
+// per-leave-type object BalanceService.summary() returns), always wiring
+// isUnlimited from the API response — so a leave type's policy can be
+// flipped between Limited/Unlimited without any card needing its own
+// isUnlimited prop remembered by hand.
+function balanceCard(leaveBalances, isLoading, code, title, color, subtitle) {
+  const bal = leaveBalances?.[code];
+  return (
+    <LeaveCard
+      key={code}
+      title={title}
+      subtitle={subtitle}
+      isLoading={isLoading}
+      centerCount={bal?.entitled ?? 0}
+      left={bal?.available ?? 0}
+      used={bal?.used ?? 0}
+      total={bal?.entitled ?? 0}
+      isUnlimited={bal?.is_unlimited ?? false}
+      color={color}
+    />
+  );
+}
+
+function groupClaimLeaves(leaves) {
+  const groups = new Map();
+  const result = [];
+  leaves.forEach((lv) => {
+    const isClaimRow = lv.leave_category === 'CLAIM' && lv.requested_date && lv.leave_type;
+    if (!isClaimRow) {
+      result.push(lv);
+      return;
+    }
+    const key = `${lv.emp_id}|${lv.leave_type}|${lv.requested_date}`;
+    const existing = groups.get(key);
+    if (!existing) {
+      const group = {
+        ...lv,
+        claimDates: [{ id: lv.id, date: lv.start_date, duration: lv.leave_duration, in_days: lv.in_days }],
+      };
+      groups.set(key, group);
+      result.push(group);
+    } else {
+      existing.claimDates.push({ id: lv.id, date: lv.start_date, duration: lv.leave_duration, in_days: lv.in_days });
+      existing.in_days = (Number(existing.in_days) || 0) + (Number(lv.in_days) || 0);
+      if (lv.start_date < existing.start_date) existing.start_date = lv.start_date;
+      if (lv.end_date > existing.end_date) existing.end_date = lv.end_date;
+    }
+  });
+  result.forEach((r) => {
+    if (r.claimDates && r.claimDates.length > 1) {
+      r.claimDates.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    } else {
+      delete r.claimDates;
+    }
+  });
+  return result;
+}
 
 // Maps each leave-application action button to the eligible-leave-types API
 // code(s) that unlock it. "Apply Leave" has no fixed code — it always opens the
@@ -76,8 +148,8 @@ const ALL_TABS = [
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
   { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: '#006633' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: null, icon: Calendar, color: '#006633' },
-  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#2563eb' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: '#006633' },
+  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#3b82f6' },
   { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
 
@@ -223,6 +295,11 @@ export function LeaveManagementPage() {
   const [viewModalLeave, setViewModalLeave] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [filterStatus, setFilterStatus] = useState('all');
+  // Offshore work / WFH used to be crammed into filterStatus too (mutually
+  // exclusive with every status pill), so picking one reset any active
+  // status filter and vice versa. Split into its own dimension so they
+  // combine via AND — see filteredSortedLeaves below.
+  const [filterType, setFilterType] = useState('all');
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('desc');
   const [commentsModalText, setCommentsModalText] = useState(null);
@@ -237,13 +314,33 @@ export function LeaveManagementPage() {
   const [leaves, setLeaves] = useState([]);
   const [modRequests, setModRequests] = useState([]);
   const [cancellingModId, setCancellingModId] = useState(null);
-  const [calendarEvents, setCalendarEvents] = useState(MY_LEAVE_EVENTS);
+  const [calendarHolidayEvents, setCalendarHolidayEvents] = useState([]);
+  const [calendarDayFlags, setCalendarDayFlags] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [summaryYear, setSummaryYear] = useState(String(currentDate.getFullYear()));
   const [summaryFrom, setSummaryFrom] = useState(null);
   const [summaryTo, setSummaryTo] = useState(null);
+  const [leaveTypeMap, setLeaveTypeMap] = useState({});
+
+  // Code -> readable name lookup for every leave type that exists (not
+  // just ones the current employee is eligible for right now — a past
+  // leave can reference a type they no longer qualify for), fetched once
+  // since it's shared read-only reference data used across this page's
+  // tabs and modals.
+  useEffect(() => {
+    leaveService.getAllLeaveTypes()
+      .then((response) => {
+        const list = Array.isArray(response) ? response : (response?.results || []);
+        const map = {};
+        list.forEach((t) => {
+          if (t.code) map[t.code] = t.leave_type || t.name || t.code;
+        });
+        setLeaveTypeMap(map);
+      })
+      .catch((e) => console.error('Failed to fetch leave types', e));
+  }, []);
 
   // Clear the active tab state when navigating away from this page
   // This ensures it resets to the first tab when coming back from another page,
@@ -336,13 +433,17 @@ export function LeaveManagementPage() {
                 className: 'rbc-event-holiday' // Optional class for styling
               };
             });
-            console.log("mapped calendarHolidays:", calendarHolidays); // DEBUG
           } catch(e) {
             console.error("Failed to fetch holidays for calendar", e);
           }
 
-          setLeaves(userLeaves);
-          setCalendarEvents([...userLeaves, ...calendarHolidays]);
+          // groupClaimLeaves collapses a multi-date claim submission (one
+          // Leave row per claimed date/half on the backend) into a single
+          // row with an itemized claimDates list, so it displays and
+          // approves as one request instead of N — see groupClaimLeaves
+          // above for the full rationale.
+          setLeaves(groupClaimLeaves(userLeaves));
+          setCalendarHolidayEvents(calendarHolidays);
         } catch (e) {
           console.error("Failed to fetch leaves", e);
           setError(e);
@@ -385,6 +486,37 @@ export function LeaveManagementPage() {
       // the URL and opening its own internal drawer.
     }
   }, [viewLeaveIdParam, leaves, isLoading, searchParams, setSearchParams]);
+
+  // Real weekend/holiday flags for the visible month, from the employee's
+  // own calendar endpoint — same integration as TeamRequestsTab's
+  // dayFlags, but for a single employee (this page's `me/<id>/calendar/`
+  // rather than the manager `team-employee-calendars/`).
+  useEffect(() => {
+    if (activeTab !== 'my-leaves' || viewMode !== 'calendar') return;
+    const targetEmpId = user?.emp_id;
+    if (!targetEmpId) return;
+    const start = new Date(calendarYear, calendarMonth, 1).toISOString().slice(0, 10);
+    const end = new Date(calendarYear, calendarMonth + 1, 0).toISOString().slice(0, 10);
+    let cancelled = false;
+    leaveService.getCalendar(targetEmpId, { start, end })
+      .then((data) => {
+        if (cancelled) return;
+        const map = {};
+        (data?.calendar || []).forEach((d) => {
+          map[d.date] = {
+            isWeekend: !!d.is_weekend,
+            isHoliday: !!d.is_org_holiday,
+            claimTypes: (d.claim_types || []).map((c) => c.name || c.code),
+          };
+        });
+        setCalendarDayFlags(map);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch my calendar:', error);
+        if (!cancelled) setCalendarDayFlags({});
+      });
+    return () => { cancelled = true; };
+  }, [activeTab, viewMode, calendarYear, calendarMonth, user]);
 
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
@@ -475,7 +607,7 @@ export function LeaveManagementPage() {
   // manager here, full stop. mySubordinates (direct reports, from
   // /auth/user-info/) is the single signal for every manager-only affordance
   // on this screen — Apply Leave / My Leave Summary have no gate at all.
-  const isManager = Boolean(user?.mySubordinates?.length > 0);
+  const isManager = Boolean(user?.isManager);
   const canApplyOnBehalf = isManager;
 
   // Resolve the manager's own emp_id (falls back to /auth/user-info/ when
@@ -515,27 +647,37 @@ export function LeaveManagementPage() {
     }
   };
 
-  const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
+  // Search applies before the status/type chips, so the chip badge counts
+  // (All/Pending/Approved/.../Offshore work/Work From Home) reflect the
+  // search too — typing narrows both the table and what each chip counts,
+  // same pattern as MyLeavesSummaryTab's searchFilteredLeaves.
+  const searchFilteredLeaves = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return leavesWithModRequests;
+    return leavesWithModRequests.filter(leave => {
+      const displayType = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type;
+      return [
+        displayType,
+        leave.status_code,
+        leave.leave_reason,
+        leave.start_date,
+        leave.end_date
+      ].some(val => val && String(val).toLowerCase().includes(q));
+    });
+  }, [leavesWithModRequests, searchQuery, leaveTypeMap]);
+
+  const typeFilteredLeaves = useMemo(() => {
+    if (filterType === 'all') return searchFilteredLeaves;
+    return searchFilteredLeaves.filter(leave => 
+      filterType === 'offshore' ? leave.leave_type === 'OW' : leave.leave_type === 'WFH'
+    );
+  }, [searchFilteredLeaves, filterType]);
 
   const filteredSortedLeaves = useMemo(() => {
-    return leavesWithModRequests.filter(leave => {
+    return typeFilteredLeaves.filter(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      const matchesStatus = filterStatus === 'all' || (filterStatus === 'offshore' ? leave.leave_type === 'OW' : statusStr === filterStatus);
-      
-      let matchesSearch = true;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const displayType = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type;
-        matchesSearch = [
-          displayType,
-          leave.status_code,
-          leave.leave_reason,
-          leave.start_date,
-          leave.end_date
-        ].some(val => val && String(val).toLowerCase().includes(q));
-      }
-
-      return matchesStatus && matchesSearch;
+      const statusMatch = filterStatus === 'all' || statusStr === filterStatus;
+      return statusMatch;
     }).sort((a, b) => {
       if (!sortField) return 0;
       let aVal = a[sortField];
@@ -553,7 +695,97 @@ export function LeaveManagementPage() {
       const result = aVal > bVal ? 1 : -1;
       return sortOrder === 'asc' ? result : -result;
     });
-  }, [leavesWithModRequests, filterStatus, sortField, sortOrder]);
+  }, [typeFilteredLeaves, filterStatus, sortField, sortOrder]);
+
+  // Calendar view mirrors whatever the status/type chips above have
+  // filtered `filteredSortedLeaves` down to — same integration pattern as
+  // TeamRequestsTab's calEvents — instead of always showing every leave
+  // regardless of the active chip. Holidays are unaffected by the chips
+  // and always render.
+  const calendarEvents = useMemo(() => {
+    const mappedLeaves = filteredSortedLeaves.flatMap((l) => {
+      const displayType = l.leave_name || leaveTypeMap[l.leave_type] || l.leave_type;
+      const status = l.status_code === 'MOD_PENDING' ? 'pending' : (l.status_code?.toLowerCase() || 'pending');
+      const base = {
+        ...l,
+        status,
+        title: l.is_mod_request ? `Modification Request - ${displayType}` : displayType,
+        leave_type: displayType,
+      };
+      // A grouped multi-date claim (see groupClaimLeaves) carries start_date/
+      // end_date as the min/max of its claimed dates for the table view's
+      // sake — but those dates aren't necessarily contiguous (that's the
+      // whole reason Claims take an explicit date list, not a range; see
+      // ClaimSubmitSerializer). Rendering start_date -> end_date as one
+      // calendar event would draw a single continuous span covering every
+      // day in between, implying continuous leave across weeks that were
+      // never actually claimed. Expand back into one single-day event per
+      // actually-claimed date instead — same fix as TeamRequestsTab's
+      // calEvents.
+      if (l.claimDates && l.claimDates.length > 1) {
+        return l.claimDates.map((cd) => ({
+          ...base,
+          id: cd.id,
+          start_date: cd.date,
+          end_date: cd.date,
+          in_days: cd.in_days,
+          leave_duration: cd.duration,
+        }));
+      }
+      // Split standard leaves around holidays so they don't visually overlap
+      const splitSegments = [];
+      let currentStart = new Date(base.start_date);
+      const leaveEnd = new Date(base.end_date);
+      currentStart.setHours(0, 0, 0, 0);
+      leaveEnd.setHours(0, 0, 0, 0);
+
+      // Sort holidays by start date
+      const sortedHols = [...calendarHolidayEvents].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+      for (const hol of sortedHols) {
+        if (!hol.start_date || !hol.end_date) continue;
+        const hs = new Date(hol.start_date); hs.setHours(0, 0, 0, 0);
+        const he = new Date(hol.end_date); he.setHours(0, 0, 0, 0);
+        
+        if (currentStart <= leaveEnd) {
+           if (currentStart <= he && leaveEnd >= hs) {
+              // Overlap found
+              if (currentStart < hs) {
+                 // Segment before the holiday
+                 const segEnd = new Date(hs);
+                 segEnd.setDate(segEnd.getDate() - 1);
+                 const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                 const formattedEnd = new Date(segEnd.getTime() - (segEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                 splitSegments.push({
+                   ...base,
+                   start_date: formattedStart,
+                   end_date: formattedEnd,
+                   id: `${base.id}_${splitSegments.length}`
+                 });
+              }
+              // Move currentStart past the holiday
+              const nextStart = new Date(he);
+              nextStart.setDate(nextStart.getDate() + 1);
+              currentStart = nextStart > currentStart ? nextStart : currentStart;
+           }
+        }
+      }
+      
+      if (currentStart <= leaveEnd) {
+        const formattedStart = new Date(currentStart.getTime() - (currentStart.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const formattedEnd = new Date(leaveEnd.getTime() - (leaveEnd.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        splitSegments.push({
+           ...base,
+           start_date: formattedStart,
+           end_date: formattedEnd,
+           id: `${base.id}_${splitSegments.length}`
+        });
+      }
+      
+      return splitSegments;
+    });
+    return [...mappedLeaves, ...calendarHolidayEvents];
+  }, [filteredSortedLeaves, calendarHolidayEvents, leaveTypeMap]);
 
   const handleExportCSV = () => {
     const headers = ['Leave Type', 'Start Date', 'End Date', 'Work Days', 'Leave Reason', 'Status', 'Comments'];
@@ -665,18 +897,42 @@ export function LeaveManagementPage() {
           open={!!viewModalLeave}
           liveReq={{
             id: viewModalLeave.id,
-            employeeName: user?.username || user?.employee_name || 'You',
-            employeeId: user?.emp_id || user?.employee_id || '-',
-            leaveType: viewModalLeave.leave_type || viewModalLeave.type,
+            // employeeName is the bold header line, employeeId renders
+            // directly below it — this was showing username ("mahboob1")
+            // as the name and emp_id ("22") below it. Show the actual name
+            // up top and username below, matching what "employeeId" reads
+            // as everywhere else in this drawer (an identifier line, not
+            // literally required to be a numeric id).
+            employeeName: user?.name || user?.employee_name || 'You',
+            employeeId: user?.username || user?.emp_id || '-',
+            // Request Type must be the leave's display name (e.g. "Claim
+            // Weekend Work"), not its raw code ("CWW") — leave_name comes
+            // straight from LeaveSerializer; leaveTypeMap is the same
+            // code -> name lookup this page already uses for every other
+            // leave-name display (see displayType below).
+            leaveType: viewModalLeave.leave_name || leaveTypeMap[viewModalLeave.leave_type] || viewModalLeave.leave_type || viewModalLeave.type,
             startDate: viewModalLeave.start_date || viewModalLeave.date,
             endDate: viewModalLeave.end_date || viewModalLeave.date,
-            bizDays: viewModalLeave.business_days || viewModalLeave.in_days || 0,
-            requestedOn: viewModalLeave.created_at || new Date().toISOString(),
+            // `|| in_days` always kicked in for a Claim (business_days is
+            // always 0 for one — see leaves/services.py _create_claim — and
+            // 0 is falsy), showing the claimed day count instead of the
+            // correct 0 work days.
+            bizDays: viewModalLeave.business_days ?? 0,
+            // Leave has no `created_at` field — that always fell through to
+            // `new Date().toISOString()`, and fmtDate (which expects a bare
+            // YYYY-MM-DD string, appending 'T00:00:00' itself) choked on the
+            // full ISO datetime string, rendering "Invalid Date". Use the
+            // real field (requested_date), date-only.
+            requestedOn: viewModalLeave.requested_date ? viewModalLeave.requested_date.split('T')[0] : '',
             status: viewModalLeave.status_code?.toLowerCase().replace('_', '-') || 'pending',
             reason: viewModalLeave.leave_reason || viewModalLeave.reason,
             duration: viewModalLeave.in_days === 0.5 ? 'Half Day' : 'Full Day',
             fromDateDuration: viewModalLeave.from_date_duration,
             toDateDuration: viewModalLeave.to_date_duration,
+            // Grouped multi-date claim submission (see groupClaimLeaves) —
+            // lets the drawer list each claimed date individually instead
+            // of a misleading single Start/End Date range.
+            claimDates: viewModalLeave.claimDates,
           }}
           drawerAction="view"
           isReadOnly={true}
@@ -693,6 +949,7 @@ export function LeaveManagementPage() {
                 setActiveTab(tab.id);
                 localStorage.setItem('leaveManagementActiveTab', tab.id);
                 setFilterStatus('all');
+                setFilterType('all');
               }}
               className="leave-management-tab"
               data-active={activeTab === tab.id}
@@ -708,17 +965,7 @@ export function LeaveManagementPage() {
         {activeTab === 'my-leaves' && (
           <>
             <div className="my-leaves-toolbar">
-              <div className="my-leaves-search-wrapper">
-                <Search className="my-leaves-search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search leaves..." 
-                  className="my-leaves-search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="my-leaves-actions">
+              <div className="my-leaves-actions" style={{ marginLeft: 'auto' }}>
                 {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category, icon: Icon, color }) => {
                   const eligible = isActionEligible(codes, category);
                   return (
@@ -739,55 +986,25 @@ export function LeaveManagementPage() {
             </div>
 
             <div className="leave-cards-grid">
-              <LeaveCard
-                title="Leave Quota"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.AL?.entitled ?? 0}
-                left={leaveBalances?.AL?.available ?? 0}
-                used={leaveBalances?.AL?.used ?? 0}
-                total={leaveBalances?.AL?.entitled ?? 0}
-                isUnlimited={leaveBalances?.AL?.is_unlimited}
-                color="#006633"
-              />
+              {/* Balance-backed cards are driven off `leaveBalances[code]`, keyed by
+                  the same leave type codes the backend's BalanceService.summary()
+                  returns — including is_unlimited. Reading isUnlimited from the API
+                  response here, once, per card means flipping a leave type's policy
+                  between Limited/Unlimited (Admin Panel > Leave Types and Policy) is
+                  reflected automatically without touching this page — no card can be
+                  left out and silently render wrong (as WFH's card previously did,
+                  since it never passed isUnlimited at all). */}
+              {balanceCard(leaveBalances, isLoading, 'AL', 'Leave Quota', '#006633')}
               <LeaveCard
                 title="Carry Over"
+                variant="simple"
                 isLoading={isLoading}
                 centerCount={leaveBalances?.AL?.carried_forward ?? 0}
-                left={leaveBalances?.AL?.carried_forward ?? 0}
-                used={0}
-                total={leaveBalances?.AL?.carried_forward ?? 0}
                 color="#0891b2"
               />
-              <LeaveCard
-                title="Comp Off"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.CompOff?.entitled ?? 0}
-                left={leaveBalances?.CompOff?.available ?? 0}
-                used={leaveBalances?.CompOff?.used ?? 0}
-                total={leaveBalances?.CompOff?.entitled ?? 0}
-                isUnlimited={leaveBalances?.CompOff?.is_unlimited}
-                color="#8b5cf6"
-              />
-              <LeaveCard
-                title="Sick Leaves"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.SL?.entitled ?? 0}
-                left={leaveBalances?.SL?.available ?? 0}
-                used={leaveBalances?.SL?.used ?? 0}
-                total={leaveBalances?.SL?.entitled ?? 0}
-                isUnlimited={leaveBalances?.SL?.is_unlimited}
-                color="#dc2626"
-              />
-              <LeaveCard
-                title="Weekend Work"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.WW?.entitled ?? 0}
-                left={leaveBalances?.WW?.available ?? 0}
-                used={leaveBalances?.WW?.used ?? 0}
-                total={leaveBalances?.WW?.entitled ?? 0}
-                isUnlimited={leaveBalances?.WW?.is_unlimited}
-                color="#f59e0b"
-              />
+              {balanceCard(leaveBalances, isLoading, 'CompOff', 'Comp Off', '#8b5cf6')}
+              {balanceCard(leaveBalances, isLoading, 'SL', 'Sick Leaves', '#dc2626')}
+              {balanceCard(leaveBalances, isLoading, 'WW', 'Weekend Work', '#f59e0b')}
               <LeaveCard
                 title="Booked Leave"
                 isLoading={isLoading}
@@ -815,27 +1032,8 @@ export function LeaveManagementPage() {
                 total={0}
                 color="#10b981"
               />
-              <LeaveCard
-                title="Offshore Work"
-                subtitle="Outside KSA"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.OW?.entitled ?? 0}
-                left={leaveBalances?.OW?.available ?? 0}
-                used={leaveBalances?.OW?.used ?? 0}
-                total={leaveBalances?.OW?.entitled ?? 0}
-                isUnlimited={leaveBalances?.OW?.is_unlimited}
-                color="#6366f1"
-              />
-              <LeaveCard
-                title="WFH"
-                subtitle="Inside KSA"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.WFH?.entitled ?? 0}
-                left={leaveBalances?.WFH?.available ?? 0}
-                used={leaveBalances?.WFH?.used ?? 0}
-                total={leaveBalances?.WFH?.entitled ?? 0}
-                color="#d97706"
-              />
+              {balanceCard(leaveBalances, isLoading, 'OW', 'Offshore Work', '#6366f1', 'Outside KSA')}
+              {balanceCard(leaveBalances, isLoading, 'WFH', 'WFH', '#d97706', 'Inside KSA')}
             </div>
 
             <div className="leave-content-split-section" style={{ display: 'block' }}>
@@ -845,11 +1043,14 @@ export function LeaveManagementPage() {
                     <div className="leave-filters-container">
                       <button
                         className="leave-filter-chip"
-                        data-active={filterStatus === 'all'}
-                        onClick={() => setFilterStatus('all')}
+                        data-active={filterStatus === 'all' && filterType === 'all'}
+                        onClick={() => {
+                          setFilterStatus('all');
+                          setFilterType('all');
+                        }}
                       >
                         <span className="leave-filter-label">All</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.length}</span>
                       </button>
 
                       <button
@@ -858,7 +1059,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('pending')}
                       >
                         <span className="leave-filter-label">Pending</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'pending').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'pending' || l.status_code === 'MOD_PENDING').length}</span>
                       </button>
 
                       <button
@@ -867,7 +1068,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('approved')}
                       >
                         <span className="leave-filter-label">Approved</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'approved').length}</span>
                       </button>
                       <button
                         className="leave-filter-chip"
@@ -875,7 +1076,7 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('rejected')}
                       >
                         <span className="leave-filter-label">Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'rejected').length}</span>
                       </button>
 
                       <button
@@ -885,7 +1086,7 @@ export function LeaveManagementPage() {
                         title={STATUS_TOOLTIPS['self-rejected']}
                       >
                         <span className="leave-filter-label">Self-Rejected</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'self_rejected').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'self_rejected').length}</span>
                       </button>
 
                       <button
@@ -895,7 +1096,7 @@ export function LeaveManagementPage() {
                         title={STATUS_TOOLTIPS.cancelled}
                       >
                         <span className="leave-filter-label">Cancelled</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.status_code?.toLowerCase() === 'cancelled').length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.status_code?.toLowerCase() === 'cancelled').length}</span>
                       </button>
 
                       <button
@@ -904,19 +1105,22 @@ export function LeaveManagementPage() {
                         onClick={() => setFilterStatus('mod-pending')}
                       >
                         <span className="leave-filter-label">Modification Requests</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.is_mod_request).length}</span>
+                        <span className="leave-filter-badge">{isLoading ? 0 : typeFilteredLeaves.filter(l => l.is_mod_request).length}</span>
                       </button>
-                      <button
-                        className="leave-filter-chip"
-                        data-active={filterStatus === 'offshore'}
-                        onClick={() => setFilterStatus('offshore')}
-                      >
-                        <span className="leave-filter-label">Offshore work</span>
-                        <span className="leave-filter-badge">{isLoading ? 0 : leavesWithModRequests.filter(l => l.leave_type === 'OW').length}</span>
-                      </button>
+
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div className="my-leaves-search-wrapper" style={{ width: '300px' }}>
+                        <Search className="my-leaves-search-icon" size={14} />
+                        <input 
+                          type="text" 
+                          placeholder="Search leaves..." 
+                          className="my-leaves-search"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
                       <div className="view-mode-segmented">
                         <button
                           className="view-mode-segment"
@@ -933,14 +1137,14 @@ export function LeaveManagementPage() {
                           <CalendarDays className="view-mode-icon" />
                         </button>
                       </div>
-                    </div>
 
-                    <ExportButton
-                      excel
-                      pdf
-                      onExcelExport={handleExportCSV}
-                      onPdfExport={handleExportPDF}
-                    />
+                      <ExportButton
+                        excel
+                        pdf
+                        onExcelExport={handleExportCSV}
+                        onPdfExport={handleExportPDF}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1009,8 +1213,15 @@ export function LeaveManagementPage() {
                           today.setHours(0, 0, 0, 0);
                           const startDateObj = new Date(leave.start_date);
                           startDateObj.setHours(0, 0, 0, 0);
+                          const isPast = startDateObj < today;
                           const isApprovedPastOrPresent = statusStr === 'approved' && startDateObj <= today;
-                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent;
+                          const canModify = statusStr !== 'cancelled' && statusStr !== 'rejected' && statusStr !== 'self-rejected' && !isApprovedPastOrPresent && !isPast;
+                          // Same authoritative signal groupClaimLeaves uses. A
+                          // claim's dates come from the claim-eligible-dates
+                          // picker, not free-form start/end fields, so "Edit"
+                          // (which opens EditLeaveModal for a normal leave's
+                          // date range) doesn't apply to it at all.
+                          const isClaimRequest = leave.leave_category === 'CLAIM';
 
                           // Partial cancel: only once the leave has actually started (ongoing) —
                           // before it starts, Edit + full Cancel already cover every case.
@@ -1029,15 +1240,33 @@ export function LeaveManagementPage() {
                                 {leave.leave_name || displayType}
                               </td>
                               <td className="leave-table-cell" data-label="Dates">
-                                <div className="leave-table-dates">
-                                  <span className="leave-table-date-text text-[14px]">
-                                    {dateDisplay}
-                                  </span>
-                                  <span className="leave-table-date-duration">
-                                    ({leave.in_days} day{leave.in_days !== 1 ? 's' : ''})
-                                    {durationText ? ` • ${durationText}` : ''}
-                                  </span>
-                                </div>
+                                {leave.claimDates && leave.claimDates.length > 1 ? (
+                                  // Grouped multi-date claim submission — the dates
+                                  // aren't a contiguous range (see groupClaimLeaves),
+                                  // so list each claimed date with its own duration
+                                  // instead of collapsing to a start-end span.
+                                  <div className="leave-table-dates">
+                                    {leave.claimDates.map((cd) => (
+                                      <div key={cd.id} className="leave-table-date-text text-[14px]">
+                                        {new Date(cd.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                                        <span className="leave-table-date-duration">
+                                          {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
+                                          {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="leave-table-dates">
+                                    <span className="leave-table-date-text text-[14px]">
+                                      {dateDisplay}
+                                    </span>
+                                    <span className="leave-table-date-duration">
+                                      ({leave.in_days} day{leave.in_days !== 1 ? 's' : ''})
+                                      {durationText ? ` • ${durationText}` : ''}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
                               <td className="leave-table-cell" data-label="Work Days">
                                 {leave.business_days}
@@ -1091,16 +1320,28 @@ export function LeaveManagementPage() {
                                     </button>
                                   ) : canModify ? (
                                     <>
-                                      <button
-                                        className="tr-act-btn tr-act-edit"
-                                        title="Edit Request"
-                                        onClick={() => setEditModalLeave(leave)}
-                                      >
-                                        <Edit className="leave-table-action-icon" />
-                                      </button>
+                                      {/* Edit operates on one Leave row's own
+                                          start/end dates via EditLeaveModal —
+                                          not meaningful for a Claim at all (its
+                                          dates come from the claim-eligible-
+                                          dates picker, not free-form fields),
+                                          single-date or grouped multi-date, so
+                                          it's hidden for every claim row. Cancel
+                                          still applies — LeaveModifyService.
+                                          cancel() now cascades to every date in
+                                          the same submission, see backend. */}
+                                      {!isClaimRequest && (
+                                        <button
+                                          className="tr-act-btn tr-act-edit"
+                                          title="Edit Request"
+                                          onClick={() => setEditModalLeave(leave)}
+                                        >
+                                          <Edit className="leave-table-action-icon" />
+                                        </button>
+                                      )}
                                       <button
                                         className="tr-act-btn tr-act-reject"
-                                        title="Cancel Request"
+                                        title={leave.claimDates && leave.claimDates.length > 1 ? 'Cancel Request (all dates)' : 'Cancel Request'}
                                         onClick={() => setCancelModalLeave(leave)}
                                       >
                                         <X className="leave-table-action-icon" />
@@ -1146,8 +1387,10 @@ export function LeaveManagementPage() {
                     year={calendarYear}
                     month={calendarMonth}
                     events={calendarEvents}
+                    dayFlags={calendarDayFlags}
                     onPrevMonth={handlePrevMonth}
                     onNextMonth={handleNextMonth}
+                    style={{ border: 'none', boxShadow: 'none', padding: 0 }}
                   />
                 )}
               </div>
@@ -1172,6 +1415,8 @@ export function LeaveManagementPage() {
         ) : activeTab === 'my-leaves-summary' && (
           <MyLeavesSummaryTab
             leaves={leavesWithModRequests}
+            leaveTypeMap={leaveTypeMap}
+            isLoading={isLoading}
             setViewModalLeave={setViewModalLeave}
             selectedYear={summaryYear}
             onYearChange={setSummaryYear}

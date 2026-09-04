@@ -248,12 +248,12 @@ function combinedFormToPayload(form, isClaimTarget) {
   const carryForwardEligible = (
     form.category === 'ACTUAL' && ((!form.is_unlimited && !form.is_flexible) || isClaimTarget)
   );
-  // Counts as Present / Payment Type only apply to Nominal leave types, or
-  // Actual leave types with no Claim Category relation — mirrors the
-  // backend's LeaveTypeCreateSerializer.validate(). Force the safe defaults
-  // rather than trust stale form state left over from a prior category.
+  // Counts as Present / Payment Type only apply to Actual leave types with
+  // no Claim Category relation — mirrors the backend's
+  // LeaveTypeCreateSerializer.validate(). Force the safe defaults rather
+  // than trust stale form state left over from a prior category.
   const presentPaymentEligible = (
-    form.category === 'NOMINAL' || (form.category === 'ACTUAL' && !isClaimTarget)
+    form.category === 'ACTUAL' && !isClaimTarget
   );
   return {
     code: form.code.trim().toUpperCase(),
@@ -295,8 +295,10 @@ function combinedFormToPayload(form, isClaimTarget) {
     // Accrual Type only applies to an Actual leave type that isn't itself
     // credited by a Claim type — its balance already comes from approved
     // claims, so force the default rather than trust stale form state.
-    accrual_type: isClaimTarget ? 'NONE' : form.accrual_type,
-    proration_type: form.proration_type,
+    // Unlimited entitlement has no quota to accrue toward or prorate either,
+    // so force both off there too, mirroring the backend's validate().
+    accrual_type: (isClaimTarget || form.is_unlimited) ? 'NONE' : form.accrual_type,
+    proration_type: form.is_unlimited ? 'NONE' : form.proration_type,
     // Carry-forward: Limited-entitlement Actual types, or an Actual type
     // that's a Claim credit target (regardless of mode) — mirrors
     // year_end_processing.py's eligibility. Force off rather than trust
@@ -337,8 +339,7 @@ function GenderBadge({ value }) {
 
 function CategoryTag({ value }) {
   const label = value ? value.charAt(0) + value.slice(1).toLowerCase() : '—';
-  const cls =
-    value === 'CLAIM' ? 'lc-tag-claim' : value === 'NOMINAL' ? 'lc-tag-nominal' : 'lc-tag-actual';
+  const cls = value === 'CLAIM' ? 'lc-tag-claim' : 'lc-tag-actual';
   return <span className={`lc-category-tag ${cls}`}>{label}</span>;
 }
 
@@ -1358,8 +1359,19 @@ export function LeaveConfigurationPage() {
                     </tr>
                   ) : filteredHolidays.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="lc-empty-state">
-                        No holidays match your search criteria.
+                      <td colSpan={7}>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          padding: '60px 20px', 
+                          color: 'var(--text-tertiary)',
+                          gap: '12px' 
+                        }}>
+                          <Calendar size={32} style={{ opacity: 0.6 }} />
+                          <span style={{ fontSize: '14px', fontWeight: 500 }}>No holidays match your search criteria.</span>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -2243,15 +2255,13 @@ export function LeaveConfigurationPage() {
                 >
                   <option value="ACTUAL">Actual — deducts balance</option>
                   <option value="CLAIM">Claim — earns balance</option>
-                  <option value="NOMINAL">Nominal — no balance impact</option>
                 </select>
               </div>
 
-              {/* Payment Type / Counts as Present only apply to Nominal leave
-                  types, or Actual leave types with no Claim Category relation
-                  — mirrors the backend's LeaveTypeCreateSerializer.validate(). */}
-              {(combinedForm.category === 'NOMINAL'
-                || (combinedForm.category === 'ACTUAL' && !claimTargetCodes.has(combinedForm.code))) && (
+              {/* Payment Type / Counts as Present only apply to Actual leave
+                  types with no Claim Category relation — mirrors the
+                  backend's LeaveTypeCreateSerializer.validate(). */}
+              {(combinedForm.category === 'ACTUAL' && !claimTargetCodes.has(combinedForm.code)) && (
                 <>
                   <div className="ss-modal-form-group">
                     <label className="ss-modal-label" htmlFor="lt-payment">Payment Type</label>
@@ -2535,7 +2545,7 @@ export function LeaveConfigurationPage() {
                 })()}
               </div>
 
-              {combinedForm.category === 'ACTUAL' && (
+              {combinedForm.category === 'ACTUAL' && !combinedForm.is_unlimited && (
                 <>
                   {!claimTargetCodes.has(combinedForm.code) && (
                     <div className="ss-modal-form-group">

@@ -22,6 +22,9 @@ import {
   Loader2,
   Search,
   X,
+  Play,
+  Flag,
+  Timer
 } from 'lucide-react';
 import 'react-day-picker/dist/style.css';
 import '@components/forms/DatePicker/DatePicker.css';
@@ -504,8 +507,9 @@ export function MurexOverviewTab() {
           ) : (
             <>
               {(() => {
-                // Calculate time lapse using the first job's start and last job's end
-                let timeLapseNode = null;
+                let startTimeStr = '--';
+                let endTimeStr = '--';
+                let durationStr = '--';
 
                 if (matrixJobs.length > 0) {
                   const times = matrixJobs.map(job => {
@@ -517,6 +521,7 @@ export function MurexOverviewTab() {
                   if (times.length > 0) {
                     const globalMinMs = Math.min(...times.map(t => t.startMs));
                     const globalMaxMs = Math.max(...times.map(t => t.endMs));
+                    const durationMs = globalMaxMs - globalMinMs;
 
                     const s = new Date(globalMinMs);
                     const e = new Date(globalMaxMs);
@@ -524,81 +529,116 @@ export function MurexOverviewTab() {
                     const pad = (n) => n.toString().padStart(2, '0');
                     const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-                    const startDateStr = s.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                    const endDateStr = e.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                    startTimeStr = formatTime(s);
+                    endTimeStr = formatTime(e);
 
-                    const sDateOnly = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-                    const eDateOnly = new Date(e.getFullYear(), e.getMonth(), e.getDate());
-                    const isNextDay = eDateOnly > sDateOnly;
-
-                    timeLapseNode = (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', columnGap: '8px', rowGap: '4px', alignItems: 'center', lineHeight: '1.2' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary, #94a3b8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>START</span>
-                        <span style={{ color: '#0284c7', fontSize: '10px', fontWeight: 600 }}>{startDateStr}</span>
-                        <span style={{ fontSize: '11px', color: 'inherit', fontWeight: 600 }}>{formatTime(s)}</span>
-
-                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary, #94a3b8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>END</span>
-                        <span style={{ color: isNextDay ? '#dc2626' : '#0284c7', fontSize: '10px', fontWeight: 600 }}>{endDateStr}</span>
-                        <span style={{ fontSize: '11px', color: 'inherit', fontWeight: 600 }}>{formatTime(e)}</span>
-                      </div>
-                    );
+                    const durHours = Math.floor(durationMs / 3600000);
+                    const durMins = Math.floor((durationMs % 3600000) / 60000);
+                    const durSecs = Math.floor((durationMs % 60000) / 1000);
+                    durationStr = `${pad(durHours)}:${pad(durMins)}:${pad(durSecs)}`;
                   }
                 }
 
                 return (
-                  <div className="murex-matrix-card-header" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '14px' }}>
-                    {/* Left Section: Search */}
-                    <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                      <div className="murex-search-wrapper" style={{ minWidth: '280px' }}>
-                        <Search size={16} className="murex-search-icon" style={{ left: '10px' }} />
-                        <input
-                          type="text"
-                          placeholder="Search jobs..."
-                          className="murex-search-input"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          style={{
-                            fontSize: '13px',
-                            borderRadius: '6px',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                          }}
-                        />
-                        {searchQuery && (
-                          <button
-                            type="button"
-                            className="search-clear-btn"
-                            onClick={() => setSearchQuery('')}
-                            style={{ right: '8px' }}
-                          >
-                            <X size={16} />
-                          </button>
-                        )}
+                  <div className="murex-matrix-card-header" style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', alignItems: 'flex-start', width: '100%' }}>
+
+                    {/* Row 1: Title & Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '4px', height: '18px', background: 'var(--c-success)', borderRadius: '2px' }} />
+                        <h3 className="murex-matrix-card-title" style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                          EOD - Job execution timings
+                        </h3>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '12px', color: '#059669', fontSize: '12px', fontWeight: 600 }}>
+                        {matrixJobs.length} Jobs
                       </div>
                     </div>
 
-                    {/* Middle Section: Heading */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                      <h3 className="murex-matrix-card-title" style={{ textAlign: 'center', margin: 0, marginBottom: '4px' }}>Job - Execution Timeline </h3>
-                      <div className="murex-matrix-card-subtitle" style={{ textAlign: 'center' }}>
-                        {formattedDate}
-                      </div>
-                    </div>
-
-                    {/* Right Section: Badges */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(14, 165, 233, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#0284c7' }}>
-                        <Clock size={12} style={{ alignSelf: 'flex-start', marginTop: '3px' }} />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px', opacity: 0.8 }}>Time elapsed</span>
-                          {timeLapseNode || <span style={{ fontSize: '11px', fontWeight: 600 }}>24h window</span>}
+                    {/* Row 2: Elegant Stats Bar */}
+                    <div style={{
+                      display: 'flex',
+                      width: '100%',
+                      background: 'var(--surface-secondary, #f8fafc)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-primary, #e2e8f0)'
+                    }}>
+                      {/* Stat Block: Date */}
+                      <div style={{ flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-primary, #e2e8f0)' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--bg-tertiary, #f1f5f9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <CalendarIcon size={16} style={{ color: 'var(--text-tertiary)' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>Date</span>
+                          <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{formattedDate}</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#059669' }}>
-                        <ListOrdered size={12} />
-                        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.2px' }}>
-                          Total Jobs: {matrixJobs.length}
-                        </span>
+
+                      {/* Stat Block: EOD Start */}
+                      <div style={{ flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-primary, #e2e8f0)' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--bg-tertiary, #f1f5f9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Clock size={16} style={{ color: 'var(--text-tertiary)' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD start</span>
+                          <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{startTimeStr}</span>
+                        </div>
                       </div>
+
+                      {/* Stat Block: EOD End */}
+                      <div style={{ flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-primary, #e2e8f0)' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--bg-tertiary, #f1f5f9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Flag size={16} style={{ color: 'var(--text-tertiary)' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD end</span>
+                          <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>{endTimeStr}</span>
+                        </div>
+                      </div>
+
+                      {/* Stat Block: EOD Duration */}
+                      <div style={{ flex: 1, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(124, 58, 237, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Timer size={16} style={{ color: '#7c3aed' }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 500 }}>EOD duration</span>
+                          <span style={{ fontSize: '14px', color: '#7c3aed', fontWeight: 600 }}>{durationStr}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 3: Search */}
+                    <div className="murex-search-wrapper" style={{ width: '400px', height: '38px', background: 'var(--surface-secondary, #f8fafc)', border: '1px solid var(--border-primary, #e2e8f0)', borderRadius: '6px', position: 'relative' }}>
+                      <Search size={14} className="murex-search-icon" style={{ left: '12px', color: 'var(--text-tertiary)', position: 'absolute', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search jobs..."
+                        className="murex-search-input"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                          fontSize: '13px',
+                          width: '100%',
+                          height: '100%',
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          paddingLeft: '34px',
+                          paddingRight: searchQuery ? '32px' : '12px',
+                          color: 'var(--text-primary)'
+                        }}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          className="search-clear-btn"
+                          onClick={() => setSearchQuery('')}
+                          style={{ right: '8px', position: 'absolute', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -843,7 +883,7 @@ export function MurexOverviewTab() {
       ) : timelineList.length > 0 ? (
         <>
           <div className="murex-overview-section">
-            <h3 className="murex-run-details-heading">Run Details</h3>
+            <h4 className="murex-run-details-heading">Run Details</h4>
           </div>
 
           {timelineList.map((timelineItem) => {
@@ -912,7 +952,7 @@ export function MurexOverviewTab() {
         </>
       ) : (
         <div className="murex-overview-section">
-          <h3 className="murex-run-details-heading">Run Details</h3>
+          <h4 className="murex-run-details-heading">Run Details</h4>
           <div className="murex-timeline-accordion-card">
             <div className="murex-overview-empty-state">
               <FileQuestion size={24} className="murex-empty-icon" />

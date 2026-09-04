@@ -515,7 +515,10 @@ function JobCard({ script, timeRange, onOpenDetail, onTogglePin }) {
 function getScriptHeatmapSpec(script, themeColor = '#000000') {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  // Extract all runs and map to ISO week and day
+  // Extract all runs and map to ISO week and day. Sorted oldest-first by
+  // each run's actual timestamp so that when a cell holds multiple runs
+  // (same day), they list in chronological order rather than relying on
+  // script.history already arriving in that order.
   const runs = (script.history || [])
     .filter(run => run.date && run.date !== 'Unknown Date')
     .map(run => {
@@ -526,9 +529,10 @@ function getScriptHeatmapSpec(script, themeColor = '#000000') {
       // getDay() returns 0 for Sunday, 1 for Monday. We want 0 for Mon, 6 for Sun.
       const jsDay = getDay(dateObj);
       const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
-      return { ...run, week, dayIndex };
+      return { ...run, week, dayIndex, dateMs: dateObj.getTime() };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a, b) => a.dateMs - b.dateMs);
 
   // Find unique weeks and sort them
   const uniqueWeeks = [...new Set(runs.map(r => r.week))].sort((a, b) => a - b);
@@ -944,15 +948,19 @@ export function MurexRuntimeTrendsPage() {
   const fetchTrends = useCallback(() => murexService.getRuntimeTrends(timeRange), [timeRange]);
   const { data, isLoading, error, refetch } = useAsync(fetchTrends);
 
+  const isFirstRender = useRef(true);
   useEffect(() => {
     setScriptDetailsMap({});
     setExpandedScriptIds(new Set());
-  }, [timeRange]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    refetch();
+  }, [timeRange, refetch]);
 
   const runtimeSummary = data?.summary;
   const runtimeTrendData = data?.trend ?? [];
-  const hourlyHeatmap = data?.hourlyHeatmap ?? [];
-  const monthlyHeatmap = data?.monthlyHeatmap ?? [];
 
   /**
    * Pinning is a client-side preference layered over the loaded scripts, so it
@@ -1849,8 +1857,8 @@ export function MurexRuntimeTrendsPage() {
                                   toggleExpandScript(script.id, e);
                                 }
                               }}
-                              style={{ cursor: script.status.toLowerCase() === 'inactive' ? 'not-allowed' : 'pointer' }}
-                              draggable={script.status.toLowerCase() !== 'inactive'}
+                              style={{ cursor: script.status.toLowerCase() === 'inactive' ? 'grab' : 'pointer' }}
+                              draggable
                               onDragStart={(e) => e.dataTransfer.setData('text/plain', script.name)}
                             >
                               <td className="murex-script-td">

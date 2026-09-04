@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { env } from '@config/env';
 import { storage } from '@utils/storage';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const apiBase = env.apiBaseUrl;
 
 const WS_BASE = (() => {
   const origin = apiBase.replace(/\/api\/?$/, '');

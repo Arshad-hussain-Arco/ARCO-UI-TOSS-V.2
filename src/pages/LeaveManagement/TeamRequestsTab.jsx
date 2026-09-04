@@ -26,6 +26,7 @@ import {
   CalendarPlus,
   Globe2,
   CalendarClock,
+  RotateCcw,
 } from 'lucide-react';
 import { useDebounce } from '@hooks/useDebounce';
 import { Select } from '@components/forms/Select/Select';
@@ -37,7 +38,6 @@ import { TimelineCalendar } from '@components/data-display/TimelineCalendar/Time
 import { SortIcon } from './LeaveManagementPage';
 import { useToast } from '@hooks/useToast';
 import { useAuth } from '@hooks/useAuth';
-import { LEAVE_REQUESTS as INITIAL_REQUESTS } from '@mocks/data/leaveRequests';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
 import LeaveRequestDrawer from './components/LeaveRequestDrawer';
 import { EditLeaveModal } from './EditLeaveModal';
@@ -75,7 +75,7 @@ const LEAVE_TYPE_OPTIONS = [
   'Compensatory Off',
   'Offshore Work',
   'Weekend Work',
-  'WFH',
+  'Work From Home',
   'Paternity Leave',
   'Visa Purpose',
 ];
@@ -261,22 +261,88 @@ import { Loader } from '@components/feedback/Loader/Loader';
 
 
 
+// A multi-date claim submission (see ApplyLeaveModal's Claim flow) creates
+// one Leave row per claimed date/half on the backend — the manager applied
+// to one Claim Type + reason in a single "Submit Claim" click, though, so
+// showing N separate rows here would make them approve/reject the same
+// submission N times over. The backend stamps every row from one
+// submit_claim() call with the exact same requested_date instant (no
+// dedicated batch-id column exists on the Leave table), so that's the
+// grouping key: same employee + same leave type code + same requested_date.
+// Only claim-type rows are grouped — everything else (regular leave, WFH,
+// offshore) passes through as one row each, unchanged.
+function groupClaimRows(rows) {
+  const groups = new Map();
+  const result = [];
+  rows.forEach((r) => {
+    const rawLeaveType = r.raw?.leave_type;
+    // leave_category (LMSLeaveType.category, sent by
+    // get_leaves_for_employee_ids) is the authoritative "is this a claim"
+    // signal — business_days === 0 was tried first and reverted, since it
+    // also false-positives on ordinary leave rows (e.g. a still-PENDING
+    // leave whose business_days hasn't been computed yet).
+    const isClaimRow = r.raw?.leave_category === 'CLAIM' && r.requestedAt && rawLeaveType;
+    if (!isClaimRow) {
+      result.push(r);
+      return;
+    }
+    const key = `${r.employeeId}|${rawLeaveType}|${r.requestedAt}`;
+    const existing = groups.get(key);
+    if (!existing) {
+      const group = {
+        ...r,
+        claimDates: [{ id: r.id, date: r.startDate, duration: r.duration, inDays: r.inDays }],
+      };
+      groups.set(key, group);
+      result.push(group);
+    } else {
+      existing.claimDates.push({ id: r.id, date: r.startDate, duration: r.duration, inDays: r.inDays });
+      existing.inDays = (existing.inDays || 0) + (r.inDays || 0);
+      if (r.startDate < existing.startDate) existing.startDate = r.startDate;
+      if (r.endDate > existing.endDate) existing.endDate = r.endDate;
+    }
+  });
+  // Keep each group's dates in chronological order for display.
+  result.forEach((r) => {
+    if (r.claimDates) r.claimDates.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  });
+  return result;
+}
+
 export async function fetchAndMapTeamLeaves(managerId) {
   const response = await leaveService.getTeamLeaves(managerId);
   const results = Array.isArray(response) ? response : (response?.results || []);
 
-  return results.map(req => {
+  const mapped = results.map(req => {
     let type = 'leave';
     const reasonLower = (req.leave_reason || '').toLowerCase();
     const typeLower = (req.leave_type || '').toLowerCase();
 
-    if (typeLower.includes('wfh') || reasonLower.includes('wfh')) type = 'wfh';
+    if (typeLower.includes('wfh') || typeLower.includes('work from home') || reasonLower.includes('wfh')) type = 'wfh';
     else if (typeLower.includes('offshore') || reasonLower.includes('offshore')) type = 'offshore';
-    else if (typeLower.includes('comp') || reasonLower.includes('comp')) type = 'compoff';
+    // The "comp"/"compoff" substring match alone only catches CCompOff —
+    // it misses every other Claim-category leave type (e.g. 'CWW'/"Claim
+    // Weekend Work" contains neither "comp" nor "wfh"/"offshore", so it
+    // fell through to 'leave' and every claims-specific count/filter/KPI
+    // silently excluded it). A business_days === 0 fallback was tried and
+    // reverted — it false-positived on ordinary Actual/Nominal leave rows
+    // that also have business_days == 0 (e.g. still-PENDING leave whose
+    // business_days hasn't been computed yet), misclassifying Annual/Sick
+    // Leave as claims. req.leave_category is the real, authoritative
+    // signal — the backend now sends the LMSLeaveType.category
+    // ('CLAIM'/'ACTUAL'/'NOMINAL') straight from get_leaves_for_employee_ids
+    // (leaves/services.py), so this can be an exact match instead of a guess.
+    else if (typeLower.includes('comp') || reasonLower.includes('comp') || req.leave_category === 'CLAIM') type = 'compoff';
 
     return {
       id: req.id.toString(),
+      // Kept as "EMP<id>" — parsed back out via .replace('EMP','') to build
+      // the employeeDirectory lookup in LeaveManagementPage's refetch, so
+      // this can't just become the username. employeeUsername is the
+      // actual login username (Employee.user_name), shown instead of this
+      // in the request drawer per the "show username, not emp id" ask.
       employeeId: `EMP${req.emp_id}`,
+      employeeUsername: req.emp_username,
       employeeName: req.emp_name,
       photo: req.photo,
       team: req.team_name,
@@ -318,6 +384,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
       raw: req,
     };
   });
+  return groupClaimRows(mapped);
 }
 
 // Modification requests (PUT /me/leaves/<id>/modify/ on an already-APPROVED
@@ -499,25 +566,58 @@ export function TeamRequestsTab({ getPhoto }) {
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [teamEmployeeCalendars, setTeamEmployeeCalendars] = useState([]);
+  // Search AND the leave-type dropdown both apply before the status/type
+  // chips, so the chip badge counts (All/Pending/Approved/.../Offshore
+  // Work/Work From Home) reflect whatever those two narrow down to —
+  // typing or picking a leave type shrinks both the table and what each
+  // chip counts, same pattern as MyLeavesSummaryTab / LeaveManagementPage.
+  const searchFilteredRequests = useMemo(() => {
+    let list = requests;
+    const q = debouncedSearch.toLowerCase().trim();
+    if (q)
+      list = list.filter(
+        (r) =>
+          r.employeeName.toLowerCase().includes(q) ||
+          r.employeeId.toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q),
+      );
+    if (leaveTypeF !== 'all')
+      list = list.filter(
+        (r) =>
+          (r.leaveType ?? '') === leaveTypeF ||
+          (r.type === 'offshore' && leaveTypeF === 'Offshore Work') ||
+          (r.type === 'wfh' && (leaveTypeF === 'WFH' || leaveTypeF === 'Work From Home')),
+      );
+    return list;
+  }, [requests, debouncedSearch, leaveTypeF]);
   const counts = useMemo(
     () => ({
-      all: requests.length,
-      pending: requests.filter((r) => r.status === 'pending').length,
-      approved: requests.filter((r) => r.status === 'approved').length,
-      rejected: requests.filter((r) => r.status === 'rejected').length,
-      self_rejected: requests.filter((r) => r.status === 'self_rejected').length,
-      cancelled: requests.filter((r) => r.status === 'cancelled').length,
-      leave: requests.filter((r) => r.type === 'leave').length,
-      wfh: requests.filter((r) => r.type === 'wfh').length,
-      offshore: requests.filter((r) => r.type === 'offshore').length,
-      compoff: requests.filter((r) => r.type === 'compoff').length,
-      pendLeave: requests.filter((r) => r.status === 'pending' && r.type === 'leave' && !r.isModRequest).length,
-      pendWfh: requests.filter((r) => r.status === 'pending' && r.type === 'wfh' && !r.isModRequest).length,
-      pendOffshore: requests.filter((r) => r.status === 'pending' && r.type === 'offshore' && !r.isModRequest).length,
-      pendCompoff: requests.filter((r) => r.status === 'pending' && r.type === 'compoff' && !r.isModRequest).length,
-      pendModifications: requests.filter((r) => r.status === 'pending' && r.isModRequest).length,
+      all: searchFilteredRequests.length,
+      pending: searchFilteredRequests.filter((r) => r.status === 'pending').length,
+      approved: searchFilteredRequests.filter((r) => r.status === 'approved').length,
+      rejected: searchFilteredRequests.filter((r) => r.status === 'rejected').length,
+      self_rejected: searchFilteredRequests.filter((r) => r.status === 'self_rejected').length,
+      cancelled: searchFilteredRequests.filter((r) => r.status === 'cancelled').length,
+      leave: searchFilteredRequests.filter((r) => r.type === 'leave').length,
+      wfh: searchFilteredRequests.filter((r) => r.type === 'wfh').length,
+      offshore: searchFilteredRequests.filter((r) => r.type === 'offshore').length,
+      compoff: searchFilteredRequests.filter((r) => r.type === 'compoff').length,
+      pendLeave: searchFilteredRequests.filter((r) => r.status === 'pending' && r.type === 'leave' && !r.isModRequest).length,
+      pendWfh: searchFilteredRequests.filter((r) => r.status === 'pending' && r.type === 'wfh' && !r.isModRequest).length,
+      pendOffshore: searchFilteredRequests.filter((r) => r.status === 'pending' && r.type === 'offshore' && !r.isModRequest).length,
+      // r.type === 'compoff' is a display-only heuristic that misses most
+      // real Claim leave types (e.g. 'CWW' matches neither "comp" nor
+      // "wfh"/"offshore" in its code/reason — see groupClaimRows above), so
+      // it undercounted here too. r.claimDates is set by groupClaimRows for
+      // every claim row (single-date or grouped), and since claims are
+      // already collapsed to one row per submission by that point, this
+      // also correctly counts "1 pending claim" for a 4-date submission
+      // instead of the pre-grouping row count.
+      pendCompoff: searchFilteredRequests.filter((r) => r.status === 'pending' && !!r.claimDates && !r.isModRequest).length,
+      pendModifications: searchFilteredRequests.filter((r) => r.status === 'pending' && r.isModRequest).length,
     }),
-    [requests],
+    [searchFilteredRequests],
   );
   const leaveDates = useMemo(() => {
     const set = /* @__PURE__ */ new Set();
@@ -560,7 +660,7 @@ export function TeamRequestsTab({ getPhoto }) {
       setSdlYear((y) => y + 1);
     } else setSdlMonth((m) => m + 1);
   }
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     let list = mergedRequests;
     const q = debouncedSearch.toLowerCase().trim();
     if (q)
@@ -570,17 +670,36 @@ export function TeamRequestsTab({ getPhoto }) {
           r.employeeId.toLowerCase().includes(q) ||
           r.id.toLowerCase().includes(q),
       );
+    if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
+    else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
+    if (leaveTypeF !== 'all') {
+      const qLower = leaveTypeF.toLowerCase().trim();
+      list = list.filter(
+        (r) =>
+          (r.leaveType ?? '').toLowerCase().trim() === qLower ||
+          (r.type === 'offshore' && qLower === 'offshore work'),
+      );
+    }
+    return list;
+  }, [mergedRequests, debouncedSearch, typeF, leaveTypeF]);
+
+  const statusCounts = useMemo(() => ({
+    all: baseFiltered.length,
+    pending: baseFiltered.filter((r) => r.status === 'pending').length,
+    approved: baseFiltered.filter((r) => r.status === 'approved').length,
+    // Strictly "rejected" (manager-rejected) — self_rejected (withdrawn by
+    // the employee) and cancelled (withdrawn after approval) are their own
+    // pills now, not folded into this count.
+    rejected: baseFiltered.filter((r) => r.status === 'rejected').length,
+    self_rejected: baseFiltered.filter((r) => r.status === 'self_rejected').length,
+    cancelled: baseFiltered.filter((r) => r.status === 'cancelled').length,
+  }), [baseFiltered]);
+
+  const filtered = useMemo(() => {
+    let list = baseFiltered;
     if (statusF !== 'all') {
       list = list.filter((r) => r.status === statusF);
     }
-    if (typeF === 'modification') list = list.filter((r) => r.isModRequest);
-    else if (typeF !== 'all') list = list.filter((r) => r.type === typeF);
-    if (leaveTypeF !== 'all')
-      list = list.filter(
-        (r) =>
-          (r.leaveType ?? '') === leaveTypeF ||
-          (r.type === 'offshore' && leaveTypeF === 'Offshore Work'),
-      );
     return [...list].sort((a, b) => {
       if (tableSortField) {
         let aVal = a[tableSortField];
@@ -599,7 +718,7 @@ export function TeamRequestsTab({ getPhoto }) {
       if (sortBy === 'endDate') return a.endDate.localeCompare(b.endDate);
       return b.requestedOn.localeCompare(a.requestedOn);
     });
-  }, [requests, debouncedSearch, statusF, typeF, leaveTypeF, sortBy, tableSortField, tableSortOrder]);
+  }, [baseFiltered, statusF, sortBy, tableSortField, tableSortOrder]);
 
   const handleTableSort = (field) => {
     if (tableSortField === field) {
@@ -697,6 +816,15 @@ export function TeamRequestsTab({ getPhoto }) {
     setTypeF((prev) => (prev === type ? 'all' : type));
     setStatusF('pending');
   }
+  // Quick type filters (Offshore Work / WFH) — unlike the KPI cards above
+  // (which jump straight to that type's Pending bucket), these combine
+  // with whatever status pill is active via AND (baseFiltered applies
+  // typeF, then statusCounts/filtered apply statusF on top) instead of
+  // resetting it — so picking Offshore Work while "Approved" is selected
+  // narrows to Approved Offshore Work requests, not every status.
+  function handleTypeChipClick(type) {
+    setTypeF((prev) => (prev === type ? 'all' : type));
+  }
   const teamAvailability = useMemo(() => {
     if (!drawerReq) return null;
     const range = new Set(eachDay(drawerReq.startDate, drawerReq.endDate));
@@ -727,14 +855,42 @@ export function TeamRequestsTab({ getPhoto }) {
   }
   const liveReq = drawerReq ? (requests.find((r) => r.id === drawerReq.id) ?? drawerReq) : null;
   const calEvents = useMemo(() => {
-    const regularEvents = filtered.map((r) => ({
-      ...r,
-      date: r.startDate ? new Date(r.startDate + 'T00:00:00').getDate() : null,
-      type: r.type,
-      start_date: r.startDate,
-      end_date: r.endDate,
-      title: r.employeeName ? `${r.type} - ${r.employeeName}` : r.type,
-    }));
+    const regularEvents = filtered.flatMap((r) => {
+      // A grouped multi-date claim (see groupClaimRows) carries startDate/
+      // endDate as the min/max of its claimed dates for the table view's
+      // sake — but those dates aren't necessarily contiguous (that's the
+      // whole reason Claims take an explicit date list, not a range; see
+      // ClaimSubmitSerializer). Rendering start_date -> end_date as one
+      // event here would draw a single continuous bar spanning every day
+      // in between, implying continuous leave across weeks the employee
+      // never actually claimed. Expand back into one single-day event per
+      // actually-claimed date instead.
+      if (r.claimDates && r.claimDates.length > 1) {
+        return r.claimDates.map((cd) => ({
+          ...r,
+          id: cd.id,
+          date: cd.date ? new Date(cd.date + 'T00:00:00').getDate() : null,
+          type: r.type,
+          start_date: cd.date,
+          end_date: cd.date,
+          inDays: cd.inDays,
+          duration: cd.duration,
+          title: r.employeeName
+            ? `${r.employeeName} - ${r.leaveType || r.type}`
+            : (r.leaveType || r.type),
+        }));
+      }
+      return [{
+        ...r,
+        date: r.startDate ? new Date(r.startDate + 'T00:00:00').getDate() : null,
+        type: r.type,
+        start_date: r.startDate,
+        end_date: r.endDate,
+        title: r.employeeName
+          ? `${r.employeeName} - ${r.leaveType || r.type}`
+          : (r.leaveType || r.type),
+      }];
+    });
     
     // Convert calendarHolidays to the format expected by LeaveCalendar
     const holidayEvents = calendarHolidays.map(h => ({
@@ -746,6 +902,46 @@ export function TeamRequestsTab({ getPhoto }) {
     
     return [...regularEvents, ...holidayEvents];
   }, [filtered, calendarHolidays]);
+
+  // Real per-employee attendance for the visible month — used to derive
+  // authoritative weekend/holiday flags (per each employee's own work
+  // schedule and org holiday calendar) instead of the hardcoded Fri/Sat +
+  // PUBLIC_HOLIDAYS fallback used elsewhere in this file.
+  useEffect(() => {
+    if (viewMode !== 'calendar' || innerTab !== 'all') return;
+    const managerId = user?.emp_id || user?.id || 1;
+    const start = new Date(calYear, calMonth, 1).toISOString().slice(0, 10);
+    const end = new Date(calYear, calMonth + 1, 0).toISOString().slice(0, 10);
+    let cancelled = false;
+    leaveService.getTeamEmployeeCalendars(managerId, { start, end })
+      .then((data) => {
+        if (!cancelled) setTeamEmployeeCalendars(data?.employees || []);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch team employee calendars:', error);
+        if (!cancelled) setTeamEmployeeCalendars([]);
+      });
+    return () => { cancelled = true; };
+  }, [viewMode, innerTab, calYear, calMonth, user]);
+
+  // date (yyyy-mm-dd) -> { isWeekend, isHoliday, claimTypes } — a day is
+  // flagged weekend/holiday if ANY employee's own calendar says so, since
+  // work schedules can differ per employee within the same team.
+  const dayFlags = useMemo(() => {
+    const map = {};
+    teamEmployeeCalendars.forEach((emp) => {
+      (emp.calendar || []).forEach((d) => {
+        const entry = map[d.date] || { isWeekend: false, isHoliday: false, claimTypes: [] };
+        entry.isWeekend = entry.isWeekend || !!d.is_weekend;
+        entry.isHoliday = entry.isHoliday || !!d.is_org_holiday;
+        if (Array.isArray(d.claim_types) && d.claim_types.length) {
+          entry.claimTypes = [...new Set([...entry.claimTypes, ...d.claim_types.map(c => c.name || c.code)])];
+        }
+        map[d.date] = entry;
+      });
+    });
+    return map;
+  }, [teamEmployeeCalendars]);
 
   const pendingDateRangeText = useMemo(() => {
     const pendingLeaves = requests.filter(l => l.status === 'pending');
@@ -832,7 +1028,7 @@ export function TeamRequestsTab({ getPhoto }) {
           data-active={innerTab === 'all'}
           onClick={() => setInnerTab('all')}
         >
-          All Requests<span className="tr-subtab-badge">{isLoading ? 0 : counts.all}</span>
+          All Requests<span className="tr-subtab-badge">{isLoading ? 0 : statusCounts.all}</span>
         </button>
         <button
           className="tr-subtab"
@@ -874,7 +1070,7 @@ export function TeamRequestsTab({ getPhoto }) {
             },
             {
               type: 'compoff',
-              label: 'Pending Comp-off / WW',
+              label: 'Pending Claims',
               count: counts.pendCompoff,
               color: '#92400e',
               bg: '#fef3c7',
@@ -934,19 +1130,46 @@ export function TeamRequestsTab({ getPhoto }) {
                 ]}
                 width="leaveType"
               />
-              <Select
-                value={sortBy}
-                onChange={setSortBy}
-                options={[
-                  { value: 'requestedOn', label: 'Newest First' },
-                  { value: 'oldestFirst', label: 'Oldest First' },
-                  { value: 'startDate', label: 'Start Date' },
-                  { value: 'endDate', label: 'End Date' },
-                ]}
-                width="sort"
-              />
             </div>
             <div className="tr-all-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setLeaveTypeF('all');
+                  setSortBy('requestedOn');
+                  setStatusF('all');
+                  setTypeF('all');
+                  setTableSortField(null);
+                  setTableSortOrder('asc');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '0 12px',
+                  height: '32px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '6px',
+                  background: 'var(--surface-primary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseOver={(e) => { 
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                  e.currentTarget.style.background = 'var(--bg-secondary)'; 
+                }}
+                onMouseOut={(e) => { 
+                  e.currentTarget.style.color = 'var(--text-secondary)'; 
+                  e.currentTarget.style.background = 'var(--surface-primary)'; 
+                }}
+                title="Reset Filters"
+              >
+                <RotateCcw size={14} />
+                Reset
+              </button>
               <div className="tr-view-toggle">
                 <button
                   className="tr-view-btn"
@@ -977,17 +1200,22 @@ export function TeamRequestsTab({ getPhoto }) {
           {/* Status pills */}
           <div className="tr-chip-bar">
             {[
-              { key: 'all', label: 'All', count: counts.all },
-              { key: 'pending', label: 'Pending', count: counts.pending },
-              { key: 'approved', label: 'Approved', count: counts.approved },
-              { key: 'rejected', label: 'Rejected', count: counts.rejected },
-              { key: 'self_rejected', label: 'Self-Rejected', count: counts.self_rejected },
-              { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
+              { key: 'all', label: 'All', count: statusCounts.all },
+              { key: 'pending', label: 'Pending', count: statusCounts.pending },
+              { key: 'approved', label: 'Approved', count: statusCounts.approved },
+              { key: 'rejected', label: 'Rejected', count: statusCounts.rejected },
+              { key: 'self_rejected', label: 'Self-Rejected', count: statusCounts.self_rejected },
+              { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled },
             ].map((c) => (
               <button
                 key={c.key}
                 className="tr-chip"
                 data-active={statusF === c.key}
+                // Don't reset typeF here — status and type (Offshore
+                // Work/WFH) pills are meant to combine via AND (baseFiltered
+                // already applies typeF before statusCounts/filtered apply
+                // statusF), so picking a status shouldn't silently drop an
+                // active Offshore Work/WFH selection.
                 onClick={() => setStatusF(c.key)}
                 title={STATUS_TOOLTIPS[c.key]}
               >
@@ -995,6 +1223,7 @@ export function TeamRequestsTab({ getPhoto }) {
                 <span className="tr-chip-count">{c.count}</span>
               </button>
             ))}
+
           </div>
         </>
       )}
@@ -1102,17 +1331,35 @@ export function TeamRequestsTab({ getPhoto }) {
                                 </div>
                               </td>
                               <td className="tr-td">
-                                <div className="tr-dates-cell">
-                                  <span className="tr-date-range">
-                                    {req.startDate === req.endDate
-                                      ? fmtFullDate(req.startDate)
-                                      : `${fmtFullDate(req.startDate)} - ${fmtFullDate(req.endDate)}`}
-                                  </span>
-                                  <span className="tr-date-subtext">
-                                    ({req.inDays} {req.inDays === 1 ? 'day' : 'days'})
-                                    {getDurationDisplay(req) ? ` • ${getDurationDisplay(req)}` : ''}
-                                  </span>
-                                </div>
+                                {req.claimDates && req.claimDates.length > 1 ? (
+                                  // Grouped multi-date claim submission — the dates
+                                  // aren't a contiguous range (see groupClaimRows),
+                                  // so list each claimed date with its own duration
+                                  // instead of collapsing to a start-end span.
+                                  <div className="tr-dates-cell">
+                                    {req.claimDates.map((cd) => (
+                                      <div key={cd.id} className="tr-date-range" style={{ fontSize: 12 }}>
+                                        {fmtFullDate(cd.date)}
+                                        <span className="tr-date-subtext">
+                                          {' '}({cd.inDays} {cd.inDays === 1 ? 'day' : 'days'})
+                                          {getDurationDisplay({ duration: cd.duration }) ? ` • ${getDurationDisplay({ duration: cd.duration })}` : ''}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="tr-dates-cell">
+                                    <span className="tr-date-range">
+                                      {req.startDate === req.endDate
+                                        ? fmtFullDate(req.startDate)
+                                        : `${fmtFullDate(req.startDate)} - ${fmtFullDate(req.endDate)}`}
+                                    </span>
+                                    <span className="tr-date-subtext">
+                                      ({req.inDays} {req.inDays === 1 ? 'day' : 'days'})
+                                      {getDurationDisplay(req) ? ` • ${getDurationDisplay(req)}` : ''}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
                               <td className="tr-td" style={{ fontWeight: 600 }}>
                                 {req.bizDays}d
@@ -1161,7 +1408,19 @@ export function TeamRequestsTab({ getPhoto }) {
                                       <X size={10} />
                                     </button>
                                   )}
-                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify && (
+                                  {/* Edit on behalf is hidden for ANY claim request
+                                      (single-date or grouped multi-date) — a Claim
+                                      isn't really "editable" the way a normal leave
+                                      is (its dates come from the claim-eligible-dates
+                                      picker, not free-form start/end fields, and for
+                                      a grouped submission req.raw is only ever the
+                                      FIRST date's row — which date would it edit?).
+                                      req.claimDates is set for every claim row by
+                                      groupClaimRows above, even solo ones. Approve/
+                                      Reject above already cascade to every date in
+                                      the same submission either way. */}
+                                  {!req.isModRequest && (req.status === 'pending' || req.status === 'approved') && canModify
+                                    && !req.claimDates && (
                                     <>
                                       <button
                                         className="tr-act-btn"
@@ -1201,6 +1460,7 @@ export function TeamRequestsTab({ getPhoto }) {
                     year={calYear}
                     month={calMonth}
                     events={calEvents}
+                    dayFlags={dayFlags}
                     onPrevMonth={() => {
                       if (calMonth === 0) {
                         setCalMonth(11);

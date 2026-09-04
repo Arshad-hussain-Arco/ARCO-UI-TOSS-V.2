@@ -492,10 +492,10 @@
 
 .tr-actions {
   flex-shrink: 0;
-  width: 90px;
+  width: max-content;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 4px;
 }
 

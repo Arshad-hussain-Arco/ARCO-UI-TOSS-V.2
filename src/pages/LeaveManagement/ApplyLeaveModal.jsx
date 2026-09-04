@@ -22,10 +22,6 @@ import {
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { calculateLeaveDuration } from '@utils/leaveCalculations';
-import {
-  CURRENT_EMPLOYEE as SELF,
-  EXISTING_LEAVES,
-} from '@mocks/data/leaveApplication';
 import { activatable, dismissBackdrop } from '@utils/interactive';
 
 import './ApplyLeaveModal.css';
@@ -136,12 +132,12 @@ function countHols(s, e, dayMap) {
 function countWknd(s, e, dayMap) {
   return eachDay(s, e).filter((d) => isRealWeekend(d, dayMap)).length;
 }
-function existingLeaveStatus(d) {
-  const s = dateStr(d);
-  for (const l of EXISTING_LEAVES) {
-    if (s >= l.start && s <= l.end) return l.status;
-  }
-  return null;
+// Existing-leave dot/highlight status for a day, sourced from the real
+// per-day calendar data (own_request) rather than a mock list.
+function existingLeaveStatus(d, dayMap) {
+  const own = getOwnRequest(d, dayMap);
+  if (!own) return null;
+  return own.status === 'APPROVED' ? 'approved' : 'pending';
 }
 function initials(name) {
   return name
@@ -237,7 +233,7 @@ function InlineCalendar({
       const statusClass = own.status === 'APPROVED' ? 'approved' : 'pending';
       cls.push(`al-cal-day-own-${categoryClass}-${statusClass}`);
     }
-    const ex = existingLeaveStatus(d);
+    const ex = existingLeaveStatus(d, calendarDayMap);
     if (ex === 'approved') cls.push('al-cal-day-approved-leave');
     else if (ex === 'pending') cls.push('al-cal-day-pending-leave');
     const t = d.getTime();
@@ -333,10 +329,10 @@ function InlineCalendar({
                 {isRealHoliday(d, calendarDayMap) && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-info)' }} />
                 )}
-                {existingLeaveStatus(d) === 'approved' && (
+                {existingLeaveStatus(d, calendarDayMap) === 'approved' && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-success)' }} />
                 )}
-                {existingLeaveStatus(d) === 'pending' && (
+                {existingLeaveStatus(d, calendarDayMap) === 'pending' && (
                   <div className="al-cal-dot" style={{ background: 'var(--c-warning)' }} />
                 )}
               </div>
@@ -552,12 +548,12 @@ function buildLeaveTypeItem(entry, balances) {
     // outstanding advance-leave debt). null when not year-spanning-
     // eligible or unlimited — see EligibleLeaveTypesView.
     nextYearAvailable: entry.next_year_available != null ? Number(entry.next_year_available) : null,
-    // Actual (any mode) and Nominal leave types may be self-logged after
-    // the fact — mirrors the backend exemption in
+    // Actual leave types (any mode) may be self-logged after the fact —
+    // mirrors the backend exemption in
     // leaves.services.LeaveApplyService.apply's is_backdatable_category
     // check. Category-driven, not mode-driven. Not applicable to Claims,
     // which have their own always-past date picker.
-    allowPastDates: entry.category === 'ACTUAL' || entry.category === 'NOMINAL',
+    allowPastDates: entry.category === 'ACTUAL',
     minNoticeDays,
     noticePeriod:
       minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,
@@ -619,6 +615,9 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   // 'compoff'/'weekend' choice, see claimTypeItems below.
   const [claimType, setClaimType] = useState(null);
   const [claimEligibleDates, setClaimEligibleDates] = useState(null); // null = not yet loaded/not applicable
+  // { 'YYYY-MM-DD': ['FIRST_HALF', ...] } — halves already covered by an
+  // existing PENDING/APPROVED claim of this type, per claimEligibleDates.
+  const [claimedPortions, setClaimedPortions] = useState({});
   // Explicit multi-select of individual dates for the Claim flow — a range
   // doesn't fit since eligible dates for a Claim type aren't necessarily
   // contiguous (e.g. two unrelated declared-working Sundays weeks apart).
@@ -667,6 +666,14 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
     }
   }, [startDate, endDate]);
 
+  const SELF = {
+    id: 'self',
+    name: user?.name || '',
+    department: user?.department || '',
+    designation: user?.designationName || user?.designation || '',
+    manager: user?.reportingManager || '',
+    employeeId: user?.emp_id || '',
+  };
   const activeEmp = applyFor === 'behalf' && behalfEmp ? behalfEmp : SELF;
   const effectiveEmpId = applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id;
   const [eligibleTypes, setEligibleTypes] = useState([]);
@@ -884,6 +891,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   useEffect(() => {
     if (!isClaimType || !claimType || !effectiveEmpId) {
       setClaimEligibleDates(null);
+      setClaimedPortions({});
       return;
     }
     let active = true;
@@ -898,16 +906,45 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
         end: dateStr(queryEnd),
       })
       .then((data) => {
-        if (active) setClaimEligibleDates(data?.eligible_dates || []);
+        if (!active) return;
+        // Dates the employee already has a PENDING/APPROVED claim covering
+        // entirely are dropped by the backend from eligible_dates outright;
+        // claimed_portions only lists dates that are still partially open
+        // (e.g. First Half already claimed, Second Half still available).
+        setClaimEligibleDates(data?.eligible_dates || []);
+        setClaimedPortions(data?.claimed_portions || {});
       })
       .catch((err) => {
         console.error('Failed to fetch claim-eligible dates', err);
-        if (active) setClaimEligibleDates([]);
+        if (active) {
+          setClaimEligibleDates([]);
+          setClaimedPortions({});
+        }
       });
     return () => {
       active = false;
     };
   }, [isClaimType, claimType, effectiveEmpId, today]);
+  // Which halves of `d` are already spoken for — by an existing
+  // PENDING/APPROVED claim (claimedPortions, from the server) or by an
+  // entry the user already added to this submission but hasn't sent yet
+  // (selectedClaimDates) — so the picker never lets the same half be
+  // claimed twice. FULL_DAY counts as unavailable if either half is taken.
+  const unavailablePortionsFor = (d) => {
+    const key = dateStr(d);
+    const taken = new Set(claimedPortions[key] || []);
+    selectedClaimDates.forEach((e) => {
+      if (dateStr(e.date) !== key) return;
+      if (e.duration === 'FULL_DAY') {
+        taken.add('FIRST_HALF');
+        taken.add('SECOND_HALF');
+      } else {
+        taken.add(e.duration);
+      }
+    });
+    if (taken.has('FIRST_HALF') || taken.has('SECOND_HALF')) taken.add('FULL_DAY');
+    return taken;
+  };
   useEffect(() => {
     if (user?.mySubordinates?.length > 0 && user?.emp_id) {
       import('@services/consultantService').then(({ default: consultantService }) => {
@@ -1446,11 +1483,31 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <DatePicker
                       value={pendingClaimDate}
-                      onChange={setPendingClaimDate}
+                      onChange={(d) => {
+                        setPendingClaimDate(d);
+                        // If the previously-picked duration isn't available
+                        // for the newly-picked date, fall back to whatever
+                        // is — so the Add button never submits a portion
+                        // that's actually already taken.
+                        const unavailable = d ? unavailablePortionsFor(d) : new Set();
+                        if (unavailable.has(pendingClaimDuration)) {
+                          if (!unavailable.has('FIRST_HALF')) setPendingClaimDuration('FIRST_HALF');
+                          else if (!unavailable.has('SECOND_HALF')) setPendingClaimDuration('SECOND_HALF');
+                        }
+                      }}
                       maxDate={new Date(today.getTime() - 864e5)}
                       isDateDisabled={
                         claimType && claimEligibleDates
-                          ? (d) => !claimEligibleDates.includes(dateStr(d))
+                          ? (d) => {
+                              if (!claimEligibleDates.includes(dateStr(d))) return true;
+                              // Only disable the date outright when BOTH
+                              // halves are taken — FULL_DAY being taken
+                              // (e.g. by a single half-day claim) should
+                              // still leave the date pickable, just with
+                              // the remaining half as the only option.
+                              const unavailable = unavailablePortionsFor(d);
+                              return unavailable.has('FIRST_HALF') && unavailable.has('SECOND_HALF');
+                            }
                           : undefined
                       }
                       placeholder={claimType ? 'Select a date' : 'Select a claim type first'}
@@ -1459,17 +1516,25 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                     />
                     {/* Half-day selector — lets a claimant mark only the
                         first or second half of a date as claimed, instead
-                        of always claiming the full day. */}
+                        of always claiming the full day. Options already
+                        covered by an existing claim (server-side) or by
+                        another entry added earlier in this same submission
+                        are disabled, so the same half can't be double-claimed. */}
                     <Select
                       value={pendingClaimDuration}
                       onChange={setPendingClaimDuration}
                       disabled={!claimType}
                       width="150px"
-                      options={[
-                        { value: 'FULL_DAY', label: 'Full Day' },
-                        { value: 'FIRST_HALF', label: 'First Half' },
-                        { value: 'SECOND_HALF', label: 'Second Half' },
-                      ]}
+                      options={(() => {
+                        const unavailable = pendingClaimDate
+                          ? unavailablePortionsFor(pendingClaimDate)
+                          : new Set();
+                        return [
+                          { value: 'FULL_DAY', label: 'Full Day', disabled: unavailable.has('FULL_DAY') },
+                          { value: 'FIRST_HALF', label: 'First Half', disabled: unavailable.has('FIRST_HALF') },
+                          { value: 'SECOND_HALF', label: 'Second Half', disabled: unavailable.has('SECOND_HALF') },
+                        ];
+                      })()}
                     />
                     <button
                       type="button"

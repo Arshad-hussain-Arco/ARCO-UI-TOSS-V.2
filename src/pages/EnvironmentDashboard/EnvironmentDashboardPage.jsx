@@ -366,22 +366,22 @@ export function EnvironmentDashboardPage() {
 
         <div className="env-accordion-content">
           {/* Config Filter / Actions Bar */}
-          <div className="env-toolbar">
-            <div className="env-toolbar-search">
-              <Search className="env-search-icon" size={14} />
-              <input
-                type="text"
-                placeholder="Search configurations..."
-                className="env-search-input"
-                value={configSearchQuery}
-                onChange={(e) => setConfigSearchQuery(e.target.value)}
-              />
-            </div>
+          <div className="env-toolbar" style={{ justifyContent: 'flex-end' }}>
             <div className="env-toolbar-actions">
+              <div className="env-toolbar-search" style={{ width: '320px' }}>
+                <Search className="env-search-icon" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search configurations..."
+                  className="env-search-input"
+                  value={configSearchQuery}
+                  onChange={(e) => setConfigSearchQuery(e.target.value)}
+                />
+              </div>
               {canCreate && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="primary"
+                  style={{ height: '32px', padding: '0 8px', borderRadius: '5px' }}
                   leadingIcon={FileUp}
                   onClick={() => {
                     setAddForm({ featureType: '', fileName: '', storageLocation: '' });
@@ -502,11 +502,8 @@ export function EnvironmentDashboardPage() {
           <div className="env-accordion-header-left">
             <Server size={14} />
             <span>Environment Details</span>
-          </div>
-
-          <div className="env-accordion-header-center">
             {/* Native text input & button stop click propagation cleanly without ESLint errors */}
-            <div className="env-details-path-container">
+            <div className="env-details-path-container" style={{ marginLeft: '16px' }}>
               <span className="env-details-path-label">Murex NPR Clients Location:</span>
               <input
                 type="text"
@@ -707,6 +704,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-featureType"
               type="text"
+              placeholder="e.g., Infra, Database, Web"
               className={`env-form-input ${addErrors.featureType ? 'has-error' : ''}`}
               value={addForm.featureType}
               onChange={(e) => setAddForm((prev) => ({ ...prev, featureType: e.target.value }))}
@@ -721,6 +719,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-fileName"
               type="text"
+              placeholder="e.g., config.json"
               className={`env-form-input ${addErrors.fileName ? 'has-error' : ''}`}
               value={addForm.fileName}
               onChange={(e) => setAddForm((prev) => ({ ...prev, fileName: e.target.value }))}
@@ -735,6 +734,7 @@ export function EnvironmentDashboardPage() {
             <input
               id="add-storageLocation"
               type="text"
+              placeholder="e.g., /upload/configs/"
               className={`env-form-input ${addErrors.storageLocation ? 'has-error' : ''}`}
               value={addForm.storageLocation}
               onChange={(e) => setAddForm((prev) => ({ ...prev, storageLocation: e.target.value }))}
@@ -771,6 +771,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-featureType"
                 type="text"
+                placeholder="e.g., Infra, Database, Web"
                 className={`env-form-input ${editErrors.featureType ? 'has-error' : ''}`}
                 value={editForm.featureType}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, featureType: e.target.value }))}
@@ -785,6 +786,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-fileName"
                 type="text"
+                placeholder="e.g., config.json"
                 className={`env-form-input ${editErrors.fileName ? 'has-error' : ''}`}
                 value={editForm.fileName}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, fileName: e.target.value }))}
@@ -799,6 +801,7 @@ export function EnvironmentDashboardPage() {
               <input
                 id="edit-storageLocation"
                 type="text"
+                placeholder="e.g., /upload/configs/"
                 className={`env-form-input ${editErrors.storageLocation ? 'has-error' : ''}`}
                 value={editForm.storageLocation}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, storageLocation: e.target.value }))}

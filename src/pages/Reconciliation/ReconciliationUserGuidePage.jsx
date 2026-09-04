@@ -241,13 +241,13 @@ export function ReconciliationUserGuidePage() {
             <li><strong>Duplicates in Destination:</strong> Shows duplicate keys in File 2.</li>
             <li>Includes duplicate count for each key.</li>
           </ul>
-          <img src="/docs/images/image6.jpeg" className="ru-doc-image" alt="Detailed Results" />
+          <img src="/docs/images/reconciliation_results.png" className="ru-doc-image" alt="Detailed Results" />
 
           <h4>Exporting Results:</h4>
           <ol type="a">
             <li>Click the <strong>"Export Report"</strong> button</li>
           </ol>
-          <img src="/docs/images/image7.jpeg" className="ru-doc-image" alt="Export Report Button" />
+          <img src="/docs/images/reconciliation_export_button.png" className="ru-doc-image" alt="Export Report Button" />
           <ol type="a" start="2">
             <li>
               Optionally customize column prefixes in the modal:
@@ -259,7 +259,7 @@ export function ReconciliationUserGuidePage() {
             </li>
             <li>Click <strong>"Export Report"</strong> to download</li>
           </ol>
-          <img src="/docs/images/image8.jpeg" className="ru-doc-image" alt="Export Modal" />
+          <img src="/docs/images/reconciliation_export_modal.png" className="ru-doc-image" alt="Export Modal" />
 
           <div className="ru-doc-highlight">Excel Report Contains:</div>
           
@@ -354,7 +354,7 @@ export function ReconciliationUserGuidePage() {
             <li>Click <strong>Start New Reconciliation</strong></li>
             <li>Upload new files and repeat the workflow</li>
           </ol>
-          <img src="/docs/images/image9.jpeg" className="ru-doc-image" alt="Start New Reconciliation" />
+          <img src="/docs/images/reconciliation_duplicates.png" className="ru-doc-image" alt="Start New Reconciliation" />
         </section>
 
         <section className="ru-doc-section">

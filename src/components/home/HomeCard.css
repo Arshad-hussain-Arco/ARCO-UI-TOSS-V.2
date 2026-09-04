@@ -1,23 +1,26 @@
-/* Enterprise Home Card Styling */
+/* Enterprise Home Card Styling - Premium Redesign */
 
 .home-card {
   background: var(--surface-primary, #ffffff);
-  border: 1px solid var(--border-primary, #e2e8f0);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
   overflow: hidden;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.2s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   box-sizing: border-box;
   width: 100%;
 }
 
 .home-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border-color: var(--border-hover, #cbd5e1);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="dark"] .home-card {
+  border: 1px solid var(--border-primary, #374151);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
 /* Placeholder for missing image */
@@ -32,87 +35,6 @@
   color: var(--text-tertiary, #94a3b8);
 }
 
-/* Click-to-play placeholder for the plain-video card path — video never
-   auto-loads on homepage render, only once the user presses this. */
-.home-card-video-placeholder {
-  width: 100%;
-  height: 100%;
-  min-height: 180px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #0f172a;
-  color: #ffffff;
-  border: none;
-  cursor: pointer;
-  border-radius: 6px;
-  padding: 0;
-}
-
-.home-card-video-play-icon {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.home-card-video-placeholder:hover .home-card-video-play-icon {
-  background: rgba(255, 255, 255, 0.28);
-  transform: scale(1.05);
-}
-
-.home-card-video-placeholder-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-/* Rich-text embedded video (html_code cards) — same click-to-play pattern,
-   applied via mediaUtils.js's deferPublicVideoLoad(). */
-.rte-video-lazy-wrap {
-  position: relative;
-  display: inline-block;
-  max-width: 100%;
-}
-
-.rte-video-lazy-wrap video {
-  display: block;
-  max-width: 100%;
-}
-
-.rte-video-play-trigger {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(15, 23, 42, 0.65);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rte-video-play-trigger::after {
-  content: '';
-  border-style: solid;
-  border-width: 10px 0 10px 16px;
-  border-color: transparent transparent transparent #ffffff;
-  margin-left: 3px;
-}
-
-.rte-video-play-trigger:hover {
-  background: rgba(15, 23, 42, 0.8);
-}
-
 /* ───────────────────────────────────────────────────────────────────────────
    50% Width — Vertical Card Layout
    ─────────────────────────────────────────────────────────────────────────── */
@@ -122,29 +44,34 @@
 }
 
 .home-card-50 .home-card-media-wrapper {
-  height: 450px;
+  height: 280px;
   width: 100%;
-  background: var(--bg-secondary, #f8fafc);
+  background: var(--bg-secondary, #f1f5f9);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 16px;
   box-sizing: border-box;
-  border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+
+[data-theme="dark"] .home-card-50 .home-card-media-wrapper {
+  border-bottom: 1px solid var(--border-primary, #374151);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .home-card-50 .home-card-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  margin: auto;
+  transition: transform 0.5s ease;
+}
+
+.home-card:hover .home-card-50 .home-card-image {
+  transform: scale(1.03);
 }
 
 .home-card-50 .home-card-content-wrapper {
-  padding: 24px;
+  padding: 32px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -156,35 +83,35 @@
    ─────────────────────────────────────────────────────────────────────────── */
 .home-card-100 {
   flex-direction: row;
-  min-height: 280px;
+  min-height: 320px;
   align-items: stretch;
 }
 
 .home-card-100 .home-card-media-wrapper {
-  width: 450px;
-  flex: 0 0 450px;
-  max-width: 45%;
-  background: var(--bg-secondary, #f8fafc);
+  width: 500px;
+  flex: 0 0 500px;
+  max-width: 48%;
+  background: var(--bg-secondary, #f1f5f9);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 20px;
   box-sizing: border-box;
-  border-right: 1px solid var(--border-light, #f1f5f9);
 }
 
 .home-card-100 .home-card-image {
-  max-width: 100%;
-  max-height: 450px;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  margin: auto;
+  transition: transform 0.5s ease;
+}
+
+.home-card:hover .home-card-100 .home-card-image {
+  transform: scale(1.03);
 }
 
 .home-card-100 .home-card-content-wrapper {
-  padding: 28px 32px;
+  padding: 40px 48px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -192,53 +119,52 @@
   justify-content: center;
 }
 
-/* Rich Text (html_code) cards have no media-wrapper sibling — content
-   fills the full card width and should read top-down like a document,
-   not vertically centered the way a short photo+text card does. */
-.home-card-html-only.home-card-100 .home-card-content-wrapper,
-.home-card-html-only.home-card-50 .home-card-content-wrapper {
-  justify-content: flex-start;
-  width: 100%;
+/* Rich Text cards styling */
+.home-card-html-only.home-card-100,
+.home-card-no-media.home-card-100,
+.home-card-html-only.home-card-50,
+.home-card-no-media.home-card-50 {
+  min-height: 0 !important;
 }
 
-/* The 280px min-height above exists so a short photo+text card still reads
-   as a normal-sized card next to a media-wrapper. HTML cards have no media
-   wrapper to fill, so that same min-height just left a big blank gap below
-   short content (e.g. a two-line file list) — let them size to content. */
-.home-card-html-only.home-card-100 {
-  min-height: 0;
+.home-card-html-only.home-card-100 .home-card-content-wrapper,
+.home-card-html-only.home-card-50 .home-card-content-wrapper,
+.home-card-no-media.home-card-100 .home-card-content-wrapper,
+.home-card-no-media.home-card-50 .home-card-content-wrapper {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 16px 24px;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
    Content Elements & Typography
    ─────────────────────────────────────────────────────────────────────────── */
 .home-card-heading {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-primary, #0f172a);
-  margin: 0 0 4px 0;
-  line-height: 1.35;
-  letter-spacing: -0.2px;
+  margin: 0 0 8px 0;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
 }
 
 .home-card-subheading {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--c-primary, #006838);
-  margin: 0 0 4px 0;
+  margin: 0 0 12px 0;
   line-height: 1.4;
 }
 
 .home-card-divider {
-  height: 1px;
-  background: var(--border-primary, #e2e8f0);
-  margin: 12px 0 16px 0;
-  width: 100%;
+  display: none; /* Removed for cleaner look */
 }
 
 .home-card-body-text {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.7;
   color: var(--text-secondary, #475569);
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -251,9 +177,32 @@
 
 /* Rich Text HTML Styling */
 .home-card-html-content {
+  --adaptive-text: var(--text-primary, #0f172a);
+  --adaptive-text-secondary: var(--text-secondary, #475569);
+  --adaptive-blue: #1155cc;
+  
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary, #475569);
+}
+
+[data-theme="dark"] .home-card-html-content {
+  --adaptive-blue: #60a5fa;
+  color: var(--text-primary) !important;
+}
+
+/* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
+   so it doesn't render as invisible white-on-white text in dark mode. 
+   We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
+[data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .home-card-html-content a,
+[data-theme="dark"] .home-card-html-content a span,
+[data-theme="dark"] .home-card-html-content a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: #60a5fa !important;
 }
 
 .home-card-html-content h1,
@@ -261,10 +210,14 @@
 .home-card-html-content h3,
 .home-card-html-content h4 {
   color: var(--text-primary, #0f172a);
-  margin-top: 0;
+  margin-top: 24px;
   margin-bottom: 12px;
   font-weight: 600;
   line-height: 1.3;
+}
+
+.home-card-html-content > *:first-child {
+  margin-top: 0 !important;
 }
 
 .home-card-html-content p {
@@ -415,6 +368,7 @@
 }
 
 .home-card-html-content .rte-media-card-info {
+  display: flex;
   flex-direction: row;
   align-items: baseline;
   gap: 6px;
@@ -430,6 +384,7 @@
 }
 
 .home-card-html-content .rte-media-card-actions {
+  display: flex;
   flex-wrap: nowrap;
   flex-shrink: 0;
   gap: 6px;

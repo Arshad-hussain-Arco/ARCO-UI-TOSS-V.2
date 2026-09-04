@@ -831,6 +831,7 @@ export function ConsultantsPage() {
 
                         <EfField label="Gender" required>
                           <Select
+                            width="100%"
                             value={formData.gender || ''}
                             onChange={(v) => patch({ gender: v })}
                             options={[
@@ -870,19 +871,22 @@ export function ConsultantsPage() {
 
                         <EfField label="Designation" required>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <Select
-                              value={String(
-                                formData.designation_name || formData.designation || '',
-                              )}
-                              onChange={(v) => patch({ designation: v, designation_name: v })}
-                              options={[
-                                { value: '', label: 'Select designation' },
-                                ...dynamicDesignations.map((d) => ({
-                                  value: d.name || d.designation || '',
-                                  label: d.name || d.designation || '',
-                                })),
-                              ]}
-                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <Select
+                                width="100%"
+                                value={String(
+                                  formData.designation_name || formData.designation || '',
+                                )}
+                                onChange={(v) => patch({ designation: v, designation_name: v })}
+                                options={[
+                                  { value: '', label: 'Select designation' },
+                                  ...dynamicDesignations.map((d) => ({
+                                    value: d.name || d.designation || '',
+                                    label: d.name || d.designation || '',
+                                  })),
+                                ]}
+                              />
+                            </div>
                             <button
                               type="button"
                               className="ef-input-action"
@@ -902,6 +906,7 @@ export function ConsultantsPage() {
 
                         <EfField label="Team" required>
                           <Select
+                            width="100%"
                             value={String(
                               formData.teamId || formData.team_id || formData.team || '',
                             )}
@@ -928,6 +933,7 @@ export function ConsultantsPage() {
 
                         <EfField label="Role" required>
                           <Select
+                            width="100%"
                             value={String(
                               formData.roleId || formData.role_id || formData.role || '',
                             )}
@@ -954,6 +960,7 @@ export function ConsultantsPage() {
 
                         <EfField label="Reporting Manager" required>
                           <Select
+                            width="100%"
                             value={String(
                               formData.managerId || formData.manager_id || formData.manager || '',
                             )}
@@ -998,6 +1005,7 @@ export function ConsultantsPage() {
                         </EfField>
                         <EfField label="Account Status" required>
                           <Select
+                            width="100%"
                             value={formData.accountStatus || 'active'}
                             onChange={(v) => patch({ accountStatus: v })}
                             options={STATIC_STATUSES.map((s) => ({

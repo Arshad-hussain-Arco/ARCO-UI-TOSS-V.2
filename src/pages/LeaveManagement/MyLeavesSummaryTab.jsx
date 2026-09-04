@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown } from 'lucide-react';
+import { Download, Eye, X, ChevronDown, FileSpreadsheet, FileText, ArrowUpDown, Search } from 'lucide-react';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { leaveService } from '@services/leaveService';
@@ -8,6 +8,7 @@ import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { TruncatedText, SortIcon } from './LeaveManagementPage';
 import { getRelativePendingTime, STATUS_TOOLTIPS } from './TeamRequestsTab';
 import { ExportButton } from '@components/ui/ExportButton';
+import { Loader } from '@components/feedback/Loader/Loader';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -28,16 +29,24 @@ const MONTHS = [
   { value: '11', label: 'December' },
 ];
 
+// Starting year for the filter — earliest leave data is expected from here.
+// The list always extends through the current year, so it never goes stale.
+const YEARS_START = 2024;
 const YEARS = [
   { value: 'all', label: 'All Years' },
-  { value: '2024', label: '2024' },
-  { value: '2025', label: '2025' },
-  { value: '2026', label: '2026' },
-  { value: '2027', label: '2027' },
+  ...Array.from(
+    { length: new Date().getFullYear() - YEARS_START + 1 },
+    (_, i) => {
+      const year = String(YEARS_START + i);
+      return { value: year, label: year };
+    },
+  ),
 ];
 
 export function MyLeavesSummaryTab({
   leaves = [],
+  leaveTypeMap = {},
+  isLoading = false,
   setViewModalLeave,
   selectedYear,
   onYearChange,
@@ -77,14 +86,16 @@ export function MyLeavesSummaryTab({
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState('asc');
+  const [leaveTypeSearch, setLeaveTypeSearch] = useState('');
 
   // Normalize leave status for filtering
   const normalizedLeaves = useMemo(() => {
     return leaves.map(leave => {
       const statusStr = leave.status_code?.toLowerCase().replace('_', '-') || 'pending';
-      return { ...leave, statusStr };
+      const displayType = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave';
+      return { ...leave, statusStr, displayType };
     });
-  }, [leaves]);
+  }, [leaves, leaveTypeMap]);
 
   // Year and date-range are already applied server-side (leaves prop is
   // fetched with ?year=/&from=/&to= from the parent) — only month is
@@ -102,10 +113,19 @@ export function MyLeavesSummaryTab({
     });
   }, [normalizedLeaves, selectedMonth]);
 
+  // Search applies before the status chips, so the chip badge counts
+  // (All/Pending/Approved/...) reflect the search too — typing narrows
+  // both the table and what each chip counts.
+  const searchFilteredLeaves = useMemo(() => {
+    const q = leaveTypeSearch.trim().toLowerCase();
+    if (!q) return dateFilteredLeaves;
+    return dateFilteredLeaves.filter(leave => leave.displayType?.toLowerCase().includes(q));
+  }, [dateFilteredLeaves, leaveTypeSearch]);
+
   const filteredLeaves = useMemo(() => {
-    return dateFilteredLeaves.filter(leave => {
-      if (filterStatus === 'all') return true;
-      return leave.statusStr === filterStatus;
+    return searchFilteredLeaves.filter(leave => {
+      if (filterStatus !== 'all' && leave.statusStr !== filterStatus) return false;
+      return true;
     }).sort((a, b) => {
       if (!sortField) return 0;
       let aVal = a[sortField];
@@ -123,7 +143,7 @@ export function MyLeavesSummaryTab({
       const result = aVal > bVal ? 1 : -1;
       return sortOrder === 'asc' ? result : -result;
     });
-  }, [dateFilteredLeaves, filterStatus, sortField, sortOrder]);
+  }, [searchFilteredLeaves, filterStatus, sortField, sortOrder]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -134,12 +154,10 @@ export function MyLeavesSummaryTab({
     }
   };
 
-  const leaveTypeMap = { 'AL': 'Annual Leave', 'WFH': 'Work From Home', 'SL': 'Sick Leave', 'OW': 'Offshore Work', 'CompOff': 'Comp Off' };
-
   const handleExportCSV = () => {
     const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
     const rows = filteredLeaves.map(leave => [
-      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.displayType || '',
       leave.start_date || leave.date || '',
       leave.end_date || leave.date || leave.start_date || '',
       leave.business_days || leave.in_days || 0,
@@ -157,7 +175,7 @@ export function MyLeavesSummaryTab({
     const doc = new jsPDF('landscape');
     const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status'];
     const body = filteredLeaves.map(leave => [
-      leaveTypeMap[leave.leave_type] || leave.leave_type || '',
+      leave.displayType || '',
       leave.start_date || leave.date || '',
       leave.end_date || leave.date || leave.start_date || '',
       leave.business_days || leave.in_days || 0,
@@ -178,87 +196,64 @@ export function MyLeavesSummaryTab({
 
 
   return (
-    <div className="my-leaves-summary-tab" style={{ marginTop: '20px' }}>
+    <div className="my-leaves-summary-tab" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
-      {/* Filters Toolbar */}
-      <div className="leave-filters-section" style={{ marginBottom: '16px', background: 'var(--surface-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
-        
-        {/* Filters Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', alignContent: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '0 0 auto' }}>
-            <button className="leave-filter-chip" data-active={filterStatus === 'all'} onClick={() => setFilterStatus('all')}>
-              <span className="leave-filter-label">All</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
-              <span className="leave-filter-label">Pending</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
-              <span className="leave-filter-label">Approved</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'rejected'} onClick={() => setFilterStatus('rejected')}>
-              <span className="leave-filter-label">Rejected</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'rejected').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'self-rejected'} onClick={() => setFilterStatus('self-rejected')} title={STATUS_TOOLTIPS['self-rejected']}>
-              <span className="leave-filter-label">Self-Rejected</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'self-rejected').length}</span>
-            </button>
-
-            <button className="leave-filter-chip" data-active={filterStatus === 'cancelled'} onClick={() => setFilterStatus('cancelled')} title={STATUS_TOOLTIPS.cancelled}>
-              <span className="leave-filter-label">Cancelled</span>
-              <span className="leave-filter-badge">{dateFilteredLeaves.filter(l => l.statusStr === 'cancelled').length}</span>
-            </button>
+      {/* Top Filter Card: Search, Dates, and Export */}
+      <div className="leave-filters-section" style={{ background: 'var(--surface-primary)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-primary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
+          {/* Leave Type Search */}
+          <div className="tr-search-wrap" style={{ maxWidth: 200 }}>
+            <Search className="tr-search-icon" />
+            <input
+              className="tr-search"
+              placeholder="Search leave type…"
+              value={leaveTypeSearch}
+              onChange={(e) => setLeaveTypeSearch(e.target.value)}
+            />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Date Filters */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ width: '130px' }}>
-                <Select 
-                  value={selectedMonth} 
-                  onChange={setSelectedMonth} 
-                  options={MONTHS} 
-                  placeholder="Select Month"
-                  width="130px"
-                />
-              </div>
-              <div style={{ width: '100px' }}>
-                <Select
-                  value={selectedYear}
-                  onChange={onYearChange}
-                  options={YEARS}
-                  placeholder="Select Year"
-                  width="100px"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
-                <DatePicker
-                  value={fromDate ? new Date(fromDate) : null}
-                  onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
-                  placeholder="Start Date"
-                  width="110px"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
-                <DatePicker
-                  value={toDate ? new Date(toDate) : null}
-                  onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
-                  placeholder="End Date"
-                  width="110px"
-                />
-              </div>
+          {/* Date Filters */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ width: '120px' }}>
+              <Select 
+                value={selectedMonth} 
+                onChange={setSelectedMonth} 
+                options={MONTHS} 
+                placeholder="Select Month"
+                width="120px"
+              />
             </div>
+            <div style={{ width: '90px' }}>
+              <Select
+                value={selectedYear}
+                onChange={onYearChange}
+                options={YEARS}
+                placeholder="Select Year"
+                width="90px"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>From:</span>
+              <DatePicker
+                value={fromDate ? new Date(fromDate) : null}
+                onChange={(d) => onFromDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                placeholder="Start Date"
+                width="110px"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>To:</span>
+              <DatePicker
+                value={toDate ? new Date(toDate) : null}
+                onChange={(d) => onToDateChange(d ? d.toISOString().slice(0, 10) : null)}
+                placeholder="End Date"
+                width="110px"
+              />
+            </div>
+          </div>
 
-            {/* Export Button */}
+          {/* Export Button */}
+          <div style={{ marginLeft: 'auto' }}>
             <ExportButton
               excel
               pdf
@@ -269,8 +264,35 @@ export function MyLeavesSummaryTab({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Card (Status Pills + Table) */}
       <div className="lc-card-panel">
+        
+        {/* Status Pills inside the Table Container */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-secondary)' }}>
+          <div className="leave-filters-container" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className="leave-filter-chip" data-active={filterStatus === 'all'} onClick={() => setFilterStatus('all')}>
+              <span className="leave-filter-label">All</span>
+              <span className="leave-filter-badge">{searchFilteredLeaves.length}</span>
+            </button>
+
+            <button className="leave-filter-chip" data-active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')}>
+              <span className="leave-filter-label">Pending</span>
+              <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'pending').length}</span>
+            </button>
+
+            <button className="leave-filter-chip" data-active={filterStatus === 'approved'} onClick={() => setFilterStatus('approved')}>
+              <span className="leave-filter-label">Approved</span>
+              <span className="leave-filter-badge">{searchFilteredLeaves.filter(l => l.statusStr === 'approved').length}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Table Section */}
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+            <Loader message="Loading your leaves..." />
+          </div>
+        ) : (
         <div className="leave-table-container">
           <table className="leave-table">
             <colgroup>
@@ -313,7 +335,7 @@ export function MyLeavesSummaryTab({
                 const endDate = new Date(leave.end_date || leave.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                 const dateDisplay = (leave.start_date === leave.end_date || !leave.end_date) ? startDate : `${startDate} - ${endDate}`;
                 
-                const displayType = leaveTypeMap[leave.leave_type] || leave.leave_type || leave.type || 'Leave';
+                const displayType = leave.displayType;
                 const days = leave.in_days || leave.business_days || 0;
                 const durationText = getDurationDisplay(leave);
 
@@ -321,15 +343,44 @@ export function MyLeavesSummaryTab({
                   <tr key={leave.id || idx} className="leave-table-row">
                     <td className="leave-table-cell">{displayType}</td>
                     <td className="leave-table-cell">
-                      <div className="leave-table-dates">
-                        <span className="leave-table-date-text text-[14px]">{dateDisplay}</span>
-                        <span className="leave-table-date-duration">
-                          ({days} day{days !== 1 ? 's' : ''})
-                          {durationText ? ` • ${durationText}` : ''}
-                        </span>
-                      </div>
+                      {leave.claimDates && leave.claimDates.length > 1 ? (
+                        // Grouped multi-date claim submission (see
+                        // groupClaimLeaves in LeaveManagementPage) — the
+                        // dates aren't a contiguous range, so a "start -
+                        // end" span with a summed day count is misleading
+                        // (it implies continuous leave across every day in
+                        // between). List each claimed date + duration
+                        // instead, same as the Apply Leave tab table.
+                        <div className="leave-table-dates">
+                          {leave.claimDates.map((cd) => (
+                            <div key={cd.id} className="leave-table-date-text text-[14px]">
+                              {new Date(cd.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                              <span className="leave-table-date-duration">
+                                {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
+                                {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="leave-table-dates">
+                          <span className="leave-table-date-text text-[14px]">{dateDisplay}</span>
+                          <span className="leave-table-date-duration">
+                            ({days} day{days !== 1 ? 's' : ''})
+                            {durationText ? ` • ${durationText}` : ''}
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td className="leave-table-cell">{leave.business_days || days}</td>
+                    {/* `|| days` fell back to in_days whenever business_days
+                        was 0 — since 0 is falsy in JS, that always kicked in
+                        for a Claim (which is never a leave day, so
+                        business_days is always 0 — see leaves/services.py
+                        _create_claim), showing the claimed day count instead
+                        of the correct 0 work days. Apply Leave tab's own
+                        table shows plain business_days with no such
+                        fallback — mirror that here. */}
+                    <td className="leave-table-cell">{leave.business_days ?? 0}</td>
                     <td className="leave-table-cell">
                       <TruncatedText text={leave.leave_reason || leave.reason} maxLength={25} title="Leave Reason" />
                     </td>
@@ -369,6 +420,7 @@ export function MyLeavesSummaryTab({
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

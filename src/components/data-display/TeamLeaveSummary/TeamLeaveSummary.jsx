@@ -147,17 +147,23 @@ function TeamLeaveSummary({ getPhoto }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [expandedAnalyticsDepts, setExpandedAnalyticsDepts] = useState(new Set());
   const [teamSearchQueries, setTeamSearchQueries] = useState({});
+  const [teamLeavesData, setTeamLeavesData] = useState([]);
 
   useEffect(() => {
     const fetchSummary = async () => {
       if (!user?.emp_id) return;
       try {
-        if (departmentData.length === 0) setLoading(true);
-        const res = await api.get(endpoints.manager.teamLeaveQuota(user.emp_id), {
-          params: summaryTimePeriod ? { month: summaryTimePeriod } : {}
-        });
+        setLoading(true);
+        const [res, leavesRes] = await Promise.all([
+          api.get(endpoints.manager.teamLeaveQuota(user.emp_id)),
+          api.get(endpoints.me.teamLeaves(user.emp_id)).catch(() => ({ data: { results: [] } }))
+        ]);
         const payload = res.data?.data || res.data;
         const rawData = Array.isArray(payload) ? payload : (payload?.results || []);
+        
+        const leavesPayload = leavesRes.data?.data || leavesRes.data;
+        const rawLeaves = Array.isArray(leavesPayload) ? leavesPayload : (leavesPayload?.results || []);
+        setTeamLeavesData(rawLeaves);
 
         // Group employees by team
         const deptMap = {};
@@ -212,7 +218,7 @@ function TeamLeaveSummary({ getPhoto }) {
       }
     };
     fetchSummary();
-  }, [user?.emp_id, summaryTimePeriod]);
+  }, [user?.emp_id]);
 
   const mergedDepartmentData = useMemo(() => {
     if (!getPhoto) return departmentData;
@@ -297,10 +303,67 @@ function TeamLeaveSummary({ getPhoto }) {
     }
 
     if (summaryTimePeriod) {
-      depts = depts.map(dept => {
-        const activeConsultants = (dept.consultants || []).filter(c => calcTotal(c) > 0);
-        return { ...dept, consultants: activeConsultants };
-      }).filter(dept => dept.consultants.length > 0);
+      const monthMap = {
+        january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+        july: 6, august: 7, september: 8, october: 9, november: 10, december: 11
+      };
+      const selectedMonthIdx = monthMap[summaryTimePeriod.toLowerCase()];
+      
+      if (selectedMonthIdx !== undefined) {
+        depts = depts.map(dept => {
+          const updatedConsultants = (dept.consultants || []).map(c => {
+            const empLeaves = teamLeavesData.filter(l => String(l.emp_id) === String(c.id) && l.status === 'APPROVED');
+            
+            const monthlyUsage = {};
+            empLeaves.forEach(lv => {
+              const start = new Date(lv.start_date);
+              const end = new Date(lv.end_date);
+              let daysInMonth = 0;
+              let curr = new Date(start);
+              curr.setHours(0,0,0,0);
+              const endDate = new Date(end);
+              endDate.setHours(0,0,0,0);
+              
+              while (curr <= endDate) {
+                if (curr.getMonth() === selectedMonthIdx) {
+                  const day = curr.getDay();
+                  if (day !== 0 && day !== 6) { // basic weekday check
+                    daysInMonth++;
+                  }
+                }
+                curr.setDate(curr.getDate() + 1);
+              }
+              
+              if (daysInMonth > 0) {
+                const code = lv.leave_type_code || lv.leave_type?.code || lv.leave_type;
+                monthlyUsage[code] = (monthlyUsage[code] || 0) + daysInMonth;
+              }
+            });
+            
+            const updatedBalances = { ...c.balances };
+            Object.keys(updatedBalances).forEach(code => {
+               updatedBalances[code] = {
+                 ...updatedBalances[code],
+                 used: monthlyUsage[code] || 0
+               };
+            });
+            
+            return {
+              ...c,
+              balances: updatedBalances,
+              annualLeaveUsed: monthlyUsage['AL'] || 0,
+              sickLeaveUsed: monthlyUsage['SL'] || 0,
+              compOffDays: (monthlyUsage['CompOff'] || 0) + (monthlyUsage['CCompOff'] || 0),
+              wfhDays: monthlyUsage['WFH'] || 0,
+              weekendWorkDays: (monthlyUsage['WW'] || 0) + (monthlyUsage['CWW'] || 0),
+              paternityDays: monthlyUsage['ML'] || 0,
+            };
+          });
+          
+          const activeConsultants = updatedConsultants.filter(c => calcTotal(c) > 0);
+          return { ...dept, consultants: activeConsultants };
+        }).filter(dept => dept.consultants.length > 0);
+      }
     }
     
     const q = globalSearchQuery?.trim().toLowerCase();
@@ -315,7 +378,7 @@ function TeamLeaveSummary({ getPhoto }) {
     }
 
     return depts;
-  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod, globalSearchQuery]);
+  }, [summaryDepartment, mergedDepartmentData, summaryTimePeriod, globalSearchQuery, teamLeavesData]);
 
   useEffect(() => {
     if (globalSearchQuery?.trim() !== '') {
@@ -504,49 +567,52 @@ function TeamLeaveSummary({ getPhoto }) {
                   width="department"
                 />
               </div>
+              {summaryView === 'analytics' && (
+                <>
+                  <div className="team-summary-filter-group">
+                    <Select
+                      value={summaryTimePeriod}
+                      onChange={setSummaryTimePeriod}
+                      placeholder="All Months"
+                      options={[
+                        { value: '', label: 'All Months' },
+                        { value: 'january', label: 'January' },
+                        { value: 'february', label: 'February' },
+                        { value: 'march', label: 'March' },
+                        { value: 'april', label: 'April' },
+                        { value: 'may', label: 'May' },
+                        { value: 'june', label: 'June' },
+                        { value: 'july', label: 'July' },
+                        { value: 'august', label: 'August' },
+                        { value: 'september', label: 'September' },
+                        { value: 'october', label: 'October' },
+                        { value: 'november', label: 'November' },
+                        { value: 'december', label: 'December' }
+                      ]}
+                      width="dateRange"
+                    />
+                  </div>
 
-              <div className="team-summary-filter-group">
-                <Select
-                  value={summaryTimePeriod}
-                  onChange={setSummaryTimePeriod}
-                  placeholder="Select Month"
-                  options={[
-                    { value: '', label: 'Select Month', disabled: true },
-                    { value: 'january', label: 'January' },
-                    { value: 'february', label: 'February' },
-                    { value: 'march', label: 'March' },
-                    { value: 'april', label: 'April' },
-                    { value: 'may', label: 'May' },
-                    { value: 'june', label: 'June' },
-                    { value: 'july', label: 'July' },
-                    { value: 'august', label: 'August' },
-                    { value: 'september', label: 'September' },
-                    { value: 'october', label: 'October' },
-                    { value: 'november', label: 'November' },
-                    { value: 'december', label: 'December' }
-                  ]}
-                  width="dateRange"
-                />
-              </div>
-
-              <div className="team-summary-filter-group">
-                <Select
-                  value={summaryLeaveType}
-                  onChange={setSummaryLeaveType}
-                  options={[
-                    { value: 'all', label: 'All Types' },
-                    { value: 'annual', label: 'Annual Leave' },
-                    { value: 'sick', label: 'Sick Leave' },
-                    { value: 'compoff', label: 'Comp-Off' },
-                    { value: 'wfh', label: 'WFH' },
-                    { value: 'offshore', label: 'Offshore Work' },
-                    { value: 'weekend', label: 'Weekend Work' },
-                    { value: 'visa', label: 'Visa Purpose' },
-                    { value: 'paternity', label: 'Paternity' },
-                  ]}
-                  width="leaveType"
-                />
-              </div>
+                  <div className="team-summary-filter-group">
+                    <Select
+                      value={summaryLeaveType}
+                      onChange={setSummaryLeaveType}
+                      options={[
+                        { value: 'all', label: 'All Types' },
+                        { value: 'annual', label: 'Annual Leave' },
+                        { value: 'sick', label: 'Sick Leave' },
+                        { value: 'compoff', label: 'Comp-Off' },
+                        { value: 'wfh', label: 'WFH' },
+                        { value: 'offshore', label: 'Offshore Work' },
+                        { value: 'weekend', label: 'Weekend Work' },
+                        { value: 'visa', label: 'Visa Purpose' },
+                        { value: 'paternity', label: 'Paternity' },
+                      ]}
+                      width="leaveType"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="team-summary-filter-group" style={{ display: 'flex', alignItems: 'center' }}>
                 <div className="team-summary-search-wrapper" style={{ minWidth: '220px' }}>

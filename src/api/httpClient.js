@@ -2,11 +2,12 @@ import axios from 'axios';
 import { storage } from '@utils/storage';
 import { STORAGE_KEYS } from '@constants/storageKeys';
 import endpoints from './endpoints';
+import { env } from '@config/env';
 
 // Create base instance
 const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api',
-  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT, 10) || 30000,
+  baseURL: env.apiBaseUrl,
+  timeout: env.apiTimeout,
   headers: {
     'Content-Type': 'application/json',
   },

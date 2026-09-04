@@ -1,3 +1,5 @@
+import { env } from '@config/env';
+
 export function parseDate(val) {
   if (!val) return null;
   const d = new Date(val);
@@ -14,9 +16,7 @@ export function resolvePhotoUrl(raw) {
   if (v.startsWith('data:image')) return v;
   if (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('blob:')) return v;
   if (v.startsWith('/')) {
-    const apiOrigin = (typeof import.meta !== 'undefined'
-      ? (import.meta.env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api')
-      : 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+    const apiOrigin = env.apiBaseUrl;
     return `${apiOrigin}${v}`;
   }
   // Assume raw base64
@@ -206,7 +206,7 @@ export function processCapacityData(assignments, weekendDays = [5, 6], reference
         photo: resolvePhotoUrl(item.Photo_URL || item.EmpPhoto || item.EmployeePhoto || item.photo || ''),
         teamId,
         teamName,
-        role: isProg ? 'Primary Developer' : 'Tester',
+        role: isProg ? 'Primary Developer' : 'Additional Developer',
         next7Days: { occupied: 0 },
         next30Days: { occupied: 0 },
         next90Days: { occupied: 0 },
@@ -225,8 +225,8 @@ export function processCapacityData(assignments, weekendDays = [5, 6], reference
       startDate: item.Start_Date,
       endDate: item.End_Date,
       effort: ownMDs,
-      role: isProg ? 'Primary Developer' : 'Tester',
-      roleIcon: isProg ? 'Primary' : 'Tester',
+      role: isProg ? 'Primary Developer' : 'Additional Developer',
+      roleIcon: isProg ? 'Primary' : 'Additional',
       remainingPercent: remaining,
       project: item.Project || '',
       assignedDeveloper: item.Assigned_Developer || '',

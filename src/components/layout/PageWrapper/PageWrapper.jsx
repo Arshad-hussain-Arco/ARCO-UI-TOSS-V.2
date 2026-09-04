@@ -33,7 +33,6 @@ export function PageWrapper({ breadcrumbItems, children }) {
   } else if (pathname === ROUTES.CAPACITY_PLANNING) {
     rightElement = (
       <UploadTimestampDisplay configs={[
-        { fileKey: 'wofilePath', label: 'WO File Last Updated on' },
         { fileKey: 'crfilePath', label: 'CR File Last Updated on' }
       ]} />
     );

@@ -1,367 +1,254 @@
-/* Leave Calendar */
-.leave-calendar {
+/* Leave Calendar container */
+.leave-calendar-container {
   background-color: var(--surface-primary);
-  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
   padding: 16px;
   width: 100%;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-sm);
   transition: background-color 0.3s ease;
   overflow: visible;
-  box-sizing: border-box;
 }
 
-/* Calendar Header */
-.leave-calendar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-primary);
-}
-
-.calendar-month-year {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.calendar-nav-btn {
-  background: none;
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
+/* React Big Calendar Toolbar Theme Overrides */
+.rbc-toolbar button {
+  color: var(--text-primary) !important;
+  background-color: var(--surface-primary) !important;
+  border-color: var(--border-primary) !important;
   transition: all 0.2s ease;
 }
 
-.calendar-nav-btn:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--border-secondary);
+.rbc-toolbar button:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.rbc-toolbar button:active,
+.rbc-toolbar button.rbc-active,
+.rbc-toolbar button.rbc-active:hover {
+  background-color: var(--c-primary) !important;
+  border-color: var(--c-primary) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.rbc-toolbar button:focus {
+  outline: none;
+}
+
+.rbc-toolbar .rbc-toolbar-label {
   color: var(--text-primary);
-}
-
-.calendar-nav-btn:active {
-  transform: scale(0.95);
-}
-
-/* Calendar Grid */
-.leave-calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-
-/* Day Headers */
-.calendar-day-header {
-  padding: 8px;
-  text-align: center;
-  font-size: 11px;
   font-weight: 600;
+}
+
+/* --- Professional React Big Calendar Styles --- */
+
+/* Base month view overrides */
+.rbc-month-view {
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  background-color: var(--surface-primary);
+}
+
+.rbc-month-row {
+  border-top: 1px solid var(--border-primary) !important;
+}
+
+.rbc-header {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-primary) !important;
+  background-color: var(--surface-secondary);
 }
 
-/* Calendar Days */
-.calendar-day {
-  aspect-ratio: 1;
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 6px;
+.rbc-header + .rbc-header {
+  border-left: 1px solid var(--border-primary) !important;
+}
+
+/* Day background cells */
+.rbc-day-bg {
+  border-left: 1px solid var(--border-primary) !important;
+  transition: background-color 0.2s ease;
+}
+
+.rbc-day-bg:first-child {
+  border-left: none !important;
+}
+
+.rbc-day-bg:hover {
+  background-color: var(--bg-hover);
+}
+
+.rbc-off-range-bg {
+  background-color: var(--bg-secondary) !important;
+  opacity: 0.6;
+}
+
+/* Weekend / holiday day columns — double-qualified for the same load-order
+   reason as the overlay rules above. */
+.leave-calendar-container .rbc-day-bg.rbc-day-weekend {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.leave-calendar-container .rbc-day-bg.rbc-day-weekend.rbc-off-range-bg {
+  opacity: 0.8 !important;
+}
+
+.leave-calendar-container .rbc-day-bg.rbc-day-weekend.rbc-today {
+  background-color: var(--c-info-light) !important;
+}
+
+/* Org holiday (from team-employee-calendars API) */
+.leave-calendar-container .rbc-day-bg.rbc-day-holiday {
+  background-color: #eff6ff !important;
+}
+
+.leave-calendar-container .rbc-day-bg.rbc-day-holiday.rbc-today {
+  background-color: #eff6ff !important;
+  filter: brightness(0.92);
+}
+
+/* Dates */
+.rbc-date-cell {
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.rbc-off-range .rbc-date-cell {
+  color: var(--text-tertiary);
+}
+
+/* Events */
+.rbc-row-segment {
+  padding: 0 8px;
+}
+
+.leave-calendar-container .rbc-event.rbc-event {
+  /* Provide defaults but allow inline styles to override */
+  background-color: #3174ad;
+  border: none;
+  background-clip: padding-box !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  margin: 1px 2px !important;
+  color: #fff;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.leave-calendar-container .rbc-event.rbc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important;
+  z-index: 10;
+}
+
+.rbc-event-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+/* Custom Event Component Styles */
+.custom-rbc-event {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.custom-rbc-event-icon {
+  flex-shrink: 0;
+}
+
+.custom-rbc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Leave Type colors are now applied dynamically via inline styles in LeaveCalendar.jsx */
+
+/* Overlay Popup ("+N more" click-through list). react-big-calendar renders
+   this via a portal appended outside .leave-calendar-container, so it
+   can't be reached with an ancestor selector — instead each selector
+   repeats its own class to boost specificity (0,2,0 beats the library's
+   0,1,0) so these rules win regardless of CSS load order, without
+   needing an ancestor match at all. */
+.rbc-overlay.rbc-overlay {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  min-width: 220px !important;
+  max-width: 320px !important;
+  /* ~5 rows visible (item height + gap), then scroll for the rest */
+  max-height: 244px !important;
+  overflow-y: auto !important;
+  background-color: var(--surface-elevated, var(--surface-primary)) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 14px !important;
+  z-index: 1000 !important;
+}
+
+.rbc-overlay-header.rbc-overlay-header {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  margin: 0 0 4px !important;
+  border-bottom: 1px solid var(--border-primary) !important;
+  padding-bottom: 8px !important;
+}
+
+.rbc-overlay .rbc-event.rbc-event.rbc-event {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  /* background-color and border-color are injected via inline style */
+  background-color: #3174ad;
+  border: 2px solid transparent;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Overlay Popup overrides for specific leave types are now handled dynamically via inline styles */
+
+/* Show more button */
+.rbc-show-more {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3174ad !important;
+  background-color: var(--surface-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin: 1px 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-primary);
   position: relative;
-  background-color: var(--surface-primary);
-  min-height: 60px;
-  transition: all 0.2s ease;
-}
-
-.calendar-day:hover:not(.calendar-day-empty) {
-  border-color: var(--border-secondary);
-  box-shadow: var(--shadow-sm);
-}
-
-.calendar-day-empty {
-  border-color: transparent;
-  background-color: var(--bg-secondary);
-}
-
-/* Weekend days (Friday and Saturday) - Saudi Arabia standard */
-.calendar-day-weekend {
-  background-color: var(--c-warning-light);
-  border-color: #fde68a;
-}
-
-.calendar-day-weekend:hover {
-  background-color: var(--c-warning-light);
-  border-color: #fcd34d;
-}
-
-/* Day with events */
-.calendar-day-has-event {
-  background-color: var(--c-success-light);
-  border-color: #86efac;
-}
-
-.calendar-day-has-event.calendar-day-weekend {
-  background: linear-gradient(135deg, var(--c-warning-light) 0%, var(--c-success-light) 100%);
-}
-
-/* Day Number */
-.calendar-day-number {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-/* Events */
-.calendar-day-events {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 6px;
-}
-
-.calendar-event {
-  display: flex;
-  align-items: center;
-}
-
-.calendar-event-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--c-success);
-}
-
-.calendar-event-approved .calendar-event-dot {
-  background-color: var(--c-success);
-}
-
-.calendar-event-pending .calendar-event-dot {
-  background-color: var(--c-warning);
-}
-
-.calendar-event-rejected .calendar-event-dot {
-  background-color: var(--c-danger);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .leave-calendar {
-    padding: 12px;
-  }
-
-  .calendar-day {
-    min-height: 50px;
-    padding: 4px;
-  }
-
-  .calendar-day-number {
-    font-size: 11px;
-  }
-
-  .calendar-day-header {
-    font-size: 10px;
-    padding: 6px 4px;
-  }
-
-  .calendar-event-dot {
-    width: 5px;
-    height: 5px;
-  }
-}
-
-@media (max-width: 480px) {
-  .leave-calendar {
-    padding: 8px;
-  }
-
-  .calendar-day {
-    min-height: 40px;
-    padding: 3px;
-  }
-
-  .calendar-day-number {
-    font-size: 10px;
-  }
-
-  .calendar-day-header {
-    font-size: 9px;
-    padding: 4px 2px;
-  }
-
-  .calendar-month-year {
-    font-size: 14px;
-  }
-}
-
-/* React Big Calendar Toolbar Theme Overrides */
-.rbc-toolbar button {
-  color: var(--text-primary) !important;
-  background-color: var(--surface-primary) !important;
-  border-color: var(--border-primary) !important;
-  transition: all 0.2s ease;
-}
-
-.rbc-toolbar button:hover {
-  background-color: var(--bg-hover) !important;
-  border-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-.rbc-toolbar button:active,
-.rbc-toolbar button.rbc-active,
-.rbc-toolbar button.rbc-active:hover {
-  background-color: var(--c-primary) !important;
-  border-color: var(--c-primary) !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-}
-
-.rbc-toolbar button:focus {
-  outline: none;
-}
-
-.rbc-toolbar .rbc-toolbar-label {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-/* --- Professional React Big Calendar Styles --- */
-
-/* Base month view overrides */
-.rbc-month-view {
-  border: 1px solid var(--border-primary);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  background-color: var(--surface-primary);
-}
-
-.rbc-month-row {
-  border-top: 1px solid var(--border-primary) !important;
-}
-
-.rbc-header {
-  padding: 12px 8px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-primary) !important;
-  background-color: var(--surface-secondary);
-}
-
-.rbc-header + .rbc-header {
-  border-left: 1px solid var(--border-primary) !important;
-}
-
-/* Day background cells */
-.rbc-day-bg {
-  border-left: 1px solid var(--border-primary) !important;
-  transition: background-color 0.2s ease;
-}
-
-.rbc-day-bg:first-child {
-  border-left: none !important;
-}
-
-.rbc-day-bg:hover {
-  background-color: var(--bg-hover);
-}
-
-.rbc-off-range-bg {
-  background-color: var(--bg-secondary) !important;
-  opacity: 0.6;
-}
-
-
-
-/* Dates */
-.rbc-date-cell {
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-.rbc-off-range .rbc-date-cell {
-  color: var(--text-tertiary);
-}
-
-/* Events */
-.rbc-row-segment {
-  padding: 0 8px;
-}
-
-.rbc-event {
-  background-color: #3174ad !important;
-  border: 2px solid transparent !important;
-  background-clip: padding-box !important;
-  border-radius: 6px !important;
-  padding: 2px 4px !important;
-  margin: 0 !important;
-  color: #fff !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 1.2 !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-}
-
-.rbc-event:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important;
-  z-index: 10;
-}
-
-.rbc-event-content {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-}
-
-/* Overlay Popup */
-.rbc-overlay {
-  background-color: var(--surface-primary) !important;
-  border: 1px solid var(--border-primary) !important;
-  border-radius: 8px !important;
-  box-shadow: var(--shadow-lg) !important;
-  padding: 12px !important;
-  z-index: 50 !important;
-}
-
-.rbc-overlay-header {
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 4px;
-}
-
-/* Show more button */
-.rbc-show-more {
-  font-size: 11px;
-  font-weight: 600;
-  color: #3174ad !important;
-  background-color: var(--surface-secondary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin: 2px 4px;
-  display: inline-block;
-  transition: all 0.2s ease;
-  border: 1px solid var(--border-primary);
+  z-index: 5;
 }
 
 .rbc-show-more:hover {
@@ -369,205 +256,78 @@
   color: #fff !important;
   border-color: #3174ad;
 }
-@media (max-width: 480px) {
-  .leave-calendar {
-    padding: 8px;
-  }
 
-  .calendar-day {
-    min-height: 40px;
-    padding: 3px;
-  }
-
-  .calendar-day-number {
-    font-size: 10px;
-  }
-
-  .calendar-day-header {
-    font-size: 9px;
-    padding: 4px 2px;
-  }
-
-  .calendar-month-year {
-    font-size: 14px;
-  }
-}
-
-/* React Big Calendar Toolbar Theme Overrides */
-.rbc-toolbar button {
-  color: var(--text-primary) !important;
-  background-color: var(--surface-primary) !important;
-  border-color: var(--border-primary) !important;
-  transition: all 0.2s ease;
-}
-
-.rbc-toolbar button:hover {
-  background-color: var(--bg-hover) !important;
-  border-color: var(--border-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-.rbc-toolbar button:active,
-.rbc-toolbar button.rbc-active,
-.rbc-toolbar button.rbc-active:hover {
-  background-color: var(--c-primary) !important;
-  border-color: var(--c-primary) !important;
-  color: #ffffff !important;
-  box-shadow: none !important;
-}
-
-.rbc-toolbar button:focus {
-  outline: none;
-}
-
-.rbc-toolbar .rbc-toolbar-label {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-/* --- Professional React Big Calendar Styles --- */
-
-/* Base month view overrides */
-.rbc-month-view {
-  border: 1px solid var(--border-primary);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  background-color: var(--surface-primary);
-}
-
-.rbc-month-row {
-  border-top: 1px solid var(--border-primary) !important;
-}
-
-.rbc-header {
-  padding: 12px 8px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-primary) !important;
-  background-color: var(--surface-secondary);
-}
-
-.rbc-header + .rbc-header {
-  border-left: 1px solid var(--border-primary) !important;
-}
-
-/* Day background cells */
-.rbc-day-bg {
-  border-left: 1px solid var(--border-primary) !important;
-  transition: background-color 0.2s ease;
-}
-
-.rbc-day-bg:first-child {
-  border-left: none !important;
-}
-
-.rbc-day-bg:hover {
-  background-color: var(--bg-hover);
-}
-
-.rbc-off-range-bg {
-  background-color: var(--bg-secondary) !important;
-  opacity: 0.6;
-}
-
-
-
-/* Dates */
-.rbc-date-cell {
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-.rbc-off-range .rbc-date-cell {
-  color: var(--text-tertiary);
-}
-
-/* Events */
-.rbc-row-segment {
-  padding: 0 8px;
-}
-
-.rbc-event {
-  background-color: #3174ad !important;
-  border: 2px solid transparent !important;
-  background-clip: padding-box !important;
-  border-radius: 6px !important;
-  padding: 2px 4px !important;
-  margin: 0 !important;
-  color: #fff !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
-  line-height: 1.2 !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-}
-
-.rbc-event:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.15) !important;
-  z-index: 10;
-}
-
-.rbc-event-content {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-}
-
-/* Overlay Popup */
-.rbc-overlay {
-  background-color: var(--surface-primary) !important;
-  border: 1px solid var(--border-primary) !important;
-  border-radius: 8px !important;
-  box-shadow: var(--shadow-lg) !important;
-  padding: 12px !important;
-  z-index: 50 !important;
-}
-
-.rbc-overlay-header {
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 4px;
-}
-
-/* Show more button */
-.rbc-show-more {
-  font-size: 11px;
-  font-weight: 600;
-  color: #3174ad !important;
-  background-color: var(--surface-secondary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin: 2px 4px;
-  display: inline-block;
-  transition: all 0.2s ease;
-  border: 1px solid var(--border-primary);
-}
-
-.rbc-show-more:hover {
-  background-color: #3174ad;
-  color: #fff !important;
-  border-color: #3174ad;
-}
-/* Holiday specific styles */
-.rbc-event.rbc-event-holiday {
-  background-color: #ccfbf1 !important;
-  border-color: #14b8a6 !important;
-  color: #0f766e !important;
-  font-weight: 600 !important;
-}
 
 /* Fix for current day background in dark theme */
 .rbc-day-bg.rbc-today {
   background-color: var(--c-info-light) !important;
+}
+
+/* Legend */
+.leave-calendar-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.leave-calendar-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.leave-calendar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.legend-color-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .leave-calendar-container {
+    padding: 12px;
+  }
+
+  .rbc-header {
+    font-size: 10px;
+    padding: 8px 4px;
+  }
+
+  .rbc-date-cell {
+    font-size: 11px;
+    padding: 4px;
+  }
+
+  .rbc-event {
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .leave-calendar-container {
+    padding: 8px;
+  }
+
+  .rbc-header {
+    font-size: 9px;
+    padding: 6px 2px;
+  }
+
+  .rbc-date-cell {
+    font-size: 10px;
+  }
 }

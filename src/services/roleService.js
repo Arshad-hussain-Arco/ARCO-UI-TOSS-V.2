@@ -2,6 +2,14 @@ import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 
 export const roleService = {
+  // Full permission catalog (code/module/action/description) a role can be
+  // assigned — backs the Roles & Permissions screen's module/permission
+  // grid instead of a hardcoded frontend constant.
+  getPermissionsCatalog: async () => {
+    const response = await httpClient.get(endpoints.roles.permissionsCatalog);
+    return response?.data || [];
+  },
+
   getRoles: async () => {
     const response = await httpClient.get(endpoints.roles.list);
     return response?.data || [];

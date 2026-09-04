@@ -3,7 +3,8 @@ import { Doughnut } from 'react-chartjs-2';
 import { useEffect, useState } from 'react';
 import './LeaveCard.css';
 ChartJS.register(ArcElement, Tooltip, Legend);
-function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited }) {
+function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color, isLoading, isUnlimited, variant }) {
+  const isSimple = variant === 'simple';
   const [bgColor, setBgColor] = useState('#e5e7eb');
   useEffect(() => {
     const updateBgColor = () => {
@@ -80,23 +81,44 @@ function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color
         {Icon && <Icon className="leave-card-icon" style={{ position: 'absolute', right: '8px', top: '8px' }} />}
       </div>
 
-      <div className="leave-card-chart-container">
-        <div className="leave-card-chart">
-          <Doughnut data={data} options={options} />
-          <div className="leave-card-center-value">{isUnlimited ? '∞' : centerCount}</div>
+      {isSimple ? (
+        <div className="leave-card-chart-container">
+          <div className="leave-card-simple-value">{centerCount}</div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="leave-card-chart-container">
+            <div className="leave-card-chart">
+              <Doughnut data={data} options={options} />
+              <div className="leave-card-center-value">{isUnlimited ? '∞' : centerCount}</div>
+            </div>
+          </div>
 
-      <div className="leave-card-stats">
-        <div className="leave-card-stat">
-          <span className="leave-card-stat-value">{isUnlimited ? 'Unlimited' : left}</span>
-          <span className="leave-card-stat-label">Left</span>
-        </div>
-        <div className="leave-card-stat">
-          <span className="leave-card-stat-value">{used}</span>
-          <span className="leave-card-stat-label">Used</span>
-        </div>
-      </div>
+          {isUnlimited ? (
+            // No cap means "Left" has nothing to be relative to — showing
+            // it as "Unlimited" next to a numeric Used reads as a mismatched
+            // pair, so an unlimited type gets a single centered Used stat
+            // instead of the usual two-column Left/Used split.
+            <div className="leave-card-stats leave-card-stats-single">
+              <div className="leave-card-stat">
+                <span className="leave-card-stat-value">{used}</span>
+                <span className="leave-card-stat-label">Used</span>
+              </div>
+            </div>
+          ) : (
+            <div className="leave-card-stats">
+              <div className="leave-card-stat">
+                <span className="leave-card-stat-value">{left}</span>
+                <span className="leave-card-stat-label">Left</span>
+              </div>
+              <div className="leave-card-stat">
+                <span className="leave-card-stat-value">{used}</span>
+                <span className="leave-card-stat-label">Used</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

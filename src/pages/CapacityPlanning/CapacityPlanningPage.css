@@ -270,7 +270,7 @@
      the group-header row's own rendered height, so both rows stay stuck
      correctly when scrolling. */
   top: 37px;
-  z-index: 9;
+  z-index: 49;
 }
 
 .cp-data-table td {
@@ -367,7 +367,7 @@
 }
 
 .team-size-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   background-color: var(--c-primary-light);
   color: var(--c-primary);
@@ -1151,7 +1151,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-secondary);
   padding: 4px 10px;
@@ -1168,6 +1168,47 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   color: var(--text-primary);
   border-color: var(--border-secondary);
+}
+
+.cp-legend-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  outline: none;
+  font: inherit;
+  line-height: normal;
+  cursor: pointer;
+}
+
+.cp-legend-filter.active {
+  background-color: var(--accent-primary, #2563eb);
+  border-color: var(--accent-primary, #2563eb);
+  color: #fff;
+}
+
+.cp-legend-clear {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  outline: none;
+  font: inherit;
+  line-height: normal;
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border-secondary);
+  border-radius: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cp-legend-clear:hover {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
 }
 
 .cp-legend-indicator {
@@ -1209,6 +1250,12 @@
   font-weight: 600;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-tertiary);
+  border-right: none;
+  text-transform: none;
+  letter-spacing: normal;
+  position: static;
+  z-index: auto;
+  background-color: transparent;
 }
 
 .cp-sub-table th.text-center {

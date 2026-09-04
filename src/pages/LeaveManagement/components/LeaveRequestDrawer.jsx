@@ -96,7 +96,11 @@ export function LeaveRequestDrawer({
           <div>
             <div className="tr-emp-name">{liveReq.employeeName}</div>
             <div className="tr-emp-meta">
-              <span className="tr-emp-meta-item">{liveReq.employeeId}</span>
+              {/* employeeUsername (Employee.user_name) is shown here instead
+                  of the emp_id — employeeId is kept around only for internal
+                  lookups (e.g. LeaveManagementPage's employeeDirectory),
+                  not meant to be a user-facing identifier. */}
+              <span className="tr-emp-meta-item">{liveReq.employeeUsername || liveReq.employeeId}</span>
               {liveReq.designation && <span className="tr-emp-meta-item">· {liveReq.designation}</span>}
               <span className="tr-emp-meta-item">· {liveReq.team}</span>
             </div>
@@ -133,25 +137,59 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
-          <div className="tr-drow">
-            <span className="tr-drow-label">
-              {liveReq.isModRequest ? 'New Start Date' : liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
-            </span>
-            <span className="tr-drow-value">{fmtDate(liveReq.startDate)}</span>
-          </div>
-          <div className="tr-drow">
-            <span className="tr-drow-label">
-              {liveReq.isModRequest ? 'New End Date' : liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
-            </span>
-            <span className="tr-drow-value">{fmtDate(liveReq.endDate)}</span>
-          </div>
+          {liveReq.claimDates && liveReq.claimDates.length > 1 ? (
+            // Grouped multi-date claim submission (see groupClaimRows in
+            // TeamRequestsTab) — the dates aren't a contiguous range, so
+            // list each claimed date + duration instead of a single
+            // From/To Date pair that would misrepresent the gap between them.
+            <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
+              <span className="tr-drow-label">Claimed Dates</span>
+              <span className="tr-drow-value">
+                {liveReq.claimDates.map((cd) => {
+                  // claimDates comes from two different grouping functions
+                  // depending on which tab opened this drawer —
+                  // TeamRequestsTab's groupClaimRows stores the short
+                  // display form ('morning'/'afternoon'), while
+                  // LeaveManagementPage's groupClaimLeaves stores the raw
+                  // backend enum ('FIRST_HALF'/'SECOND_HALF') straight off
+                  // leave_duration. Handle both instead of only one.
+                  const halfLabel = cd.duration === 'morning' || cd.duration === 'FIRST_HALF'
+                    ? 'First Half'
+                    : cd.duration === 'afternoon' || cd.duration === 'SECOND_HALF'
+                      ? 'Second Half'
+                      : null;
+                  return (
+                    <div key={cd.id}>
+                      {fmtDate(cd.date)}
+                      {halfLabel && <> ({halfLabel})</>}
+                    </div>
+                  );
+                })}
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="tr-drow">
+                <span className="tr-drow-label">
+                  {liveReq.isModRequest ? 'New Start Date' : liveReq.type === 'compoff' ? 'From Date' : 'Start Date'}
+                </span>
+                <span className="tr-drow-value">{fmtDate(liveReq.startDate)}</span>
+              </div>
+              <div className="tr-drow">
+                <span className="tr-drow-label">
+                  {liveReq.isModRequest ? 'New End Date' : liveReq.type === 'compoff' ? 'To Date' : 'End Date'}
+                </span>
+                <span className="tr-drow-value">{fmtDate(liveReq.endDate)}</span>
+              </div>
+            </>
+          )}
           {liveReq.isModRequest && liveReq.origReason && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Original Reason</span>
               <span className="tr-drow-value" style={{ color: 'var(--text-tertiary)' }}>{liveReq.origReason}</span>
             </div>
           )}
-          {liveReq.type !== 'offshore' && (
+          {liveReq.type !== 'offshore' && !(liveReq.claimDates && liveReq.claimDates.length > 1) && (
             <div className="tr-drow">
               <span className="tr-drow-label">Duration</span>
               <span className="tr-drow-value">
