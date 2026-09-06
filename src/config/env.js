@@ -13,7 +13,7 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
+const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 
 // Ensure consistency by stripping trailing slashes so manual string concatenation doesn't break.
 const apiBaseUrl = rawApiBaseUrl ? rawApiBaseUrl.replace(/\/+$/, '') : '';

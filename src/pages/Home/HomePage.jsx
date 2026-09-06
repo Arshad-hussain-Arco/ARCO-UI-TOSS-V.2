@@ -22,7 +22,7 @@ export function HomePage() {
         setIsLoading(true);
         const res = await settingsService.getHomeData();
         if (active) {
-          setData(res || []);
+          setData(Array.isArray(res) ? res : Array.isArray(res?.results) ? res.results : []);
         }
       } catch (err) {
         console.error('Failed to fetch home data', err);

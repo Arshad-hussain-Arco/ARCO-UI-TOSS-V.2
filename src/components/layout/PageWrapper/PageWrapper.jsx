@@ -1,4 +1,5 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
+import { FileText, ExternalLink } from 'lucide-react';
 
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import { BREADCRUMB_TRAILS } from '@constants/navigation';
@@ -35,6 +36,34 @@ export function PageWrapper({ breadcrumbItems, children }) {
       <UploadTimestampDisplay configs={[
         { fileKey: 'crfilePath', label: 'CR File Last Updated on' }
       ]} />
+    );
+  } else if (pathname === ROUTES.ADMIN_HOME_MANAGEMENT) {
+    rightElement = (
+      <Link
+        to={ROUTES.ADMIN_HOME_MANAGEMENT_USER_GUIDE}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          height: '38px',
+          padding: '0 16px',
+          fontSize: '13px',
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          background: 'var(--surface-primary)',
+          border: '1px solid var(--border-primary)',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <FileText size={14} />
+        <span>User Guide</span>
+        <ExternalLink size={14} />
+      </Link>
     );
   }
 

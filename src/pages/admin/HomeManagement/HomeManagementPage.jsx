@@ -678,32 +678,6 @@ function HomeManagementPanelComponent() {
           {/* 3. Top Header Bar & Action Alignment */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', marginBottom: '8px' }}>
 
-            <Link
-              to={ROUTES.ADMIN_HOME_MANAGEMENT_USER_GUIDE}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: '38px',
-                padding: '0 16px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                background: 'var(--surface-primary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                textDecoration: 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <FileText size={14} />
-              <span>User Guide</span>
-              <ExternalLink size={14} />
-            </Link>
-
             <button
               type="button"
               style={{
@@ -777,7 +751,7 @@ function HomeManagementPanelComponent() {
                       className="hm-card-actions"
                       style={{
                         position: 'absolute',
-                        top: '8px',
+                        top: '4px',
                         right: '8px',
                         display: 'flex',
                         alignItems: 'center',
@@ -1125,26 +1099,26 @@ function HomeManagementPanelComponent() {
                         <div className="ss-grid-2col" style={{ gap: '12px' }}>
                           {/* Title */}
                           <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Title</label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personName}
-                            onChange={(e) => setPersonName(e.target.value)}
-                            placeholder="Enter Title..."
-                          />
-                        </div>
+                            <label className="ss-modal-label">Title</label>
+                            <input
+                              type="text"
+                              className="ss-input"
+                              value={personName}
+                              onChange={(e) => setPersonName(e.target.value)}
+                              placeholder="Enter Title..."
+                            />
+                          </div>
 
-                        {/* Designation */}
-                        <div className="ss-modal-form-group">
-                          <label className="ss-modal-label">Sub Head</label>
-                          <input
-                            type="text"
-                            className="ss-input"
-                            value={personDesignation}
-                            onChange={(e) => setPersonDesignation(e.target.value)}
-                            placeholder="Enter Sub-head ..."
-                          />
+                          {/* Designation */}
+                          <div className="ss-modal-form-group">
+                            <label className="ss-modal-label">Sub Head</label>
+                            <input
+                              type="text"
+                              className="ss-input"
+                              value={personDesignation}
+                              onChange={(e) => setPersonDesignation(e.target.value)}
+                              placeholder="Enter Sub-head ..."
+                            />
                           </div>
                         </div>
 
@@ -1219,7 +1193,7 @@ function HomeManagementPanelComponent() {
                         />
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '8px', color: 'var(--text-tertiary)' }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 9h6M9 12h6M9 15h4" /></svg>
                           <span style={{ fontSize: '12px', fontWeight: 500 }}>Preview will appear here as you add content</span>
                         </div>
                       )}

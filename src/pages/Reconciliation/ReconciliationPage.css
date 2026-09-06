@@ -43,20 +43,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  padding: 6px 12px;
-  border-radius: 16px;
+  color: var(--text-secondary);
+  background: var(--surface-primary);
   border: 1px solid var(--border-primary);
+  border-radius: 6px;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .rwiz-page-guide-btn:hover {
-  background: var(--surface-primary);
+  background: var(--bg-secondary);
   border-color: var(--border-secondary);
 }
 
