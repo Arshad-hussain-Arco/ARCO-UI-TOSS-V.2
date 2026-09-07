@@ -7,6 +7,7 @@ import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
+import { ProgressTooltip } from '@pages/ProjectMonitoring/components/ProgressTooltip';
 
 import './RichEditor.css';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
@@ -247,7 +248,7 @@ const getEditorHtml = (editor) => {
     // which silently strips out complex layouts like flexbox and CSS gradients.
     const editorDiv = document.querySelector('.rte-root div[contenteditable="true"]');
     if (editorDiv) return editorDiv.innerHTML;
-    
+
     // Fallback only
     return exportContent(editor);
   } catch (e) {
@@ -364,6 +365,12 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const pdfInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const isInitialized = useRef(false);
+  const activeTabRef = useRef(activeTab);
+  const sourceHtmlRef = useRef('');
+  const [sourceHtmlState, setSourceHtmlState] = useState('');
+  const [tooltipState, setTooltipState] = useState({ visible: false, title: '', targetRect: null });
+
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   const mediaToken = useHomeMediaToken();
   const displayHtml = (html) => attachHomeMediaToken(html, mediaToken) || html;
@@ -388,7 +395,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           if (root && (root.innerHTML === '' || root.innerHTML === '<div><br></div>')) {
             root.innerHTML = initialValue;
           }
-        } catch (err) {}
+        } catch (err) { }
       }, 50); // slight delay to let roosterjs initialize first
     }
   }, [initialValue]);
@@ -410,6 +417,30 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         clearTimeout(timeout);
       },
       onPluginEvent: (e) => {
+        // PluginEventType: 5 = MouseUp, 2 = KeyUp, 6 = ContentChanged, 0 = KeyDown
+        if (e.eventType === 5 || e.eventType === 2 || e.eventType === 6 || e.eventType === 0) {
+          setTimeout(() => {
+            let hasVideo = false;
+            if (document.querySelector('.rte-root video.rooster-video-selected')) {
+              hasVideo = true;
+            } else {
+              const sel = window.getSelection();
+              if (sel && sel.anchorNode) {
+                let node = sel.anchorNode;
+                if (node.nodeType === 3) node = node.parentNode;
+                if (node.tagName === 'VIDEO' || (node.querySelector && node.querySelector('video'))) {
+                  hasVideo = true;
+                }
+              }
+            }
+            if (hasVideo && activeTabRef.current !== 'Video') {
+              setActiveTab('Video');
+            } else if (!hasVideo && activeTabRef.current === 'Video') {
+              setActiveTab('Main');
+            }
+          }, 0);
+        }
+
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           if (editorRef.current) {
@@ -488,16 +519,16 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   }, []);
 
   const ribbonPlugin = useMemo(createRibbonPlugin, []);
-  
+
   const tableEditMenuProvider = useMemo(createTableEditMenuProvider, []);
   // RoosterJS 9's createContextMenuPlugin does not take providers in this version.
   const contextMenuPlugin = useMemo(() => createContextMenuPlugin(), []);
 
   const plugins = useMemo(() => [
-    ribbonPlugin, 
-    editorSyncPlugin, 
-    codePastePlugin, 
-    new ImageEditPlugin(), 
+    ribbonPlugin,
+    editorSyncPlugin,
+    codePastePlugin,
+    new ImageEditPlugin(),
     new TableEditPlugin('.rte-root'),
     new DragAndDropPlugin(),
     contextMenuPlugin
@@ -537,15 +568,54 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     }
   }), [isFullscreen]);
 
+  const customInsertVideoButton = useMemo(() => ({
+    key: 'customInsertVideo',
+    unlocalizedText: 'Upload Video',
+    iconName: 'Video',
+    onClick: () => {
+      if (isFullscreen) {
+        videoInputRef.current?.click();
+      } else {
+        setIsFullscreen(true);
+        setTimeout(() => videoInputRef.current?.click(), 80);
+      }
+    }
+  }), [isFullscreen]);
+
+  const toggleSourceView = useCallback(() => {
+    setShowHtmlPreview((prev) => {
+      if (!prev) {
+        const html = editorRef.current ? getEditorHtml(editorRef.current) : '';
+        sourceHtmlRef.current = html;
+        setSourceHtmlState(html);
+      } else {
+        if (editorRef.current) {
+          const sanitized = DOMPurify.sanitize(sourceHtmlRef.current, {
+            ADD_TAGS: ['style', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary', 'video', 'source', 'iframe'],
+            ADD_ATTR: ['style', 'class', 'colspan', 'rowspan', 'border', 'cellpadding', 'cellspacing', 'width', 'height', 'align', 'valign', 'scope', 'headers', 'target', 'rel', 'href', 'src', 'alt', 'title', 'controls', 'autoplay', 'loop', 'muted', 'poster', 'allowfullscreen', 'frameborder', 'data-media-id', 'data-src', 'data-copy', 'data-code-copy'],
+            FORBID_TAGS: ['script', 'object', 'embed'],
+            FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit', 'onchange', 'onkeydown', 'onkeyup', 'onkeypress'],
+          });
+          const root = document.querySelector('.rte-root div[contenteditable="true"]');
+          if (root) {
+            root.innerHTML = sanitized;
+          } else if (typeof editorRef.current.setContent === 'function') {
+            editorRef.current.setContent(sanitized);
+          }
+          handleChange(getEditorHtml(editorRef.current));
+        }
+      }
+      return !prev;
+    });
+  }, [handleChange]);
+
   // Custom code button that toggles HTML Source Edit mode instead of inline code
   const customCodeButton = useMemo(() => ({
     ...codeButton,
     key: 'customCodeButton',
-    unlocalizedText: 'Show generated HTML preview',
-    onClick: () => {
-      setShowHtmlPreview((prev) => !prev);
-    }
-  }), []);
+    unlocalizedText: 'Toggle HTML Source Edit Mode',
+    onClick: toggleSourceView
+  }), [toggleSourceView]);
 
   // Handle link insertion from the fullscreen modal
   const handleLinkInsert = useCallback(({ url, text, newTab }) => {
@@ -578,7 +648,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const getSelectedImage = useCallback(() => {
     try {
       if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('img');
-    } catch(e) {}
+    } catch (e) { }
     const sel = window.getSelection();
     if (sel && sel.anchorNode) {
       let node = sel.anchorNode;
@@ -586,13 +656,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       if (node.tagName === 'IMG') return node;
       if (node.querySelector) return node.querySelector('img');
     }
-    return document.querySelector('.rte-root img.rooster-image-selected') || document.querySelector('.rte-root img') || null;
+    return document.querySelector('.rte-root img.rooster-image-selected') || null;
   }, []);
 
   const getSelectedVideo = useCallback(() => {
     try {
       if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('video');
-    } catch(e) {}
+    } catch (e) { }
     const sel = window.getSelection();
     if (sel && sel.anchorNode) {
       let node = sel.anchorNode;
@@ -600,7 +670,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       if (node.tagName === 'VIDEO') return node;
       if (node.querySelector) return node.querySelector('video');
     }
-    return document.querySelector('.rte-root video.rooster-video-selected') || document.querySelector('.rte-root video') || null;
+    return document.querySelector('.rte-root video.rooster-video-selected') || null;
   }, []);
 
   // "Change Image" in the Image tab's dropdown was a bare `onClick: () => {}`
@@ -650,7 +720,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     key: 'formatPainter',
     unlocalizedText: 'Format Painter',
     iconName: 'Brush',
-    onClick: () => {}
+    onClick: () => { }
   }), []);
 
 
@@ -763,49 +833,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     setHeadingLevelButton,
     customCodeButton,
     ltrButton,
-    rtlButton,
-    {
-      key: 'clearFormatCustom',
-      unlocalizedText: 'Clear Format',
-      iconName: 'ClearFormattingA',
-      onClick: () => { }
-    },
-    {
-      key: 'lineSpacing',
-      unlocalizedText: 'Line Spacing',
-      iconName: 'LineSpacing',
-      onClick: () => { }
-    },
-    {
-      key: 'bulletListCustom',
-      unlocalizedText: 'Bulleted List',
-      iconName: 'BulletedList',
-      onClick: () => { }
-    },
-    {
-      key: 'numberedListCustom',
-      unlocalizedText: 'Numbered List',
-      iconName: 'NumberedList',
-      onClick: () => { }
-    },
-    {
-      key: 'optionsDropdown',
-      unlocalizedText: 'Options',
-      iconName: 'Settings',
-      onClick: () => { }
-    },
-    {
-      key: 'tableEdit',
-      unlocalizedText: 'Table Options',
-      iconName: 'Table',
-      onClick: () => { }
-    },
-    {
-      key: 'imageEdit',
-      unlocalizedText: 'Image Options',
-      iconName: 'PictureCenter',
-      onClick: () => { }
-    }
+    rtlButton
   ];
 
   const textButtons = useMemo(() => [
@@ -833,7 +861,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       unlocalizedText: 'List Format',
       iconName: 'NumberField',
       onClick: (editor, key, strings, uiUtilities) => {
-        try { window.prompt('Start numbering at:', '1'); } catch(e) {}
+        try { window.prompt('Start numbering at:', '1'); } catch (e) { }
       }
     },
     {
@@ -845,31 +873,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           '1.0': '1.0', '1.15': '1.15', '1.5': '1.5', '2.0': '2.0'
         }
       },
-      onClick: () => { }
-    },
-    {
-      key: 'moveUpParagraph',
-      unlocalizedText: 'Move Up',
-      iconName: 'Up',
-      onClick: () => { }
-    },
-    {
-      key: 'moveDownParagraph',
-      unlocalizedText: 'Move Down',
-      iconName: 'Down',
-      onClick: () => { }
-    },
-    {
-      key: 'copyParagraph',
-      unlocalizedText: 'Copy',
-      iconName: 'Copy',
-      onClick: () => { }
-    },
-    {
-      key: 'pasteParagraph',
-      unlocalizedText: 'Paste',
-      iconName: 'Paste',
-      onClick: () => { }
+      onClick: (editor, key) => {
+        if (editor) {
+          editor.formatElements((element) => {
+            element.style.lineHeight = key;
+          });
+        }
+      }
     }
   ];
 
@@ -932,7 +942,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       unlocalizedText: 'Table Title',
       iconName: 'TableComputed',
       onClick: (editor, key, strings, uiUtilities) => {
-        try { window.prompt('Enter Table Title:', ''); } catch(e) {}
+        try { window.prompt('Enter Table Title:', ''); } catch (e) { }
       }
     },
     {
@@ -1310,6 +1320,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   ], [getSelectedImage, customInsertImageButton, handleChange, handleChangeSelectedImage]);
 
   const videoButtons = useMemo(() => [
+    customInsertVideoButton,
     {
       key: 'videoWidth',
       unlocalizedText: 'Width',
@@ -1337,8 +1348,26 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         const vid = getSelectedVideo();
         if (vid) vid.controls = !vid.controls;
       }
+    },
+    {
+      key: 'videoMuted',
+      unlocalizedText: 'Toggle Mute',
+      iconName: 'VolumeDisabled',
+      onClick: () => {
+        const vid = getSelectedVideo();
+        if (vid) vid.muted = !vid.muted;
+      }
+    },
+    {
+      key: 'videoLoop',
+      unlocalizedText: 'Toggle Loop',
+      iconName: 'RepeatAll',
+      onClick: () => {
+        const vid = getSelectedVideo();
+        if (vid) vid.loop = !vid.loop;
+      }
     }
-  ], [getSelectedVideo]);
+  ], [getSelectedVideo, customInsertVideoButton]);
 
   // Global right-side buttons handled inline to access state
 
@@ -1482,6 +1511,32 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         onContextMenu={(e) => {
           if (isFullscreen) e.preventDefault();
         }}
+        onMouseEnter={() => document.body.classList.add('rte-hide-fluent-tooltips')}
+        onMouseLeave={(e) => {
+          document.body.classList.remove('rte-hide-fluent-tooltips');
+          // Also hide our custom tooltip just in case
+          setTooltipState({ visible: false, title: '', targetRect: null });
+        }}
+        onMouseOver={(e) => {
+          const target = e.target.closest('button, [role="menuitem"], [role="button"]');
+          if (target && target.closest('.ms-CommandBar, .ms-ContextualMenu')) {
+            let title = target.getAttribute('title');
+            if (title) {
+              target.setAttribute('data-r-title', title);
+              target.removeAttribute('title');
+            } else {
+              title = target.getAttribute('data-r-title');
+            }
+            if (!title) title = target.getAttribute('aria-label');
+            if (!title) title = target.getAttribute('name');
+            if (title && title !== 'Unknown') {
+              setTooltipState({ visible: true, title, targetRect: target.getBoundingClientRect() });
+            }
+          }
+        }}
+        onMouseOut={(e) => {
+          setTooltipState({ visible: false, title: '', targetRect: null });
+        }}
       >
         <div style={{ background: 'var(--bg-secondary, #f8fafc)', padding: '0', display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-primary, #e2e8f0)' }}>
 
@@ -1534,26 +1589,20 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                         '200': '200%'
                       }
                     },
-                    onClick: () => { }
-                  },
-                  {
-                    key: 'darkModeToggle',
-                    unlocalizedText: 'Dark Mode',
-                    iconName: 'ClearNight',
-                    onClick: () => { }
-                  },
-                  {
-                    key: 'exportDropdown',
-                    unlocalizedText: 'Export',
-                    iconName: 'PageRight',
-                    dropDownMenu: {
-                      items: {
-                        'html': 'as HTML',
-                        'html_fast': 'as HTML (fast version)',
-                        'text': 'as Plain Text'
+                    onClick: (editor, key) => {
+                      const root = document.querySelector('.rte-root div[contenteditable="true"]');
+                      if (root) {
+                        root.style.transformOrigin = 'top left';
+                        if (key === '100') {
+                          root.style.transform = 'scale(1)';
+                          root.style.width = '100%';
+                        } else {
+                          const scale = parseInt(key, 10) / 100;
+                          root.style.transform = `scale(${scale})`;
+                          root.style.width = `${100 / scale}%`;
+                        }
                       }
-                    },
-                    onClick: () => { }
+                    }
                   }
                 ]} />
                 <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={[
@@ -1668,15 +1717,15 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   color: 'var(--c-primary)',
                   borderBottom: showHtmlPreview ? '1px solid var(--border-primary)' : 'none'
                 }}
-                onClick={() => setShowHtmlPreview(p => !p)}
+                onClick={toggleSourceView}
               >
-                {showHtmlPreview ? 'Hide generated HTML preview' : 'Show generated HTML preview'}
+                {showHtmlPreview ? 'Apply and Hide HTML Source' : 'Edit HTML Source'}
               </button>
               {showHtmlPreview && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', background: 'var(--bg-secondary)', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', maxHeight: '400px', overflowY: 'auto' }}>
                   <div>
                     <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Generated HTML Code</span>
+                      <span>Edit HTML Source</span>
                     </div>
                     <textarea style={{
                       width: '100%',
@@ -1693,9 +1742,12 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                       borderRadius: '6px',
                       resize: 'vertical'
                     }}
-                    readOnly
-                    value={editorRef.current ? getEditorHtml(editorRef.current) : value}
-                  />
+                      value={sourceHtmlState}
+                      onChange={(e) => {
+                        sourceHtmlRef.current = e.target.value;
+                        setSourceHtmlState(e.target.value);
+                      }}
+                    />
                   </div>
                 </div>
               )}
@@ -1738,6 +1790,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         isOpen={showLinkModal}
         onClose={() => setShowLinkModal(false)}
         onInsert={handleLinkInsert}
+      />
+      <ProgressTooltip
+        visible={tooltipState.visible}
+        title={tooltipState.title}
+        targetRect={tooltipState.targetRect}
+        placement="bottom"
+        state="none"
       />
     </>
   );
