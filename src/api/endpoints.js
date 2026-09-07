@@ -15,6 +15,8 @@ const endpoints = {
     authenticate: '/impersonate/authenticate/',
     employees: '/impersonate/employees/',
     start: '/impersonate/start/',
+    roles: '/impersonate/roles/',
+    rolesStart: '/impersonate/roles/start/',
     refresh: '/impersonate/refresh/',
     end: '/impersonate/end/',
   },

@@ -907,6 +907,10 @@ export function LeaveManagementPage() {
       {cancelModalLeave && (
         <CancelLeaveModal
           leave={cancelModalLeave}
+          pendingModRequest={modRequests.find(
+            (m) => m.status === 'PENDING' && m.leave_id === cancelModalLeave.id,
+          ) || null}
+          leaveTypeMap={leaveTypeMap}
           onClose={() => setCancelModalLeave(null)}
           onSuccess={() => {
             setCancelModalLeave(null);

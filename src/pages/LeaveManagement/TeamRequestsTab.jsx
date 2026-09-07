@@ -70,16 +70,6 @@ const PUBLIC_HOLIDAYS = /* @__PURE__ */ new Set([
   '2026-09-23',
   '2026-12-25',
 ]);
-const LEAVE_TYPE_OPTIONS = [
-  'Annual Leave',
-  'Sick Leave',
-  'Compensatory Off',
-  'Offshore Work',
-  'Weekend Work',
-  'Work From Home',
-  'Paternity Leave',
-  'Visa Purpose',
-];
 const MONTHS = [
   'January',
   'February',
@@ -393,7 +383,7 @@ export async function fetchAndMapTeamLeaves(managerId) {
 // own approve/reject endpoints — they never show up in getTeamLeaves(). This
 // maps them into the same row shape the table/drawer already render, so they
 // appear in "Team Leave Requests" alongside ordinary pending leave requests.
-export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, leaveTypeById = {}) {
+export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, leaveTypeById = {}, leaveNameById = {}) {
   const response = await leaveService.getPendingModRequests(managerId);
   const results = Array.isArray(response) ? response : (response?.results || []);
 
@@ -414,6 +404,14 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, 
       pureAdditionLeaveIds: Number(req.orig_in_days) === 0 ? [req.leave_id] : [],
       origInDays: Number(req.orig_in_days),
       origDuration: req.orig_duration === 'FIRST_HALF' ? 'morning' : req.orig_duration === 'SECOND_HALF' ? 'afternoon' : 'full',
+      // Multi-day boundary durations for the ORIGINAL (pre-edit) range —
+      // mirrors fromDateDuration/toDateDuration below, which hold the NEW
+      // range's boundaries. Without these the drawer's "Original Duration"
+      // row has no way to tell a From/To half-day change from a same-day
+      // full-day one, since orig_duration/new_duration are both just the
+      // generic FULL_DAY flag for any multi-day request.
+      origFromDateDuration: req.orig_from_date_duration,
+      origToDateDuration: req.orig_to_date_duration,
       batchKey: req.batch_key || null,
       isModRequest: true,
       employeeId: `EMP${req.emp_id}`,
@@ -427,14 +425,17 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, 
       // type when one employee has both a claim and a regular leave
       // pending at once. leaveTypeById is exact per-row.
       type: leaveTypeById[req.leave_id] || dir?.type || 'leave',
-      leaveType: 'Modification Request',
+      // The wrapped leave's actual type name (e.g. "Weekend Work") — falls
+      // back to the mod request's own leave_type code, then the generic
+      // label, so a lookup miss never regresses to a blank cell.
+      leaveType: leaveNameById[req.leave_id] || req.leave_type || 'Modification Request',
       startDate: req.new_start_date,
       endDate: req.new_end_date,
       origStartDate: req.orig_start_date,
       origEndDate: req.orig_end_date,
       duration: req.new_duration === 'FIRST_HALF' ? 'morning' : req.new_duration === 'SECOND_HALF' ? 'afternoon' : 'full',
-      fromDateDuration: req.from_date_duration,
-      toDateDuration: req.to_date_duration,
+      fromDateDuration: req.new_from_date_duration,
+      toDateDuration: req.new_to_date_duration,
       inDays: req.new_in_days,
       bizDays: req.new_business_days,
       requestedOn: req.created_at ? req.created_at.split('T')[0] : '',
@@ -521,6 +522,12 @@ export function TeamRequestsTab({ getPhoto }) {
       // (not just the group's own `.id`) so a mod-request wrapping any
       // date of that claim still resolves to the correct type below.
       const leaveTypeById = {};
+      // leave_id -> display name (e.g. "Weekend Work") — a modification
+      // request wraps an existing leave but the mod-request API itself
+      // only carries the leave TYPE CODE, not its display name, so this
+      // is looked up the same way leaveTypeById is: off the plain leave
+      // rows we already fetched, which do have the resolved name.
+      const leaveNameById = {};
       mappedLeaves.forEach((r) => {
         const empId = Number(String(r.employeeId).replace('EMP', ''));
         if (!employeeDirectory[empId]) {
@@ -530,13 +537,14 @@ export function TeamRequestsTab({ getPhoto }) {
           };
         }
         if (r.claimDates && r.claimDates.length > 1) {
-          r.claimDates.forEach((cd) => { leaveTypeById[cd.id] = r.type; });
+          r.claimDates.forEach((cd) => { leaveTypeById[cd.id] = r.type; leaveNameById[cd.id] = r.leaveType; });
         } else {
           leaveTypeById[Number(r.id)] = r.type;
+          leaveNameById[Number(r.id)] = r.leaveType;
         }
       });
 
-      const mappedModRequests = await fetchAndMapModRequests(managerId, employeeDirectory, leaveTypeById)
+      const mappedModRequests = await fetchAndMapModRequests(managerId, employeeDirectory, leaveTypeById, leaveNameById)
         .catch((error) => {
           console.error('Failed to fetch modification requests:', error);
           return [];
@@ -630,6 +638,20 @@ export function TeamRequestsTab({ getPhoto }) {
   const [statusF, setStatusF] = useState('all');
   const [typeF, setTypeF] = useState('all');
   const [leaveTypeF, setLeaveTypeF] = useState('all');
+  // Real, active leave type names for the "All Leave Types" filter — was a
+  // hardcoded list that missed any leave type HR adds/renames/deactivates
+  // (including custom Claim types). leave-types-reference is the same
+  // lightweight, non-HR-gated endpoint the Attendance page already uses for
+  // this exact purpose (see LeaveTypesReferenceView on the backend).
+  const [leaveTypeOptions, setLeaveTypeOptions] = useState([]);
+  useEffect(() => {
+    leaveService.getLeaveTypesReference()
+      .then((data) => setLeaveTypeOptions(Array.isArray(data) ? data.map((lt) => lt.name) : []))
+      .catch((err) => {
+        console.error('Failed to fetch leave types reference', err);
+        setLeaveTypeOptions([]);
+      });
+  }, []);
   const [sortBy, setSortBy] = useState('requestedOn');
   const [tableSortField, setTableSortField] = useState(null);
   const [tableSortOrder, setTableSortOrder] = useState('asc');
@@ -941,6 +963,17 @@ export function TeamRequestsTab({ getPhoto }) {
     return p <= 10 ? 'danger' : p <= 30 ? 'warn' : '';
   }
   const liveReq = drawerReq ? (requests.find((r) => r.id === drawerReq.id) ?? drawerReq) : null;
+  // A separate Modification Request row (see fetchAndMapModRequests) that
+  // wraps THIS leave and is still awaiting the manager's decision — used to
+  // warn the manager, when they're about to reject the underlying leave
+  // outright, that a pending edit exists and will be auto-rejected along
+  // with it (see LeaveApprovalService.reject's matching cascade).
+  const pendingModForLeave = useMemo(() => {
+    if (!liveReq || liveReq.isModRequest) return null;
+    return requests.find(
+      (r) => r.isModRequest && r.status === 'pending' && String(r.leaveId) === String(liveReq.id),
+    ) || null;
+  }, [liveReq, requests]);
   const calEvents = useMemo(() => {
     const regularEvents = filtered.flatMap((r) => {
       // A grouped multi-date claim (see groupClaimRows) carries startDate/
@@ -1213,7 +1246,7 @@ export function TeamRequestsTab({ getPhoto }) {
                 onChange={setLeaveTypeF}
                 options={[
                   { value: 'all', label: 'All Leave Types' },
-                  ...LEAVE_TYPE_OPTIONS.map((lt) => ({ value: lt, label: lt })),
+                  ...leaveTypeOptions.map((lt) => ({ value: lt, label: lt })),
                 ]}
                 width="leaveType"
               />
@@ -1626,7 +1659,7 @@ export function TeamRequestsTab({ getPhoto }) {
                     onChange={setSdlLeaveTF}
                     options={[
                       { value: 'all', label: 'All Leave Types' },
-                      ...LEAVE_TYPE_OPTIONS.map((lt) => ({ value: lt, label: lt })),
+                      ...leaveTypeOptions.map((lt) => ({ value: lt, label: lt })),
                     ]}
                     width="leaveType"
                   />
@@ -1748,11 +1781,16 @@ export function TeamRequestsTab({ getPhoto }) {
                             </div>
                           </div>
 
-                          {/* Leave type */}
+                          {/* Leave type — long/custom names are truncated
+                              with an ellipsis (see .tr-sdl-emp-type CSS) so
+                              they can't overflow this fixed-width column and
+                              throw off the Duration/Dates/Status columns'
+                              alignment across rows; the full name is still
+                              available via the title attribute. */}
                           <div className="tr-sdl-emp-type">
-                            <span className={`tr-type-badge ${TC.css}`}>
+                            <span className={`tr-type-badge ${TC.css}`} title={req.leaveType ?? TC.label}>
                               <TC.Icon size={10} />
-                              {req.leaveType ?? TC.label}
+                              <span className="tr-type-badge-label">{req.leaveType ?? TC.label}</span>
                             </span>
                           </div>
 
@@ -1878,6 +1916,7 @@ export function TeamRequestsTab({ getPhoto }) {
         liveReq={liveReq}
         drawerAction={drawerAction}
         teamAvailability={teamAvailability}
+        pendingModForLeave={pendingModForLeave}
         managerNote={managerNote}
         setManagerNote={setManagerNote}
         rejectErr={rejectErr}

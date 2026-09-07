@@ -21,6 +21,10 @@ const AccessAccountPage = lazyPage(
   () => import('@pages/AccessAccount/AccessAccountPage'),
   'AccessAccountPage',
 );
+const ViewAsRolePage = lazyPage(
+  () => import('@pages/ViewAsRole/ViewAsRolePage'),
+  'ViewAsRolePage',
+);
 const NotFoundPage = lazyPage(() => import('@pages/NotFound/NotFoundPage'), 'NotFoundPage');
 const ErrorPage = lazyPage(() => import('@pages/Error/ErrorPage'), 'ErrorPage');
 
@@ -126,6 +130,7 @@ export const routes = [
   // credential, not the normal Employee login, and must work in a brand
   // new tab with no existing auth context.
   { path: ROUTES.ACCESS_ACCOUNT, element: <AccessAccountPage /> },
+  { path: ROUTES.VIEW_AS_ROLE, element: <ViewAsRolePage /> },
 
   // ── Public ────────────────────────────────────────────────────────────────
   {
