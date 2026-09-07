@@ -99,7 +99,7 @@ export function useNotifications(empId) {
     if (!token) return;
 
     // WebSockets are temporarily disabled
-    return;
+    // return;
 
     const url = `${WS_BASE}/ws/notifications/${empId}/?token=${token}`;
     const ws  = new WebSocket(url);

@@ -481,7 +481,10 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, 
       endDate: last.endDate,
       inDays: group.reduce((sum, g) => sum + (Number(g.inDays) || 0), 0),
       bizDays: group.reduce((sum, g) => sum + (Number(g.bizDays) || 0), 0),
-      claimDates: group.map((g) => ({ id: g.leaveId, date: g.startDate, duration: g.duration, inDays: g.inDays, origInDays: g.origInDays })),
+      claimDates: group.map((g) => ({
+        id: g.leaveId, date: g.startDate, duration: g.duration, inDays: g.inDays,
+        origInDays: g.origInDays, origDuration: g.origDuration,
+      })),
     });
   });
 
@@ -1439,6 +1442,12 @@ export function TeamRequestsTab({ getPhoto }) {
                                       // uses for a row marked for removal/newly added).
                                       const isRemoval = req.isModRequest && Number(cd.inDays) === 0;
                                       const isAddition = req.isModRequest && Number(cd.origInDays) === 0 && Number(cd.inDays) > 0;
+                                      // A pure duration change (Full Day -> First Half,
+                                      // say) on an otherwise unchanged date has neither
+                                      // marker above — without this, only the NEW
+                                      // duration ever showed, with no hint it changed.
+                                      const isDurationChange = req.isModRequest && !isRemoval && !isAddition
+                                        && cd.origDuration && cd.origDuration !== cd.duration;
                                       return (
                                         <div
                                           key={cd.id}
@@ -1453,6 +1462,7 @@ export function TeamRequestsTab({ getPhoto }) {
                                               {' '}({cd.inDays} {cd.inDays === 1 ? 'day' : 'days'})
                                               {getDurationDisplay({ duration: cd.duration }) ? ` • ${getDurationDisplay({ duration: cd.duration })}` : ''}
                                               {isAddition ? <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span> : ''}
+                                              {isDurationChange ? <span style={{ color: 'var(--text-tertiary)', textDecoration: 'line-through' }}> (was {getDurationDisplay({ duration: cd.origDuration }) || 'Full Day'})</span> : ''}
                                             </span>
                                           )}
                                         </div>

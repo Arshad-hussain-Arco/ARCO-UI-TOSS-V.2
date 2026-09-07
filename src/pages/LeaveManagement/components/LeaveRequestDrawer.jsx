@@ -139,7 +139,13 @@ export function LeaveRequestDrawer({
               </span>
             </div>
           )}
-          {liveReq.isModRequest && (
+          {/* Only meaningful for a single-date mod request — origStartDate/
+              origEndDate are just the FIRST row's own before-state, so for
+              a grouped multi-date claim (see the Claimed Dates list below,
+              which already shows each date's own before/after) this range
+              would misrepresent the batch as if only its first date had
+              ever changed. */}
+          {liveReq.isModRequest && !(liveReq.claimDates && liveReq.claimDates.length > 1) && (
             <div className="tr-drow" style={{ alignItems: 'flex-start' }}>
               <span className="tr-drow-label">Original Dates</span>
               <span className="tr-drow-value" style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
@@ -176,8 +182,15 @@ export function LeaveRequestDrawer({
                   // of silently showing either as a plain claimed date.
                   const inDays = cd.inDays ?? cd.in_days;
                   const origInDays = cd.origInDays ?? cd.orig_in_days;
+                  const origDuration = cd.origDuration ?? cd.orig_duration;
                   const isRemoval = liveReq.isModRequest && Number(inDays) === 0;
                   const isAddition = liveReq.isModRequest && Number(origInDays) === 0 && Number(inDays) > 0;
+                  // A pure duration change (Full Day -> First Half, say) on
+                  // an otherwise unchanged date has neither marker above —
+                  // without this, only the NEW duration ever showed, with
+                  // no hint it changed at all.
+                  const isDurationChange = liveReq.isModRequest && !isRemoval && !isAddition
+                    && origDuration && durationLabel(origDuration) !== (halfLabel || 'Full Day');
                   return (
                     <div key={cd.id} style={isRemoval ? { textDecoration: 'line-through', opacity: 0.7 } : undefined}>
                       {fmtDate(cd.date)}
@@ -187,6 +200,9 @@ export function LeaveRequestDrawer({
                         <>
                           {halfLabel && <> ({halfLabel})</>}
                           {isAddition && <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span>}
+                          {isDurationChange && (
+                            <span style={{ color: 'var(--text-tertiary)', textDecoration: 'line-through' }}> (was {durationLabel(origDuration)})</span>
+                          )}
                         </>
                       )}
                     </div>
