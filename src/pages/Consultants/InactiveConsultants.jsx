@@ -13,7 +13,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { useToast } from '@hooks/useToast';
 import { consultantService } from '@services/consultantService';
-import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
+import { ConsultantCard, ConsultantCardSkeleton, ConsultantListSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
@@ -105,6 +105,13 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
   }
 
   if (isLoading && !inactiveData) {
+    if (viewMode === 'list') {
+      return (
+        <div className="consultants-grid-scrollable">
+          <ConsultantListSkeleton actionsCount={1} />
+        </div>
+      );
+    }
     return (
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">

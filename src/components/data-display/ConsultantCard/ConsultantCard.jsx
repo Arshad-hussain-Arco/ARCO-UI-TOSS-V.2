@@ -218,5 +218,50 @@ export function ConsultantCardSkeleton() {
   );
 }
 
+export function ConsultantListSkeleton({ actionsCount = 3 }) {
+  return (
+    <table className="consultants-list-table">
+      <thead>
+        <tr>
+          <th style={{ width: '40px' }}></th>
+          <th>Name</th>
+          <th>Employee ID</th>
+          <th>Role</th>
+          <th>Designation</th>
+          <th>Team</th>
+          <th>Email</th>
+          <th>Mobile</th>
+          <th>Status</th>
+          <th style={{ textAlign: 'right' }}>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <tr key={i}>
+            <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+              <div className="consultant-skeleton-block" style={{ width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto' }}></div>
+            </td>
+            <td><div className="consultant-skeleton-block" style={{ width: '120px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '80px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '90px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '110px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '80px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '160px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '100px', height: '14px' }}></div></td>
+            <td><div className="consultant-skeleton-block" style={{ width: '60px', height: '24px', borderRadius: '12px' }}></div></td>
+            <td style={{ textAlign: 'right' }}>
+              <div style={{ display: 'inline-flex', gap: '8px', justifyContent: 'flex-end', width: '100%' }}>
+                {Array.from({ length: actionsCount }).map((_, idx) => (
+                  <div key={idx} className="consultant-skeleton-block" style={{ width: '28px', height: '28px', borderRadius: '6px' }}></div>
+                ))}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export { ConsultantCard };
 export default ConsultantCard;
