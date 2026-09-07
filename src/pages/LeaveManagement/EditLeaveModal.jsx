@@ -503,7 +503,10 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         <div className="al-header">
           <div className="al-header-left">
             <h2 className="al-title">
-              Modify {leave.leave_type} Request{isOnBehalf ? ` (${leave.emp_name || `employee #${leave.emp_id}`})` : ''}
+              {/* leave_name is the resolved display name (e.g. "Weekend
+                  Work") from LeaveSerializer — falls back to the raw code
+                  only if it's ever missing. */}
+              Modify {leave.leave_name || leave.leave_type} Request{isOnBehalf ? ` (${leave.emp_name || `employee #${leave.emp_id}`})` : ''}
             </h2>
           </div>
           <button type="button" className="al-close-btn" onClick={() => onClose(false)}>

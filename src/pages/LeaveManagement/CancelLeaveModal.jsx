@@ -4,7 +4,47 @@ import { useToast } from '@hooks/useToast';
 import { useAuth } from '@hooks/useAuth';
 import leaveService from '@services/leaveService';
 
-export function CancelLeaveModal({ leave, onClose, onSuccess }) {
+// 'YYYY-MM-DD' (or a Date/ISO string) -> "21 Sep 2026" — matches the format
+// used elsewhere in the leave tables (fmtShort/fmtDate in TeamRequestsTab).
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatDurationStr(duration) {
+  const map = {
+    FULL_DAY: 'Full Day',
+    FIRST_HALF: 'First Half',
+    SECOND_HALF: 'Second Half',
+  };
+  return map[duration] || 'Full Day';
+}
+
+// The requested date range, with each boundary's own half-day duration —
+// mirrors LeaveManagementPage's getDurationDisplay, but folded into the
+// date range itself (e.g. "21 Sep 2026 (Full Day) to 23 Sep 2026 (First
+// Half)") instead of a separate duration-only line, since this confirmation
+// only shows one range, not a table row with its own Duration column.
+function formatRangeWithDuration(leave) {
+  const start = fmtDate(leave.start_date);
+  // A boundary is only ever a half day via from_date_duration/
+  // to_date_duration (multi-day) — a single-day request's duration is
+  // carried on the generic leave_duration flag instead, since it has no
+  // "boundary" to speak of, just the one day.
+  const hasBoundaryDurations = !!(leave.from_date_duration || leave.to_date_duration);
+  const startLabel = hasBoundaryDurations
+    ? formatDurationStr(leave.from_date_duration)
+    : formatDurationStr(leave.leave_duration);
+  if (!leave.end_date || leave.end_date === leave.start_date) {
+    return `${start} (${startLabel})`;
+  }
+  const end = fmtDate(leave.end_date);
+  const endLabel = hasBoundaryDurations
+    ? formatDurationStr(leave.to_date_duration)
+    : formatDurationStr(leave.leave_duration);
+  return `${start} (${startLabel}) to ${end} (${endLabel})`;
+}
+
+export function CancelLeaveModal({ leave, pendingModRequest, leaveTypeMap = {}, onClose, onSuccess }) {
   const { user } = useAuth();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,6 +52,11 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
 
   const isOnBehalf = leave.emp_id != null && user?.emp_id != null && leave.emp_id !== user.emp_id;
   const ownerLabel = isOnBehalf ? (leave.emp_name || `employee #${leave.emp_id}`) + "'s" : 'your';
+  // The real leave type name (e.g. "Weekend Work"), not its raw code
+  // ("WW") — leave_name comes straight from LeaveSerializer when present;
+  // leaveTypeMap (code -> name) is the same fallback used elsewhere on this
+  // page (see LeaveManagementPage's displayType computations).
+  const leaveTypeLabel = leave.leave_name || leaveTypeMap[leave.leave_type] || leave.leave_type;
 
   // A grouped multi-date claim (see groupClaimLeaves/groupClaimRows) carries
   // one entry per claimed date under `claimDates` — cancelling it cascades
@@ -59,18 +104,44 @@ export function CancelLeaveModal({ leave, onClose, onSuccess }) {
           {claimDates ? (
             <>
               <p style={{ marginBottom: '10px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                Are you sure you want to cancel {ownerLabel} {leave.leave_type} request covering these {claimDates.length} dates?
+                Are you sure you want to cancel {ownerLabel} {leaveTypeLabel} request covering these {claimDates.length} dates?
               </p>
               <ul style={{ margin: '0 0 16px', paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                 {claimDates.map((cd) => (
-                  <li key={cd.id ?? cd.date}>{new Date(cd.date).toLocaleDateString()}</li>
+                  <li key={cd.id ?? cd.date}>
+                    {fmtDate(cd.date)} ({formatDurationStr(cd.duration)})
+                  </li>
                 ))}
               </ul>
             </>
           ) : (
             <p style={{ marginBottom: '16px', fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Are you sure you want to cancel {ownerLabel} {leave.leave_type} request for {new Date(leave.start_date).toLocaleDateString()}?
+              Are you sure you want to cancel {ownerLabel} {leaveTypeLabel} request for{' '}
+              {formatRangeWithDuration(leave)}?
             </p>
+          )}
+
+          {/* Cancelling an APPROVED leave with a pending modification
+              request auto-withdraws that request too (see
+              LeaveModifyService.cancel's matching cascade) — worth knowing
+              before confirming, not discovering after the fact. */}
+          {pendingModRequest && (
+            <div
+              style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+                padding: '10px 12px', borderRadius: 6, marginBottom: 16,
+                background: 'var(--c-warning-light, #fffbeb)',
+                border: '1px solid var(--c-warning, #f59e0b)',
+                fontSize: 13,
+              }}
+            >
+              <span>
+                You have a pending modification request on this leave (new dates:{' '}
+                {new Date(pendingModRequest.new_start_date).toLocaleDateString()} →{' '}
+                {new Date(pendingModRequest.new_end_date).toLocaleDateString()}). Cancelling this
+                leave will also withdraw that modification request.
+              </span>
+            </div>
           )}
 
           <div className="al-form-group">
