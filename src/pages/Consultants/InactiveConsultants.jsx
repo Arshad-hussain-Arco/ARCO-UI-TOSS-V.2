@@ -5,7 +5,8 @@ import {
   Users,
   ChevronDown,
   Lock,
-  X
+  X,
+  Power
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { useAuth } from '@hooks/useAuth';
@@ -18,7 +19,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
-export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, designationsData, teamsData, inactiveData, isLoading, error, refetch }) {
+export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, designationsData, teamsData, inactiveData, isLoading, error, refetch, viewMode }) {
   const consultants = useMemo(() => {
     const list = Array.isArray(inactiveData) ? inactiveData : (inactiveData?.results || []);
     return list.map(c => normalizeConsultant(c, false));
@@ -204,20 +205,85 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
       
       {/* Standalone loader removed to prevent layout shift */}
 
-      <div className="consultants-grid-scrollable">
-        <div className="consultants-grid">
-          {filtered.map((c) => (
-            <ConsultantCard
-              key={c.id}
-              consultant={c}
-              isInactive={true}
-              isActivating={activatingId === (c.emp_id || c.id)}
-              onActivate={canActivateDeactivate ? handleActivate : undefined}
-              onAvatarClick={() => onProfileView && onProfileView(c.id)}
-            />
-          ))}
+      {viewMode === 'card' ? (
+        <div className="consultants-grid-scrollable">
+          <div className="consultants-grid">
+            {filtered.map((c) => (
+              <ConsultantCard
+                key={c.id}
+                consultant={c}
+                isInactive={true}
+                isActivating={activatingId === (c.emp_id || c.id)}
+                onActivate={canActivateDeactivate ? handleActivate : undefined}
+                onAvatarClick={() => onProfileView && onProfileView(c.id)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="consultants-grid-scrollable">
+          <table className="consultants-list-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}></th>
+                <th>Name</th>
+                <th>Employee ID</th>
+                <th>Role</th>
+                <th>Designation</th>
+                <th>Team</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                    <img
+                      src={c.photo || 'https://static.vecteezy.com/system/resources/previews/024/766/958/non_2x/default-male-avatar-profile-icon-social-media-user-free-vector.jpg'}
+                      alt={c.name}
+                      className="list-view-avatar"
+                      onClick={() => onProfileView && onProfileView(c.id)}
+                      style={{ cursor: 'pointer', display: 'block', margin: '0 auto' }}
+                    />
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td>{c.userId}</td>
+                  <td>{c.role}</td>
+                  <td>{c.designation}</td>
+                  <td>{c.team}</td>
+                  <td>{c.email}</td>
+                  <td>{c.mobile}</td>
+                  <td>
+                    <span className={`list-view-status ${c.accountStatus?.toLowerCase() || 'inactive'}`}>
+                      {c.accountStatus || 'inactive'}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    {canActivateDeactivate && handleActivate && (
+                      <button
+                        onClick={() => handleActivate(c)}
+                        className="consultant-footer-btn consultant-footer-btn-activate"
+                        title="Activate Consultant"
+                        disabled={activatingId === (c.emp_id || c.id)}
+                        style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {activatingId === (c.emp_id || c.id) ? (
+                          <span className="spin-animation" style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid var(--c-success)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                        ) : (
+                          <Power size={14} className="consultant-footer-btn-icon" />
+                        )}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {filtered.length === 0 && (
         <div className="consultants-empty-state">
           <Users className="consultants-empty-icon" />

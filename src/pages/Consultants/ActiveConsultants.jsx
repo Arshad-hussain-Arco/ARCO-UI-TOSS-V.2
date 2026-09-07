@@ -6,7 +6,9 @@ import {
   Users,
   ChevronDown,
   Lock,
-  X
+  X,
+  Edit,
+  UserX
 } from 'lucide-react';
 import { useAsync } from '@hooks/useAsync';
 import { useDebounce } from '@hooks/useDebounce';
@@ -18,7 +20,7 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { normalizeConsultant } from './utils';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
 
-export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, employeesData, designationsData, teamsData, isLoading, error, refetch }) {
+export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfileView, onFilteredCountChange, employeesData, designationsData, teamsData, isLoading, error, refetch, viewMode }) {
   const activeConsultants = useMemo(() => {
     const list = Array.isArray(employeesData) ? employeesData : employeesData?.results || [];
     return list.map(c => normalizeConsultant(c, true));
@@ -213,20 +215,102 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
           </div>
         </div>
       </div>
-      <div className="consultants-grid-scrollable">
-        <div className="consultants-grid">
-          {filtered.map((c) => (
-            <ConsultantCard
-              key={c.id}
-              consultant={c}
-              onEdit={onEdit ? () => onEdit(c) : undefined}
-              onChangePassword={onPassword ? () => onPassword(c) : undefined}
-              onDelete={onDelete ? () => onDelete(c) : undefined}
-              onAvatarClick={() => onProfileView && onProfileView(c.id)}
-            />
-          ))}
+      {viewMode === 'card' ? (
+        <div className="consultants-grid-scrollable">
+          <div className="consultants-grid">
+            {filtered.map((c) => (
+              <ConsultantCard
+                key={c.id}
+                consultant={c}
+                onEdit={onEdit ? () => onEdit(c) : undefined}
+                onChangePassword={onPassword ? () => onPassword(c) : undefined}
+                onDelete={onDelete ? () => onDelete(c) : undefined}
+                onAvatarClick={() => onProfileView && onProfileView(c.id)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="consultants-grid-scrollable">
+          <table className="consultants-list-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}></th>
+                <th>Name</th>
+                <th>Employee ID</th>
+                <th>Role</th>
+                <th>Designation</th>
+                <th>Team</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                    <img
+                      src={c.photo || 'https://static.vecteezy.com/system/resources/previews/024/766/958/non_2x/default-male-avatar-profile-icon-social-media-user-free-vector.jpg'}
+                      alt={c.name}
+                      className="list-view-avatar"
+                      onClick={() => onProfileView && onProfileView(c.id)}
+                      style={{ cursor: 'pointer', display: 'block', margin: '0 auto' }}
+                    />
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td>{c.userId}</td>
+                  <td>{c.role}</td>
+                  <td>{c.designation}</td>
+                  <td>{c.team}</td>
+                  <td>{c.email}</td>
+                  <td>{c.mobile}</td>
+                  <td>
+                    <span className={`list-view-status ${c.accountStatus?.toLowerCase() || 'active'}`}>
+                      {c.accountStatus || 'active'}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '8px' }}>
+                      {onEdit && (
+                        <button
+                          onClick={() => onEdit(c)}
+                          className="consultant-footer-btn consultant-footer-btn-edit"
+                          title="Edit Consultant"
+                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                        >
+                          <Edit size={14} className="consultant-footer-btn-icon" />
+                        </button>
+                      )}
+                      {onPassword && (
+                        <button
+                          onClick={() => onPassword(c)}
+                          className="consultant-footer-btn consultant-footer-btn-password"
+                          title="Change Password"
+                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                        >
+                          <Lock size={14} className="consultant-footer-btn-icon" />
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          onClick={() => onDelete(c)}
+                          className="consultant-footer-btn consultant-footer-btn-delete"
+                          title="Deactivate Consultant"
+                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                        >
+                          <UserX size={14} className="consultant-footer-btn-icon" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {filtered.length === 0 && (
         <div className="consultants-empty-state">
           <Users className="consultants-empty-icon" />
