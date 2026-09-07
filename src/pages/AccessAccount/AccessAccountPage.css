@@ -136,7 +136,10 @@
   list-style: none;
   margin: 0;
   padding: 4px;
-  max-height: 340px;
+  /* ~4 rows visible (each row is ~60px including its 12px vertical
+     padding), then scroll for the rest — was tall enough to fit 5+ rows
+     with no visible scrollbar even when more results existed. */
+  max-height: 248px;
   overflow-y: auto;
   border: 1px solid var(--border-secondary);
   border-radius: 10px;

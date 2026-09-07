@@ -122,6 +122,9 @@ export function AuthProvider({ children }) {
         hasImpersonationAccess: Boolean(info.hasImpersonationAccess),
         isImpersonated: Boolean(info.isImpersonated),
         impersonatedByName: info.impersonatedByName || null,
+        // 'role' = "View as Role" (own identity, simulated permissions),
+        // 'employee' = "Access Account" (a real target's identity/data).
+        impersonationType: info.impersonationType || null,
       };
       if (info.userName || info.username) {
         persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();

@@ -58,7 +58,9 @@ export function DashboardLayout() {
 
       {isImpersonating ? (
         <ImpersonationBanner
+          isRoleSimulation={user?.impersonationType === 'role'}
           targetName={user?.name}
+          roleName={user?.roleName || user?.role}
           adminName={user?.impersonatedByName}
           onEndSession={handleLogout}
         />
