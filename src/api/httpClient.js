@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { storage } from '@utils/storage';
-import { STORAGE_KEYS } from '@constants/storageKeys';
+import { impersonationStorage } from '@utils/impersonationStorage';
+import { STORAGE_KEYS, IMPERSONATION_KEYS } from '@constants/storageKeys';
 import endpoints from './endpoints';
 import { env } from '@config/env';
 
@@ -28,12 +29,23 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request Interceptor: Attach access token
+// Request Interceptor: Attach access token.
+// An impersonation access token (sessionStorage, per-tab) always takes
+// priority over the normal login token (localStorage, shared across every
+// tab on this origin) — this is what makes an "Access Account" tab render
+// as the target employee even though the admin's own real token is sitting
+// right there in the same localStorage. A caller that already set its own
+// Authorization header (impersonationService's bootstrap calls, which carry
+// a short-lived setup token) is never overridden — see the `if` guard below.
 httpClient.interceptors.request.use(
   (config) => {
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    if (!config.headers['Authorization']) {
+      const impersonationToken = impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN);
+      const token = impersonationToken || storage.get(STORAGE_KEYS.AUTH_TOKEN);
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
+      config._isImpersonation = Boolean(impersonationToken);
     }
 
     // Let the browser set multipart/form-data + boundary itself.
@@ -73,6 +85,22 @@ function dispatchUnauthorized(reason) {
   window.dispatchEvent(new CustomEvent('auth-unauthorized', { detail: { reason } }));
 }
 
+// Same one-shot-per-death guard as dispatchUnauthorized above, but for the
+// impersonation token family — kept entirely separate so a dead
+// impersonation session never fires the normal-session toast/clear (and
+// vice versa). Cleared whenever a fresh impersonation session starts.
+let impersonationEndNotified = false;
+
+export function resetImpersonationEndGuard() {
+  impersonationEndNotified = false;
+}
+
+function dispatchImpersonationEnded(reason) {
+  if (impersonationEndNotified) return;
+  impersonationEndNotified = true;
+  window.dispatchEvent(new CustomEvent('impersonation-ended', { detail: { reason } }));
+}
+
 function detailIncludes(errorResponseData, substring) {
   const detail = errorResponseData?.detail;
   return typeof detail === 'string' && detail.toLowerCase().includes(substring);
@@ -93,9 +121,40 @@ httpClient.interceptors.response.use(
       error.response?.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url.includes(endpoints.auth.login) &&
-      !originalRequest.url.includes(endpoints.auth.refresh)
+      !originalRequest.url.includes(endpoints.auth.refresh) &&
+      !originalRequest.url.includes(endpoints.impersonate.refresh)
     ) {
       originalRequest._retry = true;
+
+      // Impersonation tokens have their own rotation endpoint and their own
+      // storage (sessionStorage) — never fall through to the normal-session
+      // logic below, which reads/writes localStorage and would otherwise
+      // misattribute an expired impersonation session as "logged in from
+      // another device" on the admin's real account.
+      if (originalRequest._isImpersonation) {
+        const impersonationRefreshToken = impersonationStorage.get(IMPERSONATION_KEYS.REFRESH_TOKEN);
+
+        if (!impersonationRefreshToken) {
+          dispatchImpersonationEnded('ended');
+          return Promise.reject(error);
+        }
+
+        try {
+          const response = await axios.post(
+            `${httpClient.defaults.baseURL}${endpoints.impersonate.refresh}`,
+            { refresh: impersonationRefreshToken },
+          );
+
+          impersonationStorage.set(IMPERSONATION_KEYS.ACCESS_TOKEN, response.data.access);
+          impersonationStorage.set(IMPERSONATION_KEYS.REFRESH_TOKEN, response.data.refresh);
+
+          originalRequest.headers['Authorization'] = 'Bearer ' + response.data.access;
+          return httpClient(originalRequest);
+        } catch {
+          dispatchImpersonationEnded('expired');
+          return Promise.reject(error);
+        }
+      }
 
       // The backend already knows the access token was invalidated by a login
       // elsewhere (auth_version mismatch) — no point attempting a refresh,

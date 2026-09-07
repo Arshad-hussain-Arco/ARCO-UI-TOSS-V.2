@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, KeyRound, LogOut } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, UserCog } from 'lucide-react';
 
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { ROUTES } from '@constants/routes';
@@ -98,6 +98,24 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
           >
             <span className="header-profile-menu-text">Preferences</span>
           </button>
+
+          {user.hasImpersonationAccess && !user.isImpersonated ? (
+            <button
+              type="button"
+              className="header-profile-menu-item"
+              role="menuitem"
+              onClick={() => {
+                close();
+                // A new tab so the admin's own session/state (this tab) is
+                // never touched by the impersonation flow — see
+                // AccessAccountPage.jsx and utils/impersonationStorage.js.
+                window.open(ROUTES.ACCESS_ACCOUNT, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              <UserCog className="header-profile-menu-icon" aria-hidden="true" />
+              <span className="header-profile-menu-text">Access Account</span>
+            </button>
+          ) : null}
 
           <div className="header-profile-menu-divider" />
 
