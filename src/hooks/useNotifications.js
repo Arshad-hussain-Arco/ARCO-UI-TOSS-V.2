@@ -98,6 +98,9 @@ export function useNotifications(empId) {
     const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
     if (!token) return;
 
+    // WebSockets are temporarily disabled
+    return;
+
     const url = `${WS_BASE}/ws/notifications/${empId}/?token=${token}`;
     const ws  = new WebSocket(url);
     wsRef.current = ws;

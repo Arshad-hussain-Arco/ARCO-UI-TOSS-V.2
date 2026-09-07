@@ -28,8 +28,8 @@ export const linkService = {
           httpClient.get(endpoints.importantLinks.links.list, { params }),
         ]);
 
-        const groups = groupsRes.data || [];
-        const links = linksRes.data || [];
+        const groups = Array.isArray(groupsRes.data) ? groupsRes.data : Array.isArray(groupsRes.data?.results) ? groupsRes.data.results : [];
+        const links = Array.isArray(linksRes.data) ? linksRes.data : Array.isArray(linksRes.data?.results) ? linksRes.data.results : [];
 
         const uiLinks = links.map(l => ({
           id: l.id,

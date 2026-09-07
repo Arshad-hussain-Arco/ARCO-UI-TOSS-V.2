@@ -49,7 +49,9 @@ import {
   strikethroughButton,
   subscriptButton,
   superscriptButton,
-  showInputDialog
+  showInputDialog,
+  createContextMenuPlugin,
+  createTableEditMenuProvider
 } from "roosterjs-react";
 
 import {
@@ -61,7 +63,8 @@ import {
   adjustImageSelection,
   exportContent,
   TableEditPlugin,
-  ImageEditPlugin
+  ImageEditPlugin,
+  DragAndDropPlugin
 } from 'roosterjs';
 
 // ── Code Language Detection ─────────────────────────────────────────────
@@ -485,13 +488,20 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   }, []);
 
   const ribbonPlugin = useMemo(createRibbonPlugin, []);
+  
+  const tableEditMenuProvider = useMemo(createTableEditMenuProvider, []);
+  // RoosterJS 9's createContextMenuPlugin does not take providers in this version.
+  const contextMenuPlugin = useMemo(() => createContextMenuPlugin(), []);
+
   const plugins = useMemo(() => [
     ribbonPlugin, 
     editorSyncPlugin, 
     codePastePlugin, 
     new ImageEditPlugin(), 
-    new TableEditPlugin()
-  ], [ribbonPlugin, editorSyncPlugin, codePastePlugin]);
+    new TableEditPlugin('.rte-root'),
+    new DragAndDropPlugin(),
+    contextMenuPlugin
+  ], [ribbonPlugin, editorSyncPlugin, codePastePlugin, contextMenuPlugin]);
 
   // Custom insert link button that opens the fullscreen modal
   const customInsertLinkButton = useMemo(() => ({
