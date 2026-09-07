@@ -17,6 +17,10 @@ import { lazyPage } from './lazyPage';
    ─────────────────────────────────────────────────────────────────────────── */
 
 const LoginPage = lazyPage(() => import('@pages/Login/LoginPage'), 'LoginPage');
+const AccessAccountPage = lazyPage(
+  () => import('@pages/AccessAccount/AccessAccountPage'),
+  'AccessAccountPage',
+);
 const NotFoundPage = lazyPage(() => import('@pages/NotFound/NotFoundPage'), 'NotFoundPage');
 const ErrorPage = lazyPage(() => import('@pages/Error/ErrorPage'), 'ErrorPage');
 
@@ -116,6 +120,12 @@ export const routes = [
     path: ROUTES.ROOT,
     element: <Navigate to={ROUTES.DASHBOARD} replace />,
   },
+
+  // "Access Account" (impersonation) — deliberately outside both
+  // PublicRoute and ProtectedRoute: it authenticates against a separate
+  // credential, not the normal Employee login, and must work in a brand
+  // new tab with no existing auth context.
+  { path: ROUTES.ACCESS_ACCOUNT, element: <AccessAccountPage /> },
 
   // ── Public ────────────────────────────────────────────────────────────────
   {

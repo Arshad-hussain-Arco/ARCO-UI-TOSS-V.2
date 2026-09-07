@@ -1,0 +1,120 @@
+.access-account-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, #f4f5f7);
+  padding: 24px;
+}
+
+.access-account-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-primary, #fff);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+}
+
+.access-account-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #111);
+}
+
+.access-account-subtitle {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+}
+
+.access-account-form,
+.access-account-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.access-account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #555);
+}
+
+.access-account-field input,
+.access-account-search {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.access-account-button {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-color, #2f6feb);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.access-account-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.access-account-error {
+  margin: 0;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+.access-account-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #eee);
+  border-radius: 8px;
+}
+
+.access-account-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+}
+
+.access-account-result:hover {
+  background: var(--bg-hover, #f7f8fa);
+}
+
+.access-account-result-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #111);
+}
+
+.access-account-result-meta {
+  font-size: 12px;
+  color: var(--text-tertiary, #888);
+}
+
+.access-account-hint {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-tertiary, #888);
+}

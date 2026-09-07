@@ -1,9 +1,11 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { storage } from '@utils/storage';
+import { impersonationStorage } from '@utils/impersonationStorage';
 import { resolveAvatarDataUri } from '@utils/photo';
-import { STORAGE_KEYS } from '@constants/storageKeys';
+import { STORAGE_KEYS, IMPERSONATION_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
+import { impersonationService } from '@services/impersonationService';
 import { pushNotificationService } from '@services/pushNotificationService';
 import { useTheme } from '@hooks/useTheme';
 import { useToast } from '@hooks/useToast';
@@ -13,6 +15,14 @@ const SESSION_END_MESSAGES = {
   other_device: 'Session Ended. Logged in through another browser/device.',
   timeout: 'Session timed out. Please log in again.',
 };
+
+/**
+ * True when this specific tab holds an impersonation session — the only
+ * signal used to decide which storage (sessionStorage, per-tab) vs
+ * (localStorage, shared across every tab on the origin) a call should read
+ * from/write to. See utils/impersonationStorage.js.
+ */
+const isImpersonationTab = () => Boolean(impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN));
 
 /**
  * @typedef  {Object} AuthContextValue
@@ -57,10 +67,15 @@ export function AuthProvider({ children }) {
   // does, so re-fetching it on every periodic/focus refresh (across every
   // active session, at scale) would be pure waste.
   const refreshUser = useCallback(async ({ includePhoto = false } = {}) => {
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
+    const impersonating = isImpersonationTab();
+    const activeStore = impersonating ? impersonationStorage : storage;
+    const tokenKey = impersonating ? IMPERSONATION_KEYS.ACCESS_TOKEN : STORAGE_KEYS.AUTH_TOKEN;
+    const userKey = impersonating ? IMPERSONATION_KEYS.USER : STORAGE_KEYS.AUTH_USER;
+
+    const token = activeStore.get(tokenKey);
     if (!token) return;
 
-    let persistedUser = storage.get(STORAGE_KEYS.AUTH_USER);
+    let persistedUser = activeStore.get(userKey);
 
     try {
       const { default: httpClient } = await import('@api/httpClient');
@@ -104,6 +119,9 @@ export function AuthProvider({ children }) {
         locationRef: info.computerLocationRef || persistedUser?.locationRef,
         doj: info.dateOfJoining || persistedUser?.doj,
         theme: info.theme || persistedUser?.theme,
+        hasImpersonationAccess: Boolean(info.hasImpersonationAccess),
+        isImpersonated: Boolean(info.isImpersonated),
+        impersonatedByName: info.impersonatedByName || null,
       };
       if (info.userName || info.username) {
         persistedUser.initials = (info.userName || info.username).substring(0, 2).toUpperCase();
@@ -114,21 +132,21 @@ export function AuthProvider({ children }) {
         if (avatar) persistedUser.avatar = avatar;
       }
 
-      storage.set(STORAGE_KEYS.AUTH_USER, persistedUser);
+      activeStore.set(userKey, persistedUser);
     } catch (err) {
       console.warn('Failed to refresh user-info', err);
       // Keep whatever was already persisted/rendered — a transient network
       // failure here must not sign the user out or blank their permissions.
     }
 
-    if (persistedUser && storage.get(STORAGE_KEYS.AUTH_TOKEN)) {
+    if (persistedUser && activeStore.get(tokenKey)) {
       setUser((prevUser) => {
         const finalUser = { ...persistedUser };
         // If storage failed to save the avatar (e.g. due to quota), preserve it from React state
         if (!finalUser.avatar && prevUser?.avatar) {
           finalUser.avatar = prevUser.avatar;
           // Also try to persist it back just in case
-          storage.set(STORAGE_KEYS.AUTH_USER, finalUser);
+          activeStore.set(userKey, finalUser);
         }
         return finalUser;
       });
@@ -178,7 +196,26 @@ export function AuthProvider({ children }) {
     };
   }, [user, refreshUser]);
 
+  // Clears ONLY this tab's impersonation state (sessionStorage) — never
+  // touches localStorage, so the admin's real session in their original
+  // tab is completely unaffected, per the isolation requirement.
+  const clearImpersonationSession = useCallback(() => {
+    impersonationStorage.remove(IMPERSONATION_KEYS.ACCESS_TOKEN);
+    impersonationStorage.remove(IMPERSONATION_KEYS.REFRESH_TOKEN);
+    impersonationStorage.remove(IMPERSONATION_KEYS.USER);
+    setUser(null);
+  }, []);
+
   const clearSession = useCallback(() => {
+    // A tab holding an impersonation session must never run the normal
+    // localStorage-wiping branch below — that localStorage is SHARED with
+    // the admin's own real tab (same origin), so wiping it here would log
+    // the admin themself out in their original tab.
+    if (isImpersonationTab()) {
+      clearImpersonationSession();
+      return;
+    }
+
     storage.remove(STORAGE_KEYS.AUTH_TOKEN);
     storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
     storage.remove(STORAGE_KEYS.AUTH_USER);
@@ -197,7 +234,25 @@ export function AuthProvider({ children }) {
     window.sessionStorage.clear();
 
     setUser(null);
-  }, []);
+  }, [clearImpersonationSession]);
+
+  // Ends the impersonation session tied to this tab: tells the backend
+  // (best-effort — session also self-expires) and clears local state. This
+  // is the "End session" action in the impersonation banner, and is
+  // distinct from logout() — logout() ends a real login session, this ends
+  // an impersonation session, and the two must never be conflated.
+  const endImpersonation = useCallback(async () => {
+    const accessToken = impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN);
+    try {
+      if (accessToken) {
+        await impersonationService.end(accessToken);
+      }
+    } catch {
+      // Best-effort — the session has a hard TTL server-side regardless.
+    } finally {
+      clearImpersonationSession();
+    }
+  }, [clearImpersonationSession]);
 
   // Listen for global unauthorized events (e.g. from axios interceptor when refresh
   // fails, or when the backend flags the access token as killed by a login
@@ -212,6 +267,24 @@ export function AuthProvider({ children }) {
     window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
   }, [clearSession, toast]);
+
+  // Impersonation sessions die independently of the normal-session logic
+  // above (own token family, own storage) — this is the only place an
+  // impersonation session ever gets torn down other than the explicit
+  // "End session" banner action.
+  useEffect(() => {
+    const handleImpersonationEnded = () => {
+      toast.warning('Impersonation session ended.');
+      clearImpersonationSession();
+      // Best-effort — only succeeds because this tab was opened via
+      // window.open() (see ProfileMenu's "Access Account" item). If the
+      // browser refuses, ProtectedRoute's own isAuthenticated check takes
+      // over and redirects this tab to /login instead.
+      window.close();
+    };
+    window.addEventListener('impersonation-ended', handleImpersonationEnded);
+    return () => window.removeEventListener('impersonation-ended', handleImpersonationEnded);
+  }, [clearImpersonationSession, toast]);
 
   const login = useCallback(
     async (credentials) => {
@@ -277,11 +350,13 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       isAuthenticated: Boolean(user),
+      isImpersonating: Boolean(user?.isImpersonated),
       isInitialising,
       isSubmitting,
       error,
       login,
       logout,
+      endImpersonation,
       hasPermission,
       refreshUser,
       clearError,
@@ -293,6 +368,7 @@ export function AuthProvider({ children }) {
       error,
       login,
       logout,
+      endImpersonation,
       hasPermission,
       refreshUser,
       clearError,

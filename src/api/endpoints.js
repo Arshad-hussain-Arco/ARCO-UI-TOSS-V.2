@@ -11,6 +11,13 @@ const endpoints = {
     adminUpdatePassword: '/auth/admin-update-password/',
     updatePassword: '/auth/update-password/',
   },
+  impersonate: {
+    authenticate: '/impersonate/authenticate/',
+    employees: '/impersonate/employees/',
+    start: '/impersonate/start/',
+    refresh: '/impersonate/refresh/',
+    end: '/impersonate/end/',
+  },
   pushNotifications: {
     vapidPublicKey: '/notifications/vapid-public-key/',
     subscribe: '/notifications/subscribe/',
