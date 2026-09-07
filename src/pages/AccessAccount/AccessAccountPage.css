@@ -3,118 +3,236 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary, #f4f5f7);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--surface-tertiary) 100%);
   padding: 24px;
 }
 
 .access-account-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--bg-primary, #fff);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  padding: 32px;
+  max-width: 440px;
+  background: var(--surface-primary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-primary);
+  padding: 40px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.access-account-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--c-primary), var(--c-primary-light));
 }
 
 .access-account-title {
-  margin: 0 0 4px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary, #111);
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
 }
 
 .access-account-subtitle {
-  margin: 0 0 20px;
-  font-size: 13px;
-  color: var(--text-secondary, #666);
+  margin: 0 0 28px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .access-account-form,
 .access-account-picker {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .access-account-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
-  color: var(--text-secondary, #555);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .access-account-field input,
 .access-account-search {
-  padding: 10px 12px;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
   font-size: 14px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.access-account-field input:focus,
+.access-account-search:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--c-primary-light);
+}
+
+.access-account-field input::placeholder,
+.access-account-search::placeholder {
+  color: var(--text-tertiary);
 }
 
 .access-account-button {
-  margin-top: 6px;
-  padding: 10px 14px;
+  margin-top: 8px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 8px;
-  background: var(--accent-color, #2f6feb);
+  border-radius: 10px;
+  background: var(--c-primary);
   color: #fff;
   font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.access-account-button:hover:not(:disabled) {
+  background: var(--c-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.access-account-button:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: none;
 }
 
 .access-account-button:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .access-account-error {
   margin: 0;
   font-size: 13px;
-  color: #c0392b;
+  color: var(--c-danger);
+  background: var(--c-danger-light);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--c-danger);
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .access-account-results {
   list-style: none;
   margin: 0;
-  padding: 0;
-  max-height: 320px;
+  padding: 4px;
+  max-height: 340px;
   overflow-y: auto;
-  border: 1px solid var(--border-color, #eee);
-  border-radius: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.access-account-results::-webkit-scrollbar {
+  width: 6px;
+}
+
+.access-account-results::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+
+.access-account-results::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 .access-account-result {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
   border: none;
-  background: none;
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .access-account-result:hover {
-  background: var(--bg-hover, #f7f8fa);
+  background: var(--surface-tertiary);
+  transform: translateX(4px);
+}
+
+.access-account-result-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.access-account-result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .access-account-result-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-primary, #111);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .access-account-result-meta {
   font-size: 12px;
-  color: var(--text-tertiary, #888);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .access-account-hint {
-  padding: 12px;
+  padding: 16px;
   font-size: 13px;
-  color: var(--text-tertiary, #888);
+  color: var(--text-secondary);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Spinner Animation */
+.access-account-spinner {
+  animation: access-spin 1s linear infinite;
+}
+
+@keyframes access-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

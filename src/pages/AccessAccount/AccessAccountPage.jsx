@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { impersonationStorage } from '@utils/impersonationStorage';
 import { IMPERSONATION_KEYS } from '@constants/storageKeys';
@@ -37,6 +38,7 @@ export function AccessAccountPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleAuthenticate = useCallback(
     async (event) => {
@@ -133,13 +135,34 @@ export function AccessAccountPage() {
             </label>
             <label className="access-account-field">
               <span>Password</span>
-              <input
-                type="password"
-                autoComplete="off"
-                value={credentials.password}
-                onChange={(e) => setCredentials((c) => ({ ...c, password: e.target.value }))}
-                required
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="off"
+                  value={credentials.password}
+                  onChange={(e) => setCredentials((c) => ({ ...c, password: e.target.value }))}
+                  required
+                  style={{ width: '100%', paddingRight: '40px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    color: 'var(--text-tertiary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  tabIndex="-1"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </label>
 
             {error ? (
@@ -149,7 +172,16 @@ export function AccessAccountPage() {
             ) : null}
 
             <button type="submit" className="access-account-button" disabled={isSubmitting}>
-              {isSubmitting ? 'Verifying…' : 'Continue'}
+              {isSubmitting ? (
+                <>
+                  <svg className="access-account-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                    <path d="M21 12a9 9 0 11-6.219-8.56" />
+                  </svg>
+                  Verifying…
+                </>
+              ) : (
+                'Continue'
+              )}
             </button>
           </form>
         ) : (
@@ -182,10 +214,18 @@ export function AccessAccountPage() {
                     disabled={isSubmitting}
                     onClick={() => handleSelectEmployee(employee)}
                   >
-                    <span className="access-account-result-name">{employee.name}</span>
-                    <span className="access-account-result-meta">
-                      {employee.user_name} · {employee.email}
-                    </span>
+                    <div className="access-account-result-avatar">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                    <div className="access-account-result-info">
+                      <span className="access-account-result-name">{employee.name}</span>
+                      <span className="access-account-result-meta">
+                        {employee.user_name} · {employee.email}
+                      </span>
+                    </div>
                   </button>
                 </li>
               ))}

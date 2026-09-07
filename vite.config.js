@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
 
-    resolve: {
+    resolve: { 
       alias: {
         '@': resolvePath('./src'),
         '@app': resolvePath('./src/app'),

@@ -28,16 +28,23 @@
 }
 
 /* Tab Navigation */
+.consultants-tabs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-primary, #eaeaea);
+  background-color: var(--bg-secondary);
+  padding: 0 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .consultants-tabs {
   display: flex;
   align-items: flex-end;
-  width: 100%;
-  padding: 12px 16px 0 16px;
-  border-bottom: 1px solid var(--border-primary, #eaeaea);
-  background-color: var(--bg-secondary);
   gap: 6px;
+  padding-top: 12px;
   flex-shrink: 0;
-  box-sizing: border-box;
   position: relative;
   z-index: 1;
 }
@@ -368,6 +375,119 @@
 .consultants-empty-description {
   font-size: 13px;
   color: var(--text-secondary, #666666);
+}
+
+/* ── View Switcher ─────────── */
+.team-view-switcher {
+  display: flex;
+  background-color: var(--bg-tertiary);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border-primary);
+  margin-right: 12px;
+}
+
+.switcher-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  height: 28px;
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.switcher-btn:hover {
+  color: var(--text-primary);
+}
+
+.switcher-btn.active {
+  background-color: #006633;
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── List View Table ─────────── */
+.consultants-list-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.consultants-list-table th {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.consultants-list-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.consultants-list-table tr:last-child td {
+  border-bottom: none;
+}
+
+.consultants-list-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.consultants-list-table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.list-view-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-primary);
+  display: block;
+}
+
+.list-view-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.list-view-status.active {
+  background-color: var(--c-success-bg, #e6f4ed);
+  color: var(--c-success, #006838);
+}
+
+.list-view-status.inactive {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 /* ── Right-side drawer (replaces all modal overlays) ─────────── */

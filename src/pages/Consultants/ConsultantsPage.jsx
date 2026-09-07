@@ -232,6 +232,7 @@ export function ConsultantsPage() {
   const [showPw, setShowPw] = useState(false);
   const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewMode, setViewMode] = useState('card');
 
   const [viewProfileId, setViewProfileId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
@@ -562,8 +563,9 @@ export function ConsultantsPage() {
         inert={drawerOpen ? '' : undefined}
         aria-hidden={drawerOpen || undefined}
       >
-        {/* Page tabs */}
-        <div className="consultants-tabs">
+        <div className="consultants-tabs-header">
+          {/* Page tabs */}
+          <div className="consultants-tabs" style={{ marginBottom: 0 }}>
           {pageTabs.map((t) => {
             let count = null;
             if (!isEmployeesLoading) {
@@ -613,6 +615,23 @@ export function ConsultantsPage() {
               </button>
             );
           })}
+          </div>
+          <div className="team-view-switcher" style={{ marginBottom: '8px' }}>
+            <button
+              type="button"
+              className={`switcher-btn ${viewMode === 'card' ? 'active' : ''}`}
+              onClick={() => setViewMode('card')}
+            >
+              Card View
+            </button>
+            <button
+              type="button"
+              className={`switcher-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+            >
+              List View
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -631,6 +650,7 @@ export function ConsultantsPage() {
               isLoading={isEmployeesLoading}
               error={employeesError}
               refetch={loadEmployees}
+              viewMode={viewMode}
             />
           )}
           {activeTab === 'inactive' && (
@@ -646,6 +666,7 @@ export function ConsultantsPage() {
               isLoading={isInactiveLoading}
               error={inactiveError}
               refetch={loadInactive}
+              viewMode={viewMode}
             />
           )}
           {activeTab === 'teams' && (

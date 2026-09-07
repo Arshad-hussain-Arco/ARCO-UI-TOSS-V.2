@@ -102,12 +102,14 @@ export function ProgressTooltip({
       onMouseLeave={onMouseLeave}
     >
       <div className="pm-tooltip-header">
-        <span
-          className="pm-tooltip-state-dot"
-          style={{ background: stateColors[state] || 'var(--c-info)' }}
-        />
+        {state !== 'none' && (
+          <span
+            className="pm-tooltip-state-dot"
+            style={{ background: stateColors[state] || 'var(--c-info)' }}
+          />
+        )}
         <span className="pm-tooltip-title">{title}</span>
-        {state && (
+        {state && state !== 'none' && (
           <span className={`pm-tooltip-state-tag state-${state}`}>
             {state.toUpperCase()}
           </span>

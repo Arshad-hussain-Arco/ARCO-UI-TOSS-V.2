@@ -291,17 +291,17 @@
 }
 
 /* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
-   so it doesn't render as invisible white-on-white text in dark mode. 
+   so it inherits the theme's text and surface colors in both light and dark mode. 
    We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
-[data-theme="dark"] .rte-editable *:not([class*="rte-"]):not([class*="media-"]) {
+.rte-editable *:not([class*="rte-"]):not([class*="media-"]) {
   background-color: transparent !important;
   color: var(--text-primary) !important;
 }
 
-[data-theme="dark"] .rte-editable a,
-[data-theme="dark"] .rte-editable a span,
-[data-theme="dark"] .rte-editable a *:not([class*="rte-"]):not([class*="media-"]) {
-  color: #60a5fa !important;
+.rte-editable a,
+.rte-editable a span,
+.rte-editable a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: var(--c-primary) !important;
 }
 
 .rte-root.rte-fullscreen .rte-editable {
@@ -332,6 +332,39 @@
 }
 .ms-Callout-main {
   max-height: 400px !important;
+}
+
+/* Make fluent popups / dropdowns inherit the theme! They are rendered in a portal
+   so they don't inherit from the editor's root automatically. */
+.ms-Layer .ms-ContextualMenu,
+.ms-Layer .ms-Callout,
+.ms-Layer .ms-Callout-main,
+.ms-Layer .ms-Callout-beak,
+.ms-Layer .ms-ContextualMenu-list,
+.ms-Layer .ms-ContextualMenu-item,
+.ms-Layer .ms-ContextualMenu-itemText,
+.ms-Layer .ms-ContextualMenu-link {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.ms-Layer .ms-Callout-main {
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Tooltips shouldn't have the heavy dropdown border */
+.ms-Layer .ms-Tooltip,
+.ms-Layer .ms-Tooltip-content {
+  border: none !important;
+}
+
+.ms-Layer .ms-ContextualMenu-item:hover,
+.ms-Layer .ms-ContextualMenu-link:hover,
+.ms-Layer .ms-ContextualMenu-item:hover .ms-ContextualMenu-itemText,
+.ms-Layer .ms-ContextualMenu-link:hover .ms-ContextualMenu-itemText {
+  background-color: var(--surface-primary) !important;
+  color: var(--c-primary) !important;
 }
 
 .rte-editable p {
@@ -704,9 +737,13 @@
     color: var(--text-tertiary) !important;
 }
 
+.rooster-custom-container .ms-Button:hover {
+    background-color: var(--bg-tertiary) !important;
+}
+
 .rooster-custom-container .ms-Button:hover .ms-Button-icon,
 .rooster-custom-container .ms-Button:hover .ms-Button-label {
-    color: var(--c-primary) !important;
+    color: var(--text-primary) !important;
 }
 
 /* RoosterJS's own contenteditable div sets background-color/color as an
@@ -715,7 +752,7 @@
    CSS !important always beats an inline style regardless of specificity,
    so this reliably overrides it without needing to reach into RoosterJS's
    own EditorOptions/defaultFormat API. */
-[data-theme="dark"] .rte-root [contenteditable] {
+.rte-root [contenteditable] {
   background-color: transparent !important;
   color: var(--text-primary) !important;
 }
@@ -1318,4 +1355,21 @@
   opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Tooltip Customization (matches Project Monitoring ProgressTooltip) */
+/* We suppress native/Fluent tooltips while hovering RichEditor and use a custom portal instead */
+body.rte-hide-fluent-tooltips .ms-Layer .ms-Tooltip {
+  display: none !important;
+}
+
+@keyframes pm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

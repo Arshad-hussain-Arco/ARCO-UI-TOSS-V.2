@@ -35,8 +35,8 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
   };
 
   return (
-    <div 
-      className="header-profile-wrapper" 
+    <div
+      className="header-profile-wrapper"
       ref={wrapperRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -112,7 +112,7 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
                 window.open(ROUTES.ACCESS_ACCOUNT, '_blank', 'noopener,noreferrer');
               }}
             >
-              <UserCog className="header-profile-menu-icon" aria-hidden="true" />
+              {/* <UserCog className="header-profile-menu-icon" aria-hidden="true" /> */}
               <span className="header-profile-menu-text">Access Account</span>
             </button>
           ) : null}
