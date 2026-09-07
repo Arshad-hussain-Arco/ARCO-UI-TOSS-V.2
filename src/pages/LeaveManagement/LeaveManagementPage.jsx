@@ -589,7 +589,7 @@ export function LeaveManagementPage() {
       if (mods.length > 1) {
         row.claimDates = mods.map((m) => ({
           id: m.leave_id, date: m.new_start_date, duration: m.new_duration, in_days: m.new_in_days,
-          orig_in_days: m.orig_in_days,
+          orig_in_days: m.orig_in_days, orig_duration: m.orig_duration,
         }));
       }
       pendingMods.push(row);
@@ -1345,6 +1345,14 @@ export function LeaveManagementPage() {
                                       // changing shape.
                                       const isRemoval = leave.is_mod_request && Number(cd.in_days) === 0;
                                       const isAddition = leave.is_mod_request && Number(cd.orig_in_days) === 0 && Number(cd.in_days) > 0;
+                                      // A pure duration change (Full Day -> First Half,
+                                      // say) on an otherwise unchanged date has neither
+                                      // marker above — without this, only the NEW
+                                      // duration ever showed, with no hint it changed
+                                      // at all.
+                                      const durLabel = (d) => (d === 'FIRST_HALF' ? 'First Half' : d === 'SECOND_HALF' ? 'Second Half' : 'Full Day');
+                                      const isDurationChange = leave.is_mod_request && !isRemoval && !isAddition
+                                        && cd.orig_duration && cd.orig_duration !== cd.duration;
                                       return (
                                         <div
                                           key={cd.id}
@@ -1359,6 +1367,7 @@ export function LeaveManagementPage() {
                                               {' '}({cd.in_days} day{cd.in_days !== 1 ? 's' : ''})
                                               {cd.duration && cd.duration !== 'FULL_DAY' ? ` • ${cd.duration === 'FIRST_HALF' ? 'First Half' : 'Second Half'}` : ''}
                                               {isAddition ? <span style={{ color: 'var(--c-success, #16a34a)' }}> (Added)</span> : ''}
+                                              {isDurationChange ? <span style={{ color: 'var(--text-tertiary)', textDecoration: 'line-through' }}> (was {durLabel(cd.orig_duration)})</span> : ''}
                                             </span>
                                           )}
                                         </div>

@@ -210,6 +210,28 @@ httpClient.interceptors.response.use(
         processQueue(null, newAccessToken);
         return httpClient(originalRequest);
       } catch (refreshError) {
+        // isRefreshing/failedQueue only dedupe concurrent refreshes WITHIN
+        // this tab — they're plain module state, invisible to other tabs.
+        // If the user has this account open in more than one tab, both can
+        // hit a 401 at the same moment and both call /auth/refresh/ with
+        // the same (soon-to-be-rotated) refresh token. The backend accepts
+        // the first one and blacklists that refresh token as part of
+        // rotation; the second tab's identical call then fails because its
+        // refresh token is now blacklisted — which looks identical to a
+        // real "logged in elsewhere" event, but is actually just this same
+        // login already having succeeded in the other tab. Detect that by
+        // re-reading localStorage: if the refresh token there has already
+        // changed since we read it, someone (another tab of ours) beat us
+        // to a valid rotation — pick up their new access token and retry
+        // instead of tearing the session down.
+        const latestRefreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN);
+        const latestAccessToken = storage.get(STORAGE_KEYS.AUTH_TOKEN);
+        if (latestRefreshToken && latestRefreshToken !== refreshToken && latestAccessToken) {
+          processQueue(null, latestAccessToken);
+          originalRequest.headers['Authorization'] = 'Bearer ' + latestAccessToken;
+          return httpClient(originalRequest);
+        }
+
         processQueue(refreshError, null);
         // Dispatch global event so context can clear state
         dispatchUnauthorized(reasonFromRefreshError(refreshError));
