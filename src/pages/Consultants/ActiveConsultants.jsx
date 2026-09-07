@@ -13,7 +13,7 @@ import {
 import { useAsync } from '@hooks/useAsync';
 import { useDebounce } from '@hooks/useDebounce';
 import { consultantService } from '@services/consultantService';
-import { ConsultantCard, ConsultantCardSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
+import { ConsultantCard, ConsultantCardSkeleton, ConsultantListSkeleton } from '@components/data-display/ConsultantCard/ConsultantCard';
 import { ConsultantsStats } from '@components/data-display/ConsultantsStats/ConsultantsStats';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
@@ -102,6 +102,13 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
   }
 
   if (isLoading && activeConsultants.length === 0) {
+    if (viewMode === 'list') {
+      return (
+        <div className="consultants-grid-scrollable">
+          <ConsultantListSkeleton actionsCount={3} />
+        </div>
+      );
+    }
     return (
       <div className="consultants-grid-scrollable">
         <div className="consultants-grid">
