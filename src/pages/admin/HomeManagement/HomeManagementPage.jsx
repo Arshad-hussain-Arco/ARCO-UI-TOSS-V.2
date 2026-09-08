@@ -41,19 +41,23 @@ function resolveHtmlForPreview(html) {
   if (!/&lt;\s*\/?(?:table|thead|tbody|tfoot|tr|td|th|div|p|h[1-6]|ul|ol|li|dl|dt|dd|span|a|img|section|article|header|footer|nav|main|aside|strong|em|b|i|u|br|hr|blockquote|pre|code|figure|figcaption|details|summary|caption|colgroup|col)\b/i.test(html)) {
     return html; // No escaped HTML tags found — return original content
   }
-  // Decode: parse as HTML, extract the text content (which is the raw HTML source)
+  
+  // Decode HTML entities safely without losing actual HTML nodes (like <img>)
+  let decoded = html;
   try {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const decoded = doc.body.textContent || '';
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = html;
+    decoded = textarea.value; // Unescapes &lt;, &gt;, etc.
+    
     // Verify the decoded text actually contains real HTML tags
     if (/<\s*(?:table|div|p|h[1-6]|ul|ol|li|section|article|header|footer|nav|main|blockquote|pre|figure|details|dl)\b[^>]*>/i.test(decoded)) {
-      // Sanitize for safety (strips <script>, onclick, javascript: etc.)
+      // Sanitize for safety, ensuring media tags are preserved
       return DOMPurify.sanitize(decoded, {
         ADD_TAGS: ['style', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
-          'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary'],
+          'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary', 'img', 'video', 'source'],
         ADD_ATTR: ['style', 'class', 'colspan', 'rowspan', 'border', 'cellpadding',
           'cellspacing', 'width', 'height', 'align', 'valign', 'scope', 'headers',
-          'target', 'rel', 'href', 'src', 'alt', 'title'],
+          'target', 'rel', 'href', 'src', 'alt', 'title', 'controls', 'autoplay', 'loop', 'muted'],
         FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select'],
         FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
           'onsubmit', 'onchange', 'onkeydown', 'onkeyup', 'onkeypress'],
