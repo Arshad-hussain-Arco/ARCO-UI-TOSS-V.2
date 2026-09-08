@@ -6,6 +6,7 @@ import { ROUTES } from '@constants/routes';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { Toggle } from '@components/ui/Toggle/Toggle';
 import { HomeCard } from '@components/home/HomeCard';
 import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector';
 import { RichEditor } from '@components/home/RichEditor/RichEditor';
@@ -739,11 +740,19 @@ function HomeManagementPanelComponent() {
                       opacity: isActive ? 1 : 0.55,
                     }}
                   >
-                    {isActive ? null : (
-                      <span style={{ position: 'absolute', top: '8px', left: '8px', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--c-danger, #dc2626)', color: '#fff', zIndex: 10 }}>
-                        INACTIVE
-                      </span>
-                    )}
+                    <div 
+                      title={isActive ? 'Active Card' : 'Inactive Card'}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', alignItems: 'center', background: 'var(--surface-primary)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border-primary)', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)' }}
+                    >
+                      <Toggle
+                        checked={isActive}
+                        onChange={(checked) => {
+                          handleToggleActive(card);
+                        }}
+                        ariaLabel={isActive ? 'Deactivate Card' : 'Activate Card'}
+                      />
+                    </div>
 
                     {/* Actions in top right ΓÇö grouped into a single pill so five
                     icons read as one toolbar instead of five loose circles. */}
@@ -813,30 +822,7 @@ function HomeManagementPanelComponent() {
                         <ArrowDown size={13} />
                       </button>
 
-                      <span style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 2px' }} />
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleActive(card);
-                        }}
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          border: 'none',
-                          background: 'transparent',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: isActive ? 'var(--text-secondary)' : 'var(--c-warning, #d97706)',
-                          cursor: 'pointer',
-                        }}
-                        title={isActive ? 'Deactivate Card' : 'Activate Card'}
-                      >
-                        {isActive ? <Eye size={13} /> : <EyeOff size={13} />}
-                      </button>
                       <button
                         type="button"
                         className="action-icon-btn edit"
