@@ -36,7 +36,14 @@ function classifyAdaptiveColor(r, g, b) {
  * classified color would still render as flat white in dark mode.
  */
 function themeAdaptiveColors(html) {
-  return (html || '').replace(
+  let processed = html || '';
+
+  // 1. Strip default RoosterJS / MS Word fonts so the text automatically inherits the app's native theme typography
+  processed = processed.replace(/font-family:\s*["']?(?:Calibri|Arial|Times New Roman|sans-serif|serif)["']?[^;"]*;?/gi, '');
+  processed = processed.replace(/font-size:\s*(?:11pt|14px|15px|1em|medium)\s*;?/gi, '');
+
+  // 2. Rewrite text colors
+  processed = processed.replace(
     /color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
     (match, r, g, b, hex) => {
       let rr = r, gg = g, bb = b;
@@ -54,6 +61,29 @@ function themeAdaptiveColors(html) {
       return adaptive ? `color: ${adaptive} !important;` : match;
     }
   );
+
+  // 3. Rewrite white/light backgrounds to transparent so dark mode isn't blinded, but preserve intentional colored highlights
+  processed = processed.replace(
+    /background-color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
+    (match, r, g, b, hex) => {
+      let rr = r, gg = g, bb = b;
+      if (hex) {
+        const h = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
+        rr = parseInt(h.slice(0, 2), 16);
+        gg = parseInt(h.slice(2, 4), 16);
+        bb = parseInt(h.slice(4, 6), 16);
+      } else {
+        rr = Number(r);
+        gg = Number(g);
+        bb = Number(b);
+      }
+      // If it's a very light background (like white or near-white), strip it so the theme background applies
+      if (rr > 240 && gg > 240 && bb > 240) return 'background-color: transparent !important;';
+      return match;
+    }
+  );
+
+  return processed;
 }
 
 /**

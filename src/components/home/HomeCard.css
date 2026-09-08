@@ -199,8 +199,7 @@
    so it doesn't render as invisible white-on-white text in dark mode. 
    We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
 [data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
-  background-color: transparent !important;
-  color: var(--text-primary) !important;
+  /* Removed !important blanket rules so user-selected custom colors work properly */
 }
 
 /* Same .rte-*/.media-* exclusion as the blanket rule above — without it,
