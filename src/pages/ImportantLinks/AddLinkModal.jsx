@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Pencil, Bold, Italic, List as ListIcon, Heading1, Underline, ListOrdered, Code, Table as TableIcon, Rows, Columns, Trash2, Maximize, Minimize } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
@@ -100,7 +101,6 @@ function GroupDropdown({ groups, value, onSelect, onCreateNew, hasError, canCrea
   );
 }
 
-// Extra brace removed
 function SimpleRichTextEditor({ value, onChange, hasError }) {
   const editorRef = useRef(null);
   const popoverRef = useRef(null);
@@ -117,6 +117,128 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
       editorRef.current.innerHTML = value || '';
     }
   }, [value, showSource]);
+
+  const handleEditorMouseDown = (e) => {
+    let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
+    if (!copyBtn) {
+      let curr = e.target;
+      while (curr && curr !== e.currentTarget) {
+        if (curr.nodeType === Node.ELEMENT_NODE) {
+          if (curr.matches('button, .btn, a, .arco-btn, [role="button"]') && curr.textContent.trim().toLowerCase().includes('copy')) {
+            copyBtn = curr; break;
+          }
+          const exactText = curr.textContent.trim().toLowerCase();
+          if (exactText === 'copy' || exactText === 'copy path') {
+            copyBtn = curr; break;
+          }
+        }
+        curr = curr.parentNode;
+      }
+    }
+    if (copyBtn) {
+      e.preventDefault();
+    }
+  };
+
+  const handleEditorClick = (e) => {
+    let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
+    if (!copyBtn) {
+      let curr = e.target;
+      while (curr && curr !== e.currentTarget) {
+        if (curr.nodeType === Node.ELEMENT_NODE) {
+          if (curr.matches('button, .btn, a, .arco-btn, [role="button"]') && curr.textContent.trim().toLowerCase().includes('copy')) {
+            copyBtn = curr;
+            break;
+          }
+          const exactText = curr.textContent.trim().toLowerCase();
+          if (exactText === 'copy' || exactText === 'copy path') {
+            copyBtn = curr;
+            break;
+          }
+        }
+        curr = curr.parentNode;
+      }
+    }
+
+    if (copyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      let textToCopy = copyBtn.getAttribute('data-copy-text') || copyBtn.getAttribute('data-copy') || '';
+
+      if (!textToCopy) {
+        const td = copyBtn.closest('td, th');
+        if (td) {
+          const clone = td.cloneNode(true);
+          const btns = clone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
+          btns.forEach(b => b.remove());
+          textToCopy = clone.textContent.replace(/\u200B/g, '').trim();
+        }
+
+        if (!textToCopy) {
+          let curr = copyBtn;
+          while (curr && curr !== e.currentTarget && !textToCopy) {
+            let prev = curr.previousSibling; 
+            while (prev && !textToCopy) {
+              if (prev.nodeType === Node.TEXT_NODE) {
+                textToCopy = prev.textContent.replace(/\u200B/g, '').trim();
+              } else if (prev.nodeType === Node.ELEMENT_NODE) {
+                const prevClone = prev.cloneNode(true);
+                const btns = prevClone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
+                btns.forEach(b => b.remove());
+                textToCopy = prevClone.textContent.replace(/\u200B/g, '').trim();
+              }
+              prev = prev.previousSibling;
+            }
+            curr = curr.parentNode;
+          }
+        }
+      }
+
+      const originalHTML = copyBtn.innerHTML;
+      
+      if (!textToCopy) {
+        copyBtn.textContent = 'No text!';
+        setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
+        return;
+      }
+
+      copyBtn.textContent = 'Copied!';
+      copyBtn.classList.add('rte-copy-btn-copied');
+      
+      const showCopied = () => {
+        setTimeout(() => {
+          copyBtn.innerHTML = originalHTML;
+          copyBtn.classList.remove('rte-copy-btn-copied');
+        }, 1500);
+      };
+
+      const doFallbackCopy = () => {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = textToCopy;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {}
+        document.body.removeChild(tempInput);
+        toast.success?.('Copied to clipboard!');
+        showCopied();
+      };
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(textToCopy)
+          .then(() => {
+            toast.success?.('Copied to clipboard!');
+            showCopied();
+          })
+          .catch(doFallbackCopy);
+      } else {
+        doFallbackCopy();
+      }
+      return;
+    }
+  };
 
   const exec = (command, val = null) => {
     if (showSource) return;
@@ -286,6 +408,8 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
           ref={editorRef}
           contentEditable
           onInput={handleInput}
+          onClick={handleEditorClick}
+          onMouseDown={handleEditorMouseDown}
           style={{ flex: 1, minHeight: '120px', padding: '12px', outline: 'none', fontSize: '13px', lineHeight: '1.5', background: 'var(--bg-primary)', overflowY: 'auto', borderBottomLeftRadius: isFullScreen ? 0 : '5px', borderBottomRightRadius: isFullScreen ? 0 : '5px' }}
           className="il-rte-content"
         />
