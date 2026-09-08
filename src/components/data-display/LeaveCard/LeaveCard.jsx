@@ -82,9 +82,18 @@ function LeaveCard({ title, subtitle, icon: Icon, centerCount, left, used, color
       </div>
 
       {isSimple ? (
-        <div className="leave-card-chart-container">
-          <div className="leave-card-simple-value">{centerCount}</div>
-        </div>
+        <>
+          <div className="leave-card-chart-container">
+            <div className="leave-card-simple-value">{centerCount}</div>
+          </div>
+          {/* Invisible stats block to maintain vertical alignment with other cards */}
+          <div className="leave-card-stats" style={{ visibility: 'hidden' }}>
+            <div className="leave-card-stat">
+              <span className="leave-card-stat-value">0</span>
+              <span className="leave-card-stat-label">Left</span>
+            </div>
+          </div>
+        </>
       ) : (
         <>
           <div className="leave-card-chart-container">
