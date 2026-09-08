@@ -1445,9 +1445,25 @@
 
 .tr-sdl-emp-type {
   flex-shrink: 0;
-  width: 140px;
+  width: 170px;
   display: flex;
   align-items: center;
+  /* A long/custom leave type name (e.g. "Annual Leave Test", a
+     manager-defined leave type) must not overflow this fixed column —
+     that visually shoves the Duration/Dates/Status columns out of
+     alignment across rows instead of actually resizing them. */
+  overflow: hidden;
+}
+
+.tr-sdl-emp-type .tr-type-badge {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.tr-sdl-emp-type .tr-type-badge-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tr-sdl-emp-dur {
@@ -1466,6 +1482,24 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 1px;
+}
+
+/* The actions cell (approve/reject/edit/view) renders a different NUMBER
+   of buttons per row (a Cancelled/Self-Rejected row only gets the "view"
+   icon, a Pending+editable row gets all four) — .tr-actions itself is
+   `width: max-content` (correct for the "All Requests" TABLE view, where
+   a <td> already fixes the column width regardless). This row, though, is
+   a plain flex row, not a table: with the identity column set to `flex:
+   1`, a narrower actions box on a Cancelled row hands identity that extra
+   space, which shoves every fixed-width column between them (type,
+   duration, dates, status) to the right — exactly the misalignment this
+   fixes. Pin the actions column to the widest case (4 buttons: ~28px
+   each + 3x 4px gaps) so identity's available space, and therefore every
+   column after it, stays constant regardless of which row it is.
+   justify-content: flex-end (already set on .tr-actions) keeps a row with
+   fewer buttons right-aligned inside this fixed box. */
+.tr-sdl-emp-row .tr-actions {
+  width: 130px;
 }
 
 /* ─── SDL Empty State ─────────────────────────────────────────────── */

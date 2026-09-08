@@ -15,6 +15,7 @@ export function LeaveRequestDrawer({
   liveReq,
   drawerAction,
   teamAvailability,
+  pendingModForLeave,
   managerNote,
   setManagerNote,
   rejectErr,
@@ -50,6 +51,22 @@ export function LeaveRequestDrawer({
     if (d === 'morning' || d === 'First Half' || d === 'FIRST_HALF') return 'First Half';
     if (d === 'afternoon' || d === 'Second Half' || d === 'SECOND_HALF') return 'Second Half';
     return d;
+  }
+
+  // Shared by the New/Original Duration rows below: a multi-day request's
+  // duration isn't one value, it's a per-boundary FROM/TO pair (mid-range
+  // days are always full day) — fromD/toD are only set at all when at
+  // least one boundary is a half day. Falls back to the plain single-value
+  // label (fallbackDuration) for a single-day request.
+  function boundaryDurationLabel(fromD, toD, start, end, fallbackDuration) {
+    if (fromD || toD) {
+      return `${fmtDate(start)} (${
+        fromD === 'SECOND_HALF' ? 'Second Half' : 'Full Day'
+      }) → ${fmtDate(end)} (${
+        toD === 'FIRST_HALF' ? 'First Half' : 'Full Day'
+      })`;
+    }
+    return durationLabel(fallbackDuration);
   }
 
   return (
@@ -232,30 +249,38 @@ export function LeaveRequestDrawer({
               <span className="tr-drow-value" style={{ color: 'var(--text-tertiary)' }}>{liveReq.origReason}</span>
             </div>
           )}
-          {liveReq.isModRequest && liveReq.origDuration != null
-            && !(liveReq.claimDates && liveReq.claimDates.length > 1)
-            && durationLabel(liveReq.origDuration) !== durationLabel(liveReq.duration) && (
-            <div className="tr-drow">
-              <span className="tr-drow-label">Original Duration</span>
-              <span className="tr-drow-value" style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
-                {durationLabel(liveReq.origDuration)}
-              </span>
-            </div>
-          )}
+          {(() => {
+            if (!liveReq.isModRequest || (liveReq.claimDates && liveReq.claimDates.length > 1)) return null;
+            const origLabel = boundaryDurationLabel(
+              liveReq.origFromDateDuration, liveReq.origToDateDuration,
+              liveReq.origStartDate, liveReq.origEndDate, liveReq.origDuration,
+            );
+            const newLabel = boundaryDurationLabel(
+              liveReq.fromDateDuration, liveReq.toDateDuration,
+              liveReq.startDate, liveReq.endDate, liveReq.duration,
+            );
+            // Compare the actual rendered labels (which fold in the
+            // per-boundary FROM/TO halves for a multi-day request), not
+            // just origDuration/duration — those two are only ever the
+            // generic FULL_DAY flag on a multi-day request, so comparing
+            // them directly would hide a real From/To half-day change
+            // (e.g. Second Half → First Half edited to Second Half → Full
+            // Day) behind an unchanged-looking "Full Day" on both sides.
+            if (origLabel === newLabel) return null;
+            return (
+              <div className="tr-drow">
+                <span className="tr-drow-label">Original Duration</span>
+                <span className="tr-drow-value" style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
+                  {origLabel}
+                </span>
+              </div>
+            );
+          })()}
           {liveReq.type !== 'offshore' && !(liveReq.claimDates && liveReq.claimDates.length > 1) && (
             <div className="tr-drow">
               <span className="tr-drow-label">{liveReq.isModRequest ? 'New Duration' : 'Duration'}</span>
               <span className="tr-drow-value">
-                {liveReq.fromDateDuration || liveReq.toDateDuration ? (
-                  // Multi-day leave with a half-day boundary set on the
-                  // from and/or to date — dates strictly in between are
-                  // always full day, so only the two boundaries are shown.
-                  `${fmtDate(liveReq.startDate)} (${
-                    liveReq.fromDateDuration === 'SECOND_HALF' ? 'Second Half' : 'Full Day'
-                  }) → ${fmtDate(liveReq.endDate)} (${
-                    liveReq.toDateDuration === 'FIRST_HALF' ? 'First Half' : 'Full Day'
-                  })`
-                ) : durationLabel(liveReq.duration)}
+                {boundaryDurationLabel(liveReq.fromDateDuration, liveReq.toDateDuration, liveReq.startDate, liveReq.endDate, liveReq.duration)}
               </span>
             </div>
           )}
@@ -509,6 +534,31 @@ export function LeaveRequestDrawer({
             ))}
           </div>
         </div>
+
+        {/* Rejecting an already-APPROVED leave that has a pending
+            modification request auto-rejects that request too (see
+            LeaveApprovalService.reject's cascade) — the manager should
+            know that before confirming, not discover it afterwards. */}
+        {drawerAction === 'reject' && pendingModForLeave && (
+          <div className="tr-dsec">
+            <div
+              style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+                padding: '10px 12px', borderRadius: 6,
+                background: 'var(--c-warning-light, #fffbeb)',
+                border: '1px solid var(--c-warning, #f59e0b)',
+                fontSize: 12,
+              }}
+            >
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1, color: 'var(--c-warning, #f59e0b)' }} />
+              <span>
+                This leave has a pending modification request (new dates:{' '}
+                {fmtShort(pendingModForLeave.startDate)} → {fmtShort(pendingModForLeave.endDate)}
+                ). Rejecting this leave will also reject that modification request.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Manager Notes */}
         {!isReadOnly && drawerAction !== 'view' && (

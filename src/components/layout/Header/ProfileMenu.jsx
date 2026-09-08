@@ -99,6 +99,22 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
             <span className="header-profile-menu-text">Preferences</span>
           </button>
 
+          {user.isAdmin && !user.isImpersonated ? (
+            <button
+              type="button"
+              className="header-profile-menu-item"
+              role="menuitem"
+              onClick={() => {
+                close();
+                // Same isolation model as Access Account — a new tab, own
+                // sessionStorage-only tokens. See ViewAsRolePage.jsx.
+                window.open(ROUTES.VIEW_AS_ROLE, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              <span className="header-profile-menu-text">View as Role</span>
+            </button>
+          ) : null}
+
           {user.hasImpersonationAccess && !user.isImpersonated ? (
             <button
               type="button"

@@ -9,6 +9,7 @@ export const ROUTES = Object.freeze({
   LOGIN: '/login',
   FORGOT_PASSWORD: '/forgot-password',
   ACCESS_ACCOUNT: '/access-account',
+  VIEW_AS_ROLE: '/view-as-role',
 
   // Protected — dashboard shell
   HOME: '/home',
