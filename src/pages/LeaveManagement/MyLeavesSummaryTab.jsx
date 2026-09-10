@@ -43,37 +43,6 @@ const YEARS = [
   ),
 ];
 
-/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
-function TableSkeleton({ headers }) {
-  const colCount = headers ? headers.length : 7;
-  return (
-    <div style={{ width: '100%', padding: '24px' }}>
-      <Skeleton height={40} width="100%" style={{ marginBottom: '20px' }} />
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-         <Skeleton height={36} width="150px" />
-         <Skeleton height={36} width="150px" />
-      </div>
-      <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-          {Array.from({ length: colCount }).map((_, j) => (
-            <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 0 ? 'center' : 'flex-start' }}>
-               {headers ? headers[j] : <Skeleton height={20} width={j === 0 ? "80%" : "60%"} />}
-            </div>
-          ))}
-        </div>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
-            {Array.from({ length: colCount }).map((_, j) => (
-              <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 0 ? 'center' : 'flex-start' }}>
-                 <Skeleton height={20} width={j === 0 ? "60%" : "100%"} />
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function MyLeavesSummaryTab({
   leaves = [],

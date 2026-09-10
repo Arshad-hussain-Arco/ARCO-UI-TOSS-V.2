@@ -1642,7 +1642,9 @@ export function AttendancePage() {
         {/* Attendance Report — Card */}
         {subTab === 'report' && viewMode === 'card' && (
           <div className="attendance-card-grid">
-            {filteredReportRows.map(({ consultant, record, stats }) => (
+            {filteredReportRows.map(({ consultant, record, stats }) => {
+              const percentage = stats.totalWorkingDays > 0 ? Math.round((stats.presentDays / stats.totalWorkingDays) * 100) : 0;
+              return (
               <div key={consultant.id} className="attendance-summary-card">
                 <div className="attendance-card-header">
                   <div className="attendance-consultant-main">
@@ -1710,9 +1712,12 @@ export function AttendancePage() {
                     </span>
                   </div>
                 </div>
+              </div>
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
       </>
