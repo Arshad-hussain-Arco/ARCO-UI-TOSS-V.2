@@ -369,6 +369,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const sourceHtmlRef = useRef('');
   const [sourceHtmlState, setSourceHtmlState] = useState('');
   const [tooltipState, setTooltipState] = useState({ visible: false, title: '', targetRect: null });
+  const [tableContextMenu, setTableContextMenu] = useState({ visible: false, x: 0, y: 0, targetCell: null, targetTable: null });
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
@@ -536,8 +537,9 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     new ImageEditPlugin(),
     new TableEditPlugin('.rte-root'),
     new DragAndDropPlugin(),
-    contextMenuPlugin
-  ], [ribbonPlugin, editorSyncPlugin, codePastePlugin, contextMenuPlugin]);
+    contextMenuPlugin,
+    tableEditMenuProvider
+  ], [ribbonPlugin, editorSyncPlugin, codePastePlugin, contextMenuPlugin, tableEditMenuProvider]);
 
   // Custom insert link button that opens the fullscreen modal
   const customInsertLinkButton = useMemo(() => ({
@@ -1517,9 +1519,29 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         style={isFullscreen ? { zIndex: 9999, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' } : {}}
         onBlur={handleContainerBlur}
         onKeyUp={handleContainerBlur}
-        onClick={handleEditorClick}
+        onClick={(e) => {
+          handleEditorClick(e);
+          if (tableContextMenu.visible) setTableContextMenu(prev => ({ ...prev, visible: false }));
+        }}
         onContextMenu={(e) => {
-          if (isFullscreen) e.preventDefault();
+          const targetCell = e.target.closest('td, th');
+          if (targetCell) {
+            e.preventDefault();
+            e.stopPropagation();
+            setTableContextMenu({
+              visible: true,
+              x: e.clientX,
+              y: e.clientY,
+              targetCell,
+              targetTable: targetCell.closest('table')
+            });
+            // Ensure RoosterJS selects this cell so commands apply here
+            if (editorRef.current) {
+               try { editorRef.current.select(targetCell); } catch(err) {}
+            }
+          } else if (isFullscreen) {
+            e.preventDefault();
+          }
         }}
         onMouseEnter={() => document.body.classList.add('rte-hide-fluent-tooltips')}
         onMouseLeave={(e) => {
@@ -1808,6 +1830,117 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         placement="bottom"
         state="none"
       />
+      {tableContextMenu.visible && ReactDOM.createPortal(
+        <div 
+          className="rte-table-context-menu"
+          style={{
+            position: 'fixed',
+            top: tableContextMenu.y,
+            left: tableContextMenu.x,
+            zIndex: 10000,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="rte-context-menu-item" onClick={() => {
+            const color = prompt('Enter text color (e.g. #ff0000 or red):');
+            if (color && editorRef.current) {
+              import('roosterjs').then(({ setTextColor }) => {
+                setTextColor(editorRef.current, color);
+              });
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Text Color
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            const color = prompt('Enter table shade color (e.g. #cccccc or gray):');
+            if (color && editorRef.current) {
+              import('roosterjs').then(({ setTableCellShade }) => {
+                setTableCellShade(editorRef.current, color);
+              });
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Table Color
+          </div>
+          <div className="rte-context-menu-divider" />
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'insertAbove'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Insert Row Above
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'insertBelow'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Insert Row Below
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'insertLeft'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Insert Column Left
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'insertRight'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Insert Column Right
+          </div>
+          <div className="rte-context-menu-divider" />
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'deleteRow'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Delete Row
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'deleteColumn'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Delete Column
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'deleteTable'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Delete Table
+          </div>
+          <div className="rte-context-menu-divider" />
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'mergeCells'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Merge Cells
+          </div>
+          <div className="rte-context-menu-item" onClick={() => {
+            if (editorRef.current) {
+              import('roosterjs').then(({ editTable }) => editTable(editorRef.current, 'splitVertically'));
+            }
+            setTableContextMenu(prev => ({ ...prev, visible: false }));
+          }}>
+            Split Cell
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
