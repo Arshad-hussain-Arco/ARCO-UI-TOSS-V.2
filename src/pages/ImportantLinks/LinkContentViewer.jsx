@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { AlertCircle, Download, FileText } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
+import { copyWithToast } from '@utils/copyToClipboard';
 
 import { Loader } from '@components/feedback/Loader/Loader';
 import { PDFViewer } from '@pages/Documents/components/PDFViewer';
@@ -194,44 +195,10 @@ export function LinkContentViewer({ link }) {
       const originalHTML = copyBtn.innerHTML;
       
       if (!textToCopy) {
-        copyBtn.textContent = 'No text!';
-        setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
         return;
       }
 
-      copyBtn.textContent = 'Copied!';
-      copyBtn.classList.add('rte-copy-btn-copied');
-      
-      const showCopied = () => {
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove('rte-copy-btn-copied');
-        }, 1500);
-      };
-
-      const doFallbackCopy = () => {
-        const tempInput = document.createElement('textarea');
-        tempInput.value = textToCopy;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {}
-        document.body.removeChild(tempInput);
-        toast.success('Copied to clipboard!');
-        showCopied();
-      };
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(textToCopy)
-          .then(() => {
-            toast.success('Copied to clipboard!');
-            showCopied();
-          })
-          .catch(doFallbackCopy);
-      } else {
-        doFallbackCopy();
-      }
+      copyWithToast(textToCopy);
       return;
     }
   };

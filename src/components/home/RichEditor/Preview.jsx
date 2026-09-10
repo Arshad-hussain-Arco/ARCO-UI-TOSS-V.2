@@ -1,4 +1,5 @@
 import { sanitizeEditorHtml } from './sanitize';
+import { copyWithToast } from '@utils/copyToClipboard';
 import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken } from './mediaUtils';
 
 /**
@@ -68,41 +69,11 @@ function handlePreviewClick(e) {
       }
     }
 
-    const originalHTML = copyBtn.innerHTML;
-    
     if (!textToCopy) {
-      copyBtn.textContent = 'No text!';
-      setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
       return;
     }
 
-    copyBtn.textContent = 'Copied!';
-    copyBtn.classList.add('rte-copy-btn-copied');
-    
-    const showCopied = () => {
-      setTimeout(() => {
-        copyBtn.innerHTML = originalHTML;
-        copyBtn.classList.remove('rte-copy-btn-copied');
-      }, 1500);
-    };
-
-    const doFallbackCopy = () => {
-      const tempInput = document.createElement('textarea');
-      tempInput.value = textToCopy;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      try {
-        document.execCommand('copy');
-      } catch (err) {}
-      document.body.removeChild(tempInput);
-      showCopied();
-    };
-
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(textToCopy).then(showCopied).catch(doFallbackCopy);
-    } else {
-      doFallbackCopy();
-    }
+    copyWithToast(textToCopy);
     return;
   }
 

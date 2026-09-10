@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Check, ChevronDown, ChevronRight, FileText, Lock, Pin, Plus, RotateCcw, Upload, X, Link2, Pencil, Bold, Italic, List as ListIcon, Heading1, Underline, ListOrdered, Code, Table as TableIcon, Rows, Columns, Trash2, Maximize, Minimize } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { copyWithToast } from '@utils/copyToClipboard';
 
 import { Button } from '@components/ui/Button/Button';
 import { dismissBackdrop } from '@utils/interactive';
@@ -195,47 +196,11 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
         }
       }
 
-      const originalHTML = copyBtn.innerHTML;
-      
       if (!textToCopy) {
-        copyBtn.textContent = 'No text!';
-        setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
         return;
       }
 
-      copyBtn.textContent = 'Copied!';
-      copyBtn.classList.add('rte-copy-btn-copied');
-      
-      const showCopied = () => {
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove('rte-copy-btn-copied');
-        }, 1500);
-      };
-
-      const doFallbackCopy = () => {
-        const tempInput = document.createElement('textarea');
-        tempInput.value = textToCopy;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {}
-        document.body.removeChild(tempInput);
-        toast.success?.('Copied to clipboard!');
-        showCopied();
-      };
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(textToCopy)
-          .then(() => {
-            toast.success?.('Copied to clipboard!');
-            showCopied();
-          })
-          .catch(doFallbackCopy);
-      } else {
-        doFallbackCopy();
-      }
+      copyWithToast(textToCopy);
       return;
     }
   };

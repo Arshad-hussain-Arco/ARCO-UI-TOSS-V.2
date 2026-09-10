@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
 import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl } from './RichEditor/mediaUtils';
+import { copyWithToast } from '@utils/copyToClipboard';
 import './HomeCard.css';
 
 /**
@@ -206,41 +207,11 @@ export function HomeCard({ card, className = '', style = {} }) {
         }
       }
 
-      const originalHTML = copyBtn.innerHTML;
-      
       if (!textToCopy) {
-        copyBtn.textContent = 'No text!';
-        setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
         return;
       }
 
-      copyBtn.textContent = 'Copied!';
-      copyBtn.classList.add('rte-copy-btn-copied');
-      
-      const showCopied = () => {
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove('rte-copy-btn-copied');
-        }, 1500);
-      };
-
-      const doFallbackCopy = () => {
-        const tempInput = document.createElement('textarea');
-        tempInput.value = textToCopy;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {}
-        document.body.removeChild(tempInput);
-        showCopied();
-      };
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(textToCopy).then(showCopied).catch(doFallbackCopy);
-      } else {
-        doFallbackCopy();
-      }
+      copyWithToast(textToCopy);
       return;
     }
 
