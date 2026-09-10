@@ -11,9 +11,9 @@ import {
   RefreshCw,
   FolderOpen,
 } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { useAuth } from '@hooks/useAuth';
 import { useDebounce } from '@hooks/useDebounce';
 import { eodService } from '@services/eodService';
@@ -148,10 +148,6 @@ export function ConfigSection() {
     );
   });
 
-  if (isLoading) {
-    return <Loader message="Loading environment configurations…" />;
-  }
-
   if (error) {
     return (
       <ErrorState
@@ -225,8 +221,72 @@ export function ConfigSection() {
         </div>
       </div>
 
-      {/* ── Content View / Empty State ───────────────────────────── */}
-      {filteredEnvironments.length === 0 ? (
+      {/* ── Content View / Loading / Empty State ───────────────────────────── */}
+      {isLoading && environments.length === 0 ? (
+        viewMode === 'card' ? (
+          <div className="eod-config-grid">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="eod-config-card" style={{ padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <Skeleton height={12} width={12} style={{ borderRadius: '50%' }} />
+                  <Skeleton height={18} width="60%" />
+                  <Skeleton height={20} width={60} style={{ borderRadius: '12px', marginLeft: 'auto' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <div key={j} style={{ display: 'flex', gap: '12px' }}>
+                      <Skeleton height={14} width="30%" />
+                      <Skeleton height={14} width="60%" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="eod-env-table-wrap">
+            <table className="eod-env-table eod-cfg-table">
+              <thead>
+                <tr className="eod-env-thead">
+                  <th className="eod-env-th">Environment</th>
+                  <th className="eod-env-th">Active</th>
+                  <th className="eod-env-th">Start Script</th>
+                  <th className="eod-env-th">Pause Script</th>
+                  <th className="eod-env-th">Stop Script</th>
+                  <th className="eod-env-th">EOD Path</th>
+                  <th className="eod-env-th">Log Path</th>
+                  <th className="eod-env-th">Server IP</th>
+                  <th className="eod-env-th">Port</th>
+                  <th className="eod-env-th">Status File</th>
+                  <th className="eod-env-th" style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="eod-env-row">
+                    <td className="eod-env-td"><Skeleton height={20} width="80%" /></td>
+                    <td className="eod-env-td"><Skeleton height={24} width={40} style={{ borderRadius: '12px' }} /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="60%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="60%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="60%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="80%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="80%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="60%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="40%" /></td>
+                    <td className="eod-env-td"><Skeleton height={20} width="60%" /></td>
+                    <td className="eod-env-td" style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <Skeleton height={24} width={24} style={{ borderRadius: '4px' }} />
+                        <Skeleton height={24} width={24} style={{ borderRadius: '4px' }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : filteredEnvironments.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
           title="No records found"
@@ -450,3 +510,4 @@ export function ConfigSection() {
 }
 
 export default ConfigSection;
+

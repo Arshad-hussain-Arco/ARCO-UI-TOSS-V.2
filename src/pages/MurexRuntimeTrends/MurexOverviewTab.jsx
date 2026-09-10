@@ -789,7 +789,7 @@ export function MurexOverviewTab() {
                           Total Time Duration
                         </div>
                         <div className="mxl-col mxl-col-timeline">
-                          <div className="mxl-timeline-track" style={{ backgroundColor: 'transparent' }}>
+                          <div className="mxl-timeline-track">
                             <div
                               className="mxl-timeline-bar"
                               style={{

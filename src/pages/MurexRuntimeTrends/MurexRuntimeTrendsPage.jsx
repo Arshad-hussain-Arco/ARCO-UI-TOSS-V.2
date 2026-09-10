@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { CiPlay1 } from "react-icons/ci";
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { ResetButton } from '@components/ui/ResetButton/ResetButton';
@@ -935,6 +935,77 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
 }
 
 /** Murex batch runtime trends, heatmaps and per-script health. */
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function TrendsSkeleton() {
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+         <Skeleton height={400} width="100%" style={{ borderRadius: '12px' }} />
+         <Skeleton height={400} width="100%" style={{ borderRadius: '12px' }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Management Tab Skeleton ───────────────────────────────────────────── */
+function ManagementSkeleton() {
+  return (
+    <div className="murex-management-tab">
+      {/* Category sidebar skeleton */}
+      <div className="murex-category-sidebar">
+        <div className="murex-category-search" style={{ pointerEvents: 'none' }}>
+          <Search size={12} />
+          <Skeleton height={28} width="100%" />
+        </div>
+        <div className="murex-category-list">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ padding: '8px 12px' }}>
+              <Skeleton height={20} width={`${70 - i * 5}%`} />
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Script table skeleton */}
+      <div className="murex-script-table-section">
+        <div className="murex-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Skeleton height={20} width={120} />
+          <Skeleton height={32} width={200} />
+        </div>
+        <div className="murex-script-table-container">
+          <table className="murex-script-table">
+            <thead className="murex-script-thead">
+              <tr>
+                <th className="murex-script-th">Script Name</th>
+                <th className="murex-script-th">Category</th>
+                <th className="murex-script-th">Last Run</th>
+                <th className="murex-script-th">Status</th>
+                <th className="murex-script-th actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="murex-script-tbody">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="murex-script-row">
+                  <td className="murex-script-td"><Skeleton height={18} width="80%" /></td>
+                  <td className="murex-script-td"><Skeleton height={22} width={80} style={{ borderRadius: '12px' }} /></td>
+                  <td className="murex-script-td"><Skeleton height={18} width="60%" /></td>
+                  <td className="murex-script-td"><Skeleton height={22} width={60} style={{ borderRadius: '12px' }} /></td>
+                  <td className="murex-script-td actions-col"><Skeleton height={18} width={24} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MurexRuntimeTrendsPage() {
   useDocumentTitle('Murex Runtime Trends');
   const themeColor = useChartThemeColor();
@@ -1436,20 +1507,6 @@ export function MurexRuntimeTrendsPage() {
     const mins = Math.floor(minutes % 60);
     return `${hours}h ${mins}m`;
   };
-  if (error) {
-    return (
-      <ErrorState
-        title="Runtime trends could not be loaded"
-        description={error.message}
-        onRetry={refetch}
-      />
-    );
-  }
-
-  if (isLoading || !runtimeSummary) {
-    return <Loader message="Loading runtime trends…" />;
-  }
-
   return (
     <div className="murex-runtime-page">
 
@@ -1483,8 +1540,19 @@ export function MurexRuntimeTrendsPage() {
 
       {/* Tab Content */}
       <div className="murex-tab-content">
-        {activeTab === 'overview' && <MurexOverviewTab />}
+        {error ? (
+          <ErrorState
+            title="Runtime trends could not be loaded"
+            description={error.message}
+            onRetry={refetch}
+          />
+        ) : (
+          <>
+        {activeTab === 'overview' && (
+          isLoading || !runtimeSummary ? <TrendsSkeleton /> : <MurexOverviewTab />
+        )}
         {activeTab === 'runtime' && (
+          isLoading || !runtimeSummary ? <TrendsSkeleton /> : (
           <div className="murex-runtime-tab">
             {/* Unified Compact Filter Bar */}
             <div style={{
@@ -1691,8 +1759,9 @@ export function MurexRuntimeTrendsPage() {
               })()}
             </div>
           </div>
-        )}
+        ))}
         {activeTab === 'management' && (
+          isLoadingCategories ? <ManagementSkeleton /> : (
           <div className="murex-management-tab">
             {/* Left Sidebar - Categories */}
             <div className="murex-category-sidebar">
@@ -1975,6 +2044,9 @@ export function MurexRuntimeTrendsPage() {
               </div>
             </div>
           </div>
+          )
+        )}
+          </>
         )}
       </div>
 

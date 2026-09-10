@@ -1,8 +1,10 @@
 import { memo, useMemo, useState, useEffect } from 'react';
-import { ArrowUpDown, Edit, Loader2 } from 'lucide-react';
+import { ArrowUpDown, Edit, Loader2, Check, Edit2, X } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useToast } from '@hooks/useToast';
 import { settingsService } from '@services/settingsService';
+import { PanelSkeleton } from './PanelSkeleton';
+import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
 const FETCHERS = {
   CR: settingsService.getCrColumns,
@@ -78,7 +80,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
 
   const handleSaveEdit = async () => {
     if (!editRow) return;
-    
+
     try {
       setSaving(true);
       const payload = {
@@ -102,14 +104,6 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
-      </div>
-    );
-  }
 
   return (
     <div className="ss-form-card">
@@ -143,7 +137,21 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((row, idx) => (
+            {loading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-primary)' }}>
+                  <td style={{ padding: '12px 20px' }}>
+                    <Skeleton height={20} width="80%" />
+                  </td>
+                  <td style={{ padding: '12px 20px' }}>
+                    <Skeleton height={20} width="60%" />
+                  </td>
+                  <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                    <Skeleton height={28} width={28} style={{ display: 'inline-block', borderRadius: '4px' }} />
+                  </td>
+                </tr>
+              ))
+            ) : sortedData.map((row, idx) => (
               <tr
                 key={row.id}
                 style={{
@@ -178,6 +186,7 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 </td>
               </tr>
             ))}
+            }
           </tbody>
         </table>
       </div>

@@ -3,13 +3,29 @@ import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { settingsService } from '@services/settingsService';
 import { LayoutGrid } from 'lucide-react';
 import { HomeCard } from '@components/home/HomeCard';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import './HomePage.css';
 
 /**
  * Landing page.
  * Fetches and displays home data (dashboard cards).
  */
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function HomeSkeleton() {
+  return (
+    <div className="home-page-container" style={{ padding: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px', gridAutoRows: '200px' }}>
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 8', borderRadius: '12px' }} />
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 4', borderRadius: '12px' }} />
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 4', borderRadius: '12px' }} />
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 8', borderRadius: '12px' }} />
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 6', borderRadius: '12px' }} />
+        <Skeleton height="100%" width="100%" style={{ gridColumn: 'span 6', borderRadius: '12px' }} />
+      </div>
+    </div>
+  );
+}
+
 export function HomePage() {
   useDocumentTitle('Home');
   const [data, setData] = useState([]);
@@ -38,7 +54,7 @@ export function HomePage() {
     <div className="home-dashboard-container">
 
       {isLoading ? (
-        <Loader message="Loading homepage..." />
+        <HomeSkeleton />
       ) : data.length === 0 ? (
         <div className="home-empty-state">
           <LayoutGrid size={48} className="empty-icon" />

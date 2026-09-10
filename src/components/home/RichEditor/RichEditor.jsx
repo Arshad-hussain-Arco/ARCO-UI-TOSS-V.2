@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
-import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile } from './mediaUtils';
+import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -373,7 +373,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   const mediaToken = useHomeMediaToken();
-  const displayHtml = (html) => attachHomeMediaToken(html, mediaToken) || html;
+  const displayHtml = (html) => attachHomeMediaToken(themeAdaptiveColors(html), mediaToken) || html;
 
   const initialValue = useMemo(() => {
     return displayHtml(value);
@@ -487,7 +487,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur',
                     'onsubmit', 'onchange', 'onkeydown', 'onkeyup', 'onkeypress'],
                 });
-                const renderedHtml = sanitized + '<p><br></p>';
+                const renderedHtml = themeAdaptiveColors(sanitized) + '<p><br></p>';
                 e.fragment = (() => {
                   const template = document.createElement('template');
                   template.innerHTML = renderedHtml;
@@ -497,6 +497,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   e.clipboardData.html = renderedHtml;
                   e.clipboardData.text = '';
                 }
+                return;
               } else {
                 // Non-HTML code (JS, Python, CSS, etc.): wrap in formatted code preview block
                 // — displayed as code text, never executed
@@ -510,8 +511,12 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   e.clipboardData.html = codeHtml;
                   e.clipboardData.text = '';
                 }
+                return;
               }
             }
+          }
+          if (htmlData) {
+            e.clipboardData.html = themeAdaptiveColors(htmlData);
           }
         }
       }
@@ -590,7 +595,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         setSourceHtmlState(html);
       } else {
         if (editorRef.current) {
-          const sanitized = DOMPurify.sanitize(sourceHtmlRef.current, {
+          const themedSource = themeAdaptiveColors(sourceHtmlRef.current);
+          const sanitized = DOMPurify.sanitize(themedSource, {
             ADD_TAGS: ['style', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'caption', 'figure', 'figcaption', 'details', 'summary', 'video', 'source', 'iframe'],
             ADD_ATTR: ['style', 'class', 'colspan', 'rowspan', 'border', 'cellpadding', 'cellspacing', 'width', 'height', 'align', 'valign', 'scope', 'headers', 'target', 'rel', 'href', 'src', 'alt', 'title', 'controls', 'autoplay', 'loop', 'muted', 'poster', 'allowfullscreen', 'frameborder', 'data-media-id', 'data-src', 'data-copy', 'data-code-copy'],
             FORBID_TAGS: ['script', 'object', 'embed'],
@@ -731,6 +737,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   // since the RoosterJS migration, so both silently stopped working; this
   // ports that logic onto the actual current editor surface.
   const handleEditorClick = useCallback((e) => {
+    if (handleUnifiedCopyClick(e, toast)) return;
+
     const copyBtn = e.target.closest('[data-code-copy]');
     if (copyBtn) {
       e.preventDefault();
@@ -741,11 +749,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         navigator.clipboard.writeText(codeEl.textContent).then(() => {
           copyBtn.classList.add('rte-code-copied');
           const origHtml = copyBtn.innerHTML;
-          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied!`;
+          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
           setTimeout(() => {
             copyBtn.classList.remove('rte-code-copied');
             copyBtn.innerHTML = origHtml;
           }, 2000);
+        }).catch(() => {
+          toast?.error('Failed to copy to clipboard.');
         });
       }
       return;

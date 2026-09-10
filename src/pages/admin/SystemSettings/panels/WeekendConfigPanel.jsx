@@ -66,11 +66,7 @@ function WeekendConfigPanelComponent() {
   };
 
   if (loading) {
-    return (
-      <div className="ss-form-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-        <Loader2 className="spinner" size={24} style={{ animation: 'spin 1s linear infinite' }} />
-      </div>
-    );
+    return <PanelSkeleton />;
   }
 
   return (

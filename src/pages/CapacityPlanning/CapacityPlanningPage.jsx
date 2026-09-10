@@ -20,6 +20,7 @@ import {
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { SearchInput } from '@components/forms/SearchInput/SearchInput';
 import { ExportButton } from '@components/ui/ExportButton';
@@ -739,8 +740,13 @@ export function CapacityPlanningPage() {
     return <ErrorState title="Capacity planning could not be loaded" description={error.message} onRetry={refetch} />;
   }
 
-  if (isLoading) {
-    return <Loader message="Loading capacity planning report..." />;
+  function CapacityPlanningSkeleton() {
+    return (
+      <div style={{ padding: '24px 0', width: '100%' }}>
+        <Skeleton height={40} width="100%" style={{ borderRadius: '8px', marginBottom: '24px' }} />
+        <Skeleton height={400} width="100%" style={{ borderRadius: '8px' }} />
+      </div>
+    );
   }
 
   return (
@@ -933,7 +939,9 @@ export function CapacityPlanningPage() {
         </div>
 
         {/* ── VIEW 1: Summary View Grouped Table ── */}
-        {viewMode === 'summary' && (
+        {viewMode === 'summary' && (isLoading ? (
+          <CapacityPlanningSkeleton />
+        ) : (
           <div className="cp-table-card">
             <div className="cp-table-wrapper">
               <table className="cp-data-table">
@@ -1029,10 +1037,12 @@ export function CapacityPlanningPage() {
               </table>
             </div>
           </div>
-        )}
+        ))}
 
         {/* ── VIEW 2: Team View Tabs & KPI Cards ── */}
-        {viewMode === 'team' && (
+        {viewMode === 'team' && (isLoading ? (
+          <CapacityPlanningSkeleton />
+        ) : (
           <div className="cp-team-layout">
             {/* Vertical/Horizontal Navigation Rail for Teams */}
             <div className="cp-team-tabs">
@@ -1260,10 +1270,12 @@ export function CapacityPlanningPage() {
               )}
             </div>
           </div>
-        )}
+        ))}
 
         {/* ── VIEW 3: Project View — Primary/Additional developers per project ── */}
-        {viewMode === 'project' && (
+        {viewMode === 'project' && (isLoading ? (
+          <CapacityPlanningSkeleton />
+        ) : (
           <div className="cp-table-card">
             <div style={{ display: 'flex', gap: '10px', padding: '14px 16px 0' }}>
               <span className="team-size-badge">Next 7 Days: {projectCountsByWindow.next7} project{projectCountsByWindow.next7 === 1 ? '' : 's'}</span>
@@ -1401,10 +1413,12 @@ export function CapacityPlanningPage() {
               </table>
             </div>
           </div>
-        )}
+        ))}
 
         {/* ── VIEW 4: Gantt View — project timeline ── */}
-        {viewMode === 'gantt' && (
+        {viewMode === 'gantt' && (isLoading ? (
+          <CapacityPlanningSkeleton />
+        ) : (
           <div className="cp-table-card">
             <div className="cp-legend-container">
               {(ganttLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
@@ -1544,7 +1558,7 @@ export function CapacityPlanningPage() {
               </div>
             )}
           </div>
-        )}
+        ))}
       </div>
 
       {/* ── Drill-down Assignments Modal Dialog ── */}

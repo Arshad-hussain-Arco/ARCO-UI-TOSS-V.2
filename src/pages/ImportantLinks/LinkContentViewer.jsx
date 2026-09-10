@@ -5,7 +5,7 @@ import { AlertCircle, Download, FileText } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { copyWithToast } from '@utils/copyToClipboard';
 
-import { Loader } from '@components/feedback/Loader/Loader';
+import { DocumentSkeleton } from './LinkContentPage';
 import { PDFViewer } from '@pages/Documents/components/PDFViewer';
 import { linkService } from '@services/linkService';
 
@@ -215,7 +215,7 @@ export function LinkContentViewer({ link }) {
       {file && (
         <div className="il-content-file-block">
           {isLoading ? (
-            <Loader message="Fetching file…" />
+            <DocumentSkeleton />
           ) : error ? (
             <div className="il-content-error">
               <AlertCircle size={32} aria-hidden="true" />

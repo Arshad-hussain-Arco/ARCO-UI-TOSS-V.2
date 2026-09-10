@@ -3,7 +3,7 @@ import { Calendar, User, Search, Play } from 'lucide-react';
 import { addDays, format } from 'date-fns';
 
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -34,6 +34,73 @@ import { murexService } from '@services/murexService';
 import { documentService } from '@services/documentService';
 import { processCapacityData } from '../CapacityPlanning/capacityCalculations';
 import './DashboardPage.css';
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function DashboardSkeleton({ hasPermission }) {
+  const hasEODView = hasPermission('EOD_OVERVIEW_VIEW');
+  const hasMurexView = hasPermission('MUREX_RUNTIME_VIEW');
+  const hasCapacityView = hasPermission('CAPACITY_PLANNING_VIEW');
+  const hasAttendanceView = hasPermission('ATTENDANCE_VIEW');
+  const hasTeamView = hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW');
+  const hasDocumentsView = hasPermission('DOCUMENTS_VIEW');
+
+  return (
+    <>
+      <div className="dc-main">
+        <div className="dc-layout-grid">
+          <div className="dc-main-col">
+            {hasTeamView && (
+              <div className="dc-span-12" style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                <Skeleton height={110} width="20%" style={{ borderRadius: '8px' }} />
+                <Skeleton height={110} width="20%" style={{ borderRadius: '8px' }} />
+                <Skeleton height={110} width="20%" style={{ borderRadius: '8px' }} />
+                <Skeleton height={110} width="20%" style={{ borderRadius: '8px' }} />
+                <Skeleton height={110} width="20%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+            {hasEODView && (
+              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
+                <Skeleton height={140} width="100%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+            {hasTeamView && (
+              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
+                <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+            {hasMurexView && (
+              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
+                <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+            {hasAttendanceView && (
+              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
+                <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+            {hasCapacityView && (
+              <div className="dc-span-12" style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                <Skeleton height={200} width="50%" style={{ borderRadius: '8px' }} />
+                <Skeleton height={200} width="50%" style={{ borderRadius: '8px' }} />
+              </div>
+            )}
+          </div>
+
+          {hasDocumentsView && (
+            <div className="dc-span-6" style={{ marginBottom: '16px' }}>
+              <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
+            </div>
+          )}
+        </div>
+      </div>
+      <aside className="dc-right-rail">
+        <Skeleton height={140} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+        <Skeleton height={200} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+        <Skeleton height={300} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+      </aside>
+    </>
+  );
+}
 
 /**
  * Operations dashboard.
@@ -515,7 +582,7 @@ export function DashboardPage() {
             onRetry={fetchLiveDashboardData}
           />
         ) : loading ? (
-          <Loader message="Loading live dashboard…" />
+          <DashboardSkeleton hasPermission={hasPermission} />
         ) : (
           <>
             <div className="dc-main">

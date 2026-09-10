@@ -3,6 +3,7 @@ import { Search, ArrowUpDown, Edit, Check, X, Users, ChevronDown, ChevronRight, 
 import { Select } from '@components/forms/Select/Select';
 import { useToast } from '@hooks/useToast';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
@@ -23,6 +24,38 @@ const AVATAR_COLORS = ['#1d4ed8', '#065f46', '#5b21b6', '#92400e', '#0f766e', '#
 function getAvatarBg(id) {
   const num = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
   return AVATAR_COLORS[num % AVATAR_COLORS.length];
+}
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function TableSkeleton({ headers }) {
+  const colCount = headers ? headers.length : 5;
+  return (
+    <div style={{ width: '100%', padding: '24px' }}>
+      <Skeleton height={40} width="100%" style={{ marginBottom: '20px' }} />
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+         <Skeleton height={36} width="250px" />
+         <Skeleton height={36} width="200px" />
+      </div>
+      <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+          {Array.from({ length: colCount }).map((_, j) => (
+            <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 1 ? 'center' : 'flex-start' }}>
+               {headers ? headers[j] : <Skeleton height={20} width={j === 0 ? "80%" : "60%"} />}
+            </div>
+          ))}
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
+            {Array.from({ length: colCount }).map((_, j) => (
+              <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 1 ? 'center' : 'flex-start' }}>
+                 <Skeleton height={20} width={j === 0 ? "60%" : "100%"} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function parsePhotoUrl(photoUrl) {
@@ -483,13 +516,7 @@ export function LeaveConfigurationTab({ getPhoto }) {
 
   return (
     <div className="lc-container">
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
-          <Loader size="md" message="Loading leave configuration..." />
-        </div>
-      ) : (
-        <>
-          {/* ── Top Filter Bar (Search + Team) ─────────────────────────────────── */}
+      {/* ── Top Filter Bar (Search + Team) ─────────────────────────────────── */}
           <div className="lc-filter-panel">
             <div className="lc-filter-row">
               <div className="lc-search-wrap">
@@ -537,7 +564,19 @@ export function LeaveConfigurationTab({ getPhoto }) {
                 </tr>
               </thead>
               <tbody>
-                {treeData.length === 0 ? (
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="lc-row">
+                      <td><Skeleton height={20} width="80%" /></td>
+                      <td><Skeleton height={20} width="60%" /></td>
+                      <td className="text-center"><Skeleton height={20} width="40px" style={{ display: 'inline-block' }} /></td>
+                      <td className="text-center"><Skeleton height={20} width="40px" style={{ display: 'inline-block' }} /></td>
+                      <td className="text-center"><Skeleton height={20} width="40px" style={{ display: 'inline-block' }} /></td>
+                      <td className="text-center"><Skeleton height={20} width="40px" style={{ display: 'inline-block' }} /></td>
+                      <td className="text-center"><Skeleton height={24} width={24} style={{ display: 'inline-block', borderRadius: '4px' }} /></td>
+                    </tr>
+                  ))
+                ) : treeData.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="lc-empty-td">
                       <div className="lc-empty-state">
@@ -552,8 +591,6 @@ export function LeaveConfigurationTab({ getPhoto }) {
               </tbody>
             </table>
           </div>
-        </>
-      )}
     </div>
   );
 }

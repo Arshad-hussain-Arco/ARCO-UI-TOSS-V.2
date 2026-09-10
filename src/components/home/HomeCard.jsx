@@ -6,56 +6,6 @@ import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, a
 import { copyWithToast } from '@utils/copyToClipboard';
 import './HomeCard.css';
 
-/**
- * Classifies an arbitrary inline color (from pasted Word/Outlook/browser
- * HTML) into one of the adaptive buckets HomeCard.css defines, or null if
- * it doesn't clearly fit one — in which case the dark-mode blanket rule in
- * HomeCard.css (which strips any remaining hardcoded color to
- * var(--text-primary) for readability) is the correct fallback.
- * Named colors are deliberately NOT resolved here — browsers always
- * serialize inline `color` as rgb()/rgba() once parsed, so raw HTML only
- * ever contains a name if it was written by hand, which the WYSIWYG editor
- * itself never produces.
- */
-function classifyAdaptiveColor(r, g, b) {
-  if (r < 60 && g < 60 && b < 60) return 'var(--adaptive-text)';
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  if (max - min < 20 && max < 130) return 'var(--adaptive-text-secondary)';
-  if (b > r + 20 && b > g + 10) return 'var(--adaptive-blue)';
-  return null;
-}
-
-/**
- * Rewrites every inline `color:` declaration in pasted/authored HTML to an
- * adaptive CSS variable where it's confidently classifiable (black/dark-grey
- * text, mid-grey text, blue links/emphasis) — `!important` on the
- * replacement is required: HomeCard.css's dark-mode rule that strips any
- * OTHER hardcoded color to var(--text-primary) also uses `!important`, and
- * a plain inline style always loses to any `!important` stylesheet rule
- * regardless of selector specificity. Without it here, a correctly
- * classified color would still render as flat white in dark mode.
- */
-function themeAdaptiveColors(html) {
-  return (html || '').replace(
-    /color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
-    (match, r, g, b, hex) => {
-      let rr = r, gg = g, bb = b;
-      if (hex) {
-        const h = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
-        rr = parseInt(h.slice(0, 2), 16);
-        gg = parseInt(h.slice(2, 4), 16);
-        bb = parseInt(h.slice(4, 6), 16);
-      } else {
-        rr = Number(r);
-        gg = Number(g);
-        bb = Number(b);
-      }
-      const adaptive = classifyAdaptiveColor(rr, gg, bb);
-      return adaptive ? `color: ${adaptive} !important;` : match;
-    }
-  );
-}
 
 /**
  * DOMPurify configuration extending default allowlist for media cards.
@@ -88,6 +38,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
  */
 export function HomeCard({ card, className = '', style = {} }) {
   const [imageError, setImageError] = useState(false);
+  const toast = useToast();
   // Set only once the media token is CONFIRMED (awaited, not just read from
   // the mediaToken state below) — mounting <video src> speculatively while
   // the token fetch is still in flight caused a real race: the element

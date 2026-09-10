@@ -24,6 +24,8 @@ import { activatable, dismissBackdrop } from '@utils/interactive';
 import { Spinner } from '@components/feedback/Spinner/Spinner';
 import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
+import { Button } from '@components/ui/Button/Button';
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import roleService from '@services/roleService';
@@ -121,6 +123,28 @@ const mapRole = (r) => {
     permissions: Array.isArray(codes) ? codes : [],
   };
 };
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function RoleManagementSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <tr key={i} style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+          <td style={{ padding: '16px' }}><Skeleton height={20} width="150px" /></td>
+          <td style={{ padding: '16px' }}><Skeleton height={20} width="250px" /></td>
+          <td style={{ padding: '16px', textAlign: 'center' }}><Skeleton height={20} width="80px" /></td>
+          <td style={{ padding: '16px', textAlign: 'center' }}><Skeleton height={20} width="60px" /></td>
+          <td style={{ padding: '16px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+              <Skeleton height={28} width="28px" style={{ borderRadius: '4px' }} />
+              <Skeleton height={28} width="28px" style={{ borderRadius: '4px' }} />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
 
 export function RoleManagementPage() {
   useDocumentTitle('Roles & Permissions - Admin Panel');
@@ -512,14 +536,7 @@ export function RoleManagementPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="rm-empty-td">
-                    <div className="rm-empty-state">
-                      <Loader2 size={32} className="spin" style={{ opacity: 0.5 }} />
-                      <p>Loading roles...</p>
-                    </div>
-                  </td>
-                </tr>
+                <RoleManagementSkeleton />
               ) : filteredRoles.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="rm-empty-td">
