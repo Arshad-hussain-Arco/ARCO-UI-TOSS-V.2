@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
-import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl } from './RichEditor/mediaUtils';
+import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl, themeAdaptiveColors } from './RichEditor/mediaUtils';
 import { copyWithToast } from '@utils/copyToClipboard';
 import './HomeCard.css';
 
@@ -38,7 +38,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
  */
 export function HomeCard({ card, className = '', style = {} }) {
   const [imageError, setImageError] = useState(false);
-  const toast = useToast();
+
   // Set only once the media token is CONFIRMED (awaited, not just read from
   // the mediaToken state below) — mounting <video src> speculatively while
   // the token fetch is still in flight caused a real race: the element
