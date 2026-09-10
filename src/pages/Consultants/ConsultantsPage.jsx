@@ -616,6 +616,7 @@ export function ConsultantsPage() {
             );
           })}
           </div>
+          {activeTab !== 'teams' && (
           <div className="team-view-switcher" style={{ marginBottom: '8px' }}>
             <button
               type="button"
@@ -632,6 +633,7 @@ export function ConsultantsPage() {
               List View
             </button>
           </div>
+          )}
         </div>
 
         {/* Content */}

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-import { Spinner } from '@components/feedback/Spinner/Spinner';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 
 /**
  * Compact in-card loading placeholder shown while a section's own API call
@@ -18,17 +18,18 @@ function CardLoaderComponent({ label = 'Loading…', minHeight = 160 }) {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '10px',
+        gap: '12px',
+        padding: '24px',
         minHeight,
-        color: 'var(--text-tertiary)',
       }}
       role="status"
       aria-live="polite"
+      aria-label={label}
     >
-      <Spinner size="md" label={label} />
-      <span style={{ fontSize: '12px', fontWeight: 500 }}>{label}</span>
+      <Skeleton height={20} width="60%" style={{ marginBottom: '8px', borderRadius: '4px' }} />
+      <Skeleton height={14} width="100%" />
+      <Skeleton height={14} width="100%" />
+      <Skeleton height={14} width="80%" />
     </div>
   );
 }

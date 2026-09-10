@@ -1,17 +1,16 @@
 import React from 'react';
 import { Server, Activity, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useEodContext } from '../context/EodContext';
 import { StatCard } from './StatCard';
 import { StatusBadge } from './StatusBadge';
+import { OverviewSkeleton } from './EODSkeletons';
+import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
 export function OverviewSection() {
   const { environments, isLoading, error, refreshEnvironments, metrics } = useEodContext();
 
-  if (isLoading) {
-    return <Loader message="Loading EOD overview status…" />;
-  }
+
 
   if (error) {
     return (
@@ -29,35 +28,45 @@ export function OverviewSection() {
     <div className="eod-section">
       {/* ── Stat Cards ─────────────────────────────────────────── */}
       <div className="eod-stat-strip">
-        <StatCard
-          icon={<Server size={16} />}
-          iconClass="s-blue"
-          stripClass="s-blue"
-          value={String(total)}
-          label="Total Environments"
-        />
-        <StatCard
-          icon={<Activity size={16} />}
-          iconClass="s-green"
-          stripClass="s-green"
-          value={String(running)}
-          label="Currently Running"
-          live={running > 0}
-        />
-        <StatCard
-          icon={<CheckCircle size={16} />}
-          iconClass="s-purple"
-          stripClass="s-purple"
-          value={String(completed)}
-          label="Completed Today"
-        />
-        <StatCard
-          icon={<AlertCircle size={16} />}
-          iconClass="s-red"
-          stripClass="s-red"
-          value={String(failed)}
-          label="Failed / Errors"
-        />
+        {isLoading && total === 0 ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ flex: 1, minWidth: '220px' }}>
+              <Skeleton height={90} width="100%" style={{ borderRadius: '12px' }} />
+            </div>
+          ))
+        ) : (
+          <>
+            <StatCard
+              icon={<Server size={16} />}
+              iconClass="s-blue"
+              stripClass="s-blue"
+              value={String(total)}
+              label="Total Environments"
+            />
+            <StatCard
+              icon={<Activity size={16} />}
+              iconClass="s-green"
+              stripClass="s-green"
+              value={String(running)}
+              label="Currently Running"
+              live={running > 0}
+            />
+            <StatCard
+              icon={<CheckCircle size={16} />}
+              iconClass="s-purple"
+              stripClass="s-purple"
+              value={String(completed)}
+              label="Completed Today"
+            />
+            <StatCard
+              icon={<AlertCircle size={16} />}
+              iconClass="s-red"
+              stripClass="s-red"
+              value={String(failed)}
+              label="Failed / Errors"
+            />
+          </>
+        )}
       </div>
 
       {/* ── Live Run Banner ────────────────────────────────────── */}
@@ -117,7 +126,18 @@ export function OverviewSection() {
             </tr>
           </thead>
           <tbody>
-            {environments.map((env) => (
+            {isLoading && environments.length === 0 ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <tr key={i} className="eod-env-row">
+                  <td className="eod-env-td eod-td-env"><Skeleton height={20} width="80%" /></td>
+                  <td className="eod-env-td eod-td-status"><Skeleton height={24} width={80} style={{ borderRadius: '12px' }} /></td>
+                  <td className="eod-env-td eod-td-progress"><Skeleton height={20} width="60%" /></td>
+                  <td className="eod-env-td eod-td-date"><Skeleton height={20} width="70%" /></td>
+                  <td className="eod-env-td eod-td-date"><Skeleton height={20} width="70%" /></td>
+                  <td className="eod-env-td eod-td-dur"><Skeleton height={20} width="40%" /></td>
+                </tr>
+              ))
+            ) : environments.map((env) => (
               <tr key={env.id} className="eod-env-row">
                 <td className="eod-env-td eod-td-env">
                   <div className="eod-env-row-left">

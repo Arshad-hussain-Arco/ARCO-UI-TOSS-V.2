@@ -13,6 +13,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@constants/routes';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Breadcrumb } from '@components/navigation/Breadcrumb/Breadcrumb';
 import toast from 'react-hot-toast';
 import { useAsync } from '@hooks/useAsync';
@@ -26,6 +27,30 @@ import { DocumentViewer } from './components/DocumentViewer';
 import { AddFolderModal, UploadFileModal, EditDocumentModal, DeleteConfirmationModal } from './components/DocumentModals';
 
 import './DocumentsPage.css';
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function DocumentsSkeleton() {
+  return (
+      <div className="doc-workspace-container">
+        <div className="doc-left-workspace" style={{ padding: '24px' }}>
+          <Skeleton height={60} width="100%" style={{ borderRadius: '8px', marginBottom: '24px' }} />
+          <Skeleton height={400} width="100%" style={{ borderRadius: '8px' }} />
+        </div>
+        <div className="doc-right-sidebar" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <Skeleton height={36} width="50%" style={{ borderRadius: '6px' }} />
+            <Skeleton height={36} width="50%" style={{ borderRadius: '6px' }} />
+          </div>
+          <Skeleton height={36} width="100%" style={{ borderRadius: '6px', marginBottom: '24px' }} />
+          <Skeleton height={30} width="70%" style={{ marginBottom: '12px' }} />
+          <Skeleton height={30} width="80%" style={{ marginBottom: '12px' }} />
+          <Skeleton height={30} width="60%" style={{ marginBottom: '12px' }} />
+          <Skeleton height={30} width="90%" style={{ marginBottom: '12px' }} />
+          <Skeleton height={30} width="50%" style={{ marginBottom: '12px' }} />
+        </div>
+      </div>
+  );
+}
 
 /** Document library: folder tree, file table, inline viewer & CRUD management. */
 export function DocumentsPage() {
@@ -215,16 +240,12 @@ export function DocumentsPage() {
     );
   }
 
-  if (isLoading || !data) {
-    return <Loader message="Loading documents…" />;
-  }
-
   return (
     <div className={`doc-page ${isFullscreen ? 'doc-page-fullscreen' : ''}`}>
-      {/* App-Wide Breadcrumb Header Bar */}
+      {/* App-Wide Breadcrumb Header Bar — always visible (static UI) */}
       {!isFullscreen && (
-        <Breadcrumb 
-          items={getBreadcrumbs()} 
+        <Breadcrumb
+          items={isLoading || !data ? [{ label: 'Documents' }] : getBreadcrumbs()}
           rightElement={
             <Link to={ROUTES.DOCUMENTS_USER_GUIDE} target="_blank" rel="noopener noreferrer" className="doc-page-guide-btn">
               <FileText size={14} />
@@ -251,7 +272,13 @@ export function DocumentsPage() {
               </button>
             </div>
           )}
-          {selectedFile ? (
+          {isLoading || !data ? (
+            /* Skeleton placeholders for the document viewer area */
+            <div style={{ padding: '24px' }}>
+              <Skeleton height={60} width="100%" style={{ borderRadius: '8px', marginBottom: '24px' }} />
+              <Skeleton height={400} width="100%" style={{ borderRadius: '8px' }} />
+            </div>
+          ) : selectedFile ? (
             canDownload ? (
               /* Integrated Document Viewer (Fetches live file content by ID) */
               <DocumentViewer selectedFile={selectedFile} pdfZoom={pdfZoom} />
@@ -334,7 +361,18 @@ export function DocumentsPage() {
               <span>Workspace Navigation</span>
             </div>
             <div className="doc-folder-tree-wrapper">
-              {memoizedFolderTree}
+              {isLoading || !data ? (
+                /* Skeleton placeholders for the folder tree */
+                <div style={{ padding: '8px 0' }}>
+                  <Skeleton height={30} width="70%" style={{ marginBottom: '12px' }} />
+                  <Skeleton height={30} width="80%" style={{ marginBottom: '12px' }} />
+                  <Skeleton height={30} width="60%" style={{ marginBottom: '12px' }} />
+                  <Skeleton height={30} width="90%" style={{ marginBottom: '12px' }} />
+                  <Skeleton height={30} width="50%" style={{ marginBottom: '12px' }} />
+                </div>
+              ) : (
+                memoizedFolderTree
+              )}
             </div>
           </div>
         </div>

@@ -248,7 +248,7 @@ export const TYPE_CONFIG = {
 };
 
 import { leaveService } from '@services/leaveService';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 
 
 
@@ -490,6 +490,38 @@ export async function fetchAndMapModRequests(managerId, employeeDirectory = {}, 
   });
 
   return grouped;
+}
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function TableSkeleton({ headers }) {
+  const colCount = headers ? headers.length : 8;
+  return (
+    <div style={{ width: '100%', padding: '24px' }}>
+      <Skeleton height={40} width="100%" style={{ marginBottom: '20px' }} />
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+         <Skeleton height={36} width="250px" />
+         <Skeleton height={36} width="200px" />
+      </div>
+      <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+          {Array.from({ length: colCount }).map((_, j) => (
+            <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 1 ? 'center' : 'flex-start' }}>
+               {headers ? headers[j] : <Skeleton height={20} width={j === 0 ? "80%" : "60%"} />}
+            </div>
+          ))}
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
+            {Array.from({ length: colCount }).map((_, j) => (
+              <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: j > 1 ? 'center' : 'flex-start' }}>
+                 <Skeleton height={20} width={j === 0 ? "60%" : "100%"} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function TeamRequestsTab({ getPhoto }) {
@@ -1350,9 +1382,10 @@ export function TeamRequestsTab({ getPhoto }) {
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
       <div className="tr-content">
-        {isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '300px' }}>
-            <Loader message="Loading team requests..." />
+        {!isLoading && filtered.length === 0 ? (
+          <div className="tr-empty">
+            <CheckCircle2 size={32} className="tr-empty-icon" />
+            <p className="tr-empty-text">No requests match the current filters.</p>
           </div>
         ) : (
           <>
@@ -1392,7 +1425,22 @@ export function TeamRequestsTab({ getPhoto }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.length === 0 ? (
+                      {isLoading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i} className="tr-row" style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '20%' : '24%' }}><Skeleton height={20} width="80%" /></td>
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '14%' : '15%' }}><Skeleton height={20} width="60%" /></td>
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '20%' : '23%' }}><Skeleton height={20} width="70%" /></td>
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '8%' : '9%' }}><Skeleton height={20} width="40%" /></td>
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '10%' : '9%' }}><Skeleton height={20} width="60%" /></td>
+                            <td className="tr-td" style={{ width: '10%' }}><Skeleton height={20} width="70%" /></td>
+                            {statusF === 'pending' && <td className="tr-td" style={{ width: '10%' }}><Skeleton height={20} width="60%" /></td>}
+                            <td className="tr-td" style={{ width: statusF === 'pending' ? '8%' : '10%' }}>
+                              <div className="tr-actions"><Skeleton height={24} width={24} style={{ borderRadius: '4px' }} /></div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : filtered.length === 0 ? (
                         <tr>
                           <td colSpan={statusF === 'pending' ? 8 : 7}>
                             <div className="tr-empty">

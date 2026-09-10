@@ -2,7 +2,7 @@ import { X, Mail, Phone, MapPin, Monitor, Building2, User, Calendar } from 'luci
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { Image } from '@components/common/Image/Image';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { dismissBackdrop } from '@utils/interactive';
 import { useCallback } from 'react';
@@ -19,6 +19,24 @@ function formatDate(dateString) {
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return null;
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function ProfileSkeleton() {
+  return (
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+        <Skeleton height={100} width="100px" style={{ borderRadius: '50%' }} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+           <Skeleton height={32} width="60%" />
+           <Skeleton height={20} width="40%" />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        <Skeleton height={300} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={300} width="100%" style={{ borderRadius: '12px' }} />
+      </div>
+    </div>
+  );
 }
 
 export function ConsultantProfileModal({ consultantId, onClose }) {
@@ -72,8 +90,8 @@ export function ConsultantProfileModal({ consultantId, onClose }) {
     return (
       <div className="cp-modal-overlay cp-modal-backdrop" {...dismissBackdrop(onClose)}>
         <div className="cp-modal-content cp-profile-modal" role="dialog" aria-modal="true" style={{ maxWidth: 420 }}>
-          <div className="cp-loader-container">
-            <Loader message="Loading profile details…" />
+          <div className="cpm-loading">
+            <ProfileSkeleton />
           </div>
         </div>
       </div>

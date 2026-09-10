@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import { linkService } from '@services/linkService';
@@ -18,6 +18,27 @@ import './ImportantLinksPage.css';
  * both navigate here in-app instead of opening a modal, so the file or
  * text renders directly in the page-content area like any other page.
  */
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+export function DocumentSkeleton() {
+  return (
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', width: '100%' }}>
+      <Skeleton height={60} width="100%" style={{ borderRadius: '8px' }} />
+      <div style={{ flex: 1, border: '1px solid var(--border-secondary)', borderRadius: '8px', padding: '24px', background: 'var(--bg-primary)' }}>
+         <Skeleton height={40} width="40%" style={{ marginBottom: '32px' }} />
+         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+           <Skeleton height={20} width="100%" />
+           <Skeleton height={20} width="100%" />
+           <Skeleton height={20} width="90%" />
+           <Skeleton height={20} width="95%" />
+           <Skeleton height={20} width="85%" />
+           <Skeleton height={20} width="100%" />
+           <Skeleton height={20} width="80%" />
+         </div>
+      </div>
+    </div>
+  );
+}
+
 export function LinkContentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,7 +83,7 @@ export function LinkContentPage() {
       </button>
 
       {isLoading ? (
-        <Loader message="Loading…" />
+        <DocumentSkeleton />
       ) : error ? (
         <ErrorState title="Could not load link" description={error} />
       ) : (

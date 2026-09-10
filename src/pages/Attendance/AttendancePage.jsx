@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { DatePicker } from '@components/forms/DatePicker/DatePicker';
 import { useAsync } from '@hooks/useAsync';
@@ -186,6 +187,59 @@ function exportToPDF(rows, dates, filename = 'attendance.pdf') {
   });
 
   doc.save(filename);
+}
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function AttendanceSkeleton({ reportDates }) {
+  const colsCount = reportDates && reportDates.length > 0 ? reportDates.length : 7;
+  return (
+    <div style={{ padding: '16px 0' }}>
+      {/* Table skeleton with static headers */}
+      <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)' }}>
+          <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center' }}>
+            CONSULTANT
+          </div>
+          {reportDates && reportDates.length > 0 ? reportDates.map((d, j) => {
+             const key = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '-');
+             return (
+               <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', textTransform: 'uppercase' }}>
+                 {key}
+               </div>
+             )
+          }) : Array.from({ length: colsCount }).map((_, j) => (
+             <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+               <Skeleton height={16} width="60%" />
+             </div>
+          ))}
+          <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            SUMMARY
+          </div>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
+             <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Skeleton height={32} width={32} style={{ borderRadius: '50%' }} />
+                <div style={{ flex: 1 }}>
+                   <Skeleton height={16} width="80%" style={{ marginBottom: '4px' }} />
+                   <Skeleton height={12} width="50%" />
+                </div>
+             </div>
+             {Array.from({ length: colsCount }).map((_, j) => (
+                <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                   <Skeleton height={20} width={20} style={{ borderRadius: '4px' }} />
+                </div>
+             ))}
+             <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+                <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+                <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -931,8 +985,7 @@ export function AttendancePage() {
   }, []);
 
   // ── Error / Loading ──
-  if (error) return <ErrorState title="Attendance could not be loaded" description={error.message} onRetry={refetch} />;
-  if (isLoading || !data) return <Loader message="Loading attendance…" />;
+  // (handled inline below so tabs stay visible during loading)
 
   // ── Render Avatar Helper ──
   const renderAvatar = (avatarData, name) => {
@@ -988,6 +1041,11 @@ export function AttendancePage() {
           </button>
         ))}
       </div>
+
+      {error ? (
+        <ErrorState title="Attendance could not be loaded" description={error.message} onRetry={refetch} />
+      ) : (
+      <>
 
       {/* ── Filters — compact single row ── */}
       <div className="att-filterbar">
@@ -1108,7 +1166,7 @@ export function AttendancePage() {
             >
               <div className="kpi-icon-wrapper" data-color={color}>{icon}</div>
               <div className="kpi-details">
-                <div className="kpi-count">{count}</div>
+                <div className="kpi-count">{(isLoading || !data) ? <Skeleton width={40} height={24} /> : count}</div>
                 <div className="kpi-label">{label}</div>
               </div>
             </div>
@@ -1119,9 +1177,13 @@ export function AttendancePage() {
       {/* ── Content ── */}
       <div className="attendance-content">
 
-        {/* On Duty — List */}
-        {subTab === 'on-duty' && (
-          <div className="attendance-list">
+        {(isLoading || !data) ? (
+          <AttendanceSkeleton reportDates={reportDates} />
+        ) : (
+          <>
+            {/* On Duty — List */}
+            {subTab === 'on-duty' && (
+              <div className="attendance-list">
             {dutyError && (
               <div className="attendance-inline-error">
                 <AlertCircle size={16} />
@@ -1580,11 +1642,10 @@ export function AttendancePage() {
         {/* Attendance Report — Card */}
         {subTab === 'report' && viewMode === 'card' && (
           <div className="attendance-card-grid">
-            {filteredReportRows.map(({ consultant, stats }) => {
-              const percentage = Math.round((stats.presentDays / Math.max(stats.totalWorkingDays, 1)) * 100);
-              return (
-                <div key={consultant.id} className="attendance-card">
-                  <div className="attendance-card-header">
+            {filteredReportRows.map(({ consultant, record, stats }) => (
+              <div key={consultant.id} className="attendance-summary-card">
+                <div className="attendance-card-header">
+                  <div className="attendance-consultant-main">
                     <div className="attendance-consultant-avatar">{renderAvatar(consultant.avatar, consultant.name)}</div>
                     <div className="attendance-card-info">
                       <div className="attendance-consultant-name">{consultant.name}</div>
@@ -1654,6 +1715,8 @@ export function AttendancePage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

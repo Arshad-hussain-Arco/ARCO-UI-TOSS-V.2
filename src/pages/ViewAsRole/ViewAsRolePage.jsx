@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { impersonationStorage } from '@utils/impersonationStorage';
 import { IMPERSONATION_KEYS } from '@constants/storageKeys';
 import { ROUTES } from '@constants/routes';
@@ -99,7 +100,13 @@ export function ViewAsRolePage() {
           ) : null}
 
           <ul className="access-account-results">
-            {isLoadingRoles ? <li className="access-account-hint">Loading roles…</li> : null}
+            {isLoadingRoles ? (
+              <>
+                <li style={{ padding: '8px 12px' }}><Skeleton height={20} width="60%" style={{ marginBottom: '4px' }} /><Skeleton height={14} width="80%" /></li>
+                <li style={{ padding: '8px 12px' }}><Skeleton height={20} width="50%" style={{ marginBottom: '4px' }} /><Skeleton height={14} width="70%" /></li>
+                <li style={{ padding: '8px 12px' }}><Skeleton height={20} width="70%" style={{ marginBottom: '4px' }} /><Skeleton height={14} width="90%" /></li>
+              </>
+            ) : null}
             {!isLoadingRoles && roles.length === 0 && !error ? (
               <li className="access-account-hint">No roles found.</li>
             ) : null}
