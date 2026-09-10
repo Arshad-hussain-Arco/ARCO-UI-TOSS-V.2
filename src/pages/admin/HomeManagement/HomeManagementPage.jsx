@@ -744,20 +744,6 @@ function HomeManagementPanelComponent() {
                       opacity: isActive ? 1 : 0.55,
                     }}
                   >
-                    <div 
-                      title={isActive ? 'Active Card' : 'Inactive Card'}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', alignItems: 'center', background: 'var(--surface-primary)', padding: '4px', borderRadius: '20px', border: '1px solid var(--border-primary)', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)' }}
-                    >
-                      <Toggle
-                        checked={isActive}
-                        onChange={(checked) => {
-                          handleToggleActive(card);
-                        }}
-                        ariaLabel={isActive ? 'Deactivate Card' : 'Activate Card'}
-                      />
-                    </div>
-
                     {/* Actions in top right ΓÇö grouped into a single pill so five
                     icons read as one toolbar instead of five loose circles. */}
                     <div
@@ -873,6 +859,23 @@ function HomeManagementPanelComponent() {
                       >
                         <Trash size={13} />
                       </button>
+                      <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)', margin: '0 4px' }} />
+                      <div 
+                        title={isActive ? 'Visible on Dashboard' : 'Hidden from Dashboard'}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 4px 0 2px' }}
+                      >
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', userSelect: 'none' }}>
+                          Visible
+                        </span>
+                        <Toggle
+                          checked={isActive}
+                          onChange={(checked) => {
+                            handleToggleActive(card);
+                          }}
+                          ariaLabel={isActive ? 'Deactivate Card' : 'Activate Card'}
+                        />
+                      </div>
                     </div>
 
                     {/* Card Body — renders the SAME HomeCard component the

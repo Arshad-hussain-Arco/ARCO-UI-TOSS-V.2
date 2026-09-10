@@ -186,7 +186,6 @@ function ColumnMappingPanelComponent({ type = 'CR', title }) {
                 </td>
               </tr>
             ))}
-            }
           </tbody>
         </table>
       </div>
