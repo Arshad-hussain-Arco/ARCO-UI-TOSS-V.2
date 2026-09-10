@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
-import { useToast } from '@hooks/useToast';
-import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl, classifyAdaptiveColor, themeAdaptiveColors, handleUnifiedCopyClick } from './RichEditor/mediaUtils';
+import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl } from './RichEditor/mediaUtils';
+import { copyWithToast } from '@utils/copyToClipboard';
 import './HomeCard.css';
 
 
@@ -101,7 +101,70 @@ export function HomeCard({ card, className = '', style = {} }) {
     // itself up via inline JS. `data-copy-text` is the supported, sanitizer-safe
     // alternative: any element carrying it becomes a working copy-to-clipboard
     // button here instead.
-    if (handleUnifiedCopyClick(e, toast)) return;
+    // Unified indestructible copy button handler
+    let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
+    if (!copyBtn) {
+      let curr = e.target;
+      while (curr && curr !== e.currentTarget) {
+        if (curr.nodeType === Node.ELEMENT_NODE) {
+          // Match standard buttons
+          if (curr.matches('button, .btn, a, .arco-btn, [role="button"]') && curr.textContent.trim().toLowerCase().includes('copy')) {
+            copyBtn = curr;
+            break;
+          }
+          // Match ANY element (like span, div, td) if its EXACT text is just "Copy" or "Copy Path"
+          const exactText = curr.textContent.trim().toLowerCase();
+          if (exactText === 'copy' || exactText === 'copy path') {
+            copyBtn = curr;
+            break;
+          }
+        }
+        curr = curr.parentNode;
+      }
+    }
+
+    if (copyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      let textToCopy = copyBtn.getAttribute('data-copy-text') || copyBtn.getAttribute('data-copy') || '';
+
+      if (!textToCopy) {
+        const td = copyBtn.closest('td, th');
+        if (td) {
+          const clone = td.cloneNode(true);
+          const btns = clone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
+          btns.forEach(b => b.remove());
+          textToCopy = clone.textContent.replace(/\u200B/g, '').trim();
+        }
+
+        if (!textToCopy) {
+          let curr = copyBtn;
+          while (curr && curr !== e.currentTarget && !textToCopy) {
+            let prev = curr.previousSibling; 
+            while (prev && !textToCopy) {
+              if (prev.nodeType === Node.TEXT_NODE) {
+                textToCopy = prev.textContent.replace(/\u200B/g, '').trim();
+              } else if (prev.nodeType === Node.ELEMENT_NODE) {
+                const prevClone = prev.cloneNode(true);
+                const btns = prevClone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
+                btns.forEach(b => b.remove());
+                textToCopy = prevClone.textContent.replace(/\u200B/g, '').trim();
+              }
+              prev = prev.previousSibling;
+            }
+            curr = curr.parentNode;
+          }
+        }
+      }
+
+      if (!textToCopy) {
+        return;
+      }
+
+      copyWithToast(textToCopy);
+      return;
+    }
 
     const playBtn = e.target.closest('.rte-video-play-trigger');
     if (playBtn) {
