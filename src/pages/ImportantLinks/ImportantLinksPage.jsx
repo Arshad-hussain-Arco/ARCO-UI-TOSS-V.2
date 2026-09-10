@@ -5,6 +5,7 @@ import { BookOpen, Check, ChevronDown, Code, Loader2, MessageCircle, Plus, Searc
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAsync } from '@hooks/useAsync';
@@ -101,6 +102,46 @@ function GroupFilterDropdown({ groups, selected, onChange }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function ImportantLinksSkeleton() {
+  const groupSkeleton = (
+    <article className="il-group-card" aria-hidden="true">
+      {/* Card Header */}
+      <div className="il-group-card-header">
+        <Skeleton variant="circle" height={14} width={14} className="il-group-card-icon" />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Skeleton height={20} width={120} style={{ borderRadius: '4px' }} />
+          <Skeleton height={20} width={24} style={{ borderRadius: '10px' }} />
+        </div>
+      </div>
+
+      {/* Card Body — scrollable */}
+      <div className="il-group-card-body">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="il-link-item">
+            <div className="il-link-item-body">
+              <Skeleton height={14} width={`${60 + Math.random() * 30}%`} style={{ borderRadius: '4px' }} />
+            </div>
+            <div className="il-link-item-actions">
+              <Skeleton height={20} width={20} style={{ borderRadius: '4px' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+
+  return (
+    <div className="il-groups-grid">
+      {groupSkeleton}
+      {groupSkeleton}
+      {groupSkeleton}
+      {groupSkeleton}
+      {groupSkeleton}
+      {groupSkeleton}
     </div>
   );
 }
@@ -503,7 +544,7 @@ export function ImportantLinksPage() {
           onRetry={refetch}
         />
       ) : isLoading && !serverCategories ? (
-        <Loader message="Loading links…" />
+        <ImportantLinksSkeleton />
       ) : filteredCategories.length === 0 ? (
         <EmptyState
           title="No links found"

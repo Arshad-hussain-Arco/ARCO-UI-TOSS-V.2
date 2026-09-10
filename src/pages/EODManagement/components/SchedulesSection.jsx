@@ -9,13 +9,15 @@ import {
   AlertTriangle,
   Loader2,
 } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { useToast } from '@hooks/useToast';
+import { SchedulesSkeleton } from './EODSkeletons';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
 import { eodService } from '@services/eodService';
 import { ScheduleModal } from './ScheduleModal';
+import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
 function formatDateGroup(dateVal) {
   if (!dateVal) return 'Today';
@@ -190,9 +192,6 @@ export function SchedulesSection() {
     }
   };
 
-  if (isLoading) {
-    return <Loader message="Loading automated EOD schedules…" />;
-  }
 
   if (error) {
     return (
@@ -241,7 +240,7 @@ export function SchedulesSection() {
       </div>
 
       {/* ── Empty State vs Content ── */}
-      {scheduleList.length === 0 ? (
+      {!isLoading && scheduleList.length === 0 ? (
         <EmptyState
           icon={Calendar}
           title="No records found"
@@ -260,7 +259,13 @@ export function SchedulesSection() {
         />
       ) : (
         <div className="eod-schedules-container">
-          {days.map((day) => {
+          {isLoading && scheduleList.length === 0 ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="eod-schedule-card">
+                <Skeleton height={80} width="100%" style={{ borderRadius: '8px' }} />
+              </div>
+            ))
+          ) : days.map((day) => {
             const daySchedules = scheduleList.filter((s) => s.dateGroup === day);
             return (
               <div key={day} className="eod-schedule-card">

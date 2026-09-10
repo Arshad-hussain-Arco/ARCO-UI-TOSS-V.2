@@ -2,89 +2,10 @@ import React, { useState } from 'react';
 import DOMPurify from 'dompurify';
 import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
-import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl } from './RichEditor/mediaUtils';
+import { useToast } from '@hooks/useToast';
+import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl, classifyAdaptiveColor, themeAdaptiveColors, handleUnifiedCopyClick } from './RichEditor/mediaUtils';
 import './HomeCard.css';
 
-/**
- * Classifies an arbitrary inline color (from pasted Word/Outlook/browser
- * HTML) into one of the adaptive buckets HomeCard.css defines, or null if
- * it doesn't clearly fit one — in which case the dark-mode blanket rule in
- * HomeCard.css (which strips any remaining hardcoded color to
- * var(--text-primary) for readability) is the correct fallback.
- * Named colors are deliberately NOT resolved here — browsers always
- * serialize inline `color` as rgb()/rgba() once parsed, so raw HTML only
- * ever contains a name if it was written by hand, which the WYSIWYG editor
- * itself never produces.
- */
-function classifyAdaptiveColor(r, g, b) {
-  if (r < 60 && g < 60 && b < 60) return 'var(--adaptive-text)';
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  if (max - min < 20 && max < 130) return 'var(--adaptive-text-secondary)';
-  if (b > r + 20 && b > g + 10) return 'var(--adaptive-blue)';
-  return null;
-}
-
-/**
- * Rewrites every inline `color:` declaration in pasted/authored HTML to an
- * adaptive CSS variable where it's confidently classifiable (black/dark-grey
- * text, mid-grey text, blue links/emphasis) — `!important` on the
- * replacement is required: HomeCard.css's dark-mode rule that strips any
- * OTHER hardcoded color to var(--text-primary) also uses `!important`, and
- * a plain inline style always loses to any `!important` stylesheet rule
- * regardless of selector specificity. Without it here, a correctly
- * classified color would still render as flat white in dark mode.
- */
-function themeAdaptiveColors(html) {
-  let processed = html || '';
-
-  // 1. Strip default RoosterJS / MS Word fonts so the text automatically inherits the app's native theme typography
-  processed = processed.replace(/font-family:\s*["']?(?:Calibri|Arial|Times New Roman|sans-serif|serif)["']?[^;"]*;?/gi, '');
-  processed = processed.replace(/font-size:\s*(?:11pt|14px|15px|1em|medium)\s*;?/gi, '');
-
-  // 2. Rewrite text colors
-  processed = processed.replace(
-    /color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
-    (match, r, g, b, hex) => {
-      let rr = r, gg = g, bb = b;
-      if (hex) {
-        const h = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
-        rr = parseInt(h.slice(0, 2), 16);
-        gg = parseInt(h.slice(2, 4), 16);
-        bb = parseInt(h.slice(4, 6), 16);
-      } else {
-        rr = Number(r);
-        gg = Number(g);
-        bb = Number(b);
-      }
-      const adaptive = classifyAdaptiveColor(rr, gg, bb);
-      return adaptive ? `color: ${adaptive} !important;` : match;
-    }
-  );
-
-  // 3. Rewrite white/light backgrounds to transparent so dark mode isn't blinded, but preserve intentional colored highlights
-  processed = processed.replace(
-    /background-color:\s*(?:rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)|#([0-9a-fA-F]{6}|[0-9a-fA-F]{3}))\s*;?/gi,
-    (match, r, g, b, hex) => {
-      let rr = r, gg = g, bb = b;
-      if (hex) {
-        const h = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex;
-        rr = parseInt(h.slice(0, 2), 16);
-        gg = parseInt(h.slice(2, 4), 16);
-        bb = parseInt(h.slice(4, 6), 16);
-      } else {
-        rr = Number(r);
-        gg = Number(g);
-        bb = Number(b);
-      }
-      // If it's a very light background (like white or near-white), strip it so the theme background applies
-      if (rr > 240 && gg > 240 && bb > 240) return 'background-color: transparent !important;';
-      return match;
-    }
-  );
-
-  return processed;
-}
 
 /**
  * DOMPurify configuration extending default allowlist for media cards.
@@ -117,6 +38,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
  */
 export function HomeCard({ card, className = '', style = {} }) {
   const [imageError, setImageError] = useState(false);
+  const toast = useToast();
   // Set only once the media token is CONFIRMED (awaited, not just read from
   // the mediaToken state below) — mounting <video src> speculatively while
   // the token fetch is still in flight caused a real race: the element
@@ -179,100 +101,7 @@ export function HomeCard({ card, className = '', style = {} }) {
     // itself up via inline JS. `data-copy-text` is the supported, sanitizer-safe
     // alternative: any element carrying it becomes a working copy-to-clipboard
     // button here instead.
-    // Unified indestructible copy button handler
-    let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
-    if (!copyBtn) {
-      let curr = e.target;
-      while (curr && curr !== e.currentTarget) {
-        if (curr.nodeType === Node.ELEMENT_NODE) {
-          // Match standard buttons
-          if (curr.matches('button, .btn, a, .arco-btn, [role="button"]') && curr.textContent.trim().toLowerCase().includes('copy')) {
-            copyBtn = curr;
-            break;
-          }
-          // Match ANY element (like span, div, td) if its EXACT text is just "Copy" or "Copy Path"
-          const exactText = curr.textContent.trim().toLowerCase();
-          if (exactText === 'copy' || exactText === 'copy path') {
-            copyBtn = curr;
-            break;
-          }
-        }
-        curr = curr.parentNode;
-      }
-    }
-
-    if (copyBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      let textToCopy = copyBtn.getAttribute('data-copy-text') || copyBtn.getAttribute('data-copy') || '';
-
-      if (!textToCopy) {
-        const td = copyBtn.closest('td, th');
-        if (td) {
-          const clone = td.cloneNode(true);
-          const btns = clone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
-          btns.forEach(b => b.remove());
-          textToCopy = clone.textContent.replace(/\u200B/g, '').trim();
-        }
-
-        if (!textToCopy) {
-          let curr = copyBtn;
-          while (curr && curr !== e.currentTarget && !textToCopy) {
-            let prev = curr.previousSibling; 
-            while (prev && !textToCopy) {
-              if (prev.nodeType === Node.TEXT_NODE) {
-                textToCopy = prev.textContent.replace(/\u200B/g, '').trim();
-              } else if (prev.nodeType === Node.ELEMENT_NODE) {
-                const prevClone = prev.cloneNode(true);
-                const btns = prevClone.querySelectorAll('button, .btn, .copy-btn, .il-dynamic-copy-btn, [data-copy-btn], a');
-                btns.forEach(b => b.remove());
-                textToCopy = prevClone.textContent.replace(/\u200B/g, '').trim();
-              }
-              prev = prev.previousSibling;
-            }
-            curr = curr.parentNode;
-          }
-        }
-      }
-
-      const originalHTML = copyBtn.innerHTML;
-      
-      if (!textToCopy) {
-        copyBtn.textContent = 'No text!';
-        setTimeout(() => { copyBtn.innerHTML = originalHTML; }, 1500);
-        return;
-      }
-
-      copyBtn.textContent = 'Copied!';
-      copyBtn.classList.add('rte-copy-btn-copied');
-      
-      const showCopied = () => {
-        setTimeout(() => {
-          copyBtn.innerHTML = originalHTML;
-          copyBtn.classList.remove('rte-copy-btn-copied');
-        }, 1500);
-      };
-
-      const doFallbackCopy = () => {
-        const tempInput = document.createElement('textarea');
-        tempInput.value = textToCopy;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {}
-        document.body.removeChild(tempInput);
-        showCopied();
-      };
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(textToCopy).then(showCopied).catch(doFallbackCopy);
-      } else {
-        doFallbackCopy();
-      }
-      return;
-    }
+    if (handleUnifiedCopyClick(e, toast)) return;
 
     const playBtn = e.target.closest('.rte-video-play-trigger');
     if (playBtn) {

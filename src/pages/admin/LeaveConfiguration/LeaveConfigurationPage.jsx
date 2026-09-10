@@ -22,6 +22,7 @@ import { useToast } from '@hooks/useToast';
 import { useDebounce } from '@hooks/useDebounce';
 import { leaveService } from '@services/leaveService';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import './LeaveConfigurationPage.css';
 
@@ -475,11 +476,26 @@ function CreatableSelect({ value, onChange, placeholder, options, id }) {
   );
 }
 
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function TableSkeleton({ columns = 5 }) {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <tr key={i} style={{ borderBottom: '1px solid var(--border-secondary)' }}>
+          {Array.from({ length: columns }).map((_, j) => (
+            <td key={j} style={{ padding: '16px' }}>
+              <Skeleton height={20} width={j === 0 ? "150px" : "100%"} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
 
-
-/**
- * Admin Panel Leave Configurations Page Redesign.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 export function LeaveConfigurationPage() {
   useDocumentTitle('Leave Configurations - Admin Panel');
   const toast = useToast();
@@ -1220,6 +1236,14 @@ export function LeaveConfigurationPage() {
     );
   });
 
+  const filteredOverlapPolicies = overlapPolicies.filter((r) => {
+    const q = (debouncedSearchQuery || '').toLowerCase();
+    if (!q) return true;
+    const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
+    const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
+    return sourceText.includes(q) || targetText.includes(q);
+  });
+
   if (leaveTypesError) {
     return (
       <ErrorState
@@ -1350,13 +1374,7 @@ export function LeaveConfigurationPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={8}>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                          <Loader message="Loading holidays..." />
-                        </div>
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={7} />
                   ) : filteredHolidays.length === 0 ? (
                     <tr>
                       <td colSpan={7}>
@@ -1581,13 +1599,7 @@ export function LeaveConfigurationPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={8}>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                          <Loader message="Loading leave types & policies..." />
-                        </div>
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={8} />
                   ) : filteredCombinedLeaveTypes.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="lc-empty-state">
@@ -1706,76 +1718,56 @@ export function LeaveConfigurationPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={5}>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                          <Loader message="Loading overlap adjustment policies..." />
-                        </div>
-                      </td>
-                    </tr>
-                  ) : overlapPolicies.filter((r) => {
-                    const q = searchQuery.trim().toLowerCase();
-                    if (!q) return true;
-                    const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
-                    const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
-                    return sourceText.includes(q) || targetText.includes(q);
-                  }).length === 0 ? (
+                    <TableSkeleton columns={5} />
+                  ) : filteredOverlapPolicies.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="lc-empty-state">
                         No overlap adjustment policies match your search criteria.
                       </td>
                     </tr>
                   ) : (
-                    overlapPolicies
-                      .filter((r) => {
-                        const q = searchQuery.trim().toLowerCase();
-                        if (!q) return true;
-                        const sourceText = (r.source_leave_type_codes || []).join(' ').toLowerCase() || 'any';
-                        const targetText = (r.target_leave_type_codes || []).join(' ').toLowerCase();
-                        return sourceText.includes(q) || targetText.includes(q);
-                      })
-                      .map((rule) => {
-                        const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
-                        const targetLabel = (rule.target_leave_type_codes || []).join(', ');
-                        return (
-                          <tr key={rule.id}>
-                            <td>
-                              <span className="lc-code-badge">{sourceLabel}</span>
-                            </td>
-                            <td>
-                              <span className="lc-code-badge">{targetLabel}</span>
-                            </td>
-                            <td >{rule.notes || '—'}</td>
-                            <td>
-                              <Toggle
-                                checked={rule.is_active}
-                                onChange={(val) => handleToggleOverlapActive(rule, val)}
-                                ariaLabel={`Toggle active status for ${sourceLabel} to ${targetLabel}`}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', gap: '4px' }}>
-                                <button
-                                  type="button"
-                                  className="action-icon-btn edit"
-                                  title="Edit Overlap Policy"
-                                  onClick={() => openEditOverlapModal(rule)}
-                                >
-                                  <Edit size={15} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="action-icon-btn delete"
-                                  title="Deactivate Overlap Policy"
-                                  onClick={() => handleDeleteOverlapPolicy(rule)}
-                                >
-                                  <Trash size={15} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                    filteredOverlapPolicies.map((rule) => {
+                      const sourceLabel = (rule.source_leave_type_codes || []).join(', ') || 'Any';
+                      const targetLabel = (rule.target_leave_type_codes || []).join(', ');
+                      return (
+                        <tr key={rule.id}>
+                          <td>
+                            <span className="lc-code-badge">{sourceLabel}</span>
+                          </td>
+                          <td>
+                            <span className="lc-code-badge">{targetLabel}</span>
+                          </td>
+                          <td >{rule.notes || '—'}</td>
+                          <td>
+                            <Toggle
+                              checked={rule.is_active}
+                              onChange={(val) => handleToggleOverlapActive(rule, val)}
+                              ariaLabel={`Toggle active status for ${sourceLabel} to ${targetLabel}`}
+                            />
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="action-icon-btn edit"
+                                title="Edit Overlap Policy"
+                                onClick={() => openEditOverlapModal(rule)}
+                              >
+                                <Edit size={15} />
+                              </button>
+                              <button
+                                type="button"
+                                className="action-icon-btn delete"
+                                title="Deactivate Overlap Policy"
+                                onClick={() => handleDeleteOverlapPolicy(rule)}
+                              >
+                                <Trash size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

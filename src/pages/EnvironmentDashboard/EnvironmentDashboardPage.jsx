@@ -25,7 +25,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { Select } from '@components/forms/Select/Select';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { AdminTable } from '@components/ui/AdminTable/AdminTable';
@@ -41,6 +41,52 @@ import { environmentService } from '@services/environmentService';
 import './EnvironmentDashboardPage.css';
 
 /** Environment inventory: configuration files and the per-environment feature matrix. */
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function EnvDashboardSkeleton() {
+  const headers = ['Type', 'Version', 'File Name', 'File Size', 'Uploaded By', 'Upload Date', 'File Location'];
+  return (
+    <div className="env-dashboard" style={{ padding: '24px' }}>
+      
+      {/* Environment Configuration Accordion Skeleton with Table */}
+      <div style={{ marginBottom: '24px', border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-secondary)', display: 'flex', alignItems: 'center' }}>
+          <Skeleton height={20} width={200} />
+        </div>
+        <div style={{ padding: '24px', background: 'var(--bg-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
+            <Skeleton height={32} width={300} />
+          </div>
+          <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+              {headers.map((h, j) => (
+                <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                   {h}
+                </div>
+              ))}
+            </div>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 2 ? '1px solid var(--border-secondary)' : 'none' }}>
+                {headers.map((_, j) => (
+                  <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                     <Skeleton height={20} width={j === 2 ? "100%" : "60%"} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Environment Cards Skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+        <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+        <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+      </div>
+    </div>
+  );
+}
+
 export function EnvironmentDashboardPage() {
   useDocumentTitle('Environment Dashboard');
   const toast = useToast();
@@ -340,9 +386,6 @@ export function EnvironmentDashboardPage() {
     );
   }
 
-  if (isLoading || !data) {
-    return <Loader message="Loading environments…" />;
-  }
 
   return (
     <div className="env-dashboard-page">
@@ -405,7 +448,28 @@ export function EnvironmentDashboardPage() {
 
           {/* Config Cards Grid */}
           <div className="env-config-cards-container">
-            {filteredConfigs.length === 0 ? (
+            {isLoading || !data ? (
+              /* Skeleton placeholders for config cards */
+              <div className="env-config-grid">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="env-config-card" style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                      <Skeleton height={24} width={80} style={{ borderRadius: '12px' }} />
+                      <Skeleton height={24} width={50} style={{ borderRadius: '12px' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <Skeleton height={18} width="80%" />
+                      {Array.from({ length: 3 }).map((_, j) => (
+                        <div key={j} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <Skeleton height={14} width={14} style={{ borderRadius: '50%' }} />
+                          <Skeleton height={14} width="60%" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredConfigs.length === 0 ? (
               <div className="env-empty-box">
                 <FileText size={32} />
                 <h4>No configurations found</h4>
@@ -536,7 +600,14 @@ export function EnvironmentDashboardPage() {
           {/* No legend required, just raw environments as accordions */}
 
           <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '8px', }}>
-            {configList.length === 0 ? (
+            {isLoading || !data ? (
+              /* Skeleton placeholders for environment detail cards */
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+              </div>
+            ) : configList.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                 No configurations found.
               </div>

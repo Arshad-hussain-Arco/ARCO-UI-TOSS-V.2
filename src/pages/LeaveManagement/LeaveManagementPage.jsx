@@ -156,6 +156,7 @@ const LEAVE_ACTION_BUTTONS = [
 
 const INELIGIBLE_TOOLTIP = 'You are not eligible to apply for this leave type.';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { getRelativePendingTime, STATUS_TOOLTIPS } from './TeamRequestsTab';
 
@@ -245,6 +246,24 @@ export const SortIcon = ({ field, sortField, sortOrder }) => {
     />
   );
 };
+
+/* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
+function LeaveManagementSkeleton() {
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+        <Skeleton height={36} width="200px" style={{ borderRadius: '6px' }} />
+        <Skeleton height={36} width="120px" style={{ borderRadius: '6px' }} />
+        <Skeleton height={36} width="120px" style={{ borderRadius: '6px' }} />
+      </div>
+      <Skeleton height={48} width="100%" style={{ borderRadius: '8px 8px 0 0', marginBottom: '2px' }} />
+      <Skeleton height={64} width="100%" count={1} style={{ marginBottom: '2px' }} />
+      <Skeleton height={64} width="100%" count={1} style={{ marginBottom: '2px' }} />
+      <Skeleton height={64} width="100%" count={1} style={{ marginBottom: '2px' }} />
+      <Skeleton height={64} width="100%" count={1} style={{ borderRadius: '0 0 8px 8px' }} />
+    </div>
+  );
+}
 
 export function LeaveManagementPage() {
   useDocumentTitle('Leave Management');
@@ -1236,8 +1255,8 @@ export function LeaveManagementPage() {
                     onRetry={() => setRefreshKey((k) => k + 1)}
                   />
                 ) : isLoading ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-                    <Loader message="Loading your leaves..." />
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '400px', width: '100%', padding: '0 8px' }}>
+                    <LeaveManagementSkeleton />
                   </div>
                 ) : viewMode === 'list' ? (
                   <div className="leave-table-container">

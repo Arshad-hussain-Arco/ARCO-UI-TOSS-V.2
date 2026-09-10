@@ -196,19 +196,27 @@
 }
 
 /* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
-   so it doesn't render as invisible white-on-white text in dark mode. 
+   so it adapts perfectly to both light and dark themes, overriding any inline styles.
    We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
-[data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
-  /* Removed !important blanket rules so user-selected custom colors work properly */
+.home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
+  background-color: transparent !important;
+  color: var(--text-primary, #0f172a) !important;
+  border-color: var(--border-primary, #e2e8f0) !important;
 }
 
-/* Same .rte-*/.media-* exclusion as the blanket rule above — without it,
-   this was forcing plain hyperlink-blue text onto the PDF/attachment
-   "Download"/"View" action buttons (.media-card-action-btn), which have
-   their own intentional button styling (border, background, muted text),
-   making them look like broken inline links instead of buttons. */
+[data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
+  color: var(--text-primary, #f8fafc) !important;
+  border-color: var(--border-primary, #374151) !important;
+}
+
+/* Ensure links and their inner elements keep their hyperlink styling 
+   instead of inheriting the blanket text-primary color above. */
+.home-card-html-content a:not([class*="rte-"]):not([class*="media-"]),
+.home-card-html-content a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: var(--c-primary, #006838) !important;
+}
+
 [data-theme="dark"] .home-card-html-content a:not([class*="rte-"]):not([class*="media-"]),
-[data-theme="dark"] .home-card-html-content a span:not([class*="rte-"]):not([class*="media-"]),
 [data-theme="dark"] .home-card-html-content a *:not([class*="rte-"]):not([class*="media-"]) {
   color: #60a5fa !important;
 }

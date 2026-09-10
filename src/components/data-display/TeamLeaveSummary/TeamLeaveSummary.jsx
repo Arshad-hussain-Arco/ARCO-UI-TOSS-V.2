@@ -17,6 +17,7 @@ import api from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { useAuth } from '@hooks/useAuth';
 import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 
 import './TeamLeaveSummary.css';
 import { activatable } from '@utils/interactive';
@@ -546,15 +547,8 @@ function TeamLeaveSummary({ getPhoto }) {
 
   return (
     <div className="team-summary-container">
-      {loading && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
-          <Loader size="md" message="Loading team leave summary..." />
-        </div>
-      )}
-      {!loading && (
-        <>
-          {/* ── Shared Filter Bar ── */}
-          <div className="team-summary-filter-bar" style={{ alignContent: 'flex-start', justifyContent: 'space-between' }}>
+      {/* ── Shared Filter Bar ── */}
+      <div className="team-summary-filter-bar" style={{ alignContent: 'flex-start', justifyContent: 'space-between' }}>
             <div className="team-summary-filters-left" style={{ flex: '0 0 auto' }}>
               <div className="team-summary-filter-group">
                 <Select
@@ -668,7 +662,32 @@ function TeamLeaveSummary({ getPhoto }) {
     ═══════════════════════════════════════════════════════════ */}
           {summaryView === 'department' && (
             <div className="team-summary-departments">
-              {filteredDepartments.length === 0 ? (
+              {loading ? (
+                <div className="team-summary-department-section" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <Skeleton width={20} height={20} />
+                    <Skeleton width={150} height={20} />
+                  </div>
+                  <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', gap: '16px', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                      <Skeleton width="30%" height={16} />
+                      <Skeleton width="15%" height={16} />
+                      <Skeleton width="15%" height={16} />
+                      <Skeleton width="15%" height={16} />
+                      <Skeleton width="15%" height={16} />
+                    </div>
+                    {[1, 2, 3].map(i => (
+                      <div key={i} style={{ display: 'flex', gap: '16px', padding: '16px', borderBottom: i < 3 ? '1px solid var(--border-color)' : 'none' }}>
+                        <Skeleton width="30%" height={24} />
+                        <Skeleton width="15%" height={24} />
+                        <Skeleton width="15%" height={24} />
+                        <Skeleton width="15%" height={24} />
+                        <Skeleton width="15%" height={24} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : filteredDepartments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-tertiary)', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px', fontSize: '13px' }}>
                   No team leave data available for the selected filters.
                 </div>
@@ -899,7 +918,36 @@ function TeamLeaveSummary({ getPhoto }) {
 
               {/* ── Department Accordion List ── */}
               <div className="tsa-dept-list">
-                {sortedAnalyticsDepts.length === 0 ? (
+                {loading ? (
+                  <div className="tsa-dept-section" style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                      <Skeleton width={20} height={20} />
+                      <Skeleton width={150} height={20} />
+                    </div>
+                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', gap: '16px', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
+                        <Skeleton width="40%" height={16} />
+                        <Skeleton width="20%" height={16} />
+                        <Skeleton width="20%" height={16} />
+                        <Skeleton width="20%" height={16} />
+                      </div>
+                      {[1, 2, 3].map(i => (
+                        <div key={i} style={{ display: 'flex', gap: '16px', padding: '16px', borderBottom: i < 3 ? '1px solid var(--border-color)' : 'none' }}>
+                          <div style={{ width: '40%', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <Skeleton width={32} height={32} style={{ borderRadius: '50%' }} />
+                            <div style={{ flex: 1 }}>
+                              <Skeleton width="80%" height={16} style={{ marginBottom: '4px' }} />
+                              <Skeleton width="50%" height={12} />
+                            </div>
+                          </div>
+                          <Skeleton width="20%" height={24} />
+                          <Skeleton width="20%" height={24} />
+                          <Skeleton width="20%" height={24} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : sortedAnalyticsDepts.length === 0 ? (
                   <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '20px' }}>
                     No team leave data available for the selected filters.
                   </div>
@@ -1066,8 +1114,6 @@ function TeamLeaveSummary({ getPhoto }) {
               </div>
             </div>
           )}
-        </>
-      )}
     </div>
   );
 }

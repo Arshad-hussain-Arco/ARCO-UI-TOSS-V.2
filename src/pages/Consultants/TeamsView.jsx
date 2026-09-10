@@ -3,7 +3,7 @@ import { Users, Briefcase, ChevronDown, Copy, Plus, Edit, Trash, ChevronLeft, Ch
 import { useAsync } from '@hooks/useAsync';
 import { consultantService } from '@services/consultantService';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { normalizeConsultant } from './utils';
 import { activatable } from '@utils/interactive';
 import { useToast } from '@hooks/useToast';
@@ -212,6 +212,8 @@ function TeamAccordion({ team, isExpanded, onToggle, onProfileView, cache, setCa
   );
 }
 
+
+
 export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhoto }) {
   const { user, hasPermission } = useAuth();
   
@@ -386,9 +388,7 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
     return <ErrorState title="Teams could not be loaded" description={error.message} onRetry={refetch} />;
   }
 
-  if (isLoading && !teams) {
-    return <Loader message="Loading teams..." />;
-  }
+
 
   const handleCardClick = (teamId) => {
     setExpandedTeamId(teamId === expandedTeamId ? null : teamId);
@@ -463,7 +463,11 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
         )}
 
         <div className="tv-summary-strip" ref={stripRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {filteredTeams.map((team) => {
+          {(isLoading && !teams) ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} height={140} width="240px" style={{ borderRadius: '12px', flexShrink: 0, border: '1px solid var(--border-secondary)' }} />
+            ))
+          ) : filteredTeams.map((team) => {
             const isActive = expandedTeamId === team.id;
             const hc = headcountMap[team.id];
             return (
@@ -513,7 +517,11 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
 
       {/* Accordions */}
       <div className="tv-accordions-list">
-        {filteredTeams.map((team) => (
+        {(isLoading && !teams) ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={60} width="100%" style={{ borderRadius: '8px', marginBottom: '8px', border: '1px solid var(--border-secondary)' }} />
+          ))
+        ) : filteredTeams.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">
               <TeamAccordion
                 team={team}

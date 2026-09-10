@@ -3,7 +3,7 @@ import { GripVertical, RotateCcw, Save } from 'lucide-react';
 
 import { Button } from '@components/ui/Button/Button';
 import { Select } from '@components/forms/Select/Select';
-import { Loader } from '@components/feedback/Loader/Loader';
+import { PanelSkeleton } from '@pages/admin/SystemSettings/panels/PanelSkeleton';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { getVisibleNavigation, applyOrder } from '@constants/navigation';
@@ -205,7 +205,7 @@ export function RoleSidebarDefaultsPanel() {
       </div>
 
       {isLoadingOrder ? (
-        <Loader size="md" message="Loading role defaults..." />
+        <PanelSkeleton />
       ) : (
         <div className="pl-panels">
           <section className="pl-section">

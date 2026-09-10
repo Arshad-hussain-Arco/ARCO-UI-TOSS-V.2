@@ -9,6 +9,14 @@
   border-radius: 8px;
   background: var(--surface-primary, #ffffff);
   overflow: hidden;
+
+  --adaptive-text: var(--text-primary, #0f172a);
+  --adaptive-text-secondary: var(--text-secondary, #475569);
+  --adaptive-blue: #1155cc;
+}
+
+[data-theme="dark"] .rte-root {
+  --adaptive-blue: #60a5fa;
 }
 
 .rte-root.rte-fullscreen {

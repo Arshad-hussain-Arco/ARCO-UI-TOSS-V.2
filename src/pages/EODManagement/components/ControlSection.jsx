@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import { Play, RefreshCw } from 'lucide-react';
-import { Loader } from '@components/feedback/Loader/Loader';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { useAuth } from '@hooks/useAuth';
 import { useEodContext } from '../context/EodContext';
 import { CtrlCard } from './CtrlCard';
+import { ControlSkeleton } from './EODSkeletons';
+import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
 export function ControlSection() {
   const { hasPermission } = useAuth();
@@ -25,9 +26,6 @@ export function ControlSection() {
     fetchControlsData(true);
   }, [fetchControlsData]);
 
-  if (isLoadingControls) {
-    return <Loader message="Loading batch control panel…" />;
-  }
 
   if (controlsError) {
     return (
@@ -74,7 +72,13 @@ export function ControlSection() {
         </div>
       </div>
       <div className="eod-control-grid">
-        {controlsEnvs
+        {isLoadingControls && controlsEnvs.length === 0 ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Skeleton height={200} width="100%" style={{ borderRadius: '12px' }} />
+            </div>
+          ))
+        ) : controlsEnvs
           .filter((env) => env.isActive !== false)
           .map((env) => (
             <CtrlCard
