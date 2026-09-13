@@ -190,51 +190,91 @@ function exportToPDF(rows, dates, filename = 'attendance.pdf') {
 }
 
 /* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
-function AttendanceSkeleton({ reportDates }) {
+function AttendanceSkeleton({ reportDates, timelineDates, subTab, viewMode }) {
+  const isReportTab = subTab === 'report';
+  const showListSkeleton = subTab === 'on-duty' || (viewMode === 'list' && !isReportTab);
+
+  if (showListSkeleton) {
+    return (
+      <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
+            <div style={{ display: 'flex', padding: '16px', background: 'var(--bg-secondary)', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-secondary)' }}>
+               <Skeleton height={16} width={16} />
+               <Skeleton height={18} width={120} />
+               <Skeleton height={20} width={24} style={{ borderRadius: '10px' }} />
+            </div>
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {Array.from({ length: 2 }).map((_, j) => (
+                 <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '16px', borderBottom: j === 0 ? '1px solid var(--border-secondary)' : 'none', paddingBottom: j === 0 ? '16px' : '0' }}>
+                   <Skeleton height={40} width={40} style={{ borderRadius: '50%' }} />
+                   <div style={{ flex: 1 }}>
+                     <Skeleton height={16} width="150px" style={{ marginBottom: '6px' }} />
+                     <Skeleton height={12} width="100px" />
+                   </div>
+                   <Skeleton height={24} width="70px" style={{ borderRadius: '12px' }} />
+                 </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const isTimeline = viewMode === 'timeline';
   const colsCount = reportDates && reportDates.length > 0 ? reportDates.length : 7;
+  const tColsCount = timelineDates && timelineDates.length > 0 ? timelineDates.length : 15;
+  const currentDates = isTimeline ? timelineDates : reportDates;
+  const currentColsCount = isTimeline ? tColsCount : colsCount;
+
   return (
-    <div style={{ padding: '16px 0' }}>
+    <div style={{ padding: '16px 0', overflowX: 'auto' }}>
       {/* Table skeleton with static headers */}
-      <div style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ minWidth: isTimeline ? 'max-content' : 'auto', border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)' }}>
           <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center' }}>
             CONSULTANT
           </div>
-          {reportDates && reportDates.length > 0 ? reportDates.map((d, j) => {
-            const key = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '-');
-            return (
-              <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', textTransform: 'uppercase' }}>
-                {key}
-              </div>
-            )
-          }) : Array.from({ length: colsCount }).map((_, j) => (
-            <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <Skeleton height={16} width="60%" />
-            </div>
+          {currentDates && currentDates.length > 0 ? currentDates.map((d, j) => {
+             const key = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '-');
+             return (
+               <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', textTransform: 'uppercase', minWidth: isTimeline ? '40px' : 'auto' }}>
+                 {key}
+               </div>
+             )
+          }) : Array.from({ length: currentColsCount }).map((_, j) => (
+             <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: isTimeline ? '40px' : 'auto' }}>
+               <Skeleton height={16} width="60%" />
+             </div>
           ))}
-          <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            SUMMARY
-          </div>
+          {!isTimeline && (
+            <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              SUMMARY
+            </div>
+          )}
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
-            <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Skeleton height={32} width={32} style={{ borderRadius: '50%' }} />
-              <div style={{ flex: 1 }}>
-                <Skeleton height={16} width="80%" style={{ marginBottom: '4px' }} />
-                <Skeleton height={12} width="50%" />
-              </div>
-            </div>
-            {Array.from({ length: colsCount }).map((_, j) => (
-              <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Skeleton height={20} width={20} style={{ borderRadius: '4px' }} />
-              </div>
-            ))}
-            <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-              <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-              <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-              <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-            </div>
+             <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Skeleton height={32} width={32} style={{ borderRadius: '50%' }} />
+                <div style={{ flex: 1 }}>
+                   <Skeleton height={16} width="80%" style={{ marginBottom: '4px' }} />
+                   <Skeleton height={12} width="50%" />
+                </div>
+             </div>
+             {Array.from({ length: currentColsCount }).map((_, j) => (
+                <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: isTimeline ? '40px' : 'auto' }}>
+                   <Skeleton height={20} width={20} style={{ borderRadius: '4px' }} />
+                </div>
+             ))}
+             {!isTimeline && (
+               <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
+               </div>
+             )}
           </div>
         ))}
       </div>

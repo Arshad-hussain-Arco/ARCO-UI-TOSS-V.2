@@ -135,6 +135,31 @@ export function LinkContentViewer({ link }) {
   };
 
   const handleContentClick = (e) => {
+    const codeCopyBtn = e.target.closest('[data-code-copy], .rte-code-copy-btn');
+    if (codeCopyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const codeBlock = codeCopyBtn.closest('.rte-code-preview');
+      const codeEl = codeBlock?.querySelector('.rte-code-body code');
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent).then(() => {
+          codeCopyBtn.classList.add('rte-code-copied');
+          const origHtml = codeCopyBtn.innerHTML;
+          codeCopyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
+          
+          try { copyWithToast(codeEl.textContent); } catch (e) {}
+          
+          setTimeout(() => {
+            codeCopyBtn.classList.remove('rte-code-copied');
+            codeCopyBtn.innerHTML = origHtml;
+          }, 2000);
+        }).catch(() => {
+          try { copyWithToast(codeEl.textContent); } catch (e) {}
+        });
+      }
+      return;
+    }
+
     // Unified indestructible copy button handler
     let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
     if (!copyBtn) {
@@ -198,7 +223,15 @@ export function LinkContentViewer({ link }) {
         return;
       }
 
-      copyWithToast(textToCopy);
+      copyBtn.textContent = 'Copied \u2713';
+      copyBtn.classList.add('rte-copy-btn-copied');
+      
+      try { copyWithToast(textToCopy); } catch (e) {}
+
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHTML;
+        copyBtn.classList.remove('rte-copy-btn-copied');
+      }, 2000);
       return;
     }
   };

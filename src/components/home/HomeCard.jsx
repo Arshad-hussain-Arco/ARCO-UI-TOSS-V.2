@@ -20,7 +20,7 @@ const HOME_CARD_SANITIZE_CONFIG = {
     'controls', 'type', 'preload', 'playsinline', 'poster', 'download',
     'data-media-type', 'data-src', 'data-filename', 'data-filesize',
     'data-mime', 'data-pdf-src', 'data-pdf-name',
-    'data-office-src', 'data-office-name', 'data-video-src', 'data-copy-text', 'aria-label',
+    'data-office-src', 'data-office-name', 'data-video-src', 'data-copy-text', 'data-copy', 'data-code-copy', 'aria-label',
     'viewBox', 'aria-hidden', 'focusable', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
     // Table attributes
     'colspan', 'rowspan', 'border', 'cellpadding', 'cellspacing', 'width', 'height',
@@ -101,6 +101,27 @@ export function HomeCard({ card, className = '', style = {} }) {
     // itself up via inline JS. `data-copy-text` is the supported, sanitizer-safe
     // alternative: any element carrying it becomes a working copy-to-clipboard
     // button here instead.
+    const codeCopyBtn = e.target.closest('[data-code-copy], .rte-code-copy-btn');
+    if (codeCopyBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const codeBlock = codeCopyBtn.closest('.rte-code-preview');
+      const codeEl = codeBlock?.querySelector('.rte-code-body code');
+      if (codeEl) {
+        const originalHTML = codeCopyBtn.innerHTML;
+        codeCopyBtn.classList.add('rte-code-copied');
+        codeCopyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
+        
+        try { copyWithToast(codeEl.textContent); } catch (e) {}
+        
+        setTimeout(() => {
+          codeCopyBtn.classList.remove('rte-code-copied');
+          codeCopyBtn.innerHTML = originalHTML;
+        }, 2000);
+      }
+      return;
+    }
+
     // Unified indestructible copy button handler
     let copyBtn = e.target.closest('[data-copy-text], [data-copy], .il-dynamic-copy-btn, .copy-btn, [data-copy-btn]');
     if (!copyBtn) {
@@ -162,7 +183,16 @@ export function HomeCard({ card, className = '', style = {} }) {
         return;
       }
 
-      copyWithToast(textToCopy);
+      const originalHTML = copyBtn.innerHTML;
+      copyBtn.textContent = 'Copied \u2713';
+      copyBtn.classList.add('rte-copy-btn-copied');
+      
+      try { copyWithToast(textToCopy); } catch (e) {}
+
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHTML;
+        copyBtn.classList.remove('rte-copy-btn-copied');
+      }, 2000);
       return;
     }
 

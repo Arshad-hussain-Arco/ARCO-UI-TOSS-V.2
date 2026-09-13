@@ -511,8 +511,8 @@ export function handleUnifiedCopyClick(e, toast) {
           break;
         }
         // Match ANY element (like span, div, td) if its EXACT text is just "Copy" or "Copy Path"
-        const exactText = curr.textContent.trim().toLowerCase();
-        if (exactText === 'copy' || exactText === 'copy path') {
+        const exactText = curr.textContent.replace(/[\u200B-\u200D\uFEFF\xA0]/g, '').trim().toLowerCase();
+        if (exactText === 'copy' || exactText === 'copy path' || (exactText.includes('copy') && exactText.length < 12 && curr.nodeName !== 'TD' && curr.nodeName !== 'TH')) {
           copyBtn = curr;
           break;
         }
@@ -556,6 +556,12 @@ export function handleUnifiedCopyClick(e, toast) {
       }
     }
 
+    if (copyBtn.classList.contains('rte-copy-btn-copied')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return true;
+    }
+
     const originalHTML = copyBtn.innerHTML;
     
     if (!textToCopy) {
@@ -568,6 +574,7 @@ export function handleUnifiedCopyClick(e, toast) {
     copyBtn.classList.add('rte-copy-btn-copied');
     
     const showCopied = () => {
+      toast?.success('Text copied!');
       setTimeout(() => {
         copyBtn.innerHTML = originalHTML;
         copyBtn.classList.remove('rte-copy-btn-copied');

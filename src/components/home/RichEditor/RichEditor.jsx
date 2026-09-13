@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
 import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
+import { copyWithToast } from '@utils/copyToClipboard';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
 import * as PdfHandler from './PdfHandler';
@@ -10,7 +11,7 @@ import * as AttachmentHandler from './AttachmentHandler';
 import { ProgressTooltip } from '@pages/ProjectMonitoring/components/ProgressTooltip';
 
 import './RichEditor.css';
-import { initializeIcons } from '@fluentui/react/lib/Icons';
+import { initializeIcons } from '@fluentui/react';
 
 initializeIcons(undefined, { disableWarnings: true });
 
@@ -748,17 +749,19 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       const codeBlock = copyBtn.closest('.rte-code-preview');
       const codeEl = codeBlock?.querySelector('.rte-code-body code');
       if (codeEl) {
-        navigator.clipboard.writeText(codeEl.textContent).then(() => {
-          copyBtn.classList.add('rte-code-copied');
-          const origHtml = copyBtn.innerHTML;
-          copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
-          setTimeout(() => {
-            copyBtn.classList.remove('rte-code-copied');
-            copyBtn.innerHTML = origHtml;
-          }, 2000);
-        }).catch(() => {
-          toast?.error('Failed to copy to clipboard.');
-        });
+        if (copyBtn.classList.contains('rte-code-copied')) {
+          return;
+        }
+        const originalHTML = copyBtn.innerHTML;
+        copyBtn.classList.add('rte-code-copied');
+        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
+        
+        try { copyWithToast(codeEl.textContent); } catch (e) {}
+        
+        setTimeout(() => {
+          copyBtn.classList.remove('rte-code-copied');
+          copyBtn.innerHTML = originalHTML;
+        }, 2000);
       }
       return;
     }
@@ -1728,6 +1731,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 }}>
             <div
               ref={wrapperRef}
+              onMouseDownCapture={handleEditorClick}
+              onClickCapture={handleEditorClick}
               className={!value || value.trim() === '<div><br></div>' || value.trim() === '' || value.trim() === '<p><br></p>' || value.trim() === '<br>' ? 'rte-empty' : ''}
               data-placeholder={placeholder}
               style={{ position: 'relative', borderTop: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderLeft: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderRight: isFullscreen ? 'none' : '1px solid var(--border-primary)', flex: 1, minHeight: isFullscreen ? 0 : '300px', padding: '16px', background: 'var(--surface-primary)', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: isFullscreen ? 'none' : (showHtmlPreview ? 'none' : '1px solid var(--border-primary)'), overflowY: 'auto' }}>

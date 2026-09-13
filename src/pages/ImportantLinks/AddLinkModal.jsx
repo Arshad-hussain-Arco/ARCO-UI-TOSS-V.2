@@ -128,8 +128,8 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
           if (curr.matches('button, .btn, a, .arco-btn, [role="button"]') && curr.textContent.trim().toLowerCase().includes('copy')) {
             copyBtn = curr; break;
           }
-          const exactText = curr.textContent.trim().toLowerCase();
-          if (exactText === 'copy' || exactText === 'copy path') {
+          const exactText = curr.textContent.replace(/[\u200B-\u200D\uFEFF\xA0]/g, '').trim().toLowerCase();
+          if (exactText === 'copy' || exactText === 'copy path' || (exactText.includes('copy') && exactText.length < 12 && curr.nodeName !== 'TD' && curr.nodeName !== 'TH')) {
             copyBtn = curr; break;
           }
         }
@@ -151,8 +151,8 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
             copyBtn = curr;
             break;
           }
-          const exactText = curr.textContent.trim().toLowerCase();
-          if (exactText === 'copy' || exactText === 'copy path') {
+          const exactText = curr.textContent.replace(/[\u200B-\u200D\uFEFF\xA0]/g, '').trim().toLowerCase();
+          if (exactText === 'copy' || exactText === 'copy path' || (exactText.includes('copy') && exactText.length < 12 && curr.nodeName !== 'TD' && curr.nodeName !== 'TH')) {
             copyBtn = curr;
             break;
           }
@@ -165,6 +165,10 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
       e.preventDefault();
       e.stopPropagation();
       
+      if (copyBtn.classList.contains('rte-copy-btn-copied')) {
+        return;
+      }
+
       let textToCopy = copyBtn.getAttribute('data-copy-text') || copyBtn.getAttribute('data-copy') || '';
 
       if (!textToCopy) {
@@ -200,7 +204,16 @@ function SimpleRichTextEditor({ value, onChange, hasError }) {
         return;
       }
 
-      copyWithToast(textToCopy);
+      const originalHTML = copyBtn.innerHTML;
+      copyBtn.textContent = 'Copied \u2713';
+      copyBtn.classList.add('rte-copy-btn-copied');
+      
+      try { copyWithToast(textToCopy); } catch (e) {}
+
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHTML;
+        copyBtn.classList.remove('rte-copy-btn-copied');
+      }, 2000);
       return;
     }
   };
