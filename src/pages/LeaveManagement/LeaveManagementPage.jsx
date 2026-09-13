@@ -251,11 +251,6 @@ export const SortIcon = ({ field, sortField, sortOrder }) => {
 function LeaveManagementSkeleton() {
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-        <Skeleton height={36} width="200px" style={{ borderRadius: '6px' }} />
-        <Skeleton height={36} width="120px" style={{ borderRadius: '6px' }} />
-        <Skeleton height={36} width="120px" style={{ borderRadius: '6px' }} />
-      </div>
       <Skeleton height={48} width="100%" style={{ borderRadius: '8px 8px 0 0', marginBottom: '2px' }} />
       <Skeleton height={64} width="100%" count={1} style={{ marginBottom: '2px' }} />
       <Skeleton height={64} width="100%" count={1} style={{ marginBottom: '2px' }} />
@@ -1254,10 +1249,6 @@ export function LeaveManagementPage() {
                     description={error.message}
                     onRetry={() => setRefreshKey((k) => k + 1)}
                   />
-                ) : isLoading ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '400px', width: '100%', padding: '0 8px' }}>
-                    <LeaveManagementSkeleton />
-                  </div>
                 ) : viewMode === 'list' ? (
                   <div className="leave-table-container">
                     <table className="leave-table">
@@ -1300,7 +1291,20 @@ export function LeaveManagementPage() {
                         </tr>
                       </thead>
                       <tbody className="leave-table-tbody">
-                        {filteredSortedLeaves.map((leave) => {
+                        {isLoading ? (
+                          Array.from({ length: 5 }).map((_, i) => (
+                            <tr key={i} className="leave-table-row">
+                              <td className="leave-table-cell"><Skeleton height={20} width="80%" /></td>
+                              <td className="leave-table-cell"><Skeleton height={20} width="70%" /></td>
+                              <td className="leave-table-cell"><Skeleton height={20} width="40%" /></td>
+                              <td className="leave-table-cell"><Skeleton height={20} width="80%" /></td>
+                              {filterStatus === 'pending' && <td className="leave-table-cell"><Skeleton height={20} width="60%" /></td>}
+                              <td className="leave-table-cell"><Skeleton height={24} width="70%" style={{ borderRadius: '12px' }} /></td>
+                              <td className="leave-table-cell"><Skeleton height={20} width="80%" /></td>
+                              <td className="leave-table-cell"><Skeleton height={24} width={24} style={{ borderRadius: '4px' }} /></td>
+                            </tr>
+                          ))
+                        ) : filteredSortedLeaves.map((leave) => {
                           const startDate = new Date(leave.start_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const endDate = new Date(leave.end_date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
                           const dateDisplay = leave.start_date === leave.end_date ? startDate : `${startDate} - ${endDate}`;
