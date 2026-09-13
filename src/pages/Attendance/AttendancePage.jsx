@@ -282,6 +282,57 @@ function AttendanceSkeleton({ reportDates, timelineDates, subTab, viewMode }) {
   );
 }
 
+/* ── Card View Skeleton ─────────────────────────────────────────────────── */
+function AttendanceCardSkeleton() {
+  return (
+    <div className="attendance-card-grid">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="attendance-card" style={{ opacity: 1 }}>
+          <div className="attendance-card-header">
+            <div className="attendance-consultant-avatar">
+              <Skeleton height={36} width={36} style={{ borderRadius: '8px' }} />
+            </div>
+            <div className="attendance-card-info" style={{ flex: 1 }}>
+              <Skeleton height={14} width="70%" style={{ marginBottom: '6px' }} />
+              <Skeleton height={11} width="45%" />
+            </div>
+            <Skeleton height={22} width={40} style={{ borderRadius: '12px' }} />
+          </div>
+
+          <div className="attendance-card-ring-wrapper">
+            <div className="attendance-card-ring">
+              <svg className="attendance-ring-svg" viewBox="0 0 100 100">
+                <circle
+                  cx="50" cy="50" r="42" fill="none"
+                  stroke="var(--surface-tertiary)" strokeWidth="6"
+                />
+              </svg>
+              <div className="attendance-ring-text">
+                <Skeleton height={18} width={36} style={{ marginBottom: '4px' }} />
+                <Skeleton height={10} width={30} />
+              </div>
+            </div>
+          </div>
+
+          <div className="attendance-card-stats">
+            {Array.from({ length: 3 }).map((_, j) => (
+              <div key={j} className="attendance-card-stat">
+                <Skeleton height={18} width={24} style={{ marginBottom: '4px' }} />
+                <Skeleton height={10} width={36} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Skeleton height={12} width={12} style={{ borderRadius: '2px' }} />
+            <Skeleton height={11} width={80} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 // Codes that render as plain coloured text (no badge background/border)
@@ -376,7 +427,7 @@ export function AttendancePage() {
   const [onWfhTimelineFilter, setOnWfhTimelineFilter] = useState('next30');
   const [selectedTeam, setSelectedTeam] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const setSubTab = (tab) => {
     setSearchParams(prev => {
       prev.set('tab', tab);
@@ -709,8 +760,8 @@ export function AttendancePage() {
         // still drives the Remote/Other Present KPI count and tab filters.
         const status = d.working_mode === 'WFH' ? 'wfh'
           : d.working_mode === 'REMOTE' ? 'remote'
-          : d.working_mode === 'OFFICE' ? 'present'
-          : 'offshore';
+            : d.working_mode === 'OFFICE' ? 'present'
+              : 'offshore';
         // The On Duty list's location/badge shows where the employee
         // normally works (their profile's work_location), not today's
         // specific leave type — so it never shows "Work From Home" here,
@@ -896,33 +947,33 @@ export function AttendancePage() {
           avatar: l.avatar
         };
       });
-      
+
       const combined = [...filteredOnDuty, ...leaveSource];
       const combinedMap = new Map();
       combined.forEach(c => {
-         // Prefer present/remote over leave if duplicates exist due to mock data
-         if (!combinedMap.has(c.id) || (combinedMap.get(c.id).status === 'leave' && c.status !== 'leave')) {
-             combinedMap.set(c.id, c);
-         }
+        // Prefer present/remote over leave if duplicates exist due to mock data
+        if (!combinedMap.has(c.id) || (combinedMap.get(c.id).status === 'leave' && c.status !== 'leave')) {
+          combinedMap.set(c.id, c);
+        }
       });
-      
+
       const absentSource = [];
       if (allConsultants) {
-         allConsultants.forEach(c => {
-            if (!combinedMap.has(c.id)) {
-               absentSource.push({
-                 id: c.id,
-                 name: c.name,
-                 team: c.team || 'Other',
-                 status: 'absent',
-                 manager: 'Manager',
-                 location: 'Unknown',
-                 phone: 'N/A',
-                 email: 'N/A',
-                 avatar: c.avatar
-               });
-            }
-         });
+        allConsultants.forEach(c => {
+          if (!combinedMap.has(c.id)) {
+            absentSource.push({
+              id: c.id,
+              name: c.name,
+              team: c.team || 'Other',
+              status: 'absent',
+              manager: 'Manager',
+              location: 'Unknown',
+              phone: 'N/A',
+              email: 'N/A',
+              avatar: c.avatar
+            });
+          }
+        });
       }
 
       const fullTeam = [...Array.from(combinedMap.values()), ...absentSource];
@@ -1033,12 +1084,12 @@ export function AttendancePage() {
       return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
     }
     const imgStyle = { width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', backgroundColor: '#ffffff' };
-    
+
     let src = avatarData;
     if (typeof src === 'string') {
       src = src.replace(/\s+/g, '');
       if (!src || src === 'null') {
-          return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
+        return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
       }
       if (src.startsWith('data:image') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
         // Use as-is
@@ -1051,7 +1102,7 @@ export function AttendancePage() {
         return name ? name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : '?';
       }
     }
-    
+
     return <img src={src} alt={name} style={imgStyle} />;
   };
 
@@ -1085,682 +1136,757 @@ export function AttendancePage() {
       {error ? (
         <ErrorState title="Attendance could not be loaded" description={error.message} onRetry={refetch} />
       ) : (
-      <>
+        <>
 
-      {/* ── Filters — compact single row ── */}
-      <div className="att-filterbar">
-        <Select
-          value={selectedTeam}
-          onChange={setSelectedTeam}
-          options={dynamicTeamOptions}
-          width="190px"
-        />
-
-        {/* Search */}
-        <div className="att-search-wrap">
-          <Search size={13} className="att-search-icon" />
-          <input
-            type="text"
-            placeholder="Search consultant…"
-            className="att-search-input"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingRight: '32px' }}
-          />
-          {searchQuery && (
-            <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        {/* Month nav — only on Report tab, when no date range active */}
-        {subTab === 'report' && !filterDateRange.from && (
-          <div className="att-month-nav">
-            <button className="att-month-arrow" onClick={handlePrevMonth} title="Previous month">
-              <ChevronLeft size={14} />
-            </button>
+          {/* ── Filters — compact single row ── */}
+          <div className="att-filterbar">
             <Select
-              value={filterMonth}
-              onChange={setFilterMonth}
-              options={MONTH_OPTIONS}
-              width="130px"
+              value={selectedTeam}
+              onChange={setSelectedTeam}
+              options={dynamicTeamOptions}
+              width="190px"
             />
-            <Select
-              value={filterYear}
-              onChange={setFilterYear}
-              options={YEAR_OPTIONS}
-              width="92px"
-            />
-            <button className="att-month-arrow" onClick={handleNextMonth} title="Next month">
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        )}
 
-        {/* Date Range — only on Report tab */}
-        {subTab === 'report' && (
-          <DatePicker
-            mode="range"
-            value={filterDateRange.from ? filterDateRange : undefined}
-            onChange={val => setFilterDateRange(val ?? { from: undefined, to: undefined })}
-            placeholder="Date range…"
-            showClear
-            width="200px"
-          />
-        )}
-
-        {/* Spacer */}
-        <div className="att-filterbar-spacer" />
-
-        {/* View toggle — not on On Duty */}
-        {subTab !== 'on-duty' && (
-          <div className="attendance-view-switcher">
-            <button
-              className={`attendance-view-btn${viewMode === 'list' ? ' active' : ''}`}
-              onClick={() => setViewMode('list')}
-            >List</button>
-            {(subTab === 'on-leave' || subTab === 'on-wfh') && (
-              <button
-                className={`attendance-view-btn${viewMode === 'timeline' ? ' active' : ''}`}
-                onClick={() => setViewMode('timeline')}
-              >Timeline</button>
-            )}
-            {subTab === 'report' && (
-              <button
-                className={`attendance-view-btn${viewMode === 'card' ? ' active' : ''}`}
-                onClick={() => setViewMode('card')}
-              >Card</button>
-            )}
-          </div>
-        )}
-
-        {/* Export */}
-        {canExport && (
-          <ExportButton
-            excel
-            pdf
-            onExcelExport={handleExportCSV}
-            onPdfExport={handleExportPDF}
-          />
-        )}
-      </div>
-
-      {/* ── KPI Cards — On Duty tab only ── */}
-      {subTab === 'on-duty' && (
-        <div className="attendance-kpi-section">
-          {[
-            { key: 'total', icon: <Users size={20} />, color: 'blue', count: kpiTotalConsultants, label: 'Total Consultants' },
-            { key: 'present', icon: <Building2 size={20} />, color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
-            // Only employees on an actual leave type today whose counts_as_present
-            // is true (status 'wfh' or 'offshore', per the backend's working_mode
-            // classification) — excludes plain profile-remote workers with no leave.
-            { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore').length, label: 'Remote / Other Present' },
-            { key: 'leave', icon: <Clock size={20} />, color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
-            { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(kpiTotalConsultants, 1) * 100)}%`, label: 'Attendance %' },
-          ].map(({ key, icon, color, count, label }) => (
-            <div
-              key={key}
-              className={`attendance-kpi-card${activeKPI === key ? ' kpi-active' : ''}`}
-              {...activatable(() => setActiveKPI(p => p === key ? null : key), { isPressed: activeKPI === key })}
-            >
-              <div className="kpi-icon-wrapper" data-color={color}>{icon}</div>
-              <div className="kpi-details">
-                <div className="kpi-count">{(isLoading || !data) ? <Skeleton width={40} height={24} /> : count}</div>
-                <div className="kpi-label">{label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Content ── */}
-      <div className="attendance-content">
-
-        {(isLoading || !data) ? (
-          <AttendanceSkeleton reportDates={reportDates} timelineDates={timelineDates} subTab={subTab} viewMode={viewMode} />
-        ) : (
-          <>
-            {/* On Duty — List */}
-            {subTab === 'on-duty' && (
-              <div className="attendance-list">
-            {dutyError && (
-              <div className="attendance-inline-error">
-                <AlertCircle size={16} />
-                <span>Could not load today&apos;s live status; showing data from the attendance calendar instead.</span>
-              </div>
-            )}
-            {Object.entries(groupedOnDuty).map(([team, consultants]) => {
-              const isExpanded = !collapsedTeams.has(team) || Boolean(debouncedSearch.trim());
-              return (
-              <div key={team} className="attendance-team-group">
-                <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
-                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <span className="attendance-team-name">{team.charAt(0).toUpperCase() + team.slice(1)}</span>
-                  <span className="attendance-team-badge">{consultants.length}</span>
-                </button>
-                {isExpanded && (
-                  <div className="attendance-team-content">
-                    {consultants.map(c => (
-                      <div key={c.id} className="attendance-consultant-row">
-                        <div className="attendance-consultant-main">
-                          <div className="attendance-consultant-avatar">{renderAvatar(c.avatar, c.name)}</div>
-                          <div className="attendance-consultant-info">
-                            <div className="attendance-consultant-name">{c.name}</div>
-                            <div className="attendance-consultant-manager">Manager: {c.manager}</div>
-                          </div>
-                        </div>
-                        <div className="attendance-consultant-details">
-                          <div className="attendance-detail-item"><MapPin size={12} className="attendance-detail-icon" /><span>{c.location}</span></div>
-                          <div className="attendance-detail-item"><Phone size={12} className="attendance-detail-icon" /><span>{c.phone}</span></div>
-                          <div className="attendance-detail-item"><Mail size={12} className="attendance-detail-icon" /><span>{c.email}</span></div>
-                        </div>
-                        {/* On Duty badge mirrors the location text above — Office/Off-site
-                            based on the employee's profile work location, never today's
-                            specific leave type (e.g. Work From Home, Offshore Work). */}
-                        <div className={`attendance-status-badge ${c.location === 'Off-site' ? 'att-status-remote' : 'att-status-present'}`}>
-                          {c.location}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-            })}
-            {displayOnDuty.length === 0 && (
-              <div className="attendance-empty">
-                <User size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants found for this filter</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* On WFH — Timeline */}
-        {subTab === 'on-wfh' && viewMode === 'timeline' && (
-          <div className="attendance-timeline-wrapper">
-            <div className="att-timeline-folder-tabs">
-              <button
-                className="att-folder-tab"
-                data-active={onWfhTimelineFilter === 'next30'}
-                onClick={() => setOnWfhTimelineFilter('next30')}
-              >
-                <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnWfhTimelineNext30Count}</span>
-              </button>
-              <button
-                className="att-folder-tab"
-                data-active={onWfhTimelineFilter === 'today'}
-                onClick={() => setOnWfhTimelineFilter('today')}
-              >
-                <span className="att-folder-tab-label">Today</span>
-              </button>
-              <button
-                className="att-folder-tab"
-                data-active={onWfhTimelineFilter === 'tomorrow'}
-                onClick={() => setOnWfhTimelineFilter('tomorrow')}
-              >
-                <span className="att-folder-tab-label">Tomorrow</span>
-              </button>
-            </div>
-
-            <div className="attendance-timeline">
-              <div className="attendance-timeline-scroll">
-              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
-                <div className="attendance-timeline-header">
-                  <div className="attendance-timeline-consultant-col">CONSULTANT</div>
-                  <div className="attendance-timeline-dates">
-                    {timelineDates.map((date, idx) => (
-                      <div key={idx} className="attendance-timeline-date">
-                        <div className="attendance-timeline-date-day">{date.getDate()}</div>
-                        <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="attendance-timeline-body">
-                  {filteredOnWfhTimeline.length === 0 ? (
-                    <div className="attendance-empty attendance-empty-in-timeline">
-                      <Briefcase size={48} className="attendance-empty-icon" />
-                      <p className="attendance-empty-text">No consultants on WFH/Offshore Work</p>
-                    </div>
-                  ) : Object.entries(
-                    filteredOnWfhTimeline.reduce((acc, curr) => {
-                      const t = curr.team || 'Other';
-                      if (!acc[t]) acc[t] = [];
-                      acc[t].push(curr);
-                      return acc;
-                    }, {})
-                  ).map(([teamName, members]) => (
-                    <div key={teamName} className="attendance-timeline-team-group">
-                      <div
-                        className="attendance-timeline-team-header"
-                        style={{ backgroundColor: '#ecfeff', border: '1px solid #cffafe' }}
-                      >
-                        <div className="attendance-timeline-team-header-label" style={{ color: '#164e63' }}>
-                          <div className="att-team-header-icon" style={{ color: '#06b6d4', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
-                          <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
-                        </div>
-                      </div>
-                      {members.map(leave => (
-                        <div key={leave.consultantId} className="attendance-timeline-row">
-                          <div className="attendance-timeline-consultant">
-                            <div className="attendance-timeline-consultant-avatar">
-                              {renderAvatar(leave.avatar, leave.consultantName)}
-                            </div>
-                            <div className="attendance-timeline-consultant-info">
-                              <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
-                              <div className="attendance-timeline-consultant-team">{leave.team}</div>
-                            </div>
-                          </div>
-                          <div className="attendance-timeline-bars">
-                            {timelineDates.map((date, idx) => {
-                              const dateStr = formatDateKey(date);
-                              const wfhDetails = getWfhDetailsForDate(dateStr);
-                              const wfhDetail = wfhDetails.find(l => l.emp_id === leave.consultantId);
-                              const inLeave = !!wfhDetail;
-                              // Any present-type leave HR configures beyond WFH itself —
-                              // look up its real code/label instead of assuming Offshore Work.
-                              const presentType = CODE_LOOKUP[wfhDetail?.leave_type];
-                              const pillLabel = wfhDetail?.leave_type === 'WFH' ? 'WFH' : (presentType?.code || wfhDetail?.leave_type || 'WFH');
-                              const pillColor = wfhDetail?.leave_type === 'WFH' ? '#06b6d4' : (presentType?.color || '#0ea5e9');
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
-                                >
-                                  {inLeave && (
-                                    <div title={`${presentType?.label || pillLabel} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                      <span className="attendance-timeline-leave-pill" style={{ color: pillColor, border: `1px solid ${pillColor}`, backgroundColor: 'transparent', width: 'auto', padding: '2px 8px', height: 'auto', minHeight: '22px' }}>{pillLabel}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              </div>
-              {filteredOnWfhTimeline.length > 0 && <LeaveTypeNameLegend leaveTypes={presentTypeNames} />}
-            </div>
-          </div>
-        )}
-
-        {/* On WFH — List */}
-        {subTab === 'on-wfh' && viewMode === 'list' && (
-          <div className="attendance-list">
-            {wfhError && (
-              <div className="attendance-inline-error">
-                <AlertCircle size={16} />
-                <span>Could not load today&apos;s live WFH/Offshore Work status; showing data from the attendance calendar instead.</span>
-              </div>
-            )}
-            {filteredOnWfhList.map(leave => (
-              <div key={leave.consultantId} className="attendance-leave-card">
-                <div className="attendance-leave-main">
-                  <div className="attendance-consultant-avatar">
-                    {renderAvatar(leave.avatar, leave.consultantName)}
-                  </div>
-                  <div className="attendance-leave-info">
-                    <div className="attendance-consultant-name">{leave.consultantName}</div>
-                    <div className="attendance-consultant-team">{leave.team}</div>
-                  </div>
-                </div>
-                <div className="attendance-leave-details">
-                  <div className="attendance-leave-type">{leave.leaveType}</div>
-                  <div className="attendance-leave-dates">
-                    {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    {' – '}
-                    {new Date(leave.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                  </div>
-                  <div className="attendance-leave-days">{leave.days} days</div>
-                </div>
-              </div>
-            ))}
-            {filteredOnWfhList.length === 0 && (
-              <div className="attendance-empty">
-                <Home size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on Remote / Other Present today</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* On Leave — Timeline */}
-        {subTab === 'on-leave' && viewMode === 'timeline' && (
-          <div className="attendance-timeline-wrapper">
-            {/* Timeline Filters - Folder Tabs */}
-            <div className="att-timeline-folder-tabs">
-              <button
-                className="att-folder-tab"
-                data-active={onLeaveTimelineFilter === 'next30'}
-                onClick={() => setOnLeaveTimelineFilter('next30')}
-              >
-                <span className="att-folder-tab-label">Next 30 Days</span>
-                <span className="att-folder-tab-badge">{filteredOnLeaveTimelineNext30Count}</span>
-              </button>
-              <button
-                className="att-folder-tab"
-                data-active={onLeaveTimelineFilter === 'today'}
-                onClick={() => setOnLeaveTimelineFilter('today')}
-              >
-                <span className="att-folder-tab-label">Today</span>
-              </button>
-              <button
-                className="att-folder-tab"
-                data-active={onLeaveTimelineFilter === 'tomorrow'}
-                onClick={() => setOnLeaveTimelineFilter('tomorrow')}
-              >
-                <span className="att-folder-tab-label">Tomorrow</span>
-              </button>
-            </div>
-
-            <div className="attendance-timeline">
-              <div className="attendance-timeline-scroll">
-              <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
-                <div className="attendance-timeline-header">
-                  <div className="attendance-timeline-consultant-col">CONSULTANT</div>
-                  <div className="attendance-timeline-dates">
-                    {timelineDates.map((date, idx) => (
-                      <div key={idx} className="attendance-timeline-date">
-                        <div className="attendance-timeline-date-day">{date.getDate()}</div>
-                        <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="attendance-timeline-body">
-                  {filteredOnLeaveTimeline.length === 0 ? (
-                    <div className="attendance-empty attendance-empty-in-timeline">
-                      <Calendar size={48} className="attendance-empty-icon" />
-                      <p className="attendance-empty-text">No consultants on leave</p>
-                    </div>
-                  ) : Object.entries(
-                    filteredOnLeaveTimeline.reduce((acc, curr) => {
-                      const t = curr.team || 'Other';
-                      if (!acc[t]) acc[t] = [];
-                      acc[t].push(curr);
-                      return acc;
-                    }, {})
-                  ).map(([teamName, members]) => (
-                    <div key={teamName} className="attendance-timeline-team-group">
-                      <div
-                        className="attendance-timeline-team-header"
-                        style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}
-                      >
-                        <div className="attendance-timeline-team-header-label" style={{ color: '#0369a1' }}>
-                          <div className="att-team-header-icon" style={{ color: '#0ea5e9', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
-                          <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
-                        </div>
-                      </div>
-                      {members.map(leave => (
-                        <div key={leave.consultantId} className="attendance-timeline-row">
-                          <div className="attendance-timeline-consultant">
-                            <div className="attendance-timeline-consultant-avatar">
-                              {renderAvatar(leave.avatar, leave.consultantName)}
-                            </div>
-                            <div className="attendance-timeline-consultant-info">
-                              <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
-                              <div className="attendance-timeline-consultant-team">{leave.team}</div>
-                            </div>
-                          </div>
-                          <div className="attendance-timeline-bars">
-                            {timelineDates.map((date, idx) => {
-                              const dateStr = formatDateKey(date);
-                              const leaveDetails = getLeaveDetailsForDate(dateStr);
-                              const leaveDetail = leaveDetails.find(l => l.emp_id === leave.consultantId);
-                              const inLeave = !!leaveDetail;
-                              const lType = leaveDetail?.leave_type || leave.leaveType;
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
-                                >
-                                  {inLeave && (
-                                    <div title={`${lType} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                                      <StatusBadge code={lType} variant="outline" />
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              </div>
-              {filteredOnLeaveTimeline.length > 0 && <LeaveTypeNameLegend leaveTypes={leaveOnlyTypeNames} />}
-            </div>
-          </div>
-        )}
-
-        {/* On Leave — List */}
-        {subTab === 'on-leave' && viewMode === 'list' && (
-          <div className="attendance-list">
-            {leaveError && (
-              <div className="attendance-inline-error">
-                <AlertCircle size={16} />
-                <span>Could not load today&apos;s live leave status; showing data from the attendance calendar instead.</span>
-              </div>
-            )}
-            {filteredOnLeaveList.map(leave => (
-              <div key={leave.consultantId} className="attendance-leave-card">
-                <div className="attendance-leave-main">
-                  <div className="attendance-consultant-avatar">
-                    {renderAvatar(leave.avatar, leave.consultantName)}
-                  </div>
-                  <div className="attendance-leave-info">
-                    <div className="attendance-consultant-name">{leave.consultantName}</div>
-                    <div className="attendance-consultant-team">{leave.team}</div>
-                  </div>
-                </div>
-                <div className="attendance-leave-details">
-                  <div className="attendance-leave-type">{leave.leaveType}</div>
-                  <div className="attendance-leave-dates">
-                    {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                    {' – '}
-                    {new Date(leave.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                  </div>
-                  <div className="attendance-leave-days">{leave.days} days</div>
-                </div>
-              </div>
-            ))}
-            {filteredOnLeaveList.length === 0 && (
-              <div className="attendance-empty">
-                <Calendar size={48} className="attendance-empty-icon" />
-                <p className="attendance-empty-text">No consultants on leave</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Attendance Report — Table ── */}
-        {subTab === 'report' && viewMode === 'list' && (
-          <div className="att-report-outer">
-            {/* Meta bar */}
-            <div className="att-report-meta">
-              <span className="att-report-range-label">
-                {filterDateRange.from && filterDateRange.to
-                  ? `${filterDateRange.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} – ${filterDateRange.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                  : `${MONTH_NAMES[Number(filterMonth)]} ${filterYear}`}
-              </span>
-              {filterDateRange.from && (
-                <button className="att-clear-range-btn" onClick={handleClearDateRange}>
-                  Clear range
+            {/* Search */}
+            <div className="att-search-wrap">
+              <Search size={13} className="att-search-icon" />
+              <input
+                type="text"
+                placeholder="Search consultant…"
+                className="att-search-input"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ paddingRight: '32px' }}
+              />
+              {searchQuery && (
+                <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                  <X size={14} />
                 </button>
               )}
-              <span className="att-report-count">{filteredReportRows.length} consultants</span>
             </div>
 
-            <div className="att-report-card">
-            <div className="att-report-scroll">
-              <table className="att-report-table">
-                <thead className="att-report-thead">
-                  <tr>
-                    <th className="att-th att-th-consultant">Consultant</th>
-                    {reportDates.map((date, idx) => {
-                      const we = isWeekend(date);
-                      return (
-                        <th key={idx} className={`att-th att-th-date${we ? ' att-th-weekend' : ''}`}>
-                          <div className="att-date-header">
-                            <span className="att-date-num">{date.getDate()}</span>
-                            <span className="att-date-dow">{date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}</span>
-                          </div>
-                        </th>
-                      );
-                    })}
-                    <th className="att-th att-th-summary">Summary</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredReportRows.map(({ consultant, record, stats }) => (
-                    <tr key={consultant.id} className="att-report-row">
-                      <td className="att-td att-td-consultant">
-                        <div className="att-consultant-cell">
-                          <div className="attendance-consultant-avatar att-avatar-sm">{renderAvatar(consultant.avatar, consultant.name)}</div>
-                          <div>
-                            <div className="att-consultant-name">{consultant.name}</div>
-                            <div className="att-consultant-team">{consultant.team}</div>
-                          </div>
-                        </div>
-                      </td>
-                      {reportDates.map((date, idx) => {
-                        const key = formatDateKey(date);
-                        const code = record.dates[key] || '';
-                        const we = isWeekend(date);
-                        return (
-                          <td key={idx} className={`att-td att-td-cell${we ? ' att-td-weekend' : ''}`}>
-                            {code && <StatusBadge code={code} />}
-                          </td>
-                        );
-                      })}
-                      <td className="att-td att-td-summary">
-                        <div className="att-summary-block">
-                          <div className="att-summary-row att-summary-present">
-                            <span className="att-summary-label">P</span>
-                            <span className="att-summary-val">{stats.presentDays}</span>
-                          </div>
-                          <div className="att-summary-row att-summary-absent">
-                            <span className="att-summary-label">A</span>
-                            <span className="att-summary-val">{stats.absentDays}</span>
-                          </div>
-                          <div className="att-summary-row att-summary-total">
-                            <span className="att-summary-label">T</span>
-                            <span className="att-summary-val">{stats.totalWorkingDays}</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredReportRows.length === 0 && (
-                    <tr>
-                      <td colSpan={reportDates.length + 2} className="att-empty-cell">
-                        No records found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {filteredReportRows.length > 0 && (
-              <div className="att-report-legend-footer">
-                <InlineLegend />
+            {/* Month nav — only on Report tab, when no date range active */}
+            {subTab === 'report' && !filterDateRange.from && (
+              <div className="att-month-nav">
+                <button className="att-month-arrow" onClick={handlePrevMonth} title="Previous month">
+                  <ChevronLeft size={14} />
+                </button>
+                <Select
+                  value={filterMonth}
+                  onChange={setFilterMonth}
+                  options={MONTH_OPTIONS}
+                  width="130px"
+                />
+                <Select
+                  value={filterYear}
+                  onChange={setFilterYear}
+                  options={YEAR_OPTIONS}
+                  width="92px"
+                />
+                <button className="att-month-arrow" onClick={handleNextMonth} title="Next month">
+                  <ChevronRight size={14} />
+                </button>
               </div>
             )}
-            </div>
+
+            {/* Date Range — only on Report tab */}
+            {subTab === 'report' && (
+              <DatePicker
+                mode="range"
+                value={filterDateRange.from ? filterDateRange : undefined}
+                onChange={val => setFilterDateRange(val ?? { from: undefined, to: undefined })}
+                placeholder="Date range…"
+                showClear
+                width="200px"
+              />
+            )}
+
+            {/* Spacer */}
+            <div className="att-filterbar-spacer" />
+
+            {/* View toggle — not on On Duty */}
+            {subTab !== 'on-duty' && (
+              <div className="attendance-view-switcher">
+                <button
+                  className={`attendance-view-btn${viewMode === 'list' ? ' active' : ''}`}
+                  onClick={() => setViewMode('list')}
+                >List</button>
+                {(subTab === 'on-leave' || subTab === 'on-wfh') && (
+                  <button
+                    className={`attendance-view-btn${viewMode === 'timeline' ? ' active' : ''}`}
+                    onClick={() => setViewMode('timeline')}
+                  >Timeline</button>
+                )}
+                {subTab === 'report' && (
+                  <button
+                    className={`attendance-view-btn${viewMode === 'card' ? ' active' : ''}`}
+                    onClick={() => setViewMode('card')}
+                  >Card</button>
+                )}
+              </div>
+            )}
+
+            {/* Export */}
+            {canExport && (
+              <ExportButton
+                excel
+                pdf
+                onExcelExport={handleExportCSV}
+                onPdfExport={handleExportPDF}
+              />
+            )}
           </div>
-        )}
 
-        {/* Attendance Report — Card */}
-        {subTab === 'report' && viewMode === 'card' && (
-          <div className="attendance-card-grid">
-            {filteredReportRows.map(({ consultant, record, stats }) => {
-              const percentage = stats.totalWorkingDays > 0 ? Math.round((stats.presentDays / stats.totalWorkingDays) * 100) : 0;
-              return (
-              <div key={consultant.id} className="attendance-summary-card">
-                <div className="attendance-card-header">
-                  <div className="attendance-consultant-main">
-                    <div className="attendance-consultant-avatar">{renderAvatar(consultant.avatar, consultant.name)}</div>
-                    <div className="attendance-card-info">
-                      <div className="attendance-consultant-name">{consultant.name}</div>
-                      <div className="attendance-consultant-team">{consultant.team}</div>
-                    </div>
-                    <div className="attendance-card-badge" style={{
-                      backgroundColor: 'var(--surface-tertiary)',
-                      color: 'var(--status-success)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '4px 8px',
-                      borderRadius: '12px'
-                    }}>
-                      {percentage}%
-                    </div>
-                  </div>
-                  
-                  <div className="attendance-card-ring-wrapper">
-                    <div className="attendance-card-ring">
-                      <svg className="attendance-ring-svg" viewBox="0 0 100 100">
-                        <circle className="attendance-ring-bg" cx="50" cy="50" r="42" fill="none" stroke="var(--surface-tertiary)" strokeWidth="6" />
-                        <circle
-                          className="attendance-ring-progress"
-                          cx="50" cy="50" r="42" fill="none" stroke="url(#gradient-success)" strokeWidth="6"
-                          strokeDasharray={2 * Math.PI * 42}
-                          strokeDashoffset={2 * Math.PI * 42 * (1 - percentage / 100)}
-                          strokeLinecap="round"
-                          transform="rotate(-90 50 50)"
-                        />
-                        <defs>
-                          <linearGradient id="gradient-success" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="var(--status-success)" />
-                            <stop offset="100%" stopColor="#059669" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      <div className="attendance-ring-text">
-                        <div className="attendance-ring-percentage">{percentage}%</div>
-                        <div className="attendance-ring-label">Present</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="attendance-card-stats">
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.presentDays}</div>
-                      <div className="attendance-card-stat-label">Present</div>
-                    </div>
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.absentDays}</div>
-                      <div className="attendance-card-stat-label">Absent</div>
-                    </div>
-                    <div className="attendance-card-stat">
-                      <div className="attendance-card-stat-value">{stats.totalWorkingDays}</div>
-                      <div className="attendance-card-stat-label">Total</div>
-                    </div>
-                  </div>
-                  <div className="attendance-card-sparkline" style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-tertiary)', fontSize: '11px', fontWeight: 500 }}>
-                    <TrendingUp size={12} className="attendance-sparkline-icon" />
-                    <span className="attendance-sparkline-text">
-                      {MONTH_NAMES[Number(filterMonth)]} {filterYear}
-                    </span>
+          {/* ── KPI Cards — On Duty tab only ── */}
+          {subTab === 'on-duty' && (
+            <div className="attendance-kpi-section">
+              {[
+                { key: 'total', icon: <Users size={20} />, color: 'blue', count: kpiTotalConsultants, label: 'Total Consultants' },
+                { key: 'present', icon: <Building2 size={20} />, color: 'green', count: filteredOnDuty.filter(c => c.status === 'present').length, label: 'Present (Office)' },
+                // Only employees on an actual leave type today whose counts_as_present
+                // is true (status 'wfh' or 'offshore', per the backend's working_mode
+                // classification) — excludes plain profile-remote workers with no leave.
+                { key: 'wfh', icon: <Home size={20} />, color: 'blue', count: filteredOnDuty.filter(c => c.status === 'wfh' || c.status === 'offshore').length, label: 'Remote / Other Present' },
+                { key: 'leave', icon: <Clock size={20} />, color: 'amber', count: filteredOnLeaveList.length, label: 'On Leave' },
+                { key: 'attendance', icon: <Percent size={20} />, color: 'green', count: `${Math.round(filteredOnDuty.length / Math.max(kpiTotalConsultants, 1) * 100)}%`, label: 'Attendance %' },
+              ].map(({ key, icon, color, count, label }) => (
+                <div
+                  key={key}
+                  className={`attendance-kpi-card${activeKPI === key ? ' kpi-active' : ''}`}
+                  {...activatable(() => setActiveKPI(p => p === key ? null : key), { isPressed: activeKPI === key })}
+                >
+                  <div className="kpi-icon-wrapper" data-color={color}>{icon}</div>
+                  <div className="kpi-details">
+                    <div className="kpi-count">{(isLoading || !data) ? <Skeleton width={40} height={24} /> : count}</div>
+                    <div className="kpi-label">{label}</div>
                   </div>
                 </div>
-              </div>
-              );
-            })}
+              ))}
+            </div>
+          )}
+
+          {/* ── Content ── */}
+          <div className="attendance-content">
+
+            {(isLoading || !data) ? (
+              subTab === 'report' && viewMode === 'card'
+                ? <AttendanceCardSkeleton />
+                : <AttendanceSkeleton reportDates={reportDates} />
+            ) : (
+              <>
+                {/* On Duty — List */}
+                {subTab === 'on-duty' && (
+                  <div className="attendance-list">
+                    {dutyError && (
+                      <div className="attendance-inline-error">
+                        <AlertCircle size={16} />
+                        <span>Could not load today&apos;s live status; showing data from the attendance calendar instead.</span>
+                      </div>
+                    )}
+                    {Object.entries(groupedOnDuty).map(([team, consultants]) => {
+                      const isExpanded = !collapsedTeams.has(team) || Boolean(debouncedSearch.trim());
+                      return (
+                        <div key={team} className="attendance-team-group">
+                          <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            <span className="attendance-team-name">{team.charAt(0).toUpperCase() + team.slice(1)}</span>
+                            <span className="attendance-team-badge">{consultants.length}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="attendance-team-content">
+                              {consultants.map(c => (
+                                <div key={c.id} className="attendance-consultant-row">
+                                  <div className="attendance-consultant-main">
+                                    <div className="attendance-consultant-avatar">{renderAvatar(c.avatar, c.name)}</div>
+                                    <div className="attendance-consultant-info">
+                                      <div className="attendance-consultant-name">{c.name}</div>
+                                      <div className="attendance-consultant-manager">Manager: {c.manager}</div>
+                                    </div>
+                                  </div>
+                                  <div className="attendance-consultant-details">
+                                    <div className="attendance-detail-item"><MapPin size={12} className="attendance-detail-icon" /><span>{c.location}</span></div>
+                                    <div className="attendance-detail-item"><Phone size={12} className="attendance-detail-icon" /><span>{c.phone}</span></div>
+                                    <div className="attendance-detail-item"><Mail size={12} className="attendance-detail-icon" /><span>{c.email}</span></div>
+                                  </div>
+                                  {/* On Duty badge mirrors the location text above — Office/Off-site
+                            based on the employee's profile work location, never today's
+                            specific leave type (e.g. Work From Home, Offshore Work). */}
+                                  <div className={`attendance-status-badge ${c.location === 'Off-site' ? 'att-status-remote' : 'att-status-present'}`}>
+                                    {c.location}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {displayOnDuty.length === 0 && (
+                      <div className="attendance-empty">
+                        <User size={48} className="attendance-empty-icon" />
+                        <p className="attendance-empty-text">No consultants found for this filter</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* On WFH — Timeline */}
+                {subTab === 'on-wfh' && viewMode === 'timeline' && (
+                  <div className="attendance-timeline-wrapper">
+                    <div className="att-timeline-folder-tabs">
+                      <button
+                        className="att-folder-tab"
+                        data-active={onWfhTimelineFilter === 'next30'}
+                        onClick={() => setOnWfhTimelineFilter('next30')}
+                      >
+                        <span className="att-folder-tab-label">Next 30 Days</span>
+                        <span className="att-folder-tab-badge">{filteredOnWfhTimelineNext30Count}</span>
+                      </button>
+                      <button
+                        className="att-folder-tab"
+                        data-active={onWfhTimelineFilter === 'today'}
+                        onClick={() => setOnWfhTimelineFilter('today')}
+                      >
+                        <span className="att-folder-tab-label">Today</span>
+                      </button>
+                      <button
+                        className="att-folder-tab"
+                        data-active={onWfhTimelineFilter === 'tomorrow'}
+                        onClick={() => setOnWfhTimelineFilter('tomorrow')}
+                      >
+                        <span className="att-folder-tab-label">Tomorrow</span>
+                      </button>
+                    </div>
+
+                    <div className="attendance-timeline">
+                      <div className="attendance-timeline-scroll">
+                        <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                          <div className="attendance-timeline-header">
+                            <div className="attendance-timeline-consultant-col">CONSULTANT</div>
+                            <div className="attendance-timeline-dates">
+                              {timelineDates.map((date, idx) => (
+                                <div key={idx} className="attendance-timeline-date">
+                                  <div className="attendance-timeline-date-day">{date.getDate()}</div>
+                                  <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="attendance-timeline-body">
+                            {filteredOnWfhTimeline.length === 0 ? (
+                              <div className="attendance-empty attendance-empty-in-timeline">
+                                <Briefcase size={48} className="attendance-empty-icon" />
+                                <p className="attendance-empty-text">No consultants on WFH/Offshore Work</p>
+                              </div>
+                            ) : Object.entries(
+                              filteredOnWfhTimeline.reduce((acc, curr) => {
+                                const t = curr.team || 'Other';
+                                if (!acc[t]) acc[t] = [];
+                                acc[t].push(curr);
+                                return acc;
+                              }, {})
+                            ).map(([teamName, members]) => (
+                              <div key={teamName} className="attendance-timeline-team-group">
+                                <div
+                                  className="attendance-timeline-team-header"
+                                  style={{ backgroundColor: '#ecfeff', border: '1px solid #cffafe' }}
+                                >
+                                  <div className="attendance-timeline-team-header-label" style={{ color: '#164e63' }}>
+                                    <div className="att-team-header-icon" style={{ color: '#06b6d4', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
+                                    <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
+                                  </div>
+                                </div>
+                                {members.map(leave => (
+                                  <div key={leave.consultantId} className="attendance-timeline-row">
+                                    <div className="attendance-timeline-consultant">
+                                      <div className="attendance-timeline-consultant-avatar">
+                                        {renderAvatar(leave.avatar, leave.consultantName)}
+                                      </div>
+                                      <div className="attendance-timeline-consultant-info">
+                                        <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
+                                        <div className="attendance-timeline-consultant-team">{leave.team}</div>
+                                      </div>
+                                    </div>
+                                    <div className="attendance-timeline-bars">
+                                      {timelineDates.map((date, idx) => {
+                                        const dateStr = formatDateKey(date);
+                                        const wfhDetails = getWfhDetailsForDate(dateStr);
+                                        const wfhDetail = wfhDetails.find(l => l.emp_id === leave.consultantId);
+                                        const inLeave = !!wfhDetail;
+                                        // Any present-type leave HR configures beyond WFH itself —
+                                        // look up its real code/label instead of assuming Offshore Work.
+                                        const presentType = CODE_LOOKUP[wfhDetail?.leave_type];
+                                        const pillLabel = wfhDetail?.leave_type === 'WFH' ? 'WFH' : (presentType?.code || wfhDetail?.leave_type || 'WFH');
+                                        const pillColor = wfhDetail?.leave_type === 'WFH' ? '#06b6d4' : (presentType?.color || '#0ea5e9');
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
+                                          >
+                                            {inLeave && (
+                                              <div title={`${presentType?.label || pillLabel} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                                <span className="attendance-timeline-leave-pill" style={{ color: pillColor, border: `1px solid ${pillColor}`, backgroundColor: 'transparent', width: 'auto', padding: '2px 8px', height: 'auto', minHeight: '22px' }}>{pillLabel}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {filteredOnWfhTimeline.length > 0 && <LeaveTypeNameLegend leaveTypes={presentTypeNames} />}
+                    </div>
+                  </div>
+                )}
+
+                {/* On WFH — List */}
+                {subTab === 'on-wfh' && viewMode === 'list' && (
+                  <div className="attendance-list">
+                    {wfhError && (
+                      <div className="attendance-inline-error">
+                        <AlertCircle size={16} />
+                        <span>Could not load today&apos;s live WFH/Offshore Work status; showing data from the attendance calendar instead.</span>
+                      </div>
+                    )}
+                    {filteredOnWfhList.map(leave => (
+                      <div key={leave.consultantId} className="attendance-leave-card">
+                        <div className="attendance-leave-main">
+                          <div className="attendance-consultant-avatar">
+                            {renderAvatar(leave.avatar, leave.consultantName)}
+                          </div>
+                          <div className="attendance-leave-info">
+                            <div className="attendance-consultant-name">{leave.consultantName}</div>
+                            <div className="attendance-consultant-team">{leave.team}</div>
+                          </div>
+                        </div>
+                        <div className="attendance-leave-details">
+                          <div className="attendance-leave-type">{leave.leaveType}</div>
+                          <div className="attendance-leave-dates">
+                            {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            {' – '}
+                            {new Date(leave.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </div>
+                          <div className="attendance-leave-days">{leave.days} days</div>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredOnWfhList.length === 0 && (
+                      <div className="attendance-empty">
+                        <Home size={48} className="attendance-empty-icon" />
+                        <p className="attendance-empty-text">No consultants on Remote / Other Present today</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* On Leave — Timeline */}
+                {subTab === 'on-leave' && viewMode === 'timeline' && (
+                  <div className="attendance-timeline-wrapper">
+                    {/* Timeline Filters - Folder Tabs */}
+                    <div className="att-timeline-folder-tabs">
+                      <button
+                        className="att-folder-tab"
+                        data-active={onLeaveTimelineFilter === 'next30'}
+                        onClick={() => setOnLeaveTimelineFilter('next30')}
+                      >
+                        <span className="att-folder-tab-label">Next 30 Days</span>
+                        <span className="att-folder-tab-badge">{filteredOnLeaveTimelineNext30Count}</span>
+                      </button>
+                      <button
+                        className="att-folder-tab"
+                        data-active={onLeaveTimelineFilter === 'today'}
+                        onClick={() => setOnLeaveTimelineFilter('today')}
+                      >
+                        <span className="att-folder-tab-label">Today</span>
+                      </button>
+                      <button
+                        className="att-folder-tab"
+                        data-active={onLeaveTimelineFilter === 'tomorrow'}
+                        onClick={() => setOnLeaveTimelineFilter('tomorrow')}
+                      >
+                        <span className="att-folder-tab-label">Tomorrow</span>
+                      </button>
+                    </div>
+
+                    <div className="attendance-timeline">
+                      <div className="attendance-timeline-scroll">
+                        <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                          <div className="attendance-timeline-header">
+                            <div className="attendance-timeline-consultant-col">CONSULTANT</div>
+                            <div className="attendance-timeline-dates">
+                              {timelineDates.map((date, idx) => (
+                                <div key={idx} className="attendance-timeline-date">
+                                  <div className="attendance-timeline-date-day">{date.getDate()}</div>
+                                  <div className="attendance-timeline-date-month">{date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="attendance-timeline-body">
+                            {filteredOnLeaveTimeline.length === 0 ? (
+                              <div className="attendance-empty attendance-empty-in-timeline">
+                                <Calendar size={48} className="attendance-empty-icon" />
+                                <p className="attendance-empty-text">No consultants on leave</p>
+                              </div>
+                            ) : Object.entries(
+                              filteredOnLeaveTimeline.reduce((acc, curr) => {
+                                const t = curr.team || 'Other';
+                                if (!acc[t]) acc[t] = [];
+                                acc[t].push(curr);
+                                return acc;
+                              }, {})
+                            ).map(([teamName, members]) => (
+                              <div key={teamName} className="attendance-timeline-team-group">
+                                <div
+                                  className="attendance-timeline-team-header"
+                                  style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}
+                                >
+                                  <div className="attendance-timeline-team-header-label" style={{ color: '#0369a1' }}>
+                                    <div className="att-team-header-icon" style={{ color: '#0ea5e9', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
+                                    <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
+                                  </div>
+                                </div>
+                                {members.map(leave => (
+                                  <div key={leave.consultantId} className="attendance-timeline-row">
+                                    <div className="attendance-timeline-consultant">
+                                      <div className="attendance-timeline-consultant-avatar">
+                                        {renderAvatar(leave.avatar, leave.consultantName)}
+                                      </div>
+                                      <div className="attendance-timeline-consultant-info">
+                                        <div className="attendance-timeline-consultant-name">{leave.consultantName}</div>
+                                        <div className="attendance-timeline-consultant-team">{leave.team}</div>
+                                      </div>
+                                    </div>
+                                    <div className="attendance-timeline-bars">
+                                      {timelineDates.map((date, idx) => {
+                                        const dateStr = formatDateKey(date);
+                                        const leaveDetails = getLeaveDetailsForDate(dateStr);
+                                        const leaveDetail = leaveDetails.find(l => l.emp_id === leave.consultantId);
+                                        const inLeave = !!leaveDetail;
+                                        const lType = leaveDetail?.leave_type || leave.leaveType;
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className={`attendance-timeline-cell${inLeave ? ' attendance-timeline-has-leave' : ''}`}
+                                          >
+                                            {inLeave && (
+                                              <div title={`${lType} – ${leave.days} days`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                                <StatusBadge code={lType} variant="outline" />
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {filteredOnLeaveTimeline.length > 0 && <LeaveTypeNameLegend leaveTypes={leaveOnlyTypeNames} />}
+                    </div>
+                  </div>
+                )}
+
+                {/* On Leave — List */}
+                {subTab === 'on-leave' && viewMode === 'list' && (
+                  <div className="attendance-list">
+                    {leaveError && (
+                      <div className="attendance-inline-error">
+                        <AlertCircle size={16} />
+                        <span>Could not load today&apos;s live leave status; showing data from the attendance calendar instead.</span>
+                      </div>
+                    )}
+                    {filteredOnLeaveList.map(leave => (
+                      <div key={leave.consultantId} className="attendance-leave-card">
+                        <div className="attendance-leave-main">
+                          <div className="attendance-consultant-avatar">
+                            {renderAvatar(leave.avatar, leave.consultantName)}
+                          </div>
+                          <div className="attendance-leave-info">
+                            <div className="attendance-consultant-name">{leave.consultantName}</div>
+                            <div className="attendance-consultant-team">{leave.team}</div>
+                          </div>
+                        </div>
+                        <div className="attendance-leave-details">
+                          <div className="attendance-leave-type">{leave.leaveType}</div>
+                          <div className="attendance-leave-dates">
+                            {new Date(leave.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            {' – '}
+                            {new Date(leave.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </div>
+                          <div className="attendance-leave-days">{leave.days} days</div>
+                        </div>
+                      </div>
+                    ))}
+                    {filteredOnLeaveList.length === 0 && (
+                      <div className="attendance-empty">
+                        <Calendar size={48} className="attendance-empty-icon" />
+                        <p className="attendance-empty-text">No consultants on leave</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Attendance Report — Table ── */}
+                {subTab === 'report' && viewMode === 'list' && (
+                  <div className="att-report-outer">
+                    {/* Meta bar */}
+                    <div className="att-report-meta">
+                      <span className="att-report-range-label">
+                        {filterDateRange.from && filterDateRange.to
+                          ? `${filterDateRange.from.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} – ${filterDateRange.to.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                          : `${MONTH_NAMES[Number(filterMonth)]} ${filterYear}`}
+                      </span>
+                      {filterDateRange.from && (
+                        <button className="att-clear-range-btn" onClick={handleClearDateRange}>
+                          Clear range
+                        </button>
+                      )}
+                      <span className="att-report-count">{filteredReportRows.length} consultants</span>
+                    </div>
+
+                    <div className="att-report-card">
+                      <div className="att-report-scroll">
+                        <table className="att-report-table">
+                          <thead className="att-report-thead">
+                            <tr>
+                              <th className="att-th att-th-consultant">Consultant</th>
+                              {reportDates.map((date, idx) => {
+                                const we = isWeekend(date);
+                                return (
+                                  <th key={idx} className={`att-th att-th-date${we ? ' att-th-weekend' : ''}`}>
+                                    <div className="att-date-header">
+                                      <span className="att-date-num">{date.getDate()}</span>
+                                      <span className="att-date-dow">{date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}</span>
+                                    </div>
+                                  </th>
+                                );
+                              })}
+                              <th className="att-th att-th-summary">Summary</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredReportRows.map(({ consultant, record, stats }) => (
+                              <tr key={consultant.id} className="att-report-row">
+                                <td className="att-td att-td-consultant">
+                                  <div className="att-consultant-cell">
+                                    <div className="attendance-consultant-avatar att-avatar-sm">{renderAvatar(consultant.avatar, consultant.name)}</div>
+                                    <div>
+                                      <div className="att-consultant-name">{consultant.name}</div>
+                                      <div className="att-consultant-team">{consultant.team}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                {reportDates.map((date, idx) => {
+                                  const key = formatDateKey(date);
+                                  const code = record.dates[key] || '';
+                                  const we = isWeekend(date);
+                                  return (
+                                    <td key={idx} className={`att-td att-td-cell${we ? ' att-td-weekend' : ''}`}>
+                                      {code && <StatusBadge code={code} />}
+                                    </td>
+                                  );
+                                })}
+                                <td className="att-td att-td-summary">
+                                  <div className="att-summary-block">
+                                    <div className="att-summary-row att-summary-present">
+                                      <span className="att-summary-label">P</span>
+                                      <span className="att-summary-val">{stats.presentDays}</span>
+                                    </div>
+                                    <div className="att-summary-row att-summary-absent">
+                                      <span className="att-summary-label">A</span>
+                                      <span className="att-summary-val">{stats.absentDays}</span>
+                                    </div>
+                                    <div className="att-summary-row att-summary-total">
+                                      <span className="att-summary-label">T</span>
+                                      <span className="att-summary-val">{stats.totalWorkingDays}</span>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {filteredReportRows.length === 0 && (
+                              <tr>
+                                <td colSpan={reportDates.length + 2} className="att-empty-cell">
+                                  No records found.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                      {filteredReportRows.length > 0 && (
+                        <div className="att-report-legend-footer">
+                          <InlineLegend />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Attendance Report — Card */}
+                {subTab === 'report' && viewMode === 'card' && (
+                  <div className="attendance-card-grid">
+                    {filteredReportRows.map(({ consultant, record, stats }) => {
+                      const percentage = Math.round(
+                        (stats.presentDays / Math.max(stats.totalWorkingDays, 1)) * 100
+                      );
+
+                      return (
+                        <div key={consultant.id} className="attendance-card">
+                          <div className="attendance-card-header">
+                            <div className="attendance-consultant-avatar">
+                              {renderAvatar(consultant.avatar, consultant.name)}
+                            </div>
+
+                            <div className="attendance-card-info">
+                              <div className="attendance-consultant-name">
+                                {consultant.name}
+                              </div>
+                              <div className="attendance-consultant-team">
+                                {consultant.team}
+                              </div>
+                            </div>
+
+                            <div
+                              className="attendance-card-badge"
+                              style={{
+                                backgroundColor: 'var(--surface-tertiary)',
+                                color: 'var(--status-success)',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '4px 8px',
+                                borderRadius: '12px'
+                              }}
+                            >
+                              {percentage}%
+                            </div>
+                          </div>
+
+                          <div className="attendance-card-ring-wrapper">
+                            <div className="attendance-card-ring">
+                              <svg className="attendance-ring-svg" viewBox="0 0 100 100">
+                                <circle
+                                  className="attendance-ring-bg"
+                                  cx="50"
+                                  cy="50"
+                                  r="42"
+                                  fill="none"
+                                  stroke="var(--surface-tertiary)"
+                                  strokeWidth="6"
+                                />
+
+                                <circle
+                                  className="attendance-ring-progress"
+                                  cx="50"
+                                  cy="50"
+                                  r="42"
+                                  fill="none"
+                                  stroke="url(#gradient-success)"
+                                  strokeWidth="6"
+                                  strokeDasharray={2 * Math.PI * 42}
+                                  strokeDashoffset={
+                                    2 * Math.PI * 42 * (1 - percentage / 100)
+                                  }
+                                  strokeLinecap="round"
+                                  transform="rotate(-90 50 50)"
+                                />
+
+                                <defs>
+                                  <linearGradient
+                                    id="gradient-success"
+                                    x1="0%"
+                                    y1="0%"
+                                    x2="100%"
+                                    y2="100%"
+                                  >
+                                    <stop
+                                      offset="0%"
+                                      stopColor="var(--status-success)"
+                                    />
+                                    <stop offset="100%" stopColor="#059669" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+
+                              <div className="attendance-ring-text">
+                                <div className="attendance-ring-percentage">
+                                  {percentage}%
+                                </div>
+                                <div className="attendance-ring-label">
+                                  Present
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="attendance-card-stats">
+                            <div className="attendance-card-stat">
+                              <div className="attendance-card-stat-value">
+                                {stats.presentDays}
+                              </div>
+                              <div className="attendance-card-stat-label">
+                                Present
+                              </div>
+                            </div>
+
+                            <div className="attendance-card-stat">
+                              <div className="attendance-card-stat-value">
+                                {stats.absentDays}
+                              </div>
+                              <div className="attendance-card-stat-label">
+                                Absent
+                              </div>
+                            </div>
+
+                            <div className="attendance-card-stat">
+                              <div className="attendance-card-stat-value">
+                                {stats.totalWorkingDays}
+                              </div>
+                              <div className="attendance-card-stat-label">
+                                Total
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            className="attendance-card-sparkline"
+                            style={{
+                              marginTop: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              color: 'var(--text-tertiary)',
+                              fontSize: '11px',
+                              fontWeight: 500
+                            }}
+                          >
+                            <TrendingUp
+                              size={12}
+                              className="attendance-sparkline-icon"
+                            />
+
+                            <span className="attendance-sparkline-text">
+                              {MONTH_NAMES[Number(filterMonth)]} {filterYear}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )}
-          </>
-        )}
-      </div>
-      </>
+        </>
       )}
     </div>
   );

@@ -351,7 +351,8 @@
 .ms-Layer .ms-ContextualMenu-list,
 .ms-Layer .ms-ContextualMenu-item,
 .ms-Layer .ms-ContextualMenu-itemText,
-.ms-Layer .ms-ContextualMenu-link {
+.ms-Layer .ms-ContextualMenu-link,
+.ms-Layer .ms-ContextualMenu-submenuIcon {
   background-color: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
 }
@@ -370,7 +371,9 @@
 .ms-Layer .ms-ContextualMenu-item:hover,
 .ms-Layer .ms-ContextualMenu-link:hover,
 .ms-Layer .ms-ContextualMenu-item:hover .ms-ContextualMenu-itemText,
-.ms-Layer .ms-ContextualMenu-link:hover .ms-ContextualMenu-itemText {
+.ms-Layer .ms-ContextualMenu-link:hover .ms-ContextualMenu-itemText,
+.ms-Layer .ms-ContextualMenu-item:hover .ms-ContextualMenu-submenuIcon,
+.ms-Layer .ms-ContextualMenu-link:hover .ms-ContextualMenu-submenuIcon {
   background-color: var(--surface-primary) !important;
   color: var(--c-primary) !important;
 }
@@ -1380,4 +1383,54 @@ body.rte-hide-fluent-tooltips .ms-Layer .ms-Tooltip {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Table Context Menu */
+.rte-table-context-menu {
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px 0;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-theme="dark"] .rte-table-context-menu {
+  background: var(--bg-secondary, #1e293b);
+  border-color: var(--border-primary, #334155);
+}
+
+.rte-context-menu-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  user-select: none;
+}
+
+[data-theme="dark"] .rte-context-menu-item {
+  color: var(--text-primary, #f8fafc);
+}
+
+.rte-context-menu-item:hover {
+  background: var(--bg-tertiary, #f1f5f9);
+  color: var(--c-primary, #006838);
+}
+
+[data-theme="dark"] .rte-context-menu-item:hover {
+  background: var(--bg-tertiary, #334155);
+  color: var(--c-primary, #34d399);
+}
+
+.rte-context-menu-divider {
+  height: 1px;
+  background: var(--border-primary, #e2e8f0);
+  margin: 4px 0;
+}
+
+[data-theme="dark"] .rte-context-menu-divider {
+  background: var(--border-primary, #334155);
 }
