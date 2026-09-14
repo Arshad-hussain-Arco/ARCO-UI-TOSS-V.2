@@ -192,28 +192,37 @@ function exportToPDF(rows, dates, filename = 'attendance.pdf') {
 /* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
 function AttendanceSkeleton({ reportDates, timelineDates, subTab, viewMode }) {
   const isReportTab = subTab === 'report';
-  const showListSkeleton = subTab === 'on-duty' || (viewMode === 'list' && !isReportTab);
 
-  if (showListSkeleton) {
+  // 1. On Duty - List View
+  if (subTab === 'on-duty') {
     return (
-      <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="attendance-list">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} style={{ border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
-            <div style={{ display: 'flex', padding: '16px', background: 'var(--bg-secondary)', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border-secondary)' }}>
-               <Skeleton height={16} width={16} />
-               <Skeleton height={18} width={120} />
-               <Skeleton height={20} width={24} style={{ borderRadius: '10px' }} />
+          <div key={i} className="attendance-team-group" style={{ pointerEvents: 'none' }}>
+            <div className="attendance-team-header" style={{ border: 'none', background: 'var(--bg-secondary)' }}>
+              <Skeleton height={16} width={16} />
+              <Skeleton height={18} width={120} />
+              <Skeleton height={20} width={24} style={{ borderRadius: '10px' }} />
             </div>
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="attendance-team-content" style={{ padding: '0 16px 16px' }}>
               {Array.from({ length: 2 }).map((_, j) => (
-                 <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '16px', borderBottom: j === 0 ? '1px solid var(--border-secondary)' : 'none', paddingBottom: j === 0 ? '16px' : '0' }}>
-                   <Skeleton height={40} width={40} style={{ borderRadius: '50%' }} />
-                   <div style={{ flex: 1 }}>
-                     <Skeleton height={16} width="150px" style={{ marginBottom: '6px' }} />
-                     <Skeleton height={12} width="100px" />
-                   </div>
-                   <Skeleton height={24} width="70px" style={{ borderRadius: '12px' }} />
-                 </div>
+                <div key={j} className="attendance-consultant-row" style={{ border: '1px solid var(--border-secondary)' }}>
+                  <div className="attendance-consultant-main">
+                    <Skeleton height={36} width={36} variant="circle" />
+                    <div className="attendance-consultant-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <Skeleton height={14} width={120} />
+                      <Skeleton height={10} width={80} />
+                    </div>
+                  </div>
+                  <div className="attendance-consultant-details">
+                    <Skeleton height={14} width={80} />
+                    <Skeleton height={14} width={90} />
+                    <Skeleton height={14} width={110} />
+                  </div>
+                  <div className="attendance-status-badge">
+                    <Skeleton height={20} width={60} style={{ borderRadius: '4px' }} />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -222,61 +231,146 @@ function AttendanceSkeleton({ reportDates, timelineDates, subTab, viewMode }) {
     );
   }
 
-  const isTimeline = viewMode === 'timeline';
-  const colsCount = reportDates && reportDates.length > 0 ? reportDates.length : 7;
-  const tColsCount = timelineDates && timelineDates.length > 0 ? timelineDates.length : 15;
-  const currentDates = isTimeline ? timelineDates : reportDates;
-  const currentColsCount = isTimeline ? tColsCount : colsCount;
-
-  return (
-    <div style={{ padding: '16px 0', overflowX: 'auto' }}>
-      {/* Table skeleton with static headers */}
-      <div style={{ minWidth: isTimeline ? 'max-content' : 'auto', border: '1px solid var(--border-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', background: 'var(--bg-secondary)', padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', fontWeight: 600, fontSize: '12px', color: 'var(--text-secondary)' }}>
-          <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center' }}>
-            CONSULTANT
-          </div>
-          {currentDates && currentDates.length > 0 ? currentDates.map((d, j) => {
-             const key = new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).replace(/ /g, '-');
-             return (
-               <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', textTransform: 'uppercase', minWidth: isTimeline ? '40px' : 'auto' }}>
-                 {key}
-               </div>
-             )
-          }) : Array.from({ length: currentColsCount }).map((_, j) => (
-             <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: isTimeline ? '40px' : 'auto' }}>
-               <Skeleton height={16} width="60%" />
-             </div>
-          ))}
-          {!isTimeline && (
-            <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              SUMMARY
+  // 2. On WFH / On Leave - List View
+  if ((subTab === 'on-wfh' || subTab === 'on-leave') && viewMode === 'list') {
+    return (
+      <div className="attendance-list">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="attendance-leave-card" style={{ pointerEvents: 'none' }}>
+            <div className="attendance-leave-main">
+              <Skeleton height={36} width={36} variant="circle" />
+              <div className="attendance-leave-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <Skeleton height={14} width={120} />
+                <Skeleton height={10} width={80} />
+              </div>
             </div>
-          )}
-        </div>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} style={{ display: 'flex', padding: '16px', borderBottom: i < 4 ? '1px solid var(--border-secondary)' : 'none' }}>
-             <div style={{ width: '250px', padding: '0 8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Skeleton height={32} width={32} style={{ borderRadius: '50%' }} />
-                <div style={{ flex: 1 }}>
-                   <Skeleton height={16} width="80%" style={{ marginBottom: '4px' }} />
-                   <Skeleton height={12} width="50%" />
-                </div>
-             </div>
-             {Array.from({ length: currentColsCount }).map((_, j) => (
-                <div key={j} style={{ flex: 1, padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: isTimeline ? '40px' : 'auto' }}>
-                   <Skeleton height={20} width={20} style={{ borderRadius: '4px' }} />
-                </div>
-             ))}
-             {!isTimeline && (
-               <div style={{ width: '150px', padding: '0 8px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-                  <Skeleton height={20} width={24} style={{ borderRadius: '4px' }} />
-               </div>
-             )}
+            <div className="attendance-leave-details" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <Skeleton height={20} width={70} style={{ borderRadius: '4px' }} />
+              <Skeleton height={14} width={100} />
+              <Skeleton height={14} width={50} />
+            </div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  // 3. On WFH / On Leave - Timeline View
+  if ((subTab === 'on-wfh' || subTab === 'on-leave') && viewMode === 'timeline') {
+    const tDates = timelineDates && timelineDates.length > 0 ? timelineDates : Array.from({ length: 15 });
+    return (
+      <div className="attendance-timeline-wrapper" style={{ pointerEvents: 'none' }}>
+        <div className="att-timeline-folder-tabs">
+          <div className="att-folder-tab" style={{ opacity: 0.5, borderBottom: 'none' }}><Skeleton width={80} height={16} /></div>
+          <div className="att-folder-tab" style={{ opacity: 0.5, borderBottom: 'none' }}><Skeleton width={40} height={16} /></div>
+          <div className="att-folder-tab" style={{ opacity: 0.5, borderBottom: 'none' }}><Skeleton width={60} height={16} /></div>
+        </div>
+        <div className="attendance-timeline">
+          <div className="attendance-timeline-scroll">
+            <div style={{ minWidth: 'max-content', width: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div className="attendance-timeline-header">
+                <div className="attendance-timeline-consultant-col" style={{ padding: '16px' }}><Skeleton width={80} height={14} /></div>
+                <div className="attendance-timeline-dates">
+                  {tDates.map((_, idx) => (
+                    <div key={idx} className="attendance-timeline-date" style={{ padding: '8px 0' }}>
+                      <Skeleton width={20} height={16} style={{ marginBottom: '4px' }} />
+                      <Skeleton width={30} height={12} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="attendance-timeline-body">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="attendance-timeline-team-group">
+                    <div className="attendance-timeline-team-header" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-secondary)' }}>
+                      <div className="attendance-timeline-team-header-label" style={{ display: 'flex', alignItems: 'center' }}>
+                        <Skeleton width={20} height={20} variant="circle" style={{ marginRight: '8px' }} />
+                        <Skeleton width={100} height={16} />
+                      </div>
+                    </div>
+                    {Array.from({ length: 2 }).map((_, j) => (
+                      <div key={j} className="attendance-timeline-row">
+                        <div className="attendance-timeline-consultant" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px' }}>
+                          <div className="attendance-timeline-consultant-avatar">
+                            <Skeleton width={32} height={32} variant="circle" />
+                          </div>
+                          <div className="attendance-timeline-consultant-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <Skeleton width={120} height={12} />
+                            <Skeleton width={80} height={10} />
+                          </div>
+                        </div>
+                        <div className="attendance-timeline-bars" style={{ padding: '8px 0', opacity: 0.5, flex: 1 }}>
+                          <Skeleton width="60%" height={20} style={{ borderRadius: '10px', margin: '0 16px' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Report - List View (Table)
+  const rDates = reportDates && reportDates.length > 0 ? reportDates : Array.from({ length: 7 });
+  return (
+    <div className="att-report-outer" style={{ pointerEvents: 'none' }}>
+      <div className="att-report-meta" style={{ display: 'flex', justifyContent: 'space-between', padding: '16px' }}>
+        <Skeleton width={150} height={16} />
+        <Skeleton width={80} height={16} />
+      </div>
+      <div className="att-report-card">
+        <div className="att-report-scroll">
+          <table className="att-report-table">
+            <thead className="att-report-thead">
+              <tr>
+                <th className="att-th att-th-consultant" style={{ padding: '16px' }}><Skeleton width={80} height={14} /></th>
+                {rDates.map((_, idx) => (
+                  <th key={idx} className="att-th att-th-date" style={{ padding: '8px' }}>
+                    <div className="att-date-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <Skeleton width={20} height={14} />
+                      <Skeleton width={30} height={10} />
+                    </div>
+                  </th>
+                ))}
+                <th className="att-th att-th-summary" style={{ padding: '16px' }}><Skeleton width={60} height={14} /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="att-report-row">
+                  <td className="att-td att-td-consultant" style={{ padding: '12px 16px' }}>
+                    <div className="att-consultant-cell" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Skeleton width={32} height={32} variant="circle" />
+                      <div className="att-consultant-info" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <Skeleton width={100} height={12} />
+                        <Skeleton width={70} height={10} />
+                      </div>
+                    </div>
+                  </td>
+                  {rDates.map((_, idx) => (
+                    <td key={idx} className="att-td att-td-date" style={{ padding: '4px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width: '100%', height: '100%', padding: '4px' }}>
+                        <Skeleton width={24} height={24} style={{ borderRadius: '4px' }} />
+                        <Skeleton width={36} height={10} />
+                      </div>
+                    </td>
+                  ))}
+                  <td className="att-td att-td-summary" style={{ padding: '12px 16px' }}>
+                    <div className="att-summary-stats" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <Skeleton width={40} height={10} />
+                      <Skeleton width={40} height={10} />
+                      <Skeleton width={40} height={10} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1271,7 +1365,7 @@ export function AttendancePage() {
             {(isLoading || !data) ? (
               subTab === 'report' && viewMode === 'card'
                 ? <AttendanceCardSkeleton />
-                : <AttendanceSkeleton reportDates={reportDates} />
+                : <AttendanceSkeleton reportDates={reportDates} timelineDates={fetchTimelineDates} subTab={subTab} viewMode={viewMode} />
             ) : (
               <>
                 {/* On Duty — List */}
@@ -1389,10 +1483,10 @@ export function AttendancePage() {
                               <div key={teamName} className="attendance-timeline-team-group">
                                 <div
                                   className="attendance-timeline-team-header"
-                                  style={{ backgroundColor: '#ecfeff', border: '1px solid #cffafe' }}
+                                  style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-secondary)' }}
                                 >
-                                  <div className="attendance-timeline-team-header-label" style={{ color: '#164e63' }}>
-                                    <div className="att-team-header-icon" style={{ color: '#06b6d4', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
+                                  <div className="attendance-timeline-team-header-label" style={{ color: 'var(--text-secondary)' }}>
+                                    <div className="att-team-header-icon" style={{ color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}><TeamIcon size={20} /></div>
                                     <span style={{ fontWeight: 600, fontSize: '14px' }}>{teamName}</span>
                                   </div>
                                 </div>
