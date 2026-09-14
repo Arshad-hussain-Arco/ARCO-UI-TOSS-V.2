@@ -755,9 +755,9 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         const originalHTML = copyBtn.innerHTML;
         copyBtn.classList.add('rte-code-copied');
         copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copied \u2713`;
-        
-        try { copyWithToast(codeEl.textContent); } catch (e) {}
-        
+
+        try { copyWithToast(codeEl.textContent); } catch (e) { }
+
         setTimeout(() => {
           copyBtn.classList.remove('rte-code-copied');
           copyBtn.innerHTML = originalHTML;
@@ -949,7 +949,30 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       unlocalizedText: 'Set table shade color',
       iconName: 'BackgroundColor',
       onClick: (editor, key) => {
-        if (key) setTableCellShade(editor, key);
+        // backgroundColorButton dropdown passes symbolic keys like 'backgroundColorCyan',
+        // but setTableCellShade expects a CSS color string. Map them here.
+        const bgColorMap = {
+          backgroundColorCyan: '#00ffff',
+          backgroundColorGreen: '#00ff00',
+          backgroundColorYellow: '#ffff00',
+          backgroundColorOrange: '#ff8000',
+          backgroundColorRed: '#ff0000',
+          backgroundColorMagenta: '#ff00ff',
+          backgroundColorLightCyan: '#80ffff',
+          backgroundColorLightGreen: '#80ff80',
+          backgroundColorLightYellow: '#ffff80',
+          backgroundColorLightOrange: '#ffc080',
+          backgroundColorLightRed: '#ff8080',
+          backgroundColorLightMagenta: '#ff80ff',
+          backgroundColorWhite: '#ffffff',
+          backgroundColorLightGray: '#cccccc',
+          backgroundColorGray: '#999999',
+          backgroundColorDarkGray: '#666666',
+          backgroundColorDarkerGray: '#333333',
+          backgroundColorBlack: '#000000',
+        };
+        const color = bgColorMap[key];
+        if (color) setTableCellShade(editor, color);
       }
     },
     {
@@ -1540,7 +1563,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
             });
             // Ensure RoosterJS selects this cell so commands apply here
             if (editorRef.current) {
-               try { editorRef.current.select(targetCell); } catch(err) {}
+              try { editorRef.current.select(targetCell); } catch (err) { }
             }
           } else if (isFullscreen) {
             e.preventDefault();
@@ -1836,7 +1859,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         state="none"
       />
       {tableContextMenu.visible && ReactDOM.createPortal(
-        <div 
+        <div
           className="rte-table-context-menu"
           style={{
             position: 'fixed',
