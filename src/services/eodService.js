@@ -1,6 +1,6 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
-import { formToCron, cronToHuman } from '@utils/cronUtils';
+import { formToCron, formToCronList, cronToHuman, cronGroupToHuman } from '@utils/cronUtils';
 
 export const eodService = {
   /**
@@ -280,13 +280,36 @@ export const eodService = {
     const response = await httpClient.get(endpoints.eodSchedules.list);
     const data = response.data || [];
 
-    return data.map((item) => {
-      const parsedCron = cronToHuman(item.cron_expression, '22:00');
-      return {
-        id: item.id,
-        envId: item.environment_id || '',
-        environmentName: item.environment || '',
-        cronExpression: item.cron_expression || parsedCron.cronExpression,
+    // Rows sharing a schedule_group_id (e.g. Quarterly + Last-Day-of-Month
+    // spanning months of different lengths) represent ONE logical schedule
+    // that had to be split into multiple cron rows — collapse them back into
+    // a single UI entry using cronGroupToHuman instead of parsing each row
+    // in isolation.
+    const grouped = new Map(); // groupId -> rows[]
+    const ungrouped = [];
+    data.forEach((item) => {
+      if (item.schedule_group_id) {
+        if (!grouped.has(item.schedule_group_id)) grouped.set(item.schedule_group_id, []);
+        grouped.get(item.schedule_group_id).push(item);
+      } else {
+        ungrouped.push(item);
+      }
+    });
+
+    const results = [];
+
+    grouped.forEach((rows, groupId) => {
+      const primary = rows[0];
+      const cronExpressions = rows.map((r) => r.cron_expression);
+      const parsedCron = cronGroupToHuman(cronExpressions, '22:00');
+      results.push({
+        id: primary.id,
+        rowIds: rows.map((r) => r.id),
+        scheduleGroupId: groupId,
+        envId: primary.environment_id || '',
+        environmentName: primary.environment || '',
+        cronExpression: parsedCron.cronExpression,
+        cronExpressions,
         dateGroup: parsedCron.dateGroup,
         time: parsedCron.time,
         recurrence: parsedCron.recurrence,
@@ -295,34 +318,106 @@ export const eodService = {
         selectedDayOfMonth: parsedCron.selectedDayOfMonth,
         selectedMonth: parsedCron.selectedMonth,
         selectedQuarters: parsedCron.selectedQuarters,
+        quarterPosition: parsedCron.quarterPosition,
+        isActive: true,
+        lastModifiedBy: primary.last_modified_by || '',
+        lastModifiedOn: primary.last_modified_on || '',
+      });
+    });
+
+    ungrouped.forEach((item) => {
+      const parsedCron = cronToHuman(item.cron_expression, '22:00');
+      results.push({
+        id: item.id,
+        rowIds: [item.id],
+        scheduleGroupId: null,
+        envId: item.environment_id || '',
+        environmentName: item.environment || '',
+        cronExpression: item.cron_expression || parsedCron.cronExpression,
+        cronExpressions: [item.cron_expression || parsedCron.cronExpression],
+        dateGroup: parsedCron.dateGroup,
+        time: parsedCron.time,
+        recurrence: parsedCron.recurrence,
+        selectedDays: parsedCron.selectedDays,
+        selectedDate: parsedCron.selectedDate,
+        selectedDayOfMonth: parsedCron.selectedDayOfMonth,
+        selectedMonth: parsedCron.selectedMonth,
+        selectedQuarters: parsedCron.selectedQuarters,
+        quarterPosition: parsedCron.quarterPosition,
         isActive: true,
         lastModifiedBy: item.last_modified_by || '',
         lastModifiedOn: item.last_modified_on || '',
-      };
+      });
     });
+
+    return results;
   },
 
+  /**
+   * Creates a schedule. When the form resolves to multiple cron expressions
+   * (Quarterly + Last-Day-of-Month spanning months of different lengths),
+   * bulk-creates one row per expression, all sharing a server-generated
+   * schedule_group_id, so they're managed together as one logical schedule.
+   */
   createEodSchedule: async (payload) => {
-    const cronStr = formToCron(payload);
-    const body = {
-      environment_id: payload.envId || payload.environment_id,
-      cron_expression: cronStr,
-    };
-    const response = await httpClient.post(endpoints.eodSchedules.create, body);
+    const cronExpressions = payload.cronExpressions || formToCronList(payload);
+    const environmentId = payload.envId || payload.environment_id;
+
+    if (cronExpressions.length > 1) {
+      const response = await httpClient.post(endpoints.eodSchedules.bulkCreate, {
+        environment_id: environmentId,
+        cron_expressions: cronExpressions,
+      });
+      return response.data;
+    }
+
+    const response = await httpClient.post(endpoints.eodSchedules.create, {
+      environment_id: environmentId,
+      cron_expression: cronExpressions[0] || formToCron(payload),
+    });
     return response.data;
   },
 
+  /**
+   * Updates a schedule. If it currently belongs to a group (payload.groupId /
+   * payload.scheduleGroupId set), or the new form now resolves to multiple
+   * cron expressions, replaces the whole group via the bulk group-update
+   * endpoint; otherwise performs a normal single-row update.
+   */
   updateEodSchedule: async (id, payload) => {
-    const cronStr = formToCron(payload);
-    const body = {
-      environment_id: payload.envId || payload.environment_id,
-      cron_expression: cronStr,
-    };
-    const response = await httpClient.put(endpoints.eodSchedules.update(id), body);
+    const cronExpressions = payload.cronExpressions || formToCronList(payload);
+    const environmentId = payload.envId || payload.environment_id;
+    const groupId = payload.groupId || payload.scheduleGroupId;
+
+    if (groupId || cronExpressions.length > 1) {
+      if (groupId) {
+        const response = await httpClient.put(endpoints.eodSchedules.groupUpdate(groupId), {
+          environment_id: environmentId,
+          cron_expressions: cronExpressions,
+        });
+        return response.data;
+      }
+      // Was previously a single row but now needs multiple — replace it with a fresh group.
+      await httpClient.delete(endpoints.eodSchedules.delete(id));
+      const response = await httpClient.post(endpoints.eodSchedules.bulkCreate, {
+        environment_id: environmentId,
+        cron_expressions: cronExpressions,
+      });
+      return response.data;
+    }
+
+    const response = await httpClient.put(endpoints.eodSchedules.update(id), {
+      environment_id: environmentId,
+      cron_expression: cronExpressions[0] || formToCron(payload),
+    });
     return response.data;
   },
 
-  deleteEodSchedule: async (id) => {
+  deleteEodSchedule: async (id, groupId) => {
+    if (groupId) {
+      const response = await httpClient.delete(endpoints.eodSchedules.groupDelete(groupId));
+      return response.data;
+    }
     const response = await httpClient.delete(endpoints.eodSchedules.delete(id));
     return response.data;
   },
