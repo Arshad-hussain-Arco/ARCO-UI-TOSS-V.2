@@ -688,7 +688,7 @@ export function RoleManagementPage() {
                                 const isViewAllowed = viewCodeObj
                                   ? role.permissions.includes(viewCodeObj.code)
                                   : codes.some(c => role.permissions.includes(c.code));
-                                
+
                                 // Force sibling gating for all modules so that turning off the toggle 
                                 // visually disables (greys out) the permission buttons.
                                 const gatesSiblings = false;
@@ -811,7 +811,7 @@ export function RoleManagementPage() {
               <button
                 type="button"
                 className="rm-btn-primary"
-                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', minWidth: '90px' }}
+                style={{ backgroundColor: 'var(--c-danger)', borderColor: 'var(--c-danger)', }}
                 disabled={isDeletingRole}
                 {...activatable(confirmDeleteRole, { label: 'Confirm Delete' })}
               >
@@ -977,7 +977,7 @@ export function RoleManagementPage() {
                       const isViewAllowed = viewCodeObj
                         ? newRoleCodes.includes(viewCodeObj.code)
                         : codes.some(c => newRoleCodes.includes(c.code));
-                      
+
                       // Force sibling gating for all modules so that turning off the toggle 
                       // visually disables (greys out) the permission buttons.
                       const gatesSiblings = false;

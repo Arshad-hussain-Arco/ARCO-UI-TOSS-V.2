@@ -21,18 +21,24 @@ import './ImportantLinksPage.css';
 /* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
 export function DocumentSkeleton() {
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', width: '100%' }}>
-      <Skeleton height={60} width="100%" style={{ borderRadius: '8px' }} />
-      <div style={{ flex: 1, border: '1px solid var(--border-secondary)', borderRadius: '8px', padding: '24px', background: 'var(--bg-primary)' }}>
-         <Skeleton height={40} width="40%" style={{ marginBottom: '32px' }} />
+    <div className="il-content-page-card">
+      <div className="il-content-page-header">
+        <div className="il-content-page-title">
+          <Skeleton height={28} width="40%" style={{ borderRadius: '4px' }} />
+        </div>
+        <div className="il-content-page-meta" style={{ marginTop: '8px' }}>
+          <Skeleton height={14} width="200px" style={{ borderRadius: '4px' }} />
+        </div>
+      </div>
+      <div className="il-content-page-body" style={{ padding: '24px' }}>
          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-           <Skeleton height={20} width="100%" />
-           <Skeleton height={20} width="100%" />
-           <Skeleton height={20} width="90%" />
-           <Skeleton height={20} width="95%" />
-           <Skeleton height={20} width="85%" />
-           <Skeleton height={20} width="100%" />
-           <Skeleton height={20} width="80%" />
+           <Skeleton height={16} width="100%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="100%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="90%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="95%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="85%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="100%" style={{ borderRadius: '4px' }} />
+           <Skeleton height={16} width="80%" style={{ borderRadius: '4px' }} />
          </div>
       </div>
     </div>
