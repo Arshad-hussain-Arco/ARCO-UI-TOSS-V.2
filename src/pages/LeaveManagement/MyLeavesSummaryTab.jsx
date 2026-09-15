@@ -420,7 +420,7 @@ export function MyLeavesSummaryTab({
                   </tr>
                 );
               })}
-              {filteredLeaves.length === 0 && (
+              {!isLoading && filteredLeaves.length === 0 && (
                 <tr className="leave-table-row">
                   <td colSpan="6" className="leave-table-cell text-center py-4">No leaves match your filters</td>
                 </tr>
