@@ -251,7 +251,9 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                {(onEdit || onPassword || onDelete) && (
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -278,40 +280,42 @@ export function ActiveConsultants({ onAdd, onEdit, onPassword, onDelete, onProfi
                       {c.accountStatus || 'active'}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      {onEdit && (
-                        <button
-                          onClick={() => onEdit(c)}
-                          className="consultant-footer-btn consultant-footer-btn-edit"
-                          title="Edit Consultant"
-                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
-                        >
-                          <Edit size={14} className="consultant-footer-btn-icon" />
-                        </button>
-                      )}
-                      {onPassword && (
-                        <button
-                          onClick={() => onPassword(c)}
-                          className="consultant-footer-btn consultant-footer-btn-password"
-                          title="Change Password"
-                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
-                        >
-                          <Lock size={14} className="consultant-footer-btn-icon" />
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          onClick={() => onDelete(c)}
-                          className="consultant-footer-btn consultant-footer-btn-delete"
-                          title="Deactivate Consultant"
-                          style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
-                        >
-                          <UserX size={14} className="consultant-footer-btn-icon" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+                  {(onEdit || onPassword || onDelete) && (
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                        {onEdit && (
+                          <button
+                            onClick={() => onEdit(c)}
+                            className="consultant-footer-btn consultant-footer-btn-edit"
+                            title="Edit Consultant"
+                            style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                          >
+                            <Edit size={14} className="consultant-footer-btn-icon" />
+                          </button>
+                        )}
+                        {onPassword && (
+                          <button
+                            onClick={() => onPassword(c)}
+                            className="consultant-footer-btn consultant-footer-btn-password"
+                            title="Change Password"
+                            style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                          >
+                            <Lock size={14} className="consultant-footer-btn-icon" />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            onClick={() => onDelete(c)}
+                            className="consultant-footer-btn consultant-footer-btn-delete"
+                            title="Deactivate Consultant"
+                            style={{ width: '28px', height: '28px', padding: 0, minWidth: 'auto' }}
+                          >
+                            <UserX size={14} className="consultant-footer-btn-icon" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
