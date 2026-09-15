@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef, Fragment } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -327,10 +327,10 @@ export function CapacityPlanningPage() {
     const q = debouncedProjectSearchQuery.toLowerCase().trim();
     const filtered = q
       ? allProjectGroups.filter(g =>
-          g.project.toLowerCase().includes(q) ||
-          g.summary.toLowerCase().includes(q) ||
-          g.developers.some(d => d.name.toLowerCase().includes(q))
-        )
+        g.project.toLowerCase().includes(q) ||
+        g.summary.toLowerCase().includes(q) ||
+        g.developers.some(d => d.name.toLowerCase().includes(q))
+      )
       : allProjectGroups;
 
     const withStage = filtered.map(g => {
@@ -370,18 +370,18 @@ export function CapacityPlanningPage() {
     const q = debouncedProjectSearchQuery.toLowerCase().trim();
     const filtered = q
       ? allProjectGroups.filter(g =>
-          g.project.toLowerCase().includes(q) ||
-          g.summary.toLowerCase().includes(q) ||
-          g.developers.some(d => d.name.toLowerCase().includes(q))
-        )
+        g.project.toLowerCase().includes(q) ||
+        g.summary.toLowerCase().includes(q) ||
+        g.developers.some(d => d.name.toLowerCase().includes(q))
+      )
       : allProjectGroups;
 
     const byStage = projectStageFilter
       ? filtered.filter(g => {
-          const { statusId, statusGroup } = mapStatusToIds(g.status);
-          const stageKey = projectViewLifecycleMode === 'development' ? statusId : statusGroup;
-          return stageKey === projectStageFilter;
-        })
+        const { statusId, statusGroup } = mapStatusToIds(g.status);
+        const stageKey = projectViewLifecycleMode === 'development' ? statusId : statusGroup;
+        return stageKey === projectStageFilter;
+      })
       : filtered;
 
     return {
@@ -408,10 +408,10 @@ export function CapacityPlanningPage() {
     const q = debouncedGanttSearchQuery.toLowerCase().trim();
     const searched = q
       ? allProjectGroups.filter(g =>
-          g.project.toLowerCase().includes(q) ||
-          g.summary.toLowerCase().includes(q) ||
-          g.developers.some(d => d.name.toLowerCase().includes(q))
-        )
+        g.project.toLowerCase().includes(q) ||
+        g.summary.toLowerCase().includes(q) ||
+        g.developers.some(d => d.name.toLowerCase().includes(q))
+      )
       : allProjectGroups;
 
     const withStageKey = searched.map(g => {
@@ -741,10 +741,260 @@ export function CapacityPlanningPage() {
   }
 
   function CapacityPlanningSkeleton() {
+    if (viewMode === 'team') {
+      return (
+        <div className="cp-team-layout">
+          {/* Horizontal Team Tabs Skeleton */}
+          <div className="cp-team-tabs" style={{ display: 'flex', gap: '12px', padding: '16px 0', overflowX: 'auto' }}>
+            {[
+              { width: 60 }, { width: 100 }, { width: 50 }, { width: 80 }, { width: 70 }, { width: 90 }, { width: 110 }
+            ].map((tab, i) => (
+              <div 
+                key={i}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  padding: '6px 16px', 
+                  borderRadius: '16px', 
+                  background: 'var(--bg-secondary)', 
+                  border: '1px solid var(--border-primary)',
+                  flexShrink: 0,
+                  height: '32px'
+                }}
+              >
+                <Skeleton height={14} width={14} style={{ borderRadius: '2px' }} />
+                <Skeleton height={12} width={tab.width} style={{ borderRadius: '2px' }} />
+              </div>
+            ))}
+          </div>
+          {/* Cards Panel Skeleton */}
+          <div className={`cp-team-panel ${teamViewSubMode === 'compact' ? 'grid-view' : 'list-view'}`} style={teamViewSubMode === 'compact' ? {} : { display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {teamViewSubMode === 'compact' ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="consultant-card compact" style={{ padding: '16px', border: '1px solid var(--border-primary)', borderRadius: '8px', background: 'var(--bg-primary)' }}>
+                  <div className="consultant-info-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <Skeleton height={40} width={40} style={{ borderRadius: '50%', flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <Skeleton height={14} width="70%" style={{ borderRadius: '2px' }} />
+                      <Skeleton height={12} width="50%" style={{ borderRadius: '2px' }} />
+                    </div>
+                  </div>
+                  <div className="compact-kpi-grid">
+                    {[...Array(3)].map((_, colIdx) => (
+                      <div key={colIdx} className="compact-kpi-section" style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px' }}>
+                        <div className="compact-kpi-header" style={{ marginBottom: '10px' }}>
+                          <Skeleton height={12} width="80px" style={{ borderRadius: '2px' }} />
+                        </div>
+                        <div className="compact-kpi-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <Skeleton height={10} width="50px" style={{ borderRadius: '2px' }} />
+                            <Skeleton height={14} width="40px" style={{ borderRadius: '2px' }} />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                            <Skeleton height={10} width="60px" style={{ borderRadius: '2px' }} />
+                            <Skeleton height={14} width="50px" style={{ borderRadius: '2px' }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="consultant-card list-card" style={{
+                  padding: '16px 24px',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  background: 'var(--bg-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '24px'
+                }}>
+                  {/* Left: Avatar & Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', width: '250px', flexShrink: 0 }}>
+                    <Skeleton height={40} width={40} style={{ borderRadius: '50%' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                      <Skeleton height={14} width="80%" style={{ borderRadius: '4px' }} />
+                      <Skeleton height={12} width="50%" style={{ borderRadius: '4px' }} />
+                    </div>
+                  </div>
+  
+                  {/* Middle: 3 KPI Columns */}
+                  <div style={{ display: 'flex', flex: 1, gap: '32px' }}>
+                    {[...Array(3)].map((_, colIdx) => (
+                      <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Skeleton height={12} width="60px" style={{ borderRadius: '2px' }} />
+                          <Skeleton height={12} width="30px" style={{ borderRadius: '2px' }} />
+                        </div>
+                        <Skeleton height={12} width="80px" style={{ borderRadius: '2px' }} />
+                        <Skeleton height={4} width="100%" style={{ borderRadius: '2px', marginTop: '4px' }} />
+                      </div>
+                    ))}
+                  </div>
+  
+                  {/* Right: Total Available */}
+                  <div style={{
+                    width: '120px',
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '8px',
+                    borderLeft: '1px solid var(--border-primary)',
+                    paddingLeft: '24px'
+                  }}>
+                    <Skeleton height={12} width="80px" style={{ borderRadius: '2px' }} />
+                    <Skeleton height={16} width="60px" style={{ borderRadius: '2px' }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (viewMode === 'summary') {
+      return (
+        <div className="cp-table-card">
+          <div className="cp-table-wrapper">
+            <table className="cp-data-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2} style={{ width: '22%' }}><Skeleton height={16} width="80px" style={{ borderRadius: '4px' }} /></th>
+                  <th colSpan={2} className="text-center group-header"><Skeleton height={16} width="100px" style={{ borderRadius: '4px', margin: '0 auto' }} /></th>
+                  <th colSpan={2} className="text-center group-header"><Skeleton height={16} width="100px" style={{ borderRadius: '4px', margin: '0 auto' }} /></th>
+                  <th colSpan={2} className="text-center group-header"><Skeleton height={16} width="100px" style={{ borderRadius: '4px', margin: '0 auto' }} /></th>
+                </tr>
+                <tr>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                  <th className="sub-header"><Skeleton height={12} width="60px" style={{ borderRadius: '4px' }} /></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[1, 2, 3].map((groupIndex) => (
+                  <Fragment key={`group-${groupIndex}`}>
+                    <tr className="cp-team-subheader-row">
+                      <td colSpan={7} className="cp-team-subheader-cell">
+                        <div className="cp-team-subheader-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <div className="cp-team-subheader-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Skeleton height={14} width={14} style={{ borderRadius: '2px' }} />
+                            <Skeleton height={16} width={100 + (groupIndex * 20)} style={{ borderRadius: '4px' }} />
+                          </div>
+                          <Skeleton height={20} width={70} style={{ borderRadius: '10px' }} />
+                        </div>
+                      </td>
+                    </tr>
+                    {[1, 2, 3].map((rowIndex) => (
+                      <tr key={`row-${groupIndex}-${rowIndex}`} className="cp-member-row">
+                        <td className="member-name-cell"><Skeleton height={14} width={120 + ((rowIndex * 30) % 60)} style={{ borderRadius: '4px' }} /></td>
+                        <td className="drilldown-cell occupied-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                        <td className="available-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                        <td className="drilldown-cell occupied-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                        <td className="available-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                        <td className="drilldown-cell occupied-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                        <td className="available-cell"><Skeleton height={14} width={40} style={{ borderRadius: '4px' }} /></td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div style={{ padding: '24px 0', width: '100%' }}>
-        <Skeleton height={40} width="100%" style={{ borderRadius: '8px', marginBottom: '24px' }} />
-        <Skeleton height={400} width="100%" style={{ borderRadius: '8px' }} />
+      <div className="cp-table-card">
+        {/* Table Top Badges/Legend Skeleton (for Project/Gantt) */}
+        <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {viewMode === 'project' && (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Skeleton height={26} width={120} style={{ borderRadius: '14px' }} />
+              <Skeleton height={26} width={120} style={{ borderRadius: '14px' }} />
+              <Skeleton height={26} width={120} style={{ borderRadius: '14px' }} />
+            </div>
+          )}
+          <div className="cp-legend-container" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { color: '#5ebcf6', width: 60 }, // Inception
+              { color: '#3b5ee6', width: 55 }, // Planning
+              { color: '#f5b027', width: 55 }, // Building
+              { color: '#9d5ce5', width: 50 }, // Testing
+              { color: '#32968a', width: 90 }, // Release Process
+              { color: '#44c256', width: 55 }, // Deployed
+              { color: '#27743d', width: 60 }  // Completed
+            ].map((stage, i) => (
+              <div
+                key={i}
+                className="cp-legend-item"
+                style={{ cursor: 'default', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span className="cp-legend-indicator" style={{ background: stage.color }} />
+                <Skeleton height={12} width={stage.width} style={{ borderRadius: '2px' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Table Structure Skeleton */}
+        <div className="cp-table-wrapper" style={{ padding: '16px' }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            marginBottom: '16px',
+            padding: '12px 16px',
+            background: 'var(--bg-secondary)',
+            borderRadius: '6px'
+          }}>
+            <Skeleton height={16} width="25%" style={{ borderRadius: '4px' }} />
+            <Skeleton height={16} width="15%" style={{ borderRadius: '4px' }} />
+            <Skeleton height={16} width="15%" style={{ borderRadius: '4px' }} />
+            <Skeleton height={16} width="20%" style={{ borderRadius: '4px' }} />
+            <Skeleton height={16} width="20%" style={{ borderRadius: '4px' }} />
+          </div>
+
+          {/* Rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                gap: '16px',
+                padding: '16px',
+                border: '1px solid var(--border-primary)',
+                borderRadius: '6px',
+                alignItems: 'center'
+              }}>
+                <div style={{ width: '25%', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {viewMode === 'summary' && <Skeleton height={32} width={32} style={{ borderRadius: '50%' }} />}
+                  <Skeleton height={18} width={i % 2 === 0 ? '80%' : '60%'} style={{ borderRadius: '4px' }} />
+                </div>
+                <div style={{ width: '15%' }}>
+                  <Skeleton height={22} width="70%" style={{ borderRadius: '12px' }} />
+                </div>
+                <div style={{ width: '15%' }}>
+                  <Skeleton height={16} width="80%" style={{ borderRadius: '4px' }} />
+                </div>
+                <div style={{ width: '20%' }}>
+                  <Skeleton height={16} width="90%" style={{ borderRadius: '4px' }} />
+                </div>
+                <div style={{ width: '20%', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <Skeleton height={24} width={40} style={{ borderRadius: '12px' }} />
+                  <Skeleton height={24} width={60} style={{ borderRadius: '12px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -1366,34 +1616,34 @@ export function CapacityPlanningPage() {
                                     <th className="text-center" style={{ width: '20%' }}>Effort (Raw → Prorated)</th>
                                   </tr>
                                 </thead>
-                              <tbody>
-                                {group.developers.map((d, idx) => (
-                                  <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
-                                    <td className="member-name-cell">
-                                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        {d.isUnmatchedDeveloper && (
-                                          <AlertTriangle
-                                            size={12}
-                                            style={{ color: '#d97706', marginRight: '6px', cursor: 'help' }}
-                                            title="This developer's name could not be matched to a known employee record."
-                                          />
-                                        )}
-                                        {d.name}
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
-                                        {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
-                                        <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
-                                      </div>
-                                    </td>
-                                    <td>{d.teamName || 'Unassigned Team'}</td>
-                                    <td className="text-center">
-                                      {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
+                                <tbody>
+                                  {group.developers.map((d, idx) => (
+                                    <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
+                                      <td className="member-name-cell">
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                          {d.isUnmatchedDeveloper && (
+                                            <AlertTriangle
+                                              size={12}
+                                              style={{ color: '#d97706', marginRight: '6px', cursor: 'help' }}
+                                              title="This developer's name could not be matched to a known employee record."
+                                            />
+                                          )}
+                                          {d.name}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
+                                          {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
+                                          <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
+                                        </div>
+                                      </td>
+                                      <td>{d.teamName || 'Unassigned Team'}</td>
+                                      <td className="text-center">
+                                        {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
                               </table>
                             </div>
                           </td>
@@ -1443,7 +1693,7 @@ export function CapacityPlanningPage() {
             ) : (
               <div className="cp-table-wrapper" style={{ overflowX: 'auto', paddingBottom: '16px' }}>
                 <div style={{ minWidth: '1200px', position: 'relative' }}>
-                  
+
                   {/* Global Trackbar overlay for Gantt View */}
                   {ganttData.todayPct !== null && (
                     <div
@@ -1481,7 +1731,7 @@ export function CapacityPlanningPage() {
                       position: 'sticky', top: 0, zIndex: 15, background: 'var(--bg-secondary)',
                     }}
                   >
-                    <div style={{ 
+                    <div style={{
                       position: 'sticky', left: 0, top: 0, zIndex: 13, background: 'var(--bg-secondary)',
                       width: '380px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase',
                       borderRight: '1px solid var(--border-primary)'
@@ -1508,7 +1758,7 @@ export function CapacityPlanningPage() {
                   {/* Project rows */}
                   {ganttData.projects.map(p => (
                     <div key={p.key} className="cp-member-row" style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{ 
+                      <div style={{
                         position: 'sticky', left: 0, zIndex: 12, background: 'var(--bg-primary)',
                         width: '380px', flexShrink: 0, padding: '10px 14px',
                         borderRight: '1px solid var(--border-primary)'
