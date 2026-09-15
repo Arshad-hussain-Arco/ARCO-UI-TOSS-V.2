@@ -4,6 +4,7 @@ import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
 import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl, themeAdaptiveColors } from './RichEditor/mediaUtils';
 import { copyWithToast } from '@utils/copyToClipboard';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import './HomeCard.css';
 
 
@@ -352,6 +353,39 @@ export function HomeCard({ card, className = '', style = {} }) {
     </>
   );
 }
+
+export function HomeCardSkeleton({ isHalfWidth = false }) {
+  const widthClass = isHalfWidth ? 'home-card-50' : 'home-card-100';
+
+  return (
+    <article className={`home-card ${widthClass} skeleton-card`}>
+      {/* Media Skeleton */}
+      <div className="home-card-media-wrapper" style={{ padding: '24px 24px 0 24px' }}>
+        <Skeleton height={200} width="100%" style={{ borderRadius: '8px' }} />
+      </div>
+
+      {/* Content Skeleton */}
+      <div className="home-card-content-wrapper">
+        <h3 className="home-card-heading">
+          <Skeleton height={28} width="60%" />
+        </h3>
+        <div className="home-card-subheading">
+          <Skeleton height={20} width="40%" />
+        </div>
+
+        <div className="home-card-divider" />
+
+        <div className="home-card-body-text" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <Skeleton height={16} width="100%" />
+          <Skeleton height={16} width="95%" />
+          <Skeleton height={16} width="90%" />
+          <Skeleton height={16} width="70%" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
 
 export default HomeCard;
 
