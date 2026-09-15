@@ -691,7 +691,7 @@ export function RoleManagementPage() {
                                 
                                 // Force sibling gating for all modules so that turning off the toggle 
                                 // visually disables (greys out) the permission buttons.
-                                const gatesSiblings = true;
+                                const gatesSiblings = false;
 
                                 const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 
@@ -980,7 +980,7 @@ export function RoleManagementPage() {
                       
                       // Force sibling gating for all modules so that turning off the toggle 
                       // visually disables (greys out) the permission buttons.
-                      const gatesSiblings = true;
+                      const gatesSiblings = false;
 
                       const toggleCodes = viewCodeObj ? [viewCodeObj] : codes;
 

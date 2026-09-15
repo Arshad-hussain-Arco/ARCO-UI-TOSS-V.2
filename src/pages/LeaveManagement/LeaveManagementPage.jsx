@@ -1518,7 +1518,7 @@ export function LeaveManagementPage() {
                             </tr>
                           );
                         })}
-                        {filteredSortedLeaves.length === 0 && (
+                        {!isLoading && filteredSortedLeaves.length === 0 && (
                           <tr className="leave-table-row">
                             <td colSpan="7" className="leave-table-cell text-center py-4">No leaves found</td>
                           </tr>

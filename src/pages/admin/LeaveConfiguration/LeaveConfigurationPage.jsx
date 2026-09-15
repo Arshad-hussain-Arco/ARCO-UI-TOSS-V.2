@@ -1958,7 +1958,10 @@ export function LeaveConfigurationPage() {
                   return updated;
                 });
               }}
-              minDate={new Date()}
+              isDateDisabled={(dateObj) => {
+                const dateStr = toDateInputValue(dateObj);
+                return holidays.some(h => (!editingHoliday || h.id !== editingHoliday.id) && h.dates?.includes(dateStr));
+              }}
               placeholder="Select start date"
               width="100%"
               style={{
@@ -1986,7 +1989,11 @@ export function LeaveConfigurationPage() {
                   endDate: dateStrVal
                 }));
               }}
-              minDate={parseDateValue(holidayForm.startDate) || new Date()}
+              minDate={parseDateValue(holidayForm.startDate)}
+              isDateDisabled={(dateObj) => {
+                const dateStr = toDateInputValue(dateObj);
+                return holidays.some(h => (!editingHoliday || h.id !== editingHoliday.id) && h.dates?.includes(dateStr));
+              }}
               placeholder="Select end date"
               width="100%"
               style={{
