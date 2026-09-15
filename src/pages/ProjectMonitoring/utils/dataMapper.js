@@ -75,7 +75,7 @@ export function mapChangeRequestRecord(cr) {
     ...cr,
     Id: cr.Id ? parseInt(cr.Id, 10) : 0,
     Wo_Id: woIdInt,
-    Ipm_Number: cr.Ipm_Number || cr.ipmNumber || '',
+    Ipm_Number: cr.Ipm_Number || cr.ipmNumber || cr.crIpmNumber || cr.cr_ipm_number || cr.CR_IPM_NUMBER || cr.ipm_number || cr.CR_IPM || cr.crIpm || cr.code || '',
     Summary: cr.Summary || cr.summary || '',
     Status: statusStr,
     Priority: cr.Priority || cr.priority || 'Medium',
