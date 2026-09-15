@@ -74,8 +74,23 @@ export function ControlSection() {
       <div className="eod-control-grid">
         {isLoadingControls && controlsEnvs.length === 0 ? (
           Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <Skeleton height={200} width="100%" style={{ borderRadius: '12px' }} />
+            <div key={i} className="eod-ctrl-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '180px' }}>
+              <div className="eod-ctrl-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Skeleton height={20} width={120} />
+                <Skeleton height={24} width={80} style={{ borderRadius: '12px' }} />
+              </div>
+              <div className="eod-ctrl-actions" style={{ display: 'flex', gap: '8px' }}>
+                <Skeleton height={32} width={80} style={{ borderRadius: '6px' }} />
+                <Skeleton height={32} width={80} style={{ borderRadius: '6px' }} />
+                <Skeleton height={32} width={80} style={{ borderRadius: '6px' }} />
+              </div>
+              <div className="eod-ctrl-exec" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Skeleton height={14} width="30%" />
+                  <Skeleton height={14} width="15%" />
+                </div>
+                <Skeleton height={6} width="100%" style={{ borderRadius: '3px' }} />
+              </div>
             </div>
           ))
         ) : controlsEnvs

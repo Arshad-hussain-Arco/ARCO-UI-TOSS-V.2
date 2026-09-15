@@ -262,7 +262,30 @@ export function SchedulesSection() {
           {isLoading && scheduleList.length === 0 ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="eod-schedule-card">
-                <Skeleton height={80} width="100%" style={{ borderRadius: '8px' }} />
+                <div className="eod-schedule-header" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <Skeleton height={16} width={16} />
+                    <Skeleton height={20} width={120} />
+                  </div>
+                  <Skeleton height={24} width={80} style={{ borderRadius: '12px' }} />
+                </div>
+                <div className="eod-timeline-list" style={{ padding: '0 20px 20px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {Array.from({ length: 2 }).map((_, j) => (
+                    <div key={j} className="eod-timeline-item" style={{ display: 'flex', gap: '20px' }}>
+                      <div className="eod-timeline-time-col" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '80px' }}>
+                        <Skeleton height={18} width={60} />
+                        <Skeleton height={12} width={40} />
+                      </div>
+                      <div className="eod-timeline-content" style={{ flex: 1, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '8px', padding: '12px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <Skeleton height={40} width={4} style={{ borderRadius: '2px' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                          <Skeleton height={16} width="40%" />
+                          <Skeleton height={14} width="80%" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))
           ) : days.map((day) => {

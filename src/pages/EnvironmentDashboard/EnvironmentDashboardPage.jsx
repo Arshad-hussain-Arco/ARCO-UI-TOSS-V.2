@@ -460,9 +460,12 @@ export function EnvironmentDashboardPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <Skeleton height={18} width="80%" />
                       {Array.from({ length: 3 }).map((_, j) => (
-                        <div key={j} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <Skeleton height={14} width={14} style={{ borderRadius: '50%' }} />
-                          <Skeleton height={14} width="60%" />
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1 }}>
+                            <Skeleton height={14} width={14} style={{ borderRadius: '4px' }} />
+                            <Skeleton height={14} width="40%" />
+                          </div>
+                          <Skeleton height={14} width="30%" />
                         </div>
                       ))}
                     </div>
@@ -602,10 +605,35 @@ export function EnvironmentDashboardPage() {
           <div className="env-details-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '8px', }}>
             {isLoading || !data ? (
               /* Skeleton placeholders for environment detail cards */
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
-                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
-                <Skeleton height={250} width="100%" style={{ borderRadius: '12px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="config-card" style={{ flexShrink: 0, background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    {/* Header Skeleton */}
+                    <div className="env-tab-toolbar" style={{ borderBottom: '1px solid var(--border-secondary)', padding: '20px 20px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Skeleton height={28} width={28} style={{ borderRadius: '6px' }} />
+                          <Skeleton height={20} width={120} />
+                       </div>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <Skeleton height={32} width={180} style={{ borderRadius: '6px' }} />
+                          <Skeleton height={32} width={90} style={{ borderRadius: '6px' }} />
+                          <Skeleton height={20} width={20} />
+                       </div>
+                    </div>
+                    {/* Table Body Skeleton */}
+                    <div style={{ padding: '0' }}>
+                      <div style={{ display: 'flex', padding: '12px 20px', borderBottom: '1px solid var(--border-secondary)', background: 'var(--bg-primary)', gap: '16px' }}>
+                        {Array.from({ length: 6 }).map((_, col) => <Skeleton key={col} height={14} width="16%" />)}
+                      </div>
+                      <div style={{ display: 'flex', padding: '16px 20px', borderBottom: '1px solid var(--border-secondary)', gap: '16px' }}>
+                        {Array.from({ length: 6 }).map((_, col) => <Skeleton key={col} height={18} width="16%" />)}
+                      </div>
+                      <div style={{ display: 'flex', padding: '16px 20px', gap: '16px' }}>
+                        {Array.from({ length: 6 }).map((_, col) => <Skeleton key={col} height={18} width="16%" />)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : configList.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>

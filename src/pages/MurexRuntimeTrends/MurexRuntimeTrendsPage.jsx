@@ -935,19 +935,128 @@ export function getRunGanttSpec(run, themeColor = '#000000') {
 }
 
 /** Murex batch runtime trends, heatmaps and per-script health. */
+
+/* ── Overview Skeleton Layout ───────────────────────────────────────────── */
+function OverviewSkeleton() {
+  return (
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Date picker skeleton (centered) */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <Skeleton height={36} width={160} style={{ borderRadius: '6px' }} />
+      </div>
+
+      {/* Main card skeleton */}
+      <div style={{ background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        {/* Header Title + Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Skeleton height={24} width={250} />
+          <Skeleton height={24} width={80} style={{ borderRadius: '12px' }} />
+        </div>
+
+        {/* 4 Stats Cards Row */}
+        <div style={{ display: 'flex', border: '1px solid var(--border-primary)', borderRadius: '8px', overflow: 'hidden', background: 'var(--surface-secondary)' }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ flex: 1, padding: '16px', borderRight: i < 3 ? '1px solid var(--border-primary)' : 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Skeleton height={32} width={32} style={{ borderRadius: '8px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                <Skeleton height={12} width="40%" />
+                <Skeleton height={16} width="70%" />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Search Bar */}
+        <div>
+           <Skeleton height={36} width={280} style={{ borderRadius: '6px' }} />
+        </div>
+
+        {/* Gantt Chart Area */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+          {/* Header Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid var(--border-secondary)', paddingBottom: '12px' }}>
+             <Skeleton height={14} width="15%" />
+             <Skeleton height={14} width="40%" />
+             <div style={{ display: 'flex', gap: '24px', width: '35%', justifyContent: 'flex-end' }}>
+               <Skeleton height={14} width="25%" />
+               <Skeleton height={14} width="25%" />
+               <Skeleton height={14} width="25%" />
+             </div>
+          </div>
+          {/* Data Rows */}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border-color)' }}>
+              <Skeleton height={16} width="20%" />
+              <div style={{ width: '40%', padding: '0 24px' }}>
+                <Skeleton height={8} width={`${40 + (i * 10 % 50)}%`} style={{ marginLeft: `${(i * 15) % 30}%`, borderRadius: '4px' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '24px', width: '35%', justifyContent: 'flex-end' }}>
+                <Skeleton height={16} width="25%" />
+                <Skeleton height={16} width="25%" />
+                <Skeleton height={16} width="25%" />
+              </div>
+            </div>
+          ))}
+          {/* Footer total row */}
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '2px solid var(--border-secondary)' }}>
+             <Skeleton height={18} width="20%" />
+             <div style={{ width: '40%', padding: '0 24px' }}>
+                <Skeleton height={8} width="100%" style={{ borderRadius: '4px' }} />
+             </div>
+             <div style={{ display: 'flex', justifyContent: 'flex-end', width: '35%' }}>
+                <Skeleton height={20} width="40%" />
+             </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
 function TrendsSkeleton() {
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
-        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
-        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
-        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
-        <Skeleton height={120} width="100%" style={{ borderRadius: '12px' }} />
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Filter Bar Skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Skeleton height={32} width={200} style={{ borderRadius: '6px' }} />
+          <Skeleton height={20} width={120} />
+          <Skeleton height={32} width={80} style={{ borderRadius: '6px' }} />
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Skeleton height={32} width={120} style={{ borderRadius: '6px' }} />
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-         <Skeleton height={400} width="100%" style={{ borderRadius: '12px' }} />
-         <Skeleton height={400} width="100%" style={{ borderRadius: '12px' }} />
+
+      {/* Vertical Stack of Job Card Skeletons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} style={{ background: 'var(--surface-primary)', border: '1px solid var(--border-secondary)', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            {/* Job Card Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Skeleton height={20} width={20} />
+                <Skeleton height={20} width={150} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Skeleton height={24} width={120} style={{ borderRadius: '12px' }} />
+                <Skeleton height={24} width={70} style={{ borderRadius: '12px' }} />
+                <Skeleton height={24} width={24} />
+              </div>
+            </div>
+            
+            {/* KPI Row */}
+            <div style={{ display: 'flex', padding: '16px 20px', gap: '24px', alignItems: 'center', background: 'var(--surface-secondary)' }}>
+              {Array.from({ length: 7 }).map((_, j) => (
+                <div key={j} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', borderRight: j < 6 ? '1px solid var(--border-primary)' : 'none', paddingRight: j < 6 ? '24px' : '0' }}>
+                  <Skeleton height={12} width="60%" />
+                  <Skeleton height={16} width="80%" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1549,7 +1658,7 @@ export function MurexRuntimeTrendsPage() {
         ) : (
           <>
         {activeTab === 'overview' && (
-          isLoading || !runtimeSummary ? <TrendsSkeleton /> : <MurexOverviewTab />
+          isLoading || !runtimeSummary ? <OverviewSkeleton /> : <MurexOverviewTab />
         )}
         {activeTab === 'runtime' && (
           isLoading || !runtimeSummary ? <TrendsSkeleton /> : (
@@ -1761,7 +1870,7 @@ export function MurexRuntimeTrendsPage() {
           </div>
         ))}
         {activeTab === 'management' && (
-          isLoadingCategories ? <ManagementSkeleton /> : (
+          isLoading || isLoadingCategories ? <ManagementSkeleton /> : (
           <div className="murex-management-tab">
             {/* Left Sidebar - Categories */}
             <div className="murex-category-sidebar">
