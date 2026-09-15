@@ -71,12 +71,13 @@ const STAGE_COLORS = {
 };
 
 /* ── CSV / Excel Export Function ─────────────────────────────────────────── */
-function exportToCSV(rows, filename, isCR = false) {
+function exportToCSV(rows, filename, isCR = false, projectsData = []) {
   if (!rows || !rows.length) return;
   const exportData = rows.map((p) => {
     if (isCR) {
+      const parentWO = projectsData.find(wo => parseInt(wo.Wo_Id, 10) === parseInt(p.Wo_Id, 10));
       return {
-        'CR IPM Number': p.Ipm_Number || p.code || p.ipmNumber || '',
+        'CR IPM Number': p.Ipm_Number || p.code || p.ipmNumber || (parentWO ? parentWO.Ipm_Number : ''),
         'Work Order ID': p.Wo_Id || p.woId || p.id || '',
         'Summary': p.Summary || p.summary || '',
         'Status': p.Status || p.status || p.stage || '',
@@ -204,7 +205,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
             </span>
             <ExportButton
               excel={true}
-              onExcelExport={() => exportToCSV(matchedProjects, `${titleText}_Export`, isCR)}
+              onExcelExport={() => exportToCSV(matchedProjects, `${titleText}_Export`, isCR, projectsData)}
             />
           </div>
         </div>
@@ -258,7 +259,15 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                       className="pm-modal-project-row"
                     >
                       <td>
-                        <span className="pm-project-code">{p.Ipm_Number || p.code}</span>
+                        <span className="pm-project-code">
+                          {p.Ipm_Number || 
+                           p.ipmNumber || 
+                           p.ipm_number || 
+                           p.CR_Number || 
+                           p.crNumber || 
+                           (projectsData && projectsData.find(wo => parseInt(wo.Wo_Id, 10) === parseInt(p.Wo_Id, 10))?.Ipm_Number) || 
+                           '-'}
+                        </span>
                       </td>
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{p.Wo_Id || p.woId || p.id}</span>

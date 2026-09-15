@@ -39,7 +39,7 @@ function DepartmentAvailabilityCardComponent({ departmentStats = [] }) {
       </div>
 
       {/* Table Container */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
         {/* Table Header */}
         <div style={{
           display: 'grid',

@@ -22,51 +22,45 @@ export function OverviewSection() {
     );
   }
 
+  if (isLoading && metrics.total === 0) {
+    return <OverviewSkeleton />;
+  }
+
   const { total, running, completed, failed, runningEnv } = metrics;
 
   return (
     <div className="eod-section">
       {/* ── Stat Cards ─────────────────────────────────────────── */}
       <div className="eod-stat-strip">
-        {isLoading && total === 0 ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={{ flex: 1, minWidth: '220px' }}>
-              <Skeleton height={90} width="100%" style={{ borderRadius: '12px' }} />
-            </div>
-          ))
-        ) : (
-          <>
-            <StatCard
-              icon={<Server size={16} />}
-              iconClass="s-blue"
-              stripClass="s-blue"
-              value={String(total)}
-              label="Total Environments"
-            />
-            <StatCard
-              icon={<Activity size={16} />}
-              iconClass="s-green"
-              stripClass="s-green"
-              value={String(running)}
-              label="Currently Running"
-              live={running > 0}
-            />
-            <StatCard
-              icon={<CheckCircle size={16} />}
-              iconClass="s-purple"
-              stripClass="s-purple"
-              value={String(completed)}
-              label="Completed Today"
-            />
-            <StatCard
-              icon={<AlertCircle size={16} />}
-              iconClass="s-red"
-              stripClass="s-red"
-              value={String(failed)}
-              label="Failed / Errors"
-            />
-          </>
-        )}
+        <StatCard
+          icon={<Server size={16} />}
+          iconClass="s-blue"
+          stripClass="s-blue"
+          value={String(total)}
+          label="Total Environments"
+        />
+        <StatCard
+          icon={<Activity size={16} />}
+          iconClass="s-green"
+          stripClass="s-green"
+          value={String(running)}
+          label="Currently Running"
+          live={running > 0}
+        />
+        <StatCard
+          icon={<CheckCircle size={16} />}
+          iconClass="s-purple"
+          stripClass="s-purple"
+          value={String(completed)}
+          label="Completed Today"
+        />
+        <StatCard
+          icon={<AlertCircle size={16} />}
+          iconClass="s-red"
+          stripClass="s-red"
+          value={String(failed)}
+          label="Failed / Errors"
+        />
       </div>
 
       {/* ── Live Run Banner ────────────────────────────────────── */}
@@ -126,18 +120,7 @@ export function OverviewSection() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && environments.length === 0 ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <tr key={i} className="eod-env-row">
-                  <td className="eod-env-td eod-td-env"><Skeleton height={20} width="80%" /></td>
-                  <td className="eod-env-td eod-td-status"><Skeleton height={24} width={80} style={{ borderRadius: '12px' }} /></td>
-                  <td className="eod-env-td eod-td-progress"><Skeleton height={20} width="60%" /></td>
-                  <td className="eod-env-td eod-td-date"><Skeleton height={20} width="70%" /></td>
-                  <td className="eod-env-td eod-td-date"><Skeleton height={20} width="70%" /></td>
-                  <td className="eod-env-td eod-td-dur"><Skeleton height={20} width="40%" /></td>
-                </tr>
-              ))
-            ) : environments.map((env) => (
+            {environments.map((env) => (
               <tr key={env.id} className="eod-env-row">
                 <td className="eod-env-td eod-td-env">
                   <div className="eod-env-row-left">

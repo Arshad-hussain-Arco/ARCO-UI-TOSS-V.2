@@ -358,8 +358,8 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background-color: #f1f5f9;
+  color: #475569;
 }
 
 .lc-tag-ongoing {

@@ -465,7 +465,30 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
         <div className="tv-summary-strip" ref={stripRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {(isLoading && !teams) ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} height={140} width="240px" style={{ borderRadius: '12px', flexShrink: 0, border: '1px solid var(--border-secondary)' }} />
+              <div key={i} className="tv-summary-card" style={{ pointerEvents: 'none' }}>
+                <div className="tv-sc-header">
+                  <Skeleton height={20} width={140} />
+                  <Skeleton height={24} width={24} variant="circle" />
+                </div>
+                <div className="tv-sc-stats">
+                  <div className="tv-sc-stat">
+                    <Skeleton height={24} width={30} style={{ marginBottom: '8px' }} />
+                    <Skeleton height={12} width={50} />
+                  </div>
+                  <div className="tv-sc-stat">
+                    <Skeleton height={24} width={30} style={{ marginBottom: '8px' }} />
+                    <Skeleton height={12} width={50} />
+                  </div>
+                  <div className="tv-sc-stat">
+                    <Skeleton height={24} width={30} style={{ marginBottom: '8px' }} />
+                    <Skeleton height={12} width={60} />
+                  </div>
+                  <div className="tv-sc-stat total">
+                    <Skeleton height={24} width={30} style={{ marginBottom: '8px' }} />
+                    <Skeleton height={12} width={50} />
+                  </div>
+                </div>
+              </div>
             ))
           ) : filteredTeams.map((team) => {
             const isActive = expandedTeamId === team.id;
@@ -519,7 +542,29 @@ export function TeamsView({ onProfileView, onTeamChanged, employeesData, getPhot
       <div className="tv-accordions-list">
         {(isLoading && !teams) ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} height={60} width="100%" style={{ borderRadius: '8px', marginBottom: '8px', border: '1px solid var(--border-secondary)' }} />
+            <div key={i} className="tv-accordion-wrapper" style={{ pointerEvents: 'none', marginBottom: '8px' }}>
+              <div className="tv-accordion">
+                <div className="tv-accordion-header">
+                  <div className="tv-ah-left">
+                    <Skeleton height={40} width={40} style={{ borderRadius: '10px' }} />
+                    <div className="tv-ah-title" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <Skeleton height={16} width={120} />
+                      <Skeleton height={12} width={80} />
+                    </div>
+                  </div>
+                  <div className="tv-ah-right">
+                    <div className="tv-ah-progress-group">
+                      <div className="tv-ah-progress-label">
+                        <Skeleton height={12} width={60} />
+                        <Skeleton height={12} width={30} />
+                      </div>
+                      <Skeleton height={6} width="100%" style={{ borderRadius: '3px' }} />
+                    </div>
+                    <Skeleton height={20} width={20} variant="circle" />
+                  </div>
+                </div>
+              </div>
+            </div>
           ))
         ) : filteredTeams.map((team) => (
           <div key={team.id} id={`team-acc-${team.id}`} className="tv-accordion-wrapper">

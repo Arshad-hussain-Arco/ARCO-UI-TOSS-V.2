@@ -803,6 +803,36 @@
   min-width: 200px;
 }
 
+.pm-datepicker-wrap {
+  width: 145px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 36px;
+}
+
+.pm-datepicker-wrap > * {
+  width: 100%;
+  min-width: 0; 
+}
+
+.pm-datepicker-wrap .dp-trigger {
+  height: 36px;
+  font-size: 12px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  width: 145px !important;
+  max-width: 145px !important;
+  overflow: hidden;
+}
+
+.pm-datepicker-wrap .dp-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 .pm-search-icon,
 .pm-search-icon-inner {
   position: absolute;

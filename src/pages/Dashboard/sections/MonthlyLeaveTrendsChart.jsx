@@ -35,9 +35,9 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function MonthlyLeaveTrendsChartComponent() {
+function MonthlyLeaveTrendsChartComponent({ trendData }) {
   // Professional monthly trends data
-  const trendData = [
+  const data = (trendData && trendData.length > 0) ? trendData : [
     { name: 'Jan', leaveCount: 12 },
     { name: 'Feb', leaveCount: 8 },
     { name: 'Mar', leaveCount: 15 },
@@ -64,7 +64,7 @@ function MonthlyLeaveTrendsChartComponent() {
       {/* Chart Wrapper */}
       <div style={{ flex: 1, width: '100%', minHeight: '220px', position: 'relative' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
             <defs>
               <linearGradient id="leaveTrendGradRefined" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--c-primary)" stopOpacity={0.15} />

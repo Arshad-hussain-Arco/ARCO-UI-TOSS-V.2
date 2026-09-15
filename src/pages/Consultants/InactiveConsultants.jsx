@@ -241,7 +241,9 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                {(canActivateDeactivate && handleActivate) && (
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -268,8 +270,8 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
                       {c.accountStatus || 'inactive'}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>
-                    {canActivateDeactivate && handleActivate && (
+                  {(canActivateDeactivate && handleActivate) && (
+                    <td style={{ textAlign: 'right' }}>
                       <button
                         onClick={() => handleActivate(c)}
                         className="consultant-footer-btn consultant-footer-btn-activate"
@@ -283,8 +285,8 @@ export function InactiveConsultants({ onEdit, onPassword, onDelete, onProfileVie
                           <Power size={14} className="consultant-footer-btn-icon" />
                         )}
                       </button>
-                    )}
-                  </td>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

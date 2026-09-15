@@ -202,8 +202,6 @@ export function DashboardPage() {
       inFlight.push(
         Promise.allSettled([
           dashboardService.getLeaveUtilization().then(setLeaveUtilization).catch((e) => console.error('Dashboard: getLeaveUtilization failed:', e)),
-          dashboardService.getLeaveRequestsTrend({ days: 7 }).then(setTrendData).catch((e) => console.error('Dashboard: getLeaveRequestsTrend failed:', e)),
-          dashboardService.getDepartmentStats().then((data) => setDepartmentStats(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getDepartmentStats failed:', e)),
           dashboardService.getOnLeave({ start_date: startStr, end_date: endStr }).then((data) => setOnLeaveRecords(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getOnLeave failed:', e)),
         ]).finally(() => setLoadingAttendance(false)),
       );
@@ -230,6 +228,8 @@ export function DashboardPage() {
           }).catch((e) => console.error('Dashboard: teams failed:', e)),
           consultantService.getEmployeesList().then((data) => setEmployees(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getEmployeesList failed:', e)),
           consultantService.getEmployeePhotos({ includeInactive: true }).then((data) => setOrgPhotos(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getEmployeePhotos failed:', e)),
+          dashboardService.getLeaveRequestsTrend({ days: 7 }).then(setTrendData).catch((e) => console.error('Dashboard: getLeaveRequestsTrend failed:', e)),
+          dashboardService.getDepartmentStats().then((data) => setDepartmentStats(Array.isArray(data) ? data : data?.results || [])).catch((e) => console.error('Dashboard: getDepartmentStats failed:', e)),
         ]).finally(() => setLoadingTeams(false)),
       );
     } else {
@@ -616,6 +616,7 @@ export function DashboardPage() {
                     ) : (
                       <TeamAvailabilityOverview
                         departmentStats={departmentStats}
+                        trendData={trendData}
                       />
                     )
                   )}
