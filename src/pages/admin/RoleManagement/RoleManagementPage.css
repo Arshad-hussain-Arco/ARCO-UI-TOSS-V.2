@@ -47,8 +47,7 @@
   color: var(--text-secondary);
 }
 
-.rm-btn-primary {
-  display: inline-flex;
+.rm-btn-primary { 
   align-items: center;
   gap: 6px;
   height: 34px;

@@ -4,6 +4,7 @@ import { GripVertical, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { Select } from '@components/forms/Select/Select';
 import { PanelSkeleton } from '@pages/admin/SystemSettings/panels/PanelSkeleton';
+import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { getVisibleNavigation, applyOrder } from '@constants/navigation';
@@ -205,7 +206,33 @@ export function RoleSidebarDefaultsPanel() {
       </div>
 
       {isLoadingOrder ? (
-        <PanelSkeleton />
+        <div className="pl-panels">
+          <section className="pl-section">
+            <h4 className="pl-section-title">Main Navigation</h4>
+            <ul className="pl-item-list">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <li key={i} className="pl-item-row" style={{ cursor: 'default', pointerEvents: 'none' }}>
+                  <GripVertical size={13} className="pl-item-grip" style={{ opacity: 0.3 }} />
+                  <Skeleton height={13} width={13} style={{ borderRadius: '2px', margin: '0 12px 0 0' }} />
+                  <Skeleton height={14} width={120 + (i % 4) * 20} style={{ borderRadius: '4px' }} />
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="pl-section">
+            <h4 className="pl-section-title">Admin Panel Submenu</h4>
+            <ul className="pl-item-list">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <li key={i} className="pl-item-row" style={{ cursor: 'default', pointerEvents: 'none' }}>
+                  <GripVertical size={13} className="pl-item-grip" style={{ opacity: 0.3 }} />
+                  <Skeleton height={13} width={13} style={{ borderRadius: '2px', margin: '0 12px 0 0' }} />
+                  <Skeleton height={14} width={150 + (i % 2) * 30} style={{ borderRadius: '4px' }} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
       ) : (
         <div className="pl-panels">
           <section className="pl-section">
