@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { CardLoader } from './CardLoader';
 import {
   AreaChart,
   Area,
@@ -35,22 +36,17 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function MonthlyLeaveTrendsChartComponent({ trendData }) {
-  // Professional monthly trends data
-  const data = (trendData && trendData.length > 0) ? trendData : [
-    { name: 'Jan', leaveCount: 12 },
-    { name: 'Feb', leaveCount: 8 },
-    { name: 'Mar', leaveCount: 15 },
-    { name: 'Apr', leaveCount: 22 },
-    { name: 'May', leaveCount: 18 },
-    { name: 'Jun', leaveCount: 25 },
-    { name: 'Jul', leaveCount: 30 },
-    { name: 'Aug', leaveCount: 28 },
-    { name: 'Sep', leaveCount: 14 },
-    { name: 'Oct', leaveCount: 16 },
-    { name: 'Nov', leaveCount: 20 },
-    { name: 'Dec', leaveCount: 35 },
-  ];
+function MonthlyLeaveTrendsChartComponent({ trendData, isLoading }) {
+  if (isLoading) {
+    return <CardLoader label="Loading monthly trends…" minHeight={340} />;
+  }
+
+  // Map API response data format to what the chart expects
+  const rawData = trendData?.results || [];
+  const data = rawData.map(item => ({
+    name: item.day || item.name || '',
+    leaveCount: item.count !== undefined ? item.count : (item.leaveCount || 0)
+  }));
 
   return (
     <div className="dc-card" style={{ display: 'flex', flexDirection: 'column', minHeight: '340px', padding: '20px' }}>

@@ -32,6 +32,7 @@ import { eodService } from '@services/eodService';
 import { capacityService } from '@services/capacityService';
 import { murexService } from '@services/murexService';
 import { documentService } from '@services/documentService';
+import { projectService } from '@services/projectService';
 import { processCapacityData } from '../CapacityPlanning/capacityCalculations';
 import './DashboardPage.css';
 
@@ -131,6 +132,7 @@ export function DashboardPage() {
   const [murexData, setMurexData] = useState(null);
   const [orgPhotos, setOrgPhotos] = useState([]);
   const [documentData, setDocumentData] = useState({ files: [], folderTree: [] });
+  const [projectData, setProjectData] = useState([]);
 
   // Per-section loading flags: each card shows its own loader until its
   // own endpoint(s) settle, instead of hiding blank or waiting on the rest.
@@ -144,6 +146,7 @@ export function DashboardPage() {
   const [loadingHolidays, setLoadingHolidays] = useState(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   // Each endpoint is fired independently and updates its own state slice as
   // soon as it resolves, instead of the whole page waiting behind a single
@@ -261,6 +264,17 @@ export function DashboardPage() {
       );
     } else {
       setLoadingDocuments(false);
+    }
+
+    const hasProjectView = hasPermission('PROJECT_MONITORING_VIEW');
+
+    if (hasProjectView) {
+      setLoadingProjects(true);
+      inFlight.push(
+        track(projectService.getWorkOrderStatus(), (data) => setProjectData(Array.isArray(data) ? data : data?.results || []), 'getWorkOrderStatus', () => setLoadingProjects(false))
+      );
+    } else {
+      setLoadingProjects(false);
     }
 
     if (empId) {
@@ -519,6 +533,22 @@ export function DashboardPage() {
       console.error("Failed to process capacity planning data", e);
     }
 
+    let active = 0;
+    let atRisk = 0;
+    let breached = 0;
+    
+    const projectsByStatus = projectData.map(p => {
+      const status = p.status?.toLowerCase().replace(/\s+/g, '-') || 'on-track';
+      if (status === 'at-risk') atRisk++;
+      else if (status === 'breached') breached++;
+      else active++;
+      return {
+        id: p.id || p.project_id || Math.random().toString(),
+        name: p.name || p.project_name || 'Project',
+        status
+      };
+    });
+
     return {
       kpis,
       systemHealth,
@@ -529,16 +559,15 @@ export function DashboardPage() {
       attendanceStatus,
       capacityByTeam,
       topAvailableConsultants,
-      projectRisk: { total: 0, atRisk: 0, offTrack: 0 },
-      projectsByStatus: [],
+      projectRisk: { active, atRisk, breached, total: active + atRisk + breached },
+      projectsByStatus,
       documents: { 
         folderTree: documentData.folderTree || [],
         files: documentData.files || [],
       },
       alerts,
-      quickStats,
     };
-  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees, orgPhotos, documentData]);
+  }, [apiSummary, eodRecords, leaveUtilization, announcements, pendingApprovals, capacityRecords, onLeaveRecords, employees, orgPhotos, documentData, projectData]);
 
   // 6. Team Headcount
   const mappedTeams = useMemo(() => {
@@ -611,14 +640,11 @@ export function DashboardPage() {
                   )}
 
                   {(hasPermission('TEAMS_VIEW') || hasPermission('EMPLOYEE_VIEW')) && (
-                    loadingAttendance ? (
-                      <div className="dc-span-12"><CardLoader label="Loading team availability…" minHeight={260} /></div>
-                    ) : (
-                      <TeamAvailabilityOverview
-                        departmentStats={departmentStats}
-                        trendData={trendData}
-                      />
-                    )
+                    <TeamAvailabilityOverview
+                      departmentStats={departmentStats}
+                      trendData={trendData}
+                      isLoading={loadingTeams}
+                    />
                   )}
 
                   {hasPermission('MUREX_RUNTIME_VIEW') && (
