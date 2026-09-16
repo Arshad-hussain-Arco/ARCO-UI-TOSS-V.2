@@ -200,9 +200,10 @@ function AttendanceSkeleton({ reportDates, timelineDates, subTab, viewMode }) {
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="attendance-team-group" style={{ pointerEvents: 'none' }}>
             <div className="attendance-team-header" style={{ border: 'none', background: 'var(--bg-secondary)' }}>
-              <Skeleton height={16} width={16} />
-              <Skeleton height={18} width={120} />
+              <Skeleton height={18} width={120} style={{ flex: 'none' }} />
               <Skeleton height={20} width={24} style={{ borderRadius: '10px' }} />
+              <div style={{ flex: 1 }}></div>
+              <Skeleton height={16} width={16} />
             </div>
             <div className="attendance-team-content" style={{ padding: '0 16px 16px' }}>
               {Array.from({ length: 2 }).map((_, j) => (
@@ -1382,9 +1383,10 @@ export function AttendancePage() {
                       return (
                         <div key={team} className="attendance-team-group">
                           <button className="attendance-team-header" onClick={() => toggleTeam(team)}>
-                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                            <span className="attendance-team-name">{team.charAt(0).toUpperCase() + team.slice(1)}</span>
+                            <span className="attendance-team-name" style={{ flex: 'none' }}>{team.charAt(0).toUpperCase() + team.slice(1)}</span>
                             <span className="attendance-team-badge">{consultants.length}</span>
+                            <div style={{ flex: 1 }}></div>
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                           </button>
                           {isExpanded && (
                             <div className="attendance-team-content">
@@ -1850,19 +1852,7 @@ export function AttendancePage() {
                               </div>
                             </div>
 
-                            <div
-                              className="attendance-card-badge"
-                              style={{
-                                backgroundColor: 'var(--surface-tertiary)',
-                                color: 'var(--status-success)',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '4px 8px',
-                                borderRadius: '12px'
-                              }}
-                            >
-                              {percentage}%
-                            </div>
+
                           </div>
 
                           <div className="attendance-card-ring-wrapper">

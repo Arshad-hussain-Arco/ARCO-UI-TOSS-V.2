@@ -1,9 +1,13 @@
 import React, { memo } from 'react';
+import { CardLoader } from './CardLoader';
 
-function DepartmentAvailabilityCardComponent({ departmentStats = [] }) {
-  // Map live API data if available, otherwise fall back to mock data
-  const availabilityData = departmentStats.length > 0
-    ? departmentStats.map(dept => {
+function DepartmentAvailabilityCardComponent({ departmentStats = [], isLoading }) {
+  if (isLoading) {
+    return <CardLoader label="Loading department availability…" minHeight={340} />;
+  }
+
+  // Map live API data
+  const availabilityData = departmentStats.map(dept => {
       const total = dept.total_employees || 0;
       const active = dept.active_employees || 0;
       const onLeave = Math.max(0, total - active);
@@ -13,14 +17,7 @@ function DepartmentAvailabilityCardComponent({ departmentStats = [] }) {
         onLeave,
         percentage
       };
-    })
-    : [
-      { name: 'Development', onLeave: 3, percentage: 85 },
-      { name: 'Quality Assurance', onLeave: 1, percentage: 92 },
-      { name: 'DevOps', onLeave: 0, percentage: 100 },
-      { name: 'UI/UX Design', onLeave: 2, percentage: 75 },
-      { name: 'Business Analysis', onLeave: 1, percentage: 90 }
-    ];
+  });
 
   // Helper for progress bar color
   const getProgressColor = (pct) => {

@@ -747,7 +747,9 @@ export function MurexOverviewTab() {
                             </div>
                             <div className="mxl-col mxl-col-end">
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', lineHeight: '1.2', fontWeight: 600 }}>
-                                <span style={{ color: isNextDay ? '#dc2626' : '#0284c7', fontSize: '10px' }}>{endDateStr}</span>
+                                <span style={{ color: '#dc2626', fontSize: '10px', visibility: isNextDay ? 'visible' : 'hidden' }}>
+                                  {endDateStr}
+                                </span>
                                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{formatTime(e)}</span>
                               </div>
                             </div>
