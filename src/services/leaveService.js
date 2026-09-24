@@ -160,7 +160,7 @@ export const leaveService = {
     return response.data;
   },
   modifyOwLeave: async (leaveId, payload) => {
-    const response = await httpClient.patch(endpoints.me.owModify(leaveId), payload);
+    const response = await httpClient.put(endpoints.me.owModify(leaveId), payload);
     return response.data;
   },
   remindManager: async (leaveId, payload) => {
