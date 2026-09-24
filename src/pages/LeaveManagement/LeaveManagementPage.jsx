@@ -660,6 +660,7 @@ export function LeaveManagementPage() {
   );
 
   const isActionEligible = (codes, category) => {
+    if (canApplyOnBehalf) return true;
     if (category) {
       return eligibleLeaveTypes.some((t) => t.category === category && t.active !== false);
     }
@@ -893,6 +894,13 @@ export function LeaveManagementPage() {
           }}
           canApplyOnBehalf={canApplyOnBehalf}
           type={modalType}
+          selfEligible={(() => {
+            const btn = LEAVE_ACTION_BUTTONS.find((b) => b.modalType === modalType);
+            if (!btn) return true;
+            if (btn.category) return eligibleLeaveTypes.some((t) => t.category === btn.category && t.active !== false);
+            if (!btn.codes) return true;
+            return eligibleLeaveTypes.some((t) => btn.codes.includes(t.code) && t.active !== false);
+          })()}
         />
       )}
 

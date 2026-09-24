@@ -570,7 +570,7 @@ function buildLeaveTypeItem(entry, balances) {
 // default — since this is a manager-hierarchy capability (derived from
 // user.mySubordinates by the caller), never a role/permission check, and a
 // truthy default here would silently grant it to everyone.
-function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
+function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligible = true }) {
   const MODAL_TITLES = {
     leave: 'Apply Leave',
     wfh: 'Apply WFH',
@@ -600,7 +600,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
   const { user } = useAuth();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [applyFor, setApplyFor] = useState('self');
+  const [applyFor, setApplyFor] = useState(selfEligible ? 'self' : 'behalf');
   const [behalfEmp, setBehalfEmp] = useState(null);
   const [requiresJustification, setRequiresJustification] = useState(false);
   const [justificationText, setJustificationText] = useState('');
@@ -758,6 +758,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
       label: fixedCode,
       balance: bal.is_unlimited ? null : Number(bal.available ?? 0),
       isUnlimited: !!bal.is_unlimited,
+      isFlexible: !bal.is_unlimited && (!!bal.is_flexible || fixedCode === 'OW' || fixedCode === 'WFH'),
       requiresAttachment: false,
       maxConsecutive: Infinity,
       carryForward: false,
@@ -808,8 +809,11 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
         ? [{ key: 'balance', label: 'Claim — no balance deducted', status: 'info' }]
         : [];
     }
+    if (startDate && !effectiveLeaveType && !showLeaveType) {
+      return [{ key: 'eligibility', label: applyFor === 'behalf' ? 'Selected employee is not eligible for this request type.' : 'You are not eligible for this request type.', status: 'error' }];
+    }
     return getValidations(startDate, end ?? null, effectiveLeaveType, charged, isClaimType, calendarDayMap, effectiveLeaveType?.code || fixedCode);
-  }, [isClaimType, selectedClaimDates, startDate, end, effectiveLeaveType, charged, calendarDayMap, fixedCode]);
+  }, [isClaimType, selectedClaimDates, startDate, end, effectiveLeaveType, charged, calendarDayMap, fixedCode, showLeaveType, applyFor]);
   const hasError = validations.some((v) => v.status === 'error');
   const canSubmit =
     (isClaimType ? selectedClaimDates.length > 0 : !!startDate) &&
@@ -1267,6 +1271,12 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       
                       if (applyFor === 'behalf') {
                         const res = await leaveService.applyLeaveOnBehalf(basePayload);
+                        if (type === 'offshore' && res?.requires_justification && !basePayload.justification) {
+                          setRequiresJustification(true);
+                          setQuotaInfo(res.quota_info);
+                          setIsSubmitting(false);
+                          return;
+                        }
                         setLastDayBreakdown(res?.day_breakdown || null);
                       } else {
                         if (type === 'offshore') {
@@ -1314,6 +1324,12 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                       setQuotaInfo(null);
                       setFlexJustification('');
                     } catch (error) {
+                      if (type === 'offshore' && error.response?.data?.requires_justification && !basePayload.justification) {
+                        setRequiresJustification(true);
+                        setQuotaInfo(error.response.data.quota_info);
+                        setIsSubmitting(false);
+                        return;
+                      }
                       const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to submit request. Please try again.';
                       toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
                     } finally {
@@ -1349,7 +1365,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave' }) {
                   <div className="al-apply-for-row">
                     <span className="al-apply-for-label">Apply for</span>
                     <div className="al-segmented">
-                      {['self', 'behalf'].map((v) => (
+                      {(selfEligible ? ['self', 'behalf'] : ['behalf']).map((v) => (
                         <button
                           key={v}
                           type="button"
