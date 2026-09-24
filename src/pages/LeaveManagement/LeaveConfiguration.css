@@ -87,7 +87,7 @@
 }
 
 .lc-table th {
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 11px;
@@ -137,12 +137,16 @@
   position: sticky;
   left: 0;
   z-index: 1;
+  /* Use box-shadow to fix WebKit border-collapse issues on sticky columns */
+  box-shadow: inset -1px 0 0 var(--border-secondary);
+}
+
+.lc-table td:first-child {
   background-color: var(--surface-primary);
-  /* Solid background to prevent overlap */
-  border-right: 1px solid var(--border-primary);
 }
 
 .lc-table th:first-child {
+  background-color: var(--bg-tertiary);
   z-index: 2;
   /* Needs to be above the sticky column when scrolling vertically */
 }

@@ -247,7 +247,7 @@
 }
 
 .lc-data-table th {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
