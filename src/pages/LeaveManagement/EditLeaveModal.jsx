@@ -452,22 +452,11 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
           ...durationFields,
           ...justificationField,
         });
-      } else if (isOW) {
-        res = await leaveService.modifyOwLeave(leave.id, {
-          emp_id: user?.emp_id || user?.empId || 1,
-          new_start: newStart,
-          new_end: effectiveEnd,
-          new_reason: newReason,
-          ...durationFields,
-          mod_reason: modReason,
-          ...justificationField,
-        });
       } else {
         // The generic modify endpoint's serializer (ModifyLeaveSerializer)
-        // uses different field names than the OW-specific and on-behalf
-        // endpoints above (new_start_date/new_end_date/modification_reason,
-        // not new_start/new_end/mod_reason) — do not "unify" these, they're
-        // genuinely different backend contracts.
+        // uses different field names than the on-behalf endpoint above
+        // (new_start_date/new_end_date/modification_reason, not new_start/new_end/mod_reason)
+        // — do not "unify" these, they're genuinely different backend contracts.
         res = await leaveService.modifyLeave(leave.id, {
           emp_id: user?.emp_id || user?.empId || 1,
           new_start_date: newStart,
@@ -585,8 +574,9 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                   </div>
                 </div>
               ) : (
-                rangeDays.map((d, index) => {
-                  const isStartDay = index === 0;
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '210px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {rangeDays.map((d, index) => {
+                    const isStartDay = index === 0;
                   const isEndDay = index === rangeDays.length - 1;
                   const isMiddleDay = !isStartDay && !isEndDay;
                   const currentVal = dailyConfigs[d] || 'full';
@@ -640,7 +630,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
                       </div>
                     </div>
                   );
-                })
+                })}
+                </div>
               )}
             </div>
           </div>
