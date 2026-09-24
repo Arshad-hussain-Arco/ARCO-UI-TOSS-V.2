@@ -177,10 +177,10 @@ export function SchedulesSection() {
     }
   };
 
-  const handleDeleteSchedule = async (id) => {
+  const handleDeleteSchedule = async (id, groupId) => {
     setIsSaving(true);
     try {
-      await eodService.deleteEodSchedule(id);
+      await eodService.deleteEodSchedule(id, groupId);
       setDeleteConfirmSchedule(null);
       await fetchScheduleData();
     } catch (err) {
@@ -344,11 +344,16 @@ export function SchedulesSection() {
                               <RefreshCw size={10} />
                               <span>{sch.recurrence}</span>
                             </div>
-                            {sch.cronExpression && (
-                              <code className="eod-dur-code" style={{ fontSize: 11, marginLeft: 6 }} title="Stored Cron Expression">
-                                {sch.cronExpression}
+                            {(sch.cronExpressions || [sch.cronExpression]).filter(Boolean).map((cron, idx) => (
+                              <code
+                                key={`${sch.id}-cron-${idx}`}
+                                className="eod-dur-code"
+                                style={{ fontSize: 11, marginLeft: idx === 0 ? 6 : 4 }}
+                                title="Stored Cron Expression"
+                              >
+                                {cron}
                               </code>
-                            )}
+                            ))}
                           </div>
 
 
@@ -429,7 +434,7 @@ export function SchedulesSection() {
             <button
               type="button"
               className="eod-modal-btn danger"
-              onClick={() => handleDeleteSchedule(deleteConfirmSchedule.id)}
+              onClick={() => handleDeleteSchedule(deleteConfirmSchedule.id, deleteConfirmSchedule.scheduleGroupId)}
               disabled={isSaving}
               style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >

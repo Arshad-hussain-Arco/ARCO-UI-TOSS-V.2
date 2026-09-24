@@ -697,10 +697,15 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         const XLSX = await import('xlsx');
         const wb = XLSX.utils.book_new();
 
+        // results.rawResults only holds the currently displayed page — fetch
+        // the full, unpaginated reconciliation result so the export contains
+        // every record, not just the current page.
         let raw = results.rawResults;
+        let activeMappings = results.activeMappings;
         if (fetchFullResults) {
-          const fullResults = await fetchFullResults();
-          raw = fullResults?.rawResults;
+          const full = await fetchFullResults();
+          raw = full?.rawResults;
+          activeMappings = full?.activeMappings ?? activeMappings;
         }
         if (!raw) {
           toast.error('No raw results available for export.');
@@ -948,7 +953,7 @@ export function StepResults({ results, file1Name, file2Name, onReset, onPageChan
         toast.error('Failed to export report.');
       }
     },
-    [results, file1Name, file2Name, toast],
+    [results, file1Name, file2Name, toast, fetchFullResults],
   );
 
   return (

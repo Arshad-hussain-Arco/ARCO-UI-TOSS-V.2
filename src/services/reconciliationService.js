@@ -85,7 +85,7 @@ export const reconciliationService = {
     }
     if (page) formData.append('page', page);
     if (pageSize) formData.append('pageSize', pageSize);
-    if (exportAll) formData.append('export', 'true');
+    if (exportAll) formData.append('exportAll', 'true');
 
     const response = await httpClient.post(endpoints.reconciliation.reconcile, formData, {
       headers: {
