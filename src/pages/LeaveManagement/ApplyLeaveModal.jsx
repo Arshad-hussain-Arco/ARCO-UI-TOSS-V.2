@@ -758,7 +758,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
       label: fixedCode,
       balance: bal.is_unlimited ? null : Number(bal.available ?? 0),
       isUnlimited: !!bal.is_unlimited,
-      isFlexible: !bal.is_unlimited && (!!bal.is_flexible || fixedCode === 'OW' || fixedCode === 'WFH'),
+      isFlexible: !bal.is_unlimited && (!!bal.is_flexible),
       requiresAttachment: false,
       maxConsecutive: Infinity,
       carryForward: false,
