@@ -82,7 +82,8 @@ export function EditLeaveModal({ leave, onClose, onSuccess }) {
         // past — mirrors the backend exemption in
         // leaves.services.LeaveApplyService.apply's is_backdatable_category
         // check. Category-driven, not mode-driven.
-        allowPastDates: match?.category === 'ACTUAL',
+        // Min Notice = 0 also permits past dates.
+        allowPastDates: match?.category === 'ACTUAL' || Number(match?.min_notice_days ?? 0) === 0,
       });
     });
   }, [leave.emp_id, leave.leave_type, user?.emp_id]);
