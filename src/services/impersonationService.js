@@ -41,9 +41,8 @@ export const impersonationService = {
    * "View as Role" — unlike Access Account, this never touches another
    * person's identity/data, only the caller's own with simulated
    * permissions. So there's no separate credential/setup-token step:
-   * these two calls rely on httpClient's normal Authorization attachment,
-   * i.e. the caller's own real login token (already sitting in
-   * localStorage, shared with the tab that opened this one).
+   * these two calls rely on the caller's own real login session (the
+   * HttpOnly session cookie, shared with the tab that opened this one).
    */
   listRoles: async () => {
     const response = await httpClient.get(endpoints.impersonate.roles);

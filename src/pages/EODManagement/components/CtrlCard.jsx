@@ -4,6 +4,7 @@ import eodService from '../../../services/eodService';
 import { settingsService } from '../../../services/settingsService';
 import { LogViewerModal } from './LogViewerModal';
 import { env as appEnv } from '../../../config/env';
+import { wsAuthQuery } from '../../../api/wsAuth';
 
 const formatSeconds = (totalSecs) => {
   const hrs = String(Math.floor(totalSecs / 3600)).padStart(2, '0');
@@ -70,15 +71,13 @@ export function CtrlCard({ env, onStart, onPause, onStop, canExecute, canViewLog
       return;
     }
 
-    const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || '';
-    
     // Derive WS base from the centralized API config (convert http(s) to ws(s))
     // Fall back to window.location if appEnv.apiBaseUrl is empty
     const wsBase = appEnv.apiBaseUrl 
       ? appEnv.apiBaseUrl.replace(/^http/, 'ws') 
       : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
       
-    const wsUrl = `${wsBase}/ws/eod-jobs/${env.id}/${token ? `?token=${token}` : ''}`;
+    const wsUrl = `${wsBase}/ws/eod-jobs/${env.id}/${wsAuthQuery()}`;
     let ws = null;
     let pollInterval = null;
 

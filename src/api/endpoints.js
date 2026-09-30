@@ -1,8 +1,7 @@
 const endpoints = {
   auth: {
     login: '/auth/login/',
-    refresh: '/auth/refresh/',
-    verify: '/auth/verify/',
+    session: '/auth/session/',
     logout: '/auth/logout/',
     userInfo: '/auth/user-info/',
     updateUserInfo: '/auth/update-user-info/',
