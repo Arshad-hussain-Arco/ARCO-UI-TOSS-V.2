@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { storage } from '@utils/storage';
 import { impersonationStorage } from '@utils/impersonationStorage';
@@ -7,14 +7,27 @@ import { STORAGE_KEYS, IMPERSONATION_KEYS } from '@constants/storageKeys';
 import { authService } from '@services/authService';
 import { impersonationService } from '@services/impersonationService';
 import { pushNotificationService } from '@services/pushNotificationService';
-import { useTheme } from '@hooks/useTheme';
 import { useToast } from '@hooks/useToast';
-import { resetSessionEndGuard } from '@api/httpClient';
+import { useIdleTimeout } from '@hooks/useIdleTimeout';
+import { IdleWarningModal } from '@components/feedback/IdleWarning/IdleWarningModal';
+import { markSessionEnded, resetSessionEndGuard, sessionEndReason } from '@api/httpClient';
 
 const SESSION_END_MESSAGES = {
   other_device: 'Session Ended. Logged in through another browser/device.',
   timeout: 'Session timed out. Please log in again.',
+  revoked: 'Session ended by an administrator. Please log in again.',
+  signed_out: 'You were signed out in another tab.',
 };
+
+// Until /auth/session/ reports the backend's configured value.
+const DEFAULT_IDLE_TIMEOUT_SECONDS = 15 * 60;
+
+// Tells this browser's other tabs about logins/logouts, so every tab
+// follows the (shared) session cookie immediately instead of on its next
+// failing request.
+const AUTH_CHANNEL_NAME = 'toss-auth';
+const openAuthChannel = () =>
+  typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(AUTH_CHANNEL_NAME);
 
 /**
  * True when this specific tab holds an impersonation session — the only
@@ -52,7 +65,6 @@ export function AuthProvider({ children }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const { setTheme } = useTheme();
   const toast = useToast();
 
   // Pulls fresh role/permission/subordinate data from /auth/user-info/ and
@@ -69,11 +81,7 @@ export function AuthProvider({ children }) {
   const refreshUser = useCallback(async ({ includePhoto = false } = {}) => {
     const impersonating = isImpersonationTab();
     const activeStore = impersonating ? impersonationStorage : storage;
-    const tokenKey = impersonating ? IMPERSONATION_KEYS.ACCESS_TOKEN : STORAGE_KEYS.AUTH_TOKEN;
     const userKey = impersonating ? IMPERSONATION_KEYS.USER : STORAGE_KEYS.AUTH_USER;
-
-    const token = activeStore.get(tokenKey);
-    if (!token) return;
 
     let persistedUser = activeStore.get(userKey);
 
@@ -137,42 +145,29 @@ export function AuthProvider({ children }) {
 
       activeStore.set(userKey, persistedUser);
     } catch (err) {
+      // A 401 means the session is gone — httpClient has already announced
+      // it (auth-unauthorized / impersonation-ended), so don't resurrect it.
+      if (err.response?.status === 401) return false;
       console.warn('Failed to refresh user-info', err);
       // Keep whatever was already persisted/rendered — a transient network
       // failure here must not sign the user out or blank their permissions.
     }
 
-    if (persistedUser && activeStore.get(tokenKey)) {
-      setUser((prevUser) => {
-        const finalUser = { ...persistedUser };
-        // If storage failed to save the avatar (e.g. due to quota), preserve it from React state
-        if (!finalUser.avatar && prevUser?.avatar) {
-          finalUser.avatar = prevUser.avatar;
-          // Also try to persist it back just in case
-          activeStore.set(userKey, finalUser);
-        }
-        return finalUser;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!persistedUser) return false;
+    // The impersonation session may have ended while user-info was in flight.
+    if (impersonating && !impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN)) return false;
 
-  // Restore a persisted session on first mount so a refresh does not sign the
-  // user out, and pull fresh role/permission data at the same time.
-  useEffect(() => {
-    let isMounted = true;
-
-    (async () => {
-      await refreshUser({ includePhoto: true });
-      if (isMounted) {
-        setIsInitialising(false);
+    setUser((prevUser) => {
+      const finalUser = { ...persistedUser };
+      // If storage failed to save the avatar (e.g. due to quota), preserve it from React state
+      if (!finalUser.avatar && prevUser?.avatar) {
+        finalUser.avatar = prevUser.avatar;
+        // Also try to persist it back just in case
+        activeStore.set(userKey, finalUser);
       }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      return finalUser;
+    });
+    return true;
   }, []);
 
   // Keep permissions from going stale for a long-lived session: re-pull on
@@ -219,8 +214,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
-    storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
     storage.remove(STORAGE_KEYS.AUTH_USER);
 
     // Clear all temporary UI states (tabs, views) from localStorage so they reset on next login
@@ -257,19 +250,106 @@ export function AuthProvider({ children }) {
     }
   }, [clearImpersonationSession]);
 
-  // Listen for global unauthorized events (e.g. from axios interceptor when refresh
-  // fails, or when the backend flags the access token as killed by a login
-  // elsewhere). `reason` picks the specific toast — never fall back to a
-  // generic "Unauthorized"/"Please login" message here.
+  // Cross-tab login/logout sync. Normal tabs all share one session cookie,
+  // so when it's ended — or replaced by a new login — in one tab, every
+  // other normal tab follows immediately. Impersonation tabs hold their own
+  // independent session and ignore these messages.
+  const channelRef = useRef(null);
   useEffect(() => {
-    const handleUnauthorized = (event) => {
-      const reason = event.detail?.reason;
+    const channel = openAuthChannel();
+    channelRef.current = channel;
+    return () => {
+      channelRef.current = null;
+      channel?.close();
+    };
+  }, []);
+
+  const broadcast = useCallback((message) => channelRef.current?.postMessage(message), []);
+
+  // Tears down a normal session that has ended (or that this tab is ending).
+  // `reason` picks the toast; the server is told so the (possibly already
+  // dead) cookie is cleared and the next visit starts clean.
+  const endSession = useCallback(
+    (reason, { notifyServer = true, notifyTabs = true } = {}) => {
+      markSessionEnded();
       toast.warning(SESSION_END_MESSAGES[reason] ?? SESSION_END_MESSAGES.timeout);
       clearSession();
+      if (notifyServer) authService.logout();
+      if (notifyTabs) broadcast({ type: 'logout', reason });
+    },
+    [broadcast, clearSession, toast],
+  );
+
+  const [idleTimeoutSeconds, setIdleTimeoutSeconds] = useState(DEFAULT_IDLE_TIMEOUT_SECONDS);
+
+  // Asks the backend whether this browser's cookie is a live session and,
+  // if so, loads the profile. A dead session answers 401 with the reason
+  // (e.g. replaced by a login elsewhere while this tab was closed).
+  const restoreSession = useCallback(async () => {
+    try {
+      const session = await authService.getSession();
+      if (session.idleTimeoutSeconds) setIdleTimeoutSeconds(session.idleTimeoutSeconds);
+      if (session.authenticated) {
+        resetSessionEndGuard();
+        await refreshUser({ includePhoto: true });
+      } else {
+        storage.remove(STORAGE_KEYS.AUTH_USER);
+        setUser(null);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        endSession(sessionEndReason(err), { notifyTabs: false });
+      } else {
+        console.warn('Could not verify session', err);
+      }
+    }
+  }, [endSession, refreshUser]);
+
+  // Restore the session on first mount so a page refresh doesn't sign the
+  // user out, and pull fresh role/permission data at the same time.
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      if (isImpersonationTab()) {
+        await refreshUser({ includePhoto: true });
+      } else {
+        await restoreSession();
+      }
+      if (isMounted) {
+        setIsInitialising(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const channel = channelRef.current;
+    if (!channel) return undefined;
+    const handleMessage = ({ data }) => {
+      if (isImpersonationTab()) return;
+      if (data?.type === 'logout') {
+        if (user) endSession(data.reason, { notifyServer: false, notifyTabs: false });
+      } else if (data?.type === 'login') {
+        // Another tab logged in (possibly as someone else) — the shared
+        // cookie now belongs to that session, so reload who we are.
+        restoreSession();
+      }
+    };
+    channel.addEventListener('message', handleMessage);
+    return () => channel.removeEventListener('message', handleMessage);
+  }, [user, endSession, restoreSession]);
+
+  // httpClient announces a dead session (401 with the backend's reason code).
+  useEffect(() => {
+    const handleUnauthorized = (event) => endSession(event.detail?.reason);
     window.addEventListener('auth-unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth-unauthorized', handleUnauthorized);
-  }, [clearSession, toast]);
+  }, [endSession]);
 
   // Impersonation sessions die independently of the normal-session logic
   // above (own token family, own storage) — this is the only place an
@@ -295,33 +375,18 @@ export function AuthProvider({ children }) {
       setError(null);
 
       try {
-        const {
-          token,
-          refreshToken,
-          user: authenticatedUser,
-        } = await authService.login(credentials);
-
+        const session = await authService.login(credentials);
         resetSessionEndGuard();
-        storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
-        if (refreshToken) {
-          storage.set(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
-        }
-        // Persist the bare JWT-decoded user so refreshUser has a base to merge
-        // onto, but deliberately do NOT setUser() with it here: isAuthenticated
-        // (Boolean(user)) would flip true immediately, and PublicRoute reacts
-        // to that by navigating away right then — mid-flight, with placeholder
-        // role/isAdmin/permissions — racing ahead of the refreshUser() call
-        // below and landing on a 403 or the wrong sidebar. setUser only happens
-        // once, inside refreshUser, once real role/permission data is in hand.
-        storage.set(STORAGE_KEYS.AUTH_USER, authenticatedUser);
+        if (session.idleTimeoutSeconds) setIdleTimeoutSeconds(session.idleTimeoutSeconds);
 
-        if (authenticatedUser?.theme) {
-          setTheme(authenticatedUser.theme);
+        // setUser only happens inside refreshUser, once real role/permission
+        // data is in hand — flipping isAuthenticated earlier would make
+        // PublicRoute navigate away with placeholder permissions.
+        const loaded = await refreshUser({ includePhoto: true });
+        if (!loaded) {
+          throw new Error('Signed in, but your profile could not be loaded. Please try again.');
         }
-
-        // /auth/user-info/ is intentionally lightweight (no photo/config
-        // payload) so awaiting it here doesn't meaningfully delay login.
-        await refreshUser({ includePhoto: true });
+        broadcast({ type: 'login' });
       } catch (caught) {
         setError(caught.message);
         throw caught;
@@ -329,18 +394,32 @@ export function AuthProvider({ children }) {
         setIsSubmitting(false);
       }
     },
-    [setTheme, refreshUser],
+    [broadcast, refreshUser],
   );
 
   const logout = useCallback(async () => {
-    try {
-      await authService.logout();
-    } catch {
-      // Signing out locally must succeed even if the server call does not.
-    } finally {
-      clearSession();
-    }
-  }, [clearSession]);
+    markSessionEnded();
+    // Signing out locally must succeed even if the server call does not.
+    await authService.logout();
+    clearSession();
+    broadcast({ type: 'logout', reason: 'signed_out' });
+  }, [broadcast, clearSession]);
+
+  // Idle timeout for normal sessions (impersonation sessions have their own
+  // hard ceiling server-side). The backend enforces the same limit; this is
+  // the warning + clean sign-out on top of it.
+  const keepAlive = useCallback(() => {
+    authService.getSession().catch((err) => {
+      if (err.response?.status === 401) endSession(sessionEndReason(err));
+    });
+  }, [endSession]);
+
+  const { warningSecondsLeft, staySignedIn } = useIdleTimeout({
+    enabled: Boolean(user) && !isImpersonationTab(),
+    idleTimeoutMs: idleTimeoutSeconds * 1000,
+    onTimeout: () => endSession('timeout'),
+    onKeepAlive: keepAlive,
+  });
 
   const hasPermission = useCallback(
     (permission) => Boolean(user?.permissions?.includes(permission)),
@@ -378,5 +457,14 @@ export function AuthProvider({ children }) {
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <IdleWarningModal
+        secondsLeft={warningSecondsLeft}
+        onStaySignedIn={staySignedIn}
+        onSignOut={logout}
+      />
+    </AuthContext.Provider>
+  );
 }

@@ -1,51 +1,46 @@
 import axios from 'axios';
-import { storage } from '@utils/storage';
 import { impersonationStorage } from '@utils/impersonationStorage';
-import { STORAGE_KEYS, IMPERSONATION_KEYS } from '@constants/storageKeys';
+import { IMPERSONATION_KEYS } from '@constants/storageKeys';
 import endpoints from './endpoints';
+import { csrf } from './csrf';
 import { env } from '@config/env';
 
-// Create base instance
+// Normal logins are a server-side session behind an HttpOnly cookie that
+// script can never read — the browser attaches it to every request (hence
+// withCredentials). There are no tokens to store or refresh: the backend
+// extends the session on use and ends it on logout, idle timeout, its
+// absolute timeout, or a newer login elsewhere.
 const httpClient = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: env.apiTimeout,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Queue for pending requests during refresh
-let isRefreshing = false;
-let failedQueue = [];
+const UNSAFE_METHODS = ['post', 'put', 'patch', 'delete'];
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-// Request Interceptor: Attach access token.
-// An impersonation access token (sessionStorage, per-tab) always takes
-// priority over the normal login token (localStorage, shared across every
-// tab on this origin) — this is what makes an "Access Account" tab render
-// as the target employee even though the admin's own real token is sitting
-// right there in the same localStorage. A caller that already set its own
-// Authorization header (impersonationService's bootstrap calls, which carry
-// a short-lived setup token) is never overridden — see the `if` guard below.
+// Request Interceptor.
+// An impersonation tab ("Access Account" / "View as Role") authenticates
+// with its own per-tab access token (sessionStorage), sent as a Bearer
+// header — the backend prefers it over the admin's real session cookie,
+// which the browser still attaches. A caller that already set its own
+// Authorization header (impersonationService's bootstrap calls, which
+// carry a short-lived setup token) is never overridden.
 httpClient.interceptors.request.use(
   (config) => {
     if (!config.headers['Authorization']) {
       const impersonationToken = impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN);
-      const token = impersonationToken || storage.get(STORAGE_KEYS.AUTH_TOKEN);
-      if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
+      if (impersonationToken) {
+        config.headers['Authorization'] = `Bearer ${impersonationToken}`;
       }
       config._isImpersonation = Boolean(impersonationToken);
+    }
+
+    const token = csrf.get();
+    if (token && UNSAFE_METHODS.includes((config.method || 'get').toLowerCase())) {
+      config.headers['X-CSRFToken'] = token;
     }
 
     // Let the browser set multipart/form-data + boundary itself.
@@ -60,23 +55,30 @@ httpClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Distinguishes *why* the session ended so the UI can show the right toast.
-// DRF only serializes AuthenticationFailed's plain-string `detail` into the
-// response body — the `code=` kwarg passed on the backend never reaches the
-// client as JSON — so detection has to match on that detail text, not a code.
-// - 'other_device': the account logged in elsewhere (single-session policy) —
-//   CustomJWTAuthentication's "...logged in from another device" detail on
-//   the access token, or the refresh token being blacklisted by that login.
-// - 'timeout': the refresh token itself simply expired/is invalid — no
-//   competing login involved.
-// A page in flight typically fires several requests at once (plus the
-// notifications WS/interval), so a dead session produces a burst of 401s —
-// without this guard each one would dispatch its own toast. Cleared by
-// resetSessionEndGuard() on the next successful login.
+// Why the session ended, from the backend's 401 `code` — picks the toast.
+const REASON_BY_CODE = {
+  session_replaced: 'other_device',
+  session_revoked: 'revoked',
+  session_expired: 'timeout',
+};
+
+export function sessionEndReason(error) {
+  return REASON_BY_CODE[error?.response?.data?.code] ?? 'timeout';
+}
+
+// A page in flight typically fires several requests at once, so a dead
+// session produces a burst of 401s — without this guard each one would
+// dispatch its own toast. Cleared by resetSessionEndGuard() on login.
 let sessionEndNotified = false;
 
 export function resetSessionEndGuard() {
   sessionEndNotified = false;
+}
+
+// The session ended by other means (idle timeout, another tab's logout) —
+// suppress the toast its leftover in-flight requests would otherwise fire.
+export function markSessionEnded() {
+  sessionEndNotified = true;
 }
 
 function dispatchUnauthorized(reason) {
@@ -101,146 +103,77 @@ function dispatchImpersonationEnded(reason) {
   window.dispatchEvent(new CustomEvent('impersonation-ended', { detail: { reason } }));
 }
 
-function detailIncludes(errorResponseData, substring) {
-  const detail = errorResponseData?.detail;
-  return typeof detail === 'string' && detail.toLowerCase().includes(substring);
-}
+const isCsrfFailure = (error) =>
+  error.response?.status === 403 &&
+  typeof error.response.data?.detail === 'string' &&
+  error.response.data.detail.startsWith('CSRF Failed');
 
-function reasonFromRefreshError(refreshError) {
-  return detailIncludes(refreshError.response?.data, 'blacklisted') ? 'other_device' : 'timeout';
-}
+// Endpoints whose 401 means "bad credentials / no session yet", not "your
+// session just died" — callers handle those themselves.
+const SESSION_ENDPOINTS = [endpoints.auth.login, endpoints.auth.logout, endpoints.auth.session];
 
-// Response Interceptor: Handle 401s and token refresh
+// Response Interceptor: session death, CSRF recovery, impersonation refresh.
 httpClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) return Promise.reject(error);
+    const url = originalRequest.url || '';
 
-    // Avoid retry loops: if we hit a 401 and we are not already retrying
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes(endpoints.auth.login) &&
-      !originalRequest.url.includes(endpoints.auth.refresh) &&
-      !originalRequest.url.includes(endpoints.impersonate.refresh)
-    ) {
-      originalRequest._retry = true;
-
-      // Impersonation tokens have their own rotation endpoint and their own
-      // storage (sessionStorage) — never fall through to the normal-session
-      // logic below, which reads/writes localStorage and would otherwise
-      // misattribute an expired impersonation session as "logged in from
-      // another device" on the admin's real account.
-      if (originalRequest._isImpersonation) {
-        const impersonationRefreshToken = impersonationStorage.get(IMPERSONATION_KEYS.REFRESH_TOKEN);
-
-        if (!impersonationRefreshToken) {
-          dispatchImpersonationEnded('ended');
-          return Promise.reject(error);
-        }
-
-        try {
-          const response = await axios.post(
-            `${httpClient.defaults.baseURL}${endpoints.impersonate.refresh}`,
-            { refresh: impersonationRefreshToken },
-          );
-
-          impersonationStorage.set(IMPERSONATION_KEYS.ACCESS_TOKEN, response.data.access);
-          impersonationStorage.set(IMPERSONATION_KEYS.REFRESH_TOKEN, response.data.refresh);
-
-          originalRequest.headers['Authorization'] = 'Bearer ' + response.data.access;
-          return httpClient(originalRequest);
-        } catch {
-          dispatchImpersonationEnded('expired');
-          return Promise.reject(error);
-        }
-      }
-
-      // The backend already knows the access token was invalidated by a login
-      // elsewhere (auth_version mismatch) — no point attempting a refresh,
-      // since that same login already blacklisted the refresh token too.
-      if (detailIncludes(error.response?.data, 'another device')) {
-        dispatchUnauthorized('other_device');
-        return Promise.reject(error);
-      }
-
-      const refreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN);
-
-      if (!refreshToken) {
-        // Force logout via event if no refresh token exists
-        dispatchUnauthorized('timeout');
-        return Promise.reject(error);
-      }
-
-      if (isRefreshing) {
-        // If already refreshing, add to queue to retry later
-        return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers['Authorization'] = 'Bearer ' + token;
-            return httpClient(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
-      }
-
-      isRefreshing = true;
-
+    // The in-memory CSRF token can be missing or stale (e.g. rotated by a
+    // login in another tab). Fetch a fresh one and retry once.
+    if (isCsrfFailure(error) && !originalRequest._csrfRetry) {
+      originalRequest._csrfRetry = true;
       try {
-        // Request a new access token
-        const response = await axios.post(
-          `${httpClient.defaults.baseURL}${endpoints.auth.refresh}`,
-          {
-            refresh: refreshToken,
-          },
-        );
-
-        const newAccessToken = response.data.access;
-        // Optionally update refresh token if the backend rotates it
-        const newRefreshToken = response.data.refresh || refreshToken;
-
-        storage.set(STORAGE_KEYS.AUTH_TOKEN, newAccessToken);
-        storage.set(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
-
-        httpClient.defaults.headers.common['Authorization'] = 'Bearer ' + newAccessToken;
-        originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
-
-        processQueue(null, newAccessToken);
+        const { data } = await httpClient.get(endpoints.auth.session);
+        csrf.set(data.csrfToken);
+        originalRequest.headers['X-CSRFToken'] = data.csrfToken;
         return httpClient(originalRequest);
-      } catch (refreshError) {
-        // isRefreshing/failedQueue only dedupe concurrent refreshes WITHIN
-        // this tab — they're plain module state, invisible to other tabs.
-        // If the user has this account open in more than one tab, both can
-        // hit a 401 at the same moment and both call /auth/refresh/ with
-        // the same (soon-to-be-rotated) refresh token. The backend accepts
-        // the first one and blacklists that refresh token as part of
-        // rotation; the second tab's identical call then fails because its
-        // refresh token is now blacklisted — which looks identical to a
-        // real "logged in elsewhere" event, but is actually just this same
-        // login already having succeeded in the other tab. Detect that by
-        // re-reading localStorage: if the refresh token there has already
-        // changed since we read it, someone (another tab of ours) beat us
-        // to a valid rotation — pick up their new access token and retry
-        // instead of tearing the session down.
-        const latestRefreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN);
-        const latestAccessToken = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-        if (latestRefreshToken && latestRefreshToken !== refreshToken && latestAccessToken) {
-          processQueue(null, latestAccessToken);
-          originalRequest.headers['Authorization'] = 'Bearer ' + latestAccessToken;
-          return httpClient(originalRequest);
-        }
-
-        processQueue(refreshError, null);
-        // Dispatch global event so context can clear state
-        dispatchUnauthorized(reasonFromRefreshError(refreshError));
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
+      } catch {
+        return Promise.reject(error);
       }
     }
 
+    if (error.response?.status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // Impersonation tokens have their own rotation endpoint and their own
+    // storage (sessionStorage) — never fall through to the normal-session
+    // logic below, which would misattribute an expired impersonation
+    // session as the admin's real session ending.
+    if (originalRequest._isImpersonation) {
+      if (originalRequest._retry || url.includes(endpoints.impersonate.refresh)) {
+        return Promise.reject(error);
+      }
+      originalRequest._retry = true;
+
+      const impersonationRefreshToken = impersonationStorage.get(IMPERSONATION_KEYS.REFRESH_TOKEN);
+      if (!impersonationRefreshToken) {
+        dispatchImpersonationEnded('ended');
+        return Promise.reject(error);
+      }
+
+      try {
+        const response = await axios.post(
+          `${httpClient.defaults.baseURL}${endpoints.impersonate.refresh}`,
+          { refresh: impersonationRefreshToken },
+        );
+
+        impersonationStorage.set(IMPERSONATION_KEYS.ACCESS_TOKEN, response.data.access);
+        impersonationStorage.set(IMPERSONATION_KEYS.REFRESH_TOKEN, response.data.refresh);
+
+        originalRequest.headers['Authorization'] = 'Bearer ' + response.data.access;
+        return httpClient(originalRequest);
+      } catch {
+        dispatchImpersonationEnded('expired');
+        return Promise.reject(error);
+      }
+    }
+
+    if (!SESSION_ENDPOINTS.some((endpoint) => url.includes(endpoint))) {
+      dispatchUnauthorized(sessionEndReason(error));
+    }
     return Promise.reject(error);
   },
 );

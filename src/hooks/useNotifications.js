@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { env } from '@config/env';
-import { storage } from '@utils/storage';
-import { STORAGE_KEYS } from '@constants/storageKeys';
+import { csrf } from '@api/csrf';
+import { wsAuthQuery } from '@api/wsAuth';
+import { impersonationStorage } from '@utils/impersonationStorage';
+import { IMPERSONATION_KEYS } from '@constants/storageKeys';
 
 const apiBase = env.apiBaseUrl;
 
@@ -40,14 +42,21 @@ export function getNotifConfig(type) {
   return NOTIF_CONFIG[type] ?? NOTIF_CONFIG.default;
 }
 
-/** Lightweight REST helper (bypasses axios — used as a WS fallback) */
+/**
+ * Lightweight REST helper (bypasses axios — used as a WS fallback). Sends
+ * the session cookie like httpClient does; an impersonation tab sends its
+ * own Bearer token instead, and unsafe methods carry the CSRF token.
+ */
 async function restFetch(path, { method = 'GET', body } = {}) {
-  const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
+  const impersonationToken = impersonationStorage.get(IMPERSONATION_KEYS.ACCESS_TOKEN);
+  const csrfToken = method === 'GET' ? null : csrf.get();
   const res = await fetch(`${REST_BASE}${path}`, {
     method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(impersonationToken ? { Authorization: `Bearer ${impersonationToken}` } : {}),
+      ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
@@ -122,13 +131,11 @@ export function useNotifications(empId) {
 
   const connect = useCallback(() => {
     if (!empId || !isMountedRef.current) return;
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-    if (!token) return;
 
     // WebSockets are temporarily disabled
     // return;
 
-    const url = `${WS_BASE}/ws/notifications/${empId}/?token=${token}`;
+    const url = `${WS_BASE}/ws/notifications/${empId}/${wsAuthQuery()}`;
     const ws  = new WebSocket(url);
     leaveWsRef.current = ws;
     setWsStatus('connecting');
@@ -175,7 +182,7 @@ export function useNotifications(empId) {
       if (!isMountedRef.current) return;
       setWsStatus('disconnected');
       leaveWsRef.current = null;
-      if (evt.code === 4001) return;                          // bad token — don't retry
+      if (evt.code === 4001) return;                          // not authenticated — don't retry
       reconnectTimer.current = setTimeout(() => connectRef.current?.(), 5000);
     };
 

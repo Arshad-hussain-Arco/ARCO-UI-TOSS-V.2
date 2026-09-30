@@ -2,9 +2,10 @@
 const PREFIX = 'toss';
 
 export const STORAGE_KEYS = Object.freeze({
-  AUTH_TOKEN: `${PREFIX}.auth.token`,
-  REFRESH_TOKEN: `${PREFIX}.auth.refresh_token`,
   AUTH_USER: `${PREFIX}.auth.user`,
+  // Timestamp of the last user interaction in ANY tab — shared so the idle
+  // timeout only fires once every tab has been idle (see useIdleTimeout).
+  LAST_ACTIVITY: `${PREFIX}.auth.last_activity`,
   THEME: 'theme',
   SIDEBAR_COLLAPSED: `${PREFIX}.ui.sidebarCollapsed`,
 });

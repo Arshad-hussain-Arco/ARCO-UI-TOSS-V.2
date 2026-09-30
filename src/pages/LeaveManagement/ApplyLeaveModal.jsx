@@ -206,6 +206,12 @@ function InlineCalendar({
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   const rangeEnd = endDate ?? (startDate && hoverDate && hoverDate > startDate ? hoverDate : null);
+  // 'past' = strictly before today (Claims), 'future' = today onward,
+  // 'any' = no date bound (Actual types / Min Notice = 0).
+  function isInDateWindow(d) {
+    if (dateMode === 'any') return true;
+    return dateMode === 'past' ? d < today : d >= today;
+  }
   function isRuleIneligible(d) {
     // Claims are retroactive — today itself never qualifies, only strictly
     // past dates do. Beyond that, if a specific eligible-dates set was
@@ -222,7 +228,7 @@ function InlineCalendar({
   }
   function dayClass(d) {
     const cls = ['al-cal-day'];
-    const isIneligible = (dateMode === 'past' ? d > today : d < today) || isRuleIneligible(d);
+    const isIneligible = !isInDateWindow(d) || isRuleIneligible(d);
     if (isIneligible) cls.push('al-cal-day-past');
     if (dateStr(d) === dateStr(today)) cls.push('al-cal-day-today');
     if (isRealWeekend(d, calendarDayMap)) cls.push('al-cal-day-weekend');
@@ -316,7 +322,7 @@ function InlineCalendar({
               data-tooltip={ownRequestTooltip(getOwnRequest(d, calendarDayMap), newLeaveTypeCode) || undefined}
               {...activatable(
                 () => {
-                  const eligible = (dateMode === 'past' ? d < today : d >= today) && !isRuleIneligible(d);
+                  const eligible = isInDateWindow(d) && !isRuleIneligible(d);
                   if (eligible) onDayClick(d);
                 },
                 { label: d.toDateString() },
@@ -553,7 +559,8 @@ function buildLeaveTypeItem(entry, balances) {
     // leaves.services.LeaveApplyService.apply's is_backdatable_category
     // check. Category-driven, not mode-driven. Not applicable to Claims,
     // which have their own always-past date picker.
-    allowPastDates: entry.category === 'ACTUAL',
+    // Min Notice = 0 also permits past dates (backend mirrors this).
+    allowPastDates: entry.category === 'ACTUAL' || minNoticeDays === 0,
     minNoticeDays,
     noticePeriod:
       minNoticeDays === 0 ? 'Same day' : `${minNoticeDays} day${minNoticeDays !== 1 ? 's' : ''}`,
@@ -677,7 +684,10 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
     employeeId: user?.emp_id || '',
   };
   const activeEmp = applyFor === 'behalf' && behalfEmp ? behalfEmp : SELF;
-  const effectiveEmpId = applyFor === 'behalf' && behalfEmp ? behalfEmp.id : user?.emp_id;
+  const needsBehalfEmployee = applyFor === 'behalf' && !behalfEmp;
+  // No employee picked yet on behalf → no employee context (never fall
+  // back to the manager's own eligibility/balances/calendar).
+  const effectiveEmpId = applyFor === 'behalf' ? (behalfEmp?.id ?? null) : user?.emp_id;
   const [eligibleTypes, setEligibleTypes] = useState([]);
   const [leaveBalances, setLeaveBalances] = useState({});
   // Real per-day status ('WEEKEND' | 'ON_HOLIDAY' | ...) for whatever range
@@ -1413,6 +1423,15 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                 </>
               ) : null}
 
+              {/* On behalf: the employee must be chosen first — leave types,
+                  balances and calendar all depend on who it's for. */}
+              {needsBehalfEmployee ? (
+                <p className="al-policy-hint">
+                  Select an employee above to continue.
+                </p>
+              ) : (
+              <>
+
               {/* Leave Type — only for 'leave' */}
               {showLeaveType && (
                 <div className="al-form-group">
@@ -1486,7 +1505,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                         if (d && endDate && endDate < d) setEndDate(null);
                       }}
                       onMonthChange={setDatePickerMonth}
-                      minDate={today}
+                      minDate={effectiveLeaveType?.allowPastDates ? currentYearStart : today}
                       isDateDisabled={(d) => isCalendarLoading || isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select start date"
                       width="100%"
@@ -1501,7 +1520,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                       value={endDate}
                       onChange={(d) => setEndDate(d)}
                       onMonthChange={setDatePickerMonth}
-                      minDate={startDate || today}
+                      minDate={startDate || (effectiveLeaveType?.allowPastDates ? currentYearStart : today)}
                       isDateDisabled={(d) => isCalendarLoading || isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select end date"
                       width="100%"
@@ -1921,6 +1940,8 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                     isLoading={isCalendarLoading}
                   />
                 </div>
+              )}
+              </>
               )}
             </div>
 
