@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
-import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
+import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, withFreshMediaToken, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
 import { copyWithToast } from '@utils/copyToClipboard';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
@@ -12,6 +12,7 @@ import { ProgressTooltip } from '@pages/ProjectMonitoring/components/ProgressToo
 
 import './RichEditor.css';
 import { initializeIcons } from '@fluentui/react';
+import { tableCornerAt, startTableResize } from './TableResize';
 
 initializeIcons(undefined, { disableWarnings: true });
 
@@ -375,6 +376,18 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   const mediaToken = useHomeMediaToken();
+  // insertRawHtml / upload handlers are memoized; read the token through a
+  // ref so they never insert with the (possibly null) token from first render.
+  const mediaTokenRef = useRef(mediaToken);
+  mediaTokenRef.current = mediaToken;
+  // Caret position captured when an image button is clicked, so the image
+  // lands where the user was (e.g. inside a table cell) after the file dialog.
+  const imgCaretRef = useRef(null);
+  const rememberImgCaret = () => {
+    const sel = window.getSelection();
+    const root = wrapperRef.current;
+    imgCaretRef.current = sel && sel.rangeCount && root?.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  };
   const displayHtml = (html) => attachHomeMediaToken(themeAdaptiveColors(html), mediaToken) || html;
 
   const initialValue = useMemo(() => {
@@ -567,6 +580,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     ...insertImageButton,
     key: 'customInsertImage',
     onClick: () => {
+      rememberImgCaret();
       if (isFullscreen) {
         imgInputRef.current?.click();
       } else {
@@ -650,9 +664,9 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     // card is reopened (whenever `value` next flows through displayHtml()).
     // Attach the current token now; handleChange strips it again on the way
     // out via stripHomeMediaToken, so the saved html_content stays bare.
-    doc.execCommand('insertHTML', false, attachHomeMediaToken(html, mediaToken) || html);
+    doc.execCommand('insertHTML', false, attachHomeMediaToken(html, mediaTokenRef.current) || html);
     handleChange(getEditorHtml(editor));
-  }, [getEditorHtml, handleChange, mediaToken]);
+  }, [getEditorHtml, handleChange]);
 
   const getSelectedImage = useCallback(() => {
     try {
@@ -740,6 +754,15 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   // since the RoosterJS migration, so both silently stopped working; this
   // ports that logic onto the actual current editor surface.
   const handleEditorClick = useCallback((e) => {
+    if (e.type === 'mousedown') {
+      const gripTable = tableCornerAt(e, wrapperRef.current);
+      if (gripTable) {
+        startTableResize(e, gripTable, wrapperRef.current, () => {
+          if (editorRef.current) handleChange(getEditorHtml(editorRef.current));
+        });
+        return;
+      }
+    }
     if (handleUnifiedCopyClick(e, toast)) return;
 
     const copyBtn = e.target.closest('[data-code-copy]');
@@ -1441,13 +1464,23 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     try {
       toast.info?.('Uploading image…');
       const result = await ImageHandler.ingestFile(file);
-      const markup = ImageHandler.buildImageMarkup({ url: result.url, alt: file.name });
+      const markup = ImageHandler.buildImageMarkup({ url: await withFreshMediaToken(result.url), alt: file.name });
+      const saved = imgCaretRef.current;
+      imgCaretRef.current = null;
+      if (saved) {
+        try {
+          editorRef.current.focus();
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(saved);
+        } catch { /* fall back to editor's own selection */ }
+      }
       insertRawHtml(editorRef.current, markup);
       handleChange(getEditorHtml(editorRef.current));
     } catch (err) {
       toast.error(err?.message || 'Image upload failed');
     }
-  }, [handleChange, toast]);
+  }, [handleChange, insertRawHtml, toast]);
 
   const handleVideoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -1668,7 +1701,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     key: 'fullScreenToggle',
                     unlocalizedText: isFullscreen ? 'Exit Full Screen' : 'Full Screen',
                     iconName: isFullscreen ? 'BackToWindow' : 'FullScreen',
-                    onClick: () => setIsFullscreen(!isFullscreen)
+                    onClick: () => setIsFullscreen((v) => !v)
                   }
                 ]} />
               </div>
@@ -1694,7 +1727,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                       <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={insertButtons} />
                       <div style={{ width: '1px', height: '16px', background: 'var(--border-primary, #e2e8f0)', margin: '0 4px' }} />
-                      <button type="button" onClick={() => handleMediaBtnClick(imgInputRef)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                      <button type="button" onClick={() => { rememberImgCaret(); handleMediaBtnClick(imgInputRef); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="14" height="14" rx="2" /><circle cx="5.5" cy="5.5" r="1.5" /><path d="M1 11l4-4 3 3 2-2 5 5" /></svg>
                         Image
                       </button>
@@ -1756,6 +1789,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
               ref={wrapperRef}
               onMouseDownCapture={handleEditorClick}
               onClickCapture={handleEditorClick}
+              onMouseMove={(e) => {
+                if (e.buttons || !wrapperRef.current) return;
+                wrapperRef.current.style.cursor = tableCornerAt(e, wrapperRef.current) ? 'nwse-resize' : '';
+              }}
               className={!value || value.trim() === '<div><br></div>' || value.trim() === '' || value.trim() === '<p><br></p>' || value.trim() === '<br>' ? 'rte-empty' : ''}
               data-placeholder={placeholder}
               style={{ position: 'relative', borderTop: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderLeft: isFullscreen ? 'none' : '1px solid var(--border-primary)', borderRight: isFullscreen ? 'none' : '1px solid var(--border-primary)', flex: 1, minHeight: isFullscreen ? 0 : '300px', padding: '16px', background: 'var(--surface-primary)', borderBottomLeftRadius: showHtmlPreview ? '0' : '6px', borderBottomRightRadius: showHtmlPreview ? '0' : '6px', borderBottom: isFullscreen ? 'none' : (showHtmlPreview ? 'none' : '1px solid var(--border-primary)'), overflowY: 'auto' }}>

@@ -143,6 +143,31 @@ function HomeManagementPanelComponent() {
     }
   };
 
+  // Unsaved content must not leak between the Content and Rich Text Editor
+  // tabs: leaving a tab discards whatever was typed/uploaded there.
+  const clearTextTabState = () => {
+    setPersonName('');
+    setPersonDesignation('');
+    setPersonBio('');
+    setPersonFile(null);
+    if (personPreviewUrl && personPreviewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(personPreviewUrl); } catch { }
+    }
+    setPersonPreviewUrl(null);
+    setPersonExistingVideoUrl(null);
+    setPersonVideoRemoved(false);
+    setPersonVideoPreviewPlaying(false);
+    setPersonVideoConfirmedSrc(null);
+    setPersonMediaType(null);
+  };
+
+  const handleTabSwitch = (nextTab) => {
+    if (nextTab === activeTab) return;
+    if (activeTab === 'text') clearTextTabState();
+    else setHtmlContent('');
+    setActiveTab(nextTab);
+  };
+
   const handleOpenAddModal = () => {
     setEditId(null);
     setIsUploading(false);
@@ -1018,7 +1043,7 @@ function HomeManagementPanelComponent() {
                 }}>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('text')}
+                    onClick={() => handleTabSwitch('text')}
                     style={{
                       flex: 1,
                       display: 'flex',
@@ -1042,7 +1067,7 @@ function HomeManagementPanelComponent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('html')}
+                    onClick={() => handleTabSwitch('html')}
                     style={{
                       flex: 1,
                       display: 'flex',
