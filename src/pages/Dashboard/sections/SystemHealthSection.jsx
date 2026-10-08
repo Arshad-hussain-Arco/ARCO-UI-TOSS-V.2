@@ -14,7 +14,7 @@ import { Activity, AlertCircle, AlertTriangle, CheckCircle, Clock } from 'lucide
  * @param {{ longest: { script: string, duration: string }, mostFailed: string,
  *          slaThreshold: number }} props.insights
  */
-function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) {
+function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights, isManager }) {
   const { slaThreshold } = insights;
 
   const maxRuntime = useMemo(
@@ -112,7 +112,7 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights }) 
       </div>
 
 
-      <div className="dc-span-8">
+      <div className={isManager ? "dc-span-8" : "dc-span-12"}>
         <section className="dc-card dc-health-right" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <h2 className="dc-section-title">Runtime Trend – Last 7 Days</h2>
 
