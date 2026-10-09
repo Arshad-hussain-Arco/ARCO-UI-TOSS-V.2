@@ -5,6 +5,7 @@ import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { impersonationStorage } from '@utils/impersonationStorage';
 import { IMPERSONATION_KEYS } from '@constants/storageKeys';
 import { ROUTES } from '@constants/routes';
+import { withBase } from '@config/env';
 import { impersonationService } from '@services/impersonationService';
 import { resetImpersonationEndGuard } from '@api/httpClient';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -77,7 +78,7 @@ export function ViewAsRolePage() {
       impersonationStorage.set(IMPERSONATION_KEYS.REFRESH_TOKEN, data.refresh);
       impersonationStorage.remove(IMPERSONATION_KEYS.USER);
 
-      window.location.assign(ROUTES.ROOT);
+      window.location.assign(withBase(ROUTES.ROOT));
     } catch (caught) {
       setError(
         caught.response?.data?.message || 'Could not start the preview. Please try again.',

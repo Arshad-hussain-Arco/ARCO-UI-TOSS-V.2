@@ -31,7 +31,10 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close(); // Close the notification
 
-  const targetUrl = event.notification.data?.url || '/';
+  // The server sends app-relative links ("/leave-management?..."). Resolve them against the
+  // worker's scope so they land inside the deployment base path (e.g. /tossv2/).
+  const relativeUrl = (event.notification.data?.url || '').replace(/^\/+/, '');
+  const targetUrl = new URL(relativeUrl, self.registration.scope).href;
 
   // This looks to see if the current window is already open and
   // focuses if it is. If not, it opens a new window.

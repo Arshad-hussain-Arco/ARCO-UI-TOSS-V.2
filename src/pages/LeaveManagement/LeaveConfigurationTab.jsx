@@ -117,6 +117,7 @@ export function LeaveConfigurationTab({ getPhoto }) {
             employeeId: `EMP${emp.emp_id}`,
             name: emp.emp_name || 'Unknown Employee',
             email: '',
+            username: emp.user_name || '',
             role: emp.designation || '',
             department: emp.department_name || '',
             team: emp.team_name || 'Unassigned',
@@ -169,14 +170,15 @@ export function LeaveConfigurationTab({ getPhoto }) {
         const matchName = emp.name.toLowerCase().includes(q);
         const matchEmail = emp.email.toLowerCase().includes(q);
         const matchId = emp.employeeId.toLowerCase().includes(q);
+        const matchUsername = (emp.username || '').toLowerCase().includes(q);
         const matchDept = emp.department.toLowerCase().includes(q);
         const matchTeam = emp.team.toLowerCase().includes(q);
-        if (!matchName && !matchEmail && !matchId && !matchDept && !matchTeam) return false;
+        if (!matchName && !matchUsername && !matchEmail && !matchId && !matchDept && !matchTeam) return false;
       }
 
       return true;
     });
-  }, [employees, teamFilter, searchQuery]);
+  }, [employees, teamFilter, debouncedSearchQuery]);
 
   // Sorted Employees
   const sortedEmployees = useMemo(() => {
@@ -524,13 +526,13 @@ export function LeaveConfigurationTab({ getPhoto }) {
                 <input
                   type="text"
                   className="lc-search-input"
-                  placeholder="Search employee name, role or team…"
+                  placeholder="Search name, username, role or team…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ paddingRight: '32px' }}
+                  aria-label="Search employees"
                 />
                 {searchQuery && (
-                  <button type="button" className="search-clear-btn" onClick={() => setSearchQuery('')}>
+                  <button type="button" className="search-clear-btn" aria-label="Clear search" onClick={() => setSearchQuery('')}>
                     <X size={14} />
                   </button>
                 )}

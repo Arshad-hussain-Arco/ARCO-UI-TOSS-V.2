@@ -1,5 +1,6 @@
 import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
+import { withBase } from '@config/env';
 
 /**
  * Utility to convert the base64 VAPID public key string into a Uint8Array.
@@ -22,13 +23,46 @@ function urlBase64ToUint8Array(base64String) {
 
 export const pushNotificationService = {
   /**
+   * True when real background Web Push can work. Browsers only expose
+   * Service Workers / PushManager in a secure context (HTTPS, localhost, or an
+   * origin the browser has been told to trust), so on plain HTTP this is false.
+   */
+  isPushSupported: () =>
+    'serviceWorker' in navigator && 'PushManager' in window,
+
+  /**
+   * HTTP fallback: show an OS notification straight from the page (no Service
+   * Worker). Only fires while the app is open in a tab, and only if the browser
+   * allows the Notification API on this origin and permission was granted.
+   */
+  showLocalNotification: (title, body, url) => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification(title, { body, icon: '/favicon.png' });
+      n.onclick = () => {
+        window.focus();
+        if (url) window.location.assign(url);
+        n.close();
+      };
+    } catch {
+      /* some browsers refuse the constructor on insecure origins */
+    }
+  },
+
+  /**
    * Registers the service worker and subscribes to push notifications.
    * Prompts the user for permission if not already granted.
    */
   registerAndSubscribe: async () => {
     // 1. Check for browser support
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push notifications are not supported by this browser.');
+    if (!pushNotificationService.isPushSupported()) {
+      console.warn(
+        'Web Push unavailable (insecure HTTP origin or unsupported browser). ' +
+        'Falling back to in-page notifications while the app is open.'
+      );
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch { /* ignore */ }
+      }
       return false;
     }
 
@@ -41,8 +75,9 @@ export const pushNotificationService = {
       }
 
       // 3. Register Service Worker
-      // Assumes service-worker.js is in the public directory (root level)
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      // service-worker.js lives in public/, so it is served from the deployment base path
+      // (e.g. /tossv2/service-worker.js), not the site root.
+      const registration = await navigator.serviceWorker.register(withBase('service-worker.js'));
       
       // Wait for the service worker to become ready
       await navigator.serviceWorker.ready;
@@ -61,7 +96,7 @@ export const pushNotificationService = {
       const existingSubscription = await registration.pushManager.getSubscription();
       if (existingSubscription) {
         await existingSubscription.unsubscribe();
-        console.log('Unsubscribed existing push subscription.');
+        // console.log('Unsubscribed existing push subscription.');
       }
 
       // 5. Subscribe using PushManager
@@ -73,7 +108,7 @@ export const pushNotificationService = {
       // 6. Send the subscription to our backend to store it
       await httpClient.post(endpoints.pushNotifications.subscribe, subscription.toJSON());
       
-      console.log('Successfully subscribed to push notifications.');
+      // console.log('Successfully subscribed to push notifications.');
       return true;
 
     } catch (error) {

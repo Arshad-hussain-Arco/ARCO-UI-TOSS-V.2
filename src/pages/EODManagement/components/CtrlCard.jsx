@@ -71,12 +71,9 @@ export function CtrlCard({ env, onStart, onPause, onStop, canExecute, canViewLog
       return;
     }
 
-    // Derive WS base from the centralized API config (convert http(s) to ws(s))
-    // Fall back to window.location if appEnv.apiBaseUrl is empty
-    const wsBase = appEnv.apiBaseUrl 
-      ? appEnv.apiBaseUrl.replace(/^http/, 'ws') 
-      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-      
+    // WS origin derived from the centralized API config (see config/env.js)
+    const wsBase = appEnv.wsBaseUrl;
+
     const wsUrl = `${wsBase}/ws/eod-jobs/${env.id}/${wsAuthQuery()}`;
     let ws = null;
     let pollInterval = null;

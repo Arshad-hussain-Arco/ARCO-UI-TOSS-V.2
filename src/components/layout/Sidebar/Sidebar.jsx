@@ -33,7 +33,7 @@ export function Sidebar() {
   const [expandedId, setExpandedId] = useState(() => {
     // Initialise with whichever group has an active child
     const active = visibleNavigation.find(
-      (item) => item.children && item.children.some((child) => window.location.pathname === child.to)
+      (item) => item.children && item.children.some((child) => pathname === child.to)
     );
     return active ? active.id : null;
   });
