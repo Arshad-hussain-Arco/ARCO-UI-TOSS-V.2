@@ -461,7 +461,8 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={value}>
       {children}
       <IdleWarningModal
-        secondsLeft={warningSecondsLeft}
+        // Only ever for a signed-in user — never over the login page.
+        secondsLeft={user ? warningSecondsLeft : null}
         onStaySignedIn={staySignedIn}
         onSignOut={logout}
       />

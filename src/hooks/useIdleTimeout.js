@@ -63,7 +63,14 @@ export function useIdleTimeout({ enabled, idleTimeoutMs, warningMs = 60_000, onT
   }, [recordActivity]);
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      // Signed out (by timeout, another tab, or the server). The countdown
+      // interval is gone, so a warning left in state would sit frozen on
+      // screen — clear it.
+      warningShownRef.current = false;
+      setWarningSecondsLeft(null);
+      return undefined;
+    }
 
     timedOutRef.current = false;
     warningShownRef.current = false;
@@ -79,7 +86,7 @@ export function useIdleTimeout({ enabled, idleTimeoutMs, warningMs = 60_000, onT
     };
     ACTIVITY_EVENTS.forEach((event) => window.addEventListener(event, handleActivity, { passive: true }));
 
-    const tick = setInterval(() => {
+    const check = () => {
       if (timedOutRef.current) return;
       const last = Number(storage.get(STORAGE_KEYS.LAST_ACTIVITY)) || Date.now();
       const remaining = idleTimeoutMs - (Date.now() - last);
@@ -97,10 +104,23 @@ export function useIdleTimeout({ enabled, idleTimeoutMs, warningMs = 60_000, onT
         warningShownRef.current = false;
         setWarningSecondsLeft(null);
       }
-    }, 1000);
+    };
+    const tick = setInterval(check, 1000);
+
+    // A locked / sleeping laptop or a background tab has its timers throttled
+    // or frozen, so the countdown can lag far behind real time. Re-evaluate
+    // the moment the page is visible again instead of waiting for the next
+    // (possibly delayed) tick — it then shows the true state or signs out.
+    const handleWake = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', handleWake);
+    window.addEventListener('focus', handleWake);
 
     return () => {
       clearInterval(tick);
+      document.removeEventListener('visibilitychange', handleWake);
+      window.removeEventListener('focus', handleWake);
       ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, handleActivity));
     };
   }, [enabled, idleTimeoutMs, warningMs, recordActivity]);
