@@ -31,6 +31,10 @@ export function DatePicker({
   value,
   onChange,
   onMonthChange,
+  // Month to show when opened with nothing selected yet (e.g. an End Date
+  // picker opening on the month of an already-chosen Start Date). Falls back
+  // to today.
+  defaultMonth,
   minDate,
   maxDate,
   // Optional predicate — (date) => boolean — for disabling individual
@@ -51,9 +55,13 @@ export function DatePicker({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'months' | 'years'
-  const [currentMonth, setCurrentMonth] = useState(
-    value ? (mode === 'range' ? value.from || new Date() : value) : new Date()
-  );
+  // Which month the calendar should open on: the selected value's month,
+  // else `defaultMonth`, else today.
+  const monthToOpenOn = () => {
+    const selected = mode === 'range' ? value?.from : value;
+    return selected || defaultMonth || new Date();
+  };
+  const [currentMonth, setCurrentMonth] = useState(monthToOpenOn);
 
   const displayValue = () => {
     if (!value) return placeholder;
@@ -117,7 +125,16 @@ export function DatePicker({
       open={isOpen}
       onOpenChange={(open) => {
         setIsOpen(open);
-        if (!open) setView('calendar');
+        if (!open) {
+          setView('calendar');
+          return;
+        }
+        // Re-evaluate on every open — the initial state above is computed
+        // once, so without this the calendar keeps showing the month it was
+        // first rendered with even after the value / defaultMonth changed.
+        const month = monthToOpenOn();
+        setCurrentMonth(month);
+        if (onMonthChange) onMonthChange(month);
       }}
     >
       <Popover.Trigger asChild disabled={disabled}>

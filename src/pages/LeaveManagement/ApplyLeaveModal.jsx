@@ -1526,6 +1526,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                       value={endDate}
                       onChange={(d) => setEndDate(d)}
                       onMonthChange={setDatePickerMonth}
+                      defaultMonth={startDate}
                       minDate={startDate || (effectiveLeaveType?.allowPastDates ? currentYearStart : today)}
                       isDateDisabled={(d) => isCalendarLoading || isNonWorkingDay(d, calendarDayMap) || isOverlapBlocked(d, calendarDayMap, effectiveLeaveType?.code || fixedCode)}
                       placeholder="Select end date"
