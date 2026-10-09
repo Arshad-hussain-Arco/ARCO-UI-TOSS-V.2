@@ -37,7 +37,7 @@ import { processCapacityData } from '../CapacityPlanning/capacityCalculations';
 import './DashboardPage.css';
 
 /* ── Dynamic Skeleton Layout ────────────────────────────────────────────── */
-function DashboardSkeleton({ hasPermission }) {
+function DashboardSkeleton({ hasPermission, isManager }) {
   const hasEODView = hasPermission('EOD_OVERVIEW_VIEW');
   const hasMurexView = hasPermission('MUREX_RUNTIME_VIEW');
   const hasCapacityView = hasPermission('CAPACITY_PLANNING_VIEW');
@@ -65,14 +65,28 @@ function DashboardSkeleton({ hasPermission }) {
               </div>
             )}
             {hasTeamView && (
-              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
+              <div className={isManager ? "dc-span-12" : "dc-span-8"} style={{ marginBottom: '16px' }}>
                 <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
               </div>
             )}
             {hasMurexView && (
-              <div className="dc-span-12" style={{ marginBottom: '16px' }}>
-                <Skeleton height={260} width="100%" style={{ borderRadius: '8px' }} />
-              </div>
+              <>
+                <div className="dc-span-4" style={{ marginBottom: '16px' }}>
+                  <div className="dc-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <Skeleton height={20} width={140} style={{ borderRadius: '4px' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                      <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                      <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                      <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                    </div>
+                  </div>
+                </div>
+                <div className={isManager ? "dc-span-8" : "dc-span-12"} style={{ marginBottom: '16px' }}>
+                  <Skeleton height={280} width="100%" style={{ borderRadius: '12px' }} />
+                </div>
+              </>
             )}
             {hasAttendanceView && (
               <div className="dc-span-12" style={{ marginBottom: '16px' }}>
@@ -94,11 +108,13 @@ function DashboardSkeleton({ hasPermission }) {
           )}
         </div>
       </div>
-      <aside className="dc-right-rail">
-        <Skeleton height={140} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
-        <Skeleton height={200} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
-        <Skeleton height={300} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
-      </aside>
+      {isManager && (
+        <aside className="dc-right-rail">
+          <Skeleton height={140} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+          <Skeleton height={200} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+          <Skeleton height={300} width="100%" style={{ borderRadius: '8px', marginBottom: '16px' }} />
+        </aside>
+      )}
     </>
   );
 }
@@ -611,7 +627,7 @@ export function DashboardPage() {
             onRetry={fetchLiveDashboardData}
           />
         ) : loading ? (
-          <DashboardSkeleton hasPermission={hasPermission} />
+          <DashboardSkeleton hasPermission={hasPermission} isManager={user?.isManager} />
         ) : (
           <>
             <div className="dc-main">
@@ -644,17 +660,35 @@ export function DashboardPage() {
                       departmentStats={departmentStats}
                       trendData={trendData}
                       isLoading={loadingTeams}
+                      isManager={user?.isManager}
                     />
                   )}
 
                   {hasPermission('MUREX_RUNTIME_VIEW') && (
                     loadingEod || loadingMurex ? (
-                      <div className="dc-span-12"><CardLoader label="Loading system health…" minHeight={260} /></div>
+                      <>
+                        <div className="dc-span-4">
+                          <div className="dc-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
+                            <div style={{ marginBottom: '16px' }}>
+                              <Skeleton height={20} width={140} style={{ borderRadius: '4px' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                              <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                              <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                              <Skeleton height={70} width="100%" style={{ borderRadius: '8px' }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className={user?.isManager ? "dc-span-8" : "dc-span-12"}>
+                          <CardLoader label="Loading runtime trends…" minHeight={280} />
+                        </div>
+                      </>
                     ) : (
                       <SystemHealthSection
                         systemHealth={mappedSummary.systemHealth}
                         runtimeTrend={mappedSummary.runtimeTrend}
                         insights={mappedSummary.runtimeInsights}
+                        isManager={user?.isManager}
                       />
                     )
                   )}
@@ -716,32 +750,34 @@ export function DashboardPage() {
               </div>
             </div>
 
-            <aside className="dc-right-rail">
-              {hasPermission('ATTENDANCE_VIEW') && (
-                loadingAnnouncements || loadingApprovals ? (
-                  <CardLoader label="Loading notifications…" minHeight={120} />
+            {user?.isManager && (
+              <aside className="dc-right-rail">
+                {hasPermission('ATTENDANCE_VIEW') && (
+                  loadingAnnouncements || loadingApprovals ? (
+                    <CardLoader label="Loading notifications…" minHeight={120} />
+                  ) : (
+                    <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
+                  )
+                )}
+
+                {loadingHolidays ? (
+                  <CardLoader label="Loading holidays…" minHeight={140} />
                 ) : (
-                  <AlertsPanel alerts={mappedSummary.alerts} quickStats={mappedSummary.quickStats} />
-                )
-              )}
+                  <UpcomingHolidaysPanel holidays={upcomingHolidays} />
+                )}
 
-              {loadingHolidays ? (
-                <CardLoader label="Loading holidays…" minHeight={140} />
-              ) : (
-                <UpcomingHolidaysPanel holidays={upcomingHolidays} />
-              )}
-
-              {loadingApprovals ? (
-                <CardLoader label="Loading pending approvals…" minHeight={140} />
-              ) : (
-                pendingApprovals && pendingApprovals.length > 0 && (
-                  <PendingApprovalsActionSection
-                    pendingApprovals={pendingApprovals}
-                    onActionComplete={fetchLiveDashboardData}
-                  />
-                )
-              )}
-            </aside>
+                {loadingApprovals ? (
+                  <CardLoader label="Loading pending approvals…" minHeight={140} />
+                ) : (
+                  pendingApprovals && pendingApprovals.length > 0 && (
+                    <PendingApprovalsActionSection
+                      pendingApprovals={pendingApprovals}
+                      onActionComplete={fetchLiveDashboardData}
+                    />
+                  )
+                )}
+              </aside>
+            )}
           </>
         )}
       </div>
