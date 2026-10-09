@@ -420,8 +420,14 @@
   border-radius: 6px;
 }
 
-.header-profile-menu-item:hover {
-  background-color: var(--bg-hover); 
+/* --bg-hover equals the menu's own background in dark theme (both #374151)
+   and is nearly white-on-white in light, so the hover tint is derived from
+   the text colour instead — visible in both themes. Not applied to Sign Out
+   (data-danger), which keeps its own red hover below. */
+.header-profile-menu-item:not([data-danger='true']):hover,
+.header-profile-menu-item:not([data-danger='true']):focus-visible {
+  background-color: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  outline: none;
 }
 
 .header-profile-menu-item[data-danger='true'] {
