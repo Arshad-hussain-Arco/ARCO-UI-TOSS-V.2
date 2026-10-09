@@ -305,7 +305,8 @@
   .sidebar {
     /* Always display on mobile but control visibility with transform */
     display: block;
-    z-index: 50;
+    /* Must sit above the drawer backdrop (900) and any page content */
+    z-index: 901;
   }
 
   .sidebar[data-collapsed='true'] {

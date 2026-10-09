@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { impersonationStorage } from '@utils/impersonationStorage';
 import { IMPERSONATION_KEYS } from '@constants/storageKeys';
 import { ROUTES } from '@constants/routes';
+import { withBase } from '@config/env';
 import { impersonationService } from '@services/impersonationService';
 import { resetImpersonationEndGuard } from '@api/httpClient';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -100,7 +101,7 @@ export function AccessAccountPage() {
         // Full navigation (not client-side routing) so the whole app boots
         // fresh in this tab and AuthContext picks up the impersonation
         // token from sessionStorage on its very first read.
-        window.location.assign(ROUTES.ROOT);
+        window.location.assign(withBase(ROUTES.ROOT));
       } catch (caught) {
         setError(
           caught.response?.data?.message || 'Could not start the session. Please try again.',

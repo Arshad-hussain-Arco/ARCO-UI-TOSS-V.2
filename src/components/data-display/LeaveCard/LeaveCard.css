@@ -1,207 +1,13 @@
 .leave-card {
-  background: linear-gradient(135deg, #f6f6f6 0%, var(--surface-secondary) 100%);
-  border: none;
+  --leave-accent: var(--c-primary);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  padding: 2px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  transition: all 0.2s ease;
-}
-
-/* Dark theme for default cards */
-[data-theme='dark'] .leave-card {
-  background: linear-gradient(135deg, var(--surface-tertiary) 0%, #2d3748 100%);
-}
-
-
-
-[data-theme='dark'] .leave-card-stat-label {
-  color: var(--text-tertiary);
-}
-
-[data-theme='dark'] .leave-card-icon {
-  color: var(--c-success);
-}
-
-/* Annual Leave - Bright Blue/Cyan Gradient */
-.leave-card[data-leave-type='annual-leave'] {
-  background: linear-gradient(135deg, #60a5fa 0%, var(--c-info) 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='annual-leave'] .leave-card-title,
-.leave-card[data-leave-type='annual-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='annual-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='annual-leave'] .leave-card-stat-label {
-  color: #e0f2fe;
-}
-
-.leave-card[data-leave-type='annual-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Sick Leave - Bright Red/Rose Gradient */
-.leave-card[data-leave-type='sick-leave'] {
-  background: linear-gradient(135deg, #f87171 0%, var(--c-danger) 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='sick-leave'] .leave-card-title,
-.leave-card[data-leave-type='sick-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='sick-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='sick-leave'] .leave-card-stat-label {
-  color: var(--c-danger-light);
-}
-
-.leave-card[data-leave-type='sick-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Casual Leave - Bright Purple Gradient */
-.leave-card[data-leave-type='casual-leave'] {
-  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='casual-leave'] .leave-card-title,
-.leave-card[data-leave-type='casual-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='casual-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='casual-leave'] .leave-card-stat-label {
-  color: #f3e8ff;
-}
-
-.leave-card[data-leave-type='casual-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Emergency Leave - Bright Orange Gradient */
-.leave-card[data-leave-type='emergency-leave'] {
-  background: linear-gradient(135deg, #fb923c 0%, var(--c-warning) 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='emergency-leave'] .leave-card-title,
-.leave-card[data-leave-type='emergency-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='emergency-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='emergency-leave'] .leave-card-stat-label {
-  color: #ffedd5;
-}
-
-.leave-card[data-leave-type='emergency-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Maternity Leave - Bright Pink Gradient */
-.leave-card[data-leave-type='maternity-leave'] {
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='maternity-leave'] .leave-card-title,
-.leave-card[data-leave-type='maternity-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='maternity-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='maternity-leave'] .leave-card-stat-label {
-  color: #fce7f3;
-}
-
-.leave-card[data-leave-type='maternity-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Paternity Leave - Bright Cyan/Sky Gradient */
-.leave-card[data-leave-type='paternity-leave'] {
-  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='paternity-leave'] .leave-card-title,
-.leave-card[data-leave-type='paternity-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='paternity-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='paternity-leave'] .leave-card-stat-label {
-  color: #e0f2fe;
-}
-
-.leave-card[data-leave-type='paternity-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Unpaid Leave - Bright Gray/Slate Gradient */
-.leave-card[data-leave-type='unpaid-leave'] {
-  background: linear-gradient(135deg, var(--text-tertiary) 0%, var(--text-secondary) 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='unpaid-leave'] .leave-card-title,
-.leave-card[data-leave-type='unpaid-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='unpaid-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='unpaid-leave'] .leave-card-stat-label {
-  color: var(--border-secondary);
-}
-
-.leave-card[data-leave-type='unpaid-leave'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Compensatory Off - Bright Green/Emerald Gradient */
-.leave-card[data-leave-type='compensatory-off'] {
-  background: linear-gradient(135deg, #34d399 0%, var(--c-success) 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='compensatory-off'] .leave-card-title,
-.leave-card[data-leave-type='compensatory-off'] .leave-card-stat-value,
-.leave-card[data-leave-type='compensatory-off'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='compensatory-off'] .leave-card-stat-label {
-  color: #d1fae5;
-}
-
-.leave-card[data-leave-type='compensatory-off'] .leave-card-icon {
-  color: #ffffff;
-}
-
-/* Study Leave - Bright Indigo Gradient */
-.leave-card[data-leave-type='study-leave'] {
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
-  border: none;
-}
-
-.leave-card[data-leave-type='study-leave'] .leave-card-title,
-.leave-card[data-leave-type='study-leave'] .leave-card-stat-value,
-.leave-card[data-leave-type='study-leave'] .leave-card-center-value {
-  color: #ffffff;
-}
-
-.leave-card[data-leave-type='study-leave'] .leave-card-stat-label {
-  color: #e0e7ff;
-}
-
-.leave-card[data-leave-type='study-leave'] .leave-card-icon {
-  color: #ffffff;
+  gap: 4px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 @media (max-width: 1439px) {
@@ -218,121 +24,161 @@
 
 .leave-card-header {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* Same height with or without a subtitle, so every card's rows line up */
+  min-height: 38px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
-.leave-card-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  text-align: center;
-  white-space: nowrap;
+.leave-card-heading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
 }
 
 .leave-card-icon {
-  width: 18px;
-  height: 18px;
-  color: var(--c-primary);
-  flex-shrink: 0;
-}
-
-.leave-card-chart-container {
-  display: flex;
-  justify-content: center;
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  padding: 0;
-  flex-grow: 1;
-}
-
-.leave-card-chart {
-  position: relative;
-  width: 55px;
-  height: 55px;
-}
-
-.leave-card-center-value {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--leave-accent);
+  background: color-mix(in srgb, var(--leave-accent) 16%, transparent);
   pointer-events: none;
 }
 
-/* Simple variant — a single figure, no ring/left/used breakdown. Used for
-   values that don't have a "total" to chart against (e.g. Carry Over,
-   which is just a flat balance, not entitled-vs-used). */
-.leave-card-simple-value {
-  font-size: 24px;
-  font-weight: 700;
+.leave-card-title {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-primary);
-  padding: 8px 0;
+  margin: 0;
+  white-space: nowrap;
 }
 
-.leave-card-stats {
-  display: flex;
-  justify-content: space-around;
-  gap: 2px;
-  padding-top: 0;
-  margin-top: auto;
+.leave-card-subtitle {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.leave-card-stat {
+.leave-card-row {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 20px;
+}
+
+.leave-card-row-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.leave-card-row-label-info {
+  display: inline-flex;
   align-items: center;
   gap: 2px;
 }
 
-/* Unlimited leave types: a single centered Used stat instead of the usual
-   Left/Used pair (see LeaveCard.jsx) — kept visually distinct from the
-   simple-variant value above it via the same label styling as Left/Used. */
-.leave-card-stats-single {
-  justify-content: center;
-}
-
-.leave-card-stat-value {
+.leave-card-row-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.leave-card-stat-label {
-  font-size: 9px;
+/* ⓘ button — 24px hit area around a 13px icon, visible focus ring */
+.leave-card-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0 -4px 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.leave-card-info-btn:hover,
+.leave-card-info-btn[aria-expanded='true'] {
+  color: var(--c-primary);
+  background: var(--surface-tertiary);
+}
+
+.leave-card-info-btn:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
+}
+
+/* Popover lives in a body portal (position: fixed) so no card/grid
+   overflow can clip it. */
+.leave-card-popover {
+  position: fixed;
+  z-index: 10000;
+  min-width: 170px;
+  padding: 8px 10px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+}
+
+.leave-card-breakdown {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.leave-card-breakdown th,
+.leave-card-breakdown td {
+  padding: 3px 6px;
+  text-align: center;
+}
+
+.leave-card-breakdown thead th {
+  font-size: 10px;
+  font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
-/* Responsive */
+.leave-card-breakdown tbody th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.leave-card-breakdown td {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.leave-card-popover-empty {
+  color: var(--text-secondary);
+}
+
 @media (max-width: 768px) {
   .leave-card {
     padding: 8px;
-  }
-
-  .leave-card-title {
-    font-size: 10px;
-  }
-
-  .leave-card-chart {
-    width: 50px;
-    height: 50px;
-  }
-
-  .leave-card-center-value {
-    font-size: 14px;
-  }
-
-  .leave-card-stat-value {
-    font-size: 12px;
-  }
-
-  .leave-card-stat-label {
-    font-size: 8px;
   }
 }
 
@@ -343,29 +189,12 @@
   animation: pulse-skeleton 1.5s ease-in-out infinite;
 }
 
-.leave-card-skeleton-circle {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background-color: var(--border-primary);
-  animation: pulse-skeleton 1.5s ease-in-out infinite;
-}
-
-[data-theme='dark'] .leave-card-skeleton-text,
-[data-theme='dark'] .leave-card-skeleton-circle {
+[data-theme='dark'] .leave-card-skeleton-text {
   background-color: #4b5563;
 }
 
 @keyframes pulse-skeleton {
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
 }

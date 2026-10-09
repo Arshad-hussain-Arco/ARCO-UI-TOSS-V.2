@@ -55,7 +55,9 @@
   right: 0;
   bottom: 0;
   background-color: var(--bg-overlay);
-  z-index: 45;
+  /* Above sticky/raised page content (e.g. the Consultants filter bar at
+     z-index 50, tooltips up to 500) but below modals (1000). */
+  z-index: 900;
   animation: fadeIn 0.3s ease;
 }
 

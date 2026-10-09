@@ -2,7 +2,8 @@ import React from 'react';
 import { Calendar, Compass } from 'lucide-react';
 import { format, isSameYear, differenceInCalendarDays } from 'date-fns';
 
-export function UpcomingHolidaysPanel({ holidays = [] }) {
+// standalone: rendered inside its own card (no rail divider underneath).
+export function UpcomingHolidaysPanel({ holidays = [], standalone = false }) {
   if (!holidays || holidays.length === 0) {
     return null;
   }
@@ -24,7 +25,7 @@ export function UpcomingHolidaysPanel({ holidays = [] }) {
   };
 
   return (
-    <div style={{ padding: '14px', borderBottom: '1px solid var(--border-primary)' }}>
+    <div style={{ padding: '14px', borderBottom: standalone ? 'none' : '1px solid var(--border-primary)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', marginBottom: '12px' }}>
         <Calendar size={14} style={{ color: 'var(--c-primary)' }} />
         <h2 style={{ fontSize: '11px', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>

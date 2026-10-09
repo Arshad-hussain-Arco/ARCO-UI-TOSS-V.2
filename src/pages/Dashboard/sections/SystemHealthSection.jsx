@@ -112,7 +112,7 @@ function SystemHealthSectionComponent({ systemHealth, runtimeTrend, insights, is
       </div>
 
 
-      <div className={isManager ? "dc-span-8" : "dc-span-12"}>
+      <div className="dc-span-8">
         <section className="dc-card dc-health-right" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <h2 className="dc-section-title">Runtime Trend – Last 7 Days</h2>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import './DocumentsUserGuidePage.css';
+import { withBase } from '@config/env';
 
 export function DocumentsUserGuidePage() {
   useDocumentTitle('Documents Guide');
@@ -21,7 +22,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>1. Searching for Content</h2>
-          <img src="/docs/images/doc_guide_1.png" className="du-doc-image" alt="Search Bar" />
+          <img src={withBase("/docs/images/doc_guide_1.png")} className="du-doc-image" alt="Search Bar" />
           <p>
             Use the search bar located at the top of the right sidebar to locate files or folders within the
             system. Entering keywords will instantly filter the items in the Workspace Navigation tree based
@@ -31,7 +32,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>2. Workspace Navigation and Empty State</h2>
-          <img src="/docs/images/doc_guide_2.png" className="du-doc-image" alt="Workspace Navigation and Empty State" />
+          <img src={withBase("/docs/images/doc_guide_2.png")} className="du-doc-image" alt="Workspace Navigation and Empty State" />
           <p>
             When you first open the Documents page, the main area will display an empty state instructing
             you to <span className="du-doc-highlight">"Select a file from the sidebar to view details"</span>. The right sidebar contains the Workspace
@@ -42,7 +43,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>3. Creating Folders</h2>
-          <img src="/docs/images/doc_guide_3.png" className="du-doc-image" alt="Create New Folder Dialog" />
+          <img src={withBase("/docs/images/doc_guide_3.png")} className="du-doc-image" alt="Create New Folder Dialog" />
           <p className="du-doc-highlight" style={{ display: 'block', width: 'fit-content' }}>To add a new folder:</p>
           <ol>
             <li>First, select the folder in the Workspace Navigation where you want the new folder to
@@ -57,7 +58,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>4. Uploading Files</h2>
-          <img src="/docs/images/doc_guide_4.png" className="du-doc-image" alt="Upload Document File Dialog" />
+          <img src={withBase("/docs/images/doc_guide_4.png")} className="du-doc-image" alt="Upload Document File Dialog" />
           <p className="du-doc-highlight" style={{ display: 'block', width: 'fit-content' }}>To upload a document:</p>
           <ol>
             <li>Select the destination folder in the Workspace Navigation.</li>
@@ -74,7 +75,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>5. Viewing and Managing Documents</h2>
-          <img src="/docs/images/doc_guide_5.png" className="du-doc-image" alt="Document Viewer" />
+          <img src={withBase("/docs/images/doc_guide_5.png")} className="du-doc-image" alt="Document Viewer" />
           <p>
             When you click on a file in the Workspace Navigation, it will load in the main viewing area. For
             supported file types (such as PDFs), you will see the full document content directly within the
@@ -84,7 +85,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>6. Editing a Document</h2>
-          <img src="/docs/images/doc_guide_6.png" className="du-doc-image" alt="Update Folder/File Dialog" />
+          <img src={withBase("/docs/images/doc_guide_6.png")} className="du-doc-image" alt="Update Folder/File Dialog" />
           <p className="du-doc-highlight" style={{ display: 'block', width: 'fit-content' }}>You can update a document's details or replace the file entirely:</p>
           <ol>
             <li>Hover over a file or folder in the Workspace Navigation and click the Edit (Edit) icon
@@ -99,7 +100,7 @@ export function DocumentsUserGuidePage() {
 
         <section className="du-doc-section">
           <h2>7. Deleting a Document</h2>
-          <img src="/docs/images/doc_guide_7.png" className="du-doc-image" alt="Confirm Deletion Dialog" />
+          <img src={withBase("/docs/images/doc_guide_7.png")} className="du-doc-image" alt="Confirm Deletion Dialog" />
           <p className="du-doc-highlight" style={{ display: 'block', width: 'fit-content' }}>To delete a file or folder:</p>
           <ol>
             <li>Hover over the item in the Workspace Navigation and click the Delete (trash can) icon.</li>

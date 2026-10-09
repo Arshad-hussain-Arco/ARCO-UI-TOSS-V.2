@@ -48,9 +48,11 @@
 }
 
 .lc-search-input {
+  box-sizing: border-box;
   width: 100%;
-  height: 32px;
-  padding: 0 10px 0 32px;
+  height: 36px; /* matches the Team select beside it */
+  padding: 0 32px 0 32px; /* right side leaves room for the clear button */
+  background-color: var(--surface-primary);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   font-family: var(--font-family);
@@ -67,6 +69,28 @@
 
 .lc-search-input::placeholder {
   color: var(--text-tertiary);
+}
+
+.lc-search-wrap .search-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.lc-search-wrap .search-clear-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
 }
 
 /* ── Main Data Table ─────────────────────────────────────────────────── */

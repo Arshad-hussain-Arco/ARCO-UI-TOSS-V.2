@@ -331,8 +331,14 @@
   transition: all 0.2s ease;
 }
 
-.header-profile-button:hover {
+.header-profile-button:hover,
+.header-profile-button[aria-expanded='true'] {
   background-color: var(--bg-hover);
+}
+
+.header-profile-button:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
 }
 
 .header-profile-avatar {
@@ -377,6 +383,11 @@
   width: 16px;
   height: 16px;
   color: var(--text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.header-profile-chevron[data-open='true'] {
+  transform: rotate(180deg);
 }
 
 /* Profile Menu */

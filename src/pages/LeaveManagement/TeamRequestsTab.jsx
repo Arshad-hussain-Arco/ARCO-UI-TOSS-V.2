@@ -24,7 +24,7 @@ import {
   Ban,
   ArrowUpDown,
   CalendarPlus,
-  Globe2,
+  Globe,
   CalendarClock,
   RotateCcw,
 } from 'lucide-react';
@@ -1218,7 +1218,7 @@ export function TeamRequestsTab({ getPhoto }) {
               count: counts.pendOffshore,
               color: '#5b21b6',
               bg: '#ede9fe',
-              Icon: Globe2,
+              Icon: Globe,
             },
             {
               type: 'compoff',

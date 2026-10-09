@@ -22,4 +22,7 @@ pnpm-debug.log*
 guidelines/*
 
 **/httpclient.js
-build*
+build*dist-template
+dist/
+dist-template/
+build-v2*

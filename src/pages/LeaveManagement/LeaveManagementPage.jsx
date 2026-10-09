@@ -24,7 +24,11 @@ import {
   MessageCircle,
   Bell,
   ScissorsLineDashed,
-  Globe2
+  Globe,
+  CalendarCheck,
+  HeartPulse,
+  CalendarClock,
+  Baby
 } from 'lucide-react';
 import { LeaveCard } from '@components/data-display/LeaveCard/LeaveCard';
 import { LeaveCalendar } from '@components/data-display/LeaveCalendar/LeaveCalendar';
@@ -88,16 +92,26 @@ const ALL_TABS = [
 // isUnlimited prop remembered by hand.
 function balanceCard(leaveBalances, isLoading, code, title, color, subtitle) {
   const bal = leaveBalances?.[code];
+  // Carry Over keeps its existing applicability: always on the AL card (as
+  // the old standalone card did), and on any other type that actually has
+  // carried-forward days. It is not part of the Booked breakdown.
+  const carried = bal?.carried_forward ?? 0;
+  const showCarryOver = code === 'AL' || carried > 0;
   return (
     <LeaveCard
       key={code}
       title={title}
       subtitle={subtitle}
+      icon={LEAVE_CARD_ICONS[code]}
       isLoading={isLoading}
-      centerCount={bal?.entitled ?? 0}
-      left={bal?.available ?? 0}
-      used={bal?.used ?? 0}
-      total={bal?.entitled ?? 0}
+      // display_available / booked / booked_breakdown are computed by the
+      // backend (BalanceService.summary include_booked) — Weekend Work and
+      // Comp Off arrive already as Claimed - Booked.
+      available={bal?.display_available}
+      booked={bal?.booked ?? 0}
+      breakdown={bal?.booked_breakdown}
+      claimed={bal?.claimed}
+      carryOver={showCarryOver ? carried : null}
       isUnlimited={bal?.is_unlimited ?? false}
       color={color}
     />
@@ -149,8 +163,8 @@ function groupClaimLeaves(leaves) {
 // To add a new leave-specific button in the future, just add an entry here.
 const LEAVE_ACTION_BUTTONS = [
   { modalType: 'leave', label: 'Apply Leave', codes: null, icon: Calendar, color: '#006633' },
-  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Calendar, color: '#006633' },
-  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Home, color: '#3b82f6' },
+  { modalType: 'wfh', label: 'Apply WFH', codes: ['WFH'], icon: Home, color: '#0d9488' },
+  { modalType: 'offshore', label: 'Apply Offshore Work', codes: ['OW'], icon: Globe, color: '#3b82f6' },
   { modalType: 'compoff', label: 'Submit Claim', codes: null, category: null, icon: CalendarPlus, color: '#f59e0b' },
 ];
 
@@ -159,6 +173,12 @@ import { Loader } from '@components/feedback/Loader/Loader';
 import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { getRelativePendingTime, STATUS_TOOLTIPS } from './TeamRequestsTab';
+
+// Card icon per leave type code (balanceCard looks it up by code).
+const LEAVE_CARD_ICONS = {
+  AL: CalendarDays, CompOff: CalendarCheck, SL: HeartPulse, WW: CalendarClock,
+  ML: Baby, PL: Users, OW: Globe, WFH: Home,
+};
 
 export const TruncatedText = ({ text, maxLength = 25, title = "Details" }) => {
   const [showFull, setShowFull] = useState(false);
@@ -396,14 +416,14 @@ export function LeaveManagementPage() {
           return;
         }
 
-        console.log("Fetching data for targetEmpId:", targetEmpId, "User:", user);
+        // console.log("Fetching data for targetEmpId:", targetEmpId, "User:", user);
 
         // leaveBalances / eligibleLeaveTypes only feed the "Apply Leave"
         // tab's summary cards and eligibility checks — MyLeavesSummaryTab
         // doesn't use either, so skip fetching them there.
         if (activeTab === 'my-leaves') {
           try {
-            const response = await leaveService.getLeaveBalance(targetEmpId);
+            const response = await leaveService.getLeaveBalance(targetEmpId, { includeBooked: true });
             setLeaveBalances(response?.balances);
           } catch (e) {
             console.error("Failed to fetch leave balances", e);
@@ -1063,7 +1083,7 @@ export function LeaveManagementPage() {
         {activeTab === 'my-leaves' && (
           <>
             <div className="my-leaves-toolbar">
-              <div className="my-leaves-actions" style={{ marginLeft: 'auto' }}>
+              <div className="my-leaves-actions">
                 {LEAVE_ACTION_BUTTONS.map(({ modalType: type, label, codes, category, icon: Icon, color }) => {
                   const eligible = isActionEligible(codes, category);
                   return (
@@ -1092,46 +1112,17 @@ export function LeaveManagementPage() {
                   reflected automatically without touching this page — no card can be
                   left out and silently render wrong (as WFH's card previously did,
                   since it never passed isUnlimited at all). */}
-              {balanceCard(leaveBalances, isLoading, 'AL', 'Leave Quota', '#006633')}
-              <LeaveCard
-                title="Carry Over"
-                variant="simple"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.AL?.carried_forward ?? 0}
-                color="#0891b2"
-              />
+              {balanceCard(leaveBalances, isLoading, 'AL', 'Annual Leave', '#006633')}
               {balanceCard(leaveBalances, isLoading, 'CompOff', 'Comp Off', '#8b5cf6')}
               {balanceCard(leaveBalances, isLoading, 'SL', 'Sick Leaves', '#dc2626')}
               {balanceCard(leaveBalances, isLoading, 'WW', 'Weekend Work', '#f59e0b')}
-              <LeaveCard
-                title="Booked Leave"
-                isLoading={isLoading}
-                centerCount={leaveBalances?.AL?.used ?? 0}
-                left={0}
-                used={leaveBalances?.AL?.used ?? 0}
-                total={leaveBalances?.AL?.used ?? 0}
-                color="#059669"
-              />
-              <LeaveCard
-                title="Upcoming"
-                isLoading={isLoading}
-                centerCount={0}
-                left={0}
-                used={0}
-                total={0}
-                color="#3b82f6"
-              />
-              <LeaveCard
-                title="Completed"
-                isLoading={isLoading}
-                centerCount={0}
-                left={0}
-                used={0}
-                total={0}
-                color="#10b981"
-              />
+              {/* Gender-restricted types: the backend only returns a balance for
+                  the ones this employee is eligible for, so show a card only
+                  when one exists (while loading, show none to avoid a flash). */}
+              {leaveBalances?.ML && balanceCard(leaveBalances, isLoading, 'ML', 'Maternity Leave', '#ec4899')}
+              {leaveBalances?.PL && balanceCard(leaveBalances, isLoading, 'PL', 'Paternity Leave', '#0ea5e9')}
               {balanceCard(leaveBalances, isLoading, 'OW', 'Offshore Work', '#6366f1', 'Outside KSA')}
-              {balanceCard(leaveBalances, isLoading, 'WFH', 'WFH', '#d97706', 'Inside KSA')}
+              {balanceCard(leaveBalances, isLoading, 'WFH', 'Work From Home', '#d97706', 'Inside KSA')}
             </div>
 
             <div className="leave-content-split-section" style={{ display: 'block' }}>

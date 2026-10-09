@@ -7,7 +7,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  { ignores: ['dist', 'node_modules', 'coverage'] },
+  { ignores: ['dist', 'dist-template', 'node_modules', 'coverage'] },
 
   js.configs.recommended,
 
@@ -47,7 +47,7 @@ export default [
   },
 
   {
-    files: ['**/*.config.js', 'vite.config.js'],
+    files: ['**/*.config.js', 'vite.config.js', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
 

@@ -4,13 +4,36 @@ import { csrf } from '@api/csrf';
 import { wsAuthQuery } from '@api/wsAuth';
 import { impersonationStorage } from '@utils/impersonationStorage';
 import { IMPERSONATION_KEYS } from '@constants/storageKeys';
+import { pushNotificationService } from '@services/pushNotificationService';
+import { useToast } from '@hooks/useToast';
+
+// Notifications arriving this soon after the socket opens are the replayed unread backlog.
+const BACKLOG_WINDOW_MS = 3_000;
+
+// How long a live notification popup stays on screen (longer than a normal toast: the
+// manager may be looking away when an employee applies for leave).
+const NOTIF_TOAST_MS = 10_000;
+
+/** Notification type → toast variant (colour of the popup's accent bar). */
+const TOAST_VARIANT_BY_TYPE = {
+  LEAVE_APPROVED:    'success',
+  MOD_APPROVED:      'success',
+  OW_EXCESS_APPROVED:'success',
+  LEAVE_REJECTED:    'error',
+  MOD_REJECTED:      'error',
+  OW_EXCESS_REJECTED:'error',
+  REMINDER:          'warning',
+};
 
 const apiBase = env.apiBaseUrl;
 
-const WS_BASE = (() => {
-  const origin = apiBase.replace(/\/api\/?$/, '');
-  return origin.replace(/^http/, 'ws');
-})();
+const WS_BASE = env.wsBaseUrl;
+
+// Reconnect policy: give a handshake CONNECT_TIMEOUT_MS to complete, then retry with
+// exponential backoff (5s, 10s, 20s ... capped at 60s). A successful open resets it.
+const CONNECT_TIMEOUT_MS = 90_000;
+const RETRY_BASE_MS      = 5_000;
+const RETRY_MAX_MS       = 60_000;
 
 const REST_BASE = apiBase.replace(/\/+$/, '');
 
@@ -105,8 +128,17 @@ export function useNotifications(empId) {
 
   const leaveWsRef        = useRef(null);
   const reconnectTimer    = useRef(null);
+  const connectTimeout    = useRef(null);
+  const retryCount        = useRef(0);
   const isMountedRef      = useRef(true);
   const connectRef        = useRef(null);    // stable ref so onclose can call it
+  const openedAtRef       = useRef(0);       // when the WS last opened (backlog cutoff)
+  const seenIdsRef        = useRef(new Set()); // ids already received over the WS (no repeat popups)
+  // useToast()'s value changes whenever a toast is shown, so read it through a ref —
+  // putting it in connect()'s deps would reconnect the socket on every popup.
+  const toast             = useToast();
+  const toastRef          = useRef(toast);
+  toastRef.current        = toast;
 
   // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -140,7 +172,16 @@ export function useNotifications(empId) {
     leaveWsRef.current = ws;
     setWsStatus('connecting');
 
+    // A handshake that never answers would otherwise stay "connecting" forever.
+    clearTimeout(connectTimeout.current);
+    connectTimeout.current = setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) ws.close(); // onclose schedules the retry
+    }, CONNECT_TIMEOUT_MS);
+
     ws.onopen = () => {
+      openedAtRef.current = Date.now();
+      clearTimeout(connectTimeout.current);
+      retryCount.current = 0;
       if (isMountedRef.current) setWsStatus('open');
     };
 
@@ -172,6 +213,26 @@ export function useNotifications(empId) {
         // Push notification (has an id field)
         if (data.id !== undefined) {
           upsert(tagSource('leave')(data));
+
+          // Live popup. Web Push needs HTTPS (no Service Worker on plain HTTP), so the
+          // on-screen toast is what works everywhere. The server replays the unread
+          // backlog right after connect, so skip that initial burst and anything
+          // already shown on an earlier connection.
+          const isNew = !seenIdsRef.current.has(data.id);
+          seenIdsRef.current.add(data.id);
+          if (isNew && Date.now() - openedAtRef.current > BACKLOG_WINDOW_MS && !data.is_read) {
+            const cfg = getNotifConfig(data.notification_type);
+            toastRef.current.show({
+              title: `${cfg.emoji} ${cfg.label}`,
+              description: data.message ?? '',
+              variant: TOAST_VARIANT_BY_TYPE[data.notification_type] ?? 'info',
+              duration: NOTIF_TOAST_MS,
+            });
+            // Also an OS popup where the browser allows it (HTTPS/localhost, permission granted).
+            if (!pushNotificationService.isPushSupported()) {
+              pushNotificationService.showLocalNotification(cfg.label, data.message ?? '');
+            }
+          }
         }
       } catch {
         /* ignore malformed frames */
@@ -179,11 +240,14 @@ export function useNotifications(empId) {
     };
 
     ws.onclose = (evt) => {
+      clearTimeout(connectTimeout.current);
       if (!isMountedRef.current) return;
       setWsStatus('disconnected');
       leaveWsRef.current = null;
       if (evt.code === 4001) return;                          // not authenticated — don't retry
-      reconnectTimer.current = setTimeout(() => connectRef.current?.(), 5000);
+      const delay = Math.min(RETRY_BASE_MS * 2 ** retryCount.current, RETRY_MAX_MS);
+      retryCount.current += 1;
+      reconnectTimer.current = setTimeout(() => connectRef.current?.(), delay);
     };
 
     ws.onerror = () => { /* handled in onclose */ };
@@ -247,9 +311,19 @@ export function useNotifications(empId) {
     return () => {
       isMountedRef.current = false;
       clearTimeout(reconnectTimer.current);
-      if (leaveWsRef.current) {
-        leaveWsRef.current.onclose = null; // prevent auto-reconnect on deliberate unmount
-        leaveWsRef.current.close();
+      clearTimeout(connectTimeout.current);
+      const ws = leaveWsRef.current;
+      if (ws) {
+        ws.onclose = null; // prevent auto-reconnect on deliberate unmount
+        ws.onmessage = null;
+        ws.onerror = null;
+        if (ws.readyState === WebSocket.CONNECTING) {
+          // Closing mid-handshake logs "closed before the connection is established";
+          // let it finish opening, then close it.
+          ws.onopen = () => ws.close();
+        } else {
+          ws.close();
+        }
         leaveWsRef.current = null;
       }
     };

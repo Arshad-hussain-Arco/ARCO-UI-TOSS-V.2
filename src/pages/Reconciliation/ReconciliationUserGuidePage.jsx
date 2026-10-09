@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 import './ReconciliationUserGuidePage.css';
+import { withBase } from '@config/env';
 
 export function ReconciliationUserGuidePage() {
   useDocumentTitle('Reconciliation Guide');
@@ -47,7 +48,7 @@ export function ReconciliationUserGuidePage() {
               </ul>
             </li>
           </ol>
-          <img src="/docs/images/image1.jpeg" className="ru-doc-image" alt="Upload Files Area" />
+          <img src={withBase("/docs/images/image1.jpeg")} className="ru-doc-image" alt="Upload Files Area" />
 
           <h4>After Upload, You'll See:</h4>
           <ul>
@@ -55,7 +56,7 @@ export function ReconciliationUserGuidePage() {
             <li>Total number of records</li>
             <li>File size</li>
           </ul>
-          <img src="/docs/images/image2.jpeg" className="ru-doc-image" alt="Uploaded Files View" />
+          <img src={withBase("/docs/images/image2.jpeg")} className="ru-doc-image" alt="Uploaded Files View" />
 
           <div className="ru-doc-note">
             <strong>Important Notes:</strong>
@@ -112,7 +113,7 @@ export function ReconciliationUserGuidePage() {
             <li>The "Next" button activates only when valid key columns are selected</li>
             <li>Counter shows: Selected: X column(s)</li>
           </ul>
-          <img src="/docs/images/image3.jpeg" className="ru-doc-image" alt="Select Key Columns" />
+          <img src={withBase("/docs/images/image3.jpeg")} className="ru-doc-image" alt="Select Key Columns" />
 
           <h3>Step 3: Map Columns</h3>
           <p>Map columns from <strong>File 1</strong> to their corresponding columns in <strong>File 2</strong> to compare their values.</p>
@@ -185,12 +186,12 @@ export function ReconciliationUserGuidePage() {
           <ul>
             <li>Resets all column mappings, data type selections, and comparison settings, and allows users to start the mapping process from scratch.</li>
           </ul>
-          <img src="/docs/images/image4.jpeg" className="ru-doc-image" alt="Map Columns" />
+          <img src={withBase("/docs/images/image4.jpeg")} className="ru-doc-image" alt="Map Columns" />
           
           <div className="ru-doc-highlight">
             If all the columns are mapped successfully and no columns are left in either of the files (e.g., extra columns), then you’ll see something like:
           </div>
-          <img src="/docs/images/image5.jpeg" className="ru-doc-image" alt="All columns mapped" />
+          <img src={withBase("/docs/images/image5.jpeg")} className="ru-doc-image" alt="All columns mapped" />
 
           <h3>Step 4: View Results</h3>
           <p>After reconciliation completes, you'll see:</p>
@@ -241,13 +242,13 @@ export function ReconciliationUserGuidePage() {
             <li><strong>Duplicates in Destination:</strong> Shows duplicate keys in File 2.</li>
             <li>Includes duplicate count for each key.</li>
           </ul>
-          <img src="/docs/images/reconciliation_results.png" className="ru-doc-image" alt="Detailed Results" />
+          <img src={withBase("/docs/images/reconciliation_results.png")} className="ru-doc-image" alt="Detailed Results" />
 
           <h4>Exporting Results:</h4>
           <ol type="a">
             <li>Click the <strong>"Export Report"</strong> button</li>
           </ol>
-          <img src="/docs/images/reconciliation_export_button.png" className="ru-doc-image" alt="Export Report Button" />
+          <img src={withBase("/docs/images/reconciliation_export_button.png")} className="ru-doc-image" alt="Export Report Button" />
           <ol type="a" start="2">
             <li>
               Optionally customize column prefixes in the modal:
@@ -259,7 +260,7 @@ export function ReconciliationUserGuidePage() {
             </li>
             <li>Click <strong>"Export Report"</strong> to download</li>
           </ol>
-          <img src="/docs/images/reconciliation_export_modal.png" className="ru-doc-image" alt="Export Modal" />
+          <img src={withBase("/docs/images/reconciliation_export_modal.png")} className="ru-doc-image" alt="Export Modal" />
 
           <div className="ru-doc-highlight">Excel Report Contains:</div>
           
@@ -354,7 +355,7 @@ export function ReconciliationUserGuidePage() {
             <li>Click <strong>Start New Reconciliation</strong></li>
             <li>Upload new files and repeat the workflow</li>
           </ol>
-          <img src="/docs/images/reconciliation_duplicates.png" className="ru-doc-image" alt="Start New Reconciliation" />
+          <img src={withBase("/docs/images/reconciliation_duplicates.png")} className="ru-doc-image" alt="Start New Reconciliation" />
         </section>
 
         <section className="ru-doc-section">

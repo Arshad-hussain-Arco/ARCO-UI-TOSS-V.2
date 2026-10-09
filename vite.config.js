@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 
 const resolvePath = (relative) => fileURLToPath(new URL(relative, import.meta.url));
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
@@ -13,7 +13,12 @@ export default defineConfig(({ mode }) => {
   const target = apiBaseUrl.replace(/\/api\/?$/, '') || 'http://127.0.0.1:8000';
   const wsTarget = target.replace(/^http/, 'ws');
 
+  // Dev server uses VITE_APP_BASE_URL directly. Production builds emit a placeholder that
+  // `scripts/set-base.mjs` swaps for the real path, so it can change without a rebuild.
+  const base = command === 'build' ? '/__TOSS_BASE__/' : env.VITE_APP_BASE_URL || '/';
+
   return {
+    base,
     plugins: [react(), tailwindcss()],
 
     resolve: { 
@@ -55,7 +60,8 @@ export default defineConfig(({ mode }) => {
     },
 
   build: {
-    outDir: 'dist',
+    // Placeholder build; `scripts/set-base.mjs` turns it into the deployable `dist/`.
+    outDir: 'dist-template',
     sourcemap: false,
     chunkSizeWarningLimit: 1200,
     rollupOptions: {

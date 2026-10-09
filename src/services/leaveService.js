@@ -26,9 +26,13 @@ export const leaveService = {
     return response.data;
   },
 
-  getLeaveBalance: async (empId) => {
+  // includeBooked adds the backend-computed Booked breakdown (+ display
+  // Available) per leave type; other callers keep the lighter payload.
+  getLeaveBalance: async (empId, { includeBooked = false } = {}) => {
     try {
-      const response = await httpClient.get(endpoints.me.balance(empId));
+      const response = await httpClient.get(endpoints.me.balance(empId), {
+        params: includeBooked ? { include_booked: 1 } : undefined,
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching leave balance:', error);

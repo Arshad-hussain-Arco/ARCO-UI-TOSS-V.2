@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, KeyRound, LogOut, UserCog } from 'lucide-react';
 
 import { useOnClickOutside } from '@hooks/useOnClickOutside';
 import { ROUTES } from '@constants/routes';
+import { withBase } from '@config/env';
 
 /**
  * Avatar button with the account menu. Closes on outside click or Escape.
@@ -16,34 +17,63 @@ import { ROUTES } from '@constants/routes';
  */
 export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChangePassword }) {
   const [isOpen, setIsOpen] = useState(false);
+  // Pinned = opened by a click/tap/Enter: stays open when the pointer leaves
+  // and is toggled by the next click. Unpinned = just hovering/focused.
+  const [isPinned, setIsPinned] = useState(false);
   const wrapperRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
   const navigate = useNavigate();
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    clearTimeout(hoverTimeoutRef.current);
+    setIsOpen(false);
+    setIsPinned(false);
+  }, []);
   useOnClickOutside(wrapperRef, close, isOpen);
-  const hoverTimeoutRef = useRef(null);
 
-  const handleMouseEnter = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => e.key === 'Escape' && close();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, close]);
+
+  useEffect(() => () => clearTimeout(hoverTimeoutRef.current), []);
+
+  const open = () => {
+    clearTimeout(hoverTimeoutRef.current);
     setIsOpen(true);
   };
 
-  const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 200);
+  // Short delay so the pointer can travel from the button to the menu.
+  const closeSoon = () => {
+    if (isPinned) return;
+    hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 200);
+  };
+
+  const handleClick = () => {
+    if (isOpen && isPinned) {
+      close();
+    } else {
+      open();
+      setIsPinned(true);
+    }
   };
 
   return (
     <div
       className="header-profile-wrapper"
       ref={wrapperRef}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={open}
+      onMouseLeave={closeSoon}
+      onFocus={open}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) closeSoon();
+      }}
     >
       <button
         type="button"
-        onClick={() => setIsOpen((open) => !open)}
+        onClick={handleClick}
         className="header-profile-button"
         aria-haspopup="menu"
         aria-expanded={isOpen}
@@ -59,7 +89,7 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
           <div className="header-profile-name">{user.name}</div>
           <div className="header-profile-role">{user.role}</div>
         </div>
-        <ChevronDown className="header-profile-chevron" aria-hidden="true" />
+        <ChevronDown className="header-profile-chevron" data-open={isOpen} aria-hidden="true" />
       </button>
 
       {isOpen ? (
@@ -108,7 +138,7 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
                 close();
                 // Same isolation model as Access Account — a new tab, own
                 // sessionStorage-only tokens. See ViewAsRolePage.jsx.
-                window.open(ROUTES.VIEW_AS_ROLE, '_blank', 'noopener,noreferrer');
+                window.open(withBase(ROUTES.VIEW_AS_ROLE), '_blank', 'noopener,noreferrer');
               }}
             >
               <span className="header-profile-menu-text">View as Role</span>
@@ -125,7 +155,7 @@ export function ProfileMenu({ user, onLogout, onOpenProfileSettings, onOpenChang
                 // A new tab so the admin's own session/state (this tab) is
                 // never touched by the impersonation flow — see
                 // AccessAccountPage.jsx and utils/impersonationStorage.js.
-                window.open(ROUTES.ACCESS_ACCOUNT, '_blank', 'noopener,noreferrer');
+                window.open(withBase(ROUTES.ACCESS_ACCOUNT), '_blank', 'noopener,noreferrer');
               }}
             >
               {/* <UserCog className="header-profile-menu-icon" aria-hidden="true" /> */}
