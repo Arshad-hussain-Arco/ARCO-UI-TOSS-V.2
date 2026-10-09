@@ -649,6 +649,11 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
   const [hoverDate, setHoverDate] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // True once any request from this modal succeeded. "Submit Another Request"
+  // returns to the form, so closing from there must still tell the page to
+  // refresh — otherwise My Leaves keeps showing the pre-submit list/balances.
+  const didSubmitRef = useRef(false);
+  const closeModal = () => onClose(didSubmitRef.current);
   // Server's authoritative day-by-day breakdown (Rule 1 response contract) —
   // which requested days were counted vs. skipped and why, shown after a
   // successful Leave/WFH/OW submission.
@@ -1104,7 +1109,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
       </div>
     );
   return (
-    <div className="al-overlay" {...dismissBackdrop(() => onClose(false))}>
+    <div className="al-overlay" {...dismissBackdrop(closeModal)}>
       <div className="al-modal" role="dialog" aria-modal="true">
         {/* Confirmation overlay */}
         {showConfirm && (
@@ -1321,6 +1326,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
                       }
 
                       setShowConfirm(false);
+                      didSubmitRef.current = true;
                       setSubmitted(true);
                       toast.success(SUCCESS_TITLES[type]);
                       // On-behalf leaves: the backend sends a notification to the
@@ -1359,7 +1365,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
           <div className="al-header-left">
             <h2 className="al-title">{MODAL_TITLES[type]}</h2>
           </div>
-          <button type="button" className="al-close-btn" onClick={() => onClose(false)}>
+          <button type="button" className="al-close-btn" onClick={closeModal}>
             <X size={15} />
           </button>
         </div>
@@ -2155,7 +2161,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
           <div className="al-footer-left">
             {hasError && (
               <span className="al-footer-status error">
-                <AlertCircle size={12} /> Resolve errors to continue
+                <AlertCircle size={12} /> Can&apos;t submit yet
               </span>
             )}
             {!hasError && canSubmit && (
@@ -2165,7 +2171,7 @@ function ApplyLeaveModal({ onClose, canApplyOnBehalf, type = 'leave', selfEligib
             )}
           </div>
           <div className="al-footer-right">
-            <button type="button" className="al-btn al-btn-ghost" onClick={onClose}>
+            <button type="button" className="al-btn al-btn-ghost" onClick={closeModal}>
               Cancel
             </button>
             <button type="button" className="al-btn al-btn-outline" onClick={handleReset}>
