@@ -388,6 +388,7 @@ export function LeaveManagementPage() {
   }, []);
 
   useEffect(() => {
+    let ignore = false;
     const fetchData = async () => {
       // Fetch only if we're on the relevant tab that needs this data
       if (activeTab !== 'my-leaves' && activeTab !== 'my-leaves-summary') return;
@@ -440,12 +441,20 @@ export function LeaveManagementPage() {
         }
 
         try {
+          // The year / from / to filters belong to the My Leaves History tab
+          // only. This list also feeds the My Leaves tab, so applying them
+          // there would carry History's filters over when switching tabs.
           const leavesParams = {};
-          if (summaryYear && summaryYear !== 'all') leavesParams.year = summaryYear;
-          if (summaryFrom) leavesParams.from = summaryFrom;
-          if (summaryTo) leavesParams.to = summaryTo;
+          if (activeTab === 'my-leaves-summary') {
+            if (summaryYear && summaryYear !== 'all') leavesParams.year = summaryYear;
+            if (summaryFrom) leavesParams.from = summaryFrom;
+            if (summaryTo) leavesParams.to = summaryTo;
+          }
 
           const leavesResponse = await leaveService.getMyLeaves(targetEmpId, leavesParams);
+          // A newer fetch (e.g. after a tab switch) supersedes this one —
+          // don't let a slower, differently-filtered response overwrite it.
+          if (ignore) return;
           const userLeaves = Array.isArray(leavesResponse) ? leavesResponse : (leavesResponse?.results || []);
           
           let calendarHolidays = [];
@@ -499,10 +508,11 @@ export function LeaveManagementPage() {
         console.error("Failed to fetch leave data", err);
         setError(err);
       } finally {
-        setIsLoading(false);
+        if (!ignore) setIsLoading(false);
       }
     };
     fetchData();
+    return () => { ignore = true; };
   }, [user, activeTab, refreshKey, summaryYear, summaryFrom, summaryTo]);
 
   // Handle direct navigation via push notifications
