@@ -83,7 +83,7 @@ function DashboardSkeleton({ hasPermission, isManager }) {
                     </div>
                   </div>
                 </div>
-                <div className={isManager ? "dc-span-8" : "dc-span-12"} style={{ marginBottom: '16px' }}>
+                <div className="dc-span-8" style={{ marginBottom: '16px' }}>
                   <Skeleton height={280} width="100%" style={{ borderRadius: '12px' }} />
                 </div>
               </>
@@ -160,6 +160,11 @@ export function DashboardPage() {
   const [loadingMurex, setLoadingMurex] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
   const [loadingHolidays, setLoadingHolidays] = useState(true);
+  // Non-managers see Upcoming Holidays as a card beside Team Availability
+  // (managers get it in the right rail). Derived from the data so adding or
+  // removing a holiday re-flows that row: with none, Team Availability takes
+  // the full width instead of leaving an empty gap.
+  const showHolidaysCard = !user?.isManager && (loadingHolidays || upcomingHolidays.length > 0);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [loadingApprovals, setLoadingApprovals] = useState(true);
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -661,7 +666,25 @@ export function DashboardPage() {
                       trendData={trendData}
                       isLoading={loadingTeams}
                       isManager={user?.isManager}
+                      hasSideCard={showHolidaysCard}
                     />
+                  )}
+
+                  {/* Managers get Upcoming Holidays in the right rail; everyone
+                      else gets it here, in the free slot beside Team
+                      Availability, so every employee can see it. */}
+                  {showHolidaysCard && (
+                    <div className="dc-span-4">
+                      {loadingHolidays ? (
+                        <CardLoader label="Loading holidays…" minHeight={140} />
+                      ) : (
+                        upcomingHolidays.length > 0 && (
+                          <div className="dc-card" style={{ padding: 0 }}>
+                            <UpcomingHolidaysPanel holidays={upcomingHolidays} standalone />
+                          </div>
+                        )
+                      )}
+                    </div>
                   )}
 
                   {hasPermission('MUREX_RUNTIME_VIEW') && (
@@ -679,7 +702,7 @@ export function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <div className={user?.isManager ? "dc-span-8" : "dc-span-12"}>
+                        <div className="dc-span-8">
                           <CardLoader label="Loading runtime trends…" minHeight={280} />
                         </div>
                       </>
