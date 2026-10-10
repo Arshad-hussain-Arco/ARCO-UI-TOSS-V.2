@@ -233,7 +233,7 @@ export function ProjectRow({ project, changeRequests = [], isExpanded, onToggleE
                     <span className="pm-kv-val">{val(project.pmo)}</span>
                   </div>
                   <div className="pm-kv-item">
-                    <span className="pm-kv-label">Last Comment:</span>
+                    <span className="pm-kv-label">Comments:</span>
                     <span className="pm-kv-val pm-kv-comment">{val(project.lastComment)}</span>
                   </div>
                   <div className="pm-kv-item">

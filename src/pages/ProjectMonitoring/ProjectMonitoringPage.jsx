@@ -15,7 +15,7 @@ import {
   X,
   Users,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
@@ -71,7 +71,7 @@ const STAGE_COLORS = {
 };
 
 /* ── CSV / Excel Export Function ─────────────────────────────────────────── */
-function exportToCSV(rows, filename, isCR = false, projectsData = []) {
+function exportToCSV(rows, filename, isCR = false, projectsData = [], commentsLabel = 'Comments') {
   if (!rows || !rows.length) return;
   const exportData = rows.map((p) => {
     if (isCR) {
@@ -97,11 +97,24 @@ function exportToCSV(rows, filename, isCR = false, projectsData = []) {
       'Backup ITDL': p.Backup_IT_Delivery_Lead || p.backupItdl || '',
       'Product Owner': p.Product_Owner || p.po || '',
       'PMO Project Manager': p.PMO_Project_Manager || p.pmo || '',
-      'Last Comment': p.Last_Comment || p.lastComment || '',
+      [commentsLabel]: p.Last_Comment || p.lastComment || '',
     };
   });
 
   const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+  // Multi-line cells (Comments) only show their line breaks in Excel when the
+  // cell has Wrap Text on, which plain json_to_sheet output doesn't set.
+  const range = XLSX.utils.decode_range(worksheet['!ref']);
+  const commentsCol = Object.keys(exportData[0]).indexOf(commentsLabel);
+  if (commentsCol >= 0) {
+    for (let r = range.s.r + 1; r <= range.e.r; r += 1) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r, c: commentsCol })];
+      if (cell) cell.s = { alignment: { wrapText: true, vertical: 'top' } };
+    }
+    worksheet['!cols'] = Object.keys(exportData[0]).map((key) => ({ wch: key === commentsLabel ? 70 : 22 }));
+  }
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Projects');
   XLSX.writeFile(workbook, `${filename.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
@@ -139,6 +152,8 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
 
   const isMemberDrilldown = stage.type === 'member' || stage.roleLabel;
   const titleText = stage.label || stage.name || 'Stage Explorer';
+  // On this card the comments column holds only the newest entry; elsewhere it's the full history.
+  const commentsLabel = stage.id === 'b7' ? 'Last Comment' : 'Comments';
   const roleText = stage.roleLabel || '';
   const memberNameText = stage.memberName || stage.name || stage.label;
 
@@ -205,7 +220,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
             </span>
             <ExportButton
               excel={true}
-              onExcelExport={() => exportToCSV(matchedProjects, `${titleText}_Export`, isCR, projectsData)}
+              onExcelExport={() => exportToCSV(matchedProjects, `${titleText}_Export`, isCR, projectsData, commentsLabel)}
             />
           </div>
         </div>
@@ -235,7 +250,7 @@ function DrilldownModal({ stage, onClose, projectsData = [], changeRequestsData 
                   <th>Backup ITDL</th>
                   <th>Product Owner</th>
                   <th>PMO Project Manager</th>
-                  <th>Last Comment</th>
+                  <th>{commentsLabel}</th>
                 </tr>
               )}
             </thead>
