@@ -60,4 +60,5 @@
   color: var(--border-secondary);
   font-size: 11px;
   text-align: justify;
+  white-space: pre-line;
 }

@@ -20,6 +20,7 @@ function EnvironmentConfigPanelComponent() {
     clientDirectory: '',
     ImpLinksPath: '',
     documentfilePath: '',
+    homeMediaFilePath: '',
     systemHealthHeartbeat: '',
     eodHeartbeatInterval: '',
     envConfigServerIp: '',
@@ -43,6 +44,7 @@ function EnvironmentConfigPanelComponent() {
           clientDirectory: res.clientDirectory || '',
           ImpLinksPath: res.ImpLinksPath || '',
           documentfilePath: res.documentfilePath || '',
+          homeMediaFilePath: res.homeMediaFilePath || '',
           systemHealthHeartbeat: res.systemHealthHeartbeat || '',
           eodHeartbeatInterval: res.eodHeartbeatInterval || '',
           envConfigServerIp: res.envConfigServerIp || '',
@@ -172,6 +174,21 @@ function EnvironmentConfigPanelComponent() {
                 value={formData.documentfilePath}
                 placeholder="/path/to/documents"
                 onChange={(e) => handleChange('documentfilePath', e.target.value)}
+              />
+            </div>
+
+            {/* 2.6 Home Media FilePath */}
+            <div className="ss-modal-form-group">
+              <label className="ss-modal-label" htmlFor="env-home-media-filepath">
+                Home Media FilePath
+              </label>
+              <input
+                id="env-home-media-filepath"
+                type="text"
+                className="ss-input"
+                value={formData.homeMediaFilePath}
+                placeholder="/upload/HomeMedia"
+                onChange={(e) => handleChange('homeMediaFilePath', e.target.value)}
               />
             </div>
 

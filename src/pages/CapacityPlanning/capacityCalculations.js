@@ -117,7 +117,7 @@ export function calculateDeveloperMDs(record, teamPercentMap = null, primaryTeam
 
   let addDevCount = 0;
   if (record.Additional_Developers) {
-    const rawDevs = record.Additional_Developers.split(',')
+    const rawDevs = record.Additional_Developers.split(/[,\n]+/)
       .map(name => name.trim())
       .filter(Boolean);
 

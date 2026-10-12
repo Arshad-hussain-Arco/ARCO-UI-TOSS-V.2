@@ -274,26 +274,36 @@ export function extractLatestCommentWithDate(commentString, unCommentedForDays =
   const commentSections = commentString.split(/(?:\n|^|\s{2,})(\d+\.)/g);
 
   if (commentSections.length > 2) {
+    // A numbered piece with no date is a list item inside the previous comment
+    // (e.g. "2. Oct 01, 2026 - Issues:\n1. Login fails\n2. Slow"), not a new comment,
+    // so fold it back into that comment instead of cutting the text short.
+    const entries = [];
     for (let i = 1; i < commentSections.length; i += 2) {
       if (i + 1 < commentSections.length) {
-        const commentNumber = commentSections[i];
-        const commentContent = commentSections[i + 1];
-        const fullComment = commentNumber + commentContent;
-
-        const dateMatches = commentContent.match(/([A-Z][a-z]{2} \d{1,2}, \d{4})/g);
-        if (dateMatches && dateMatches.length > 0) {
-          dateMatches.forEach((dateStr) => {
-            const date = new Date(dateStr);
-            if (!isNaN(date.getTime())) {
-              if (!latestDate || date > latestDate) {
-                latestDate = date;
-                latestComment = fullComment.replace(/^\d+\.\s*/, '').trim();
-              }
-            }
-          });
+        const piece = commentSections[i] + commentSections[i + 1];
+        const hasDate = /[A-Z][a-z]{2} \d{1,2}, \d{4}/.test(commentSections[i + 1]);
+        if (!hasDate && entries.length > 0) {
+          entries[entries.length - 1] += '\n' + piece;
+        } else {
+          entries.push(piece);
         }
       }
     }
+
+    entries.forEach((fullComment) => {
+      const dateMatches = fullComment.match(/([A-Z][a-z]{2} \d{1,2}, \d{4})/g);
+      if (dateMatches && dateMatches.length > 0) {
+        dateMatches.forEach((dateStr) => {
+          const date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            if (!latestDate || date > latestDate) {
+              latestDate = date;
+              latestComment = fullComment.replace(/^\d+\.\s*/, '').trim();
+            }
+          }
+        });
+      }
+    });
   }
 
   // APPROACH 2: Fallback to free-form comment if no numbered comments found
