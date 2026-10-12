@@ -306,6 +306,26 @@
   color: var(--text-primary) !important;
 }
 
+/* The live editor is RoosterJS (EditableArea/.rte-editable is legacy), so the
+   same pasted-colour neutralisation must target Rooster's contenteditable
+   root. Without this, pasted HTML keeps inline white backgrounds / dark
+   text colors and is unreadable in dark mode. Mirrors the rule HomeCard.css
+   applies when the card is rendered, so the editor matches the saved result. */
+.rte-root div[contenteditable="true"] *:not([class*="rte-"]):not([class*="media-"]) {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+.rte-root div[contenteditable="true"] a,
+.rte-root div[contenteditable="true"] a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: var(--c-primary) !important;
+}
+
+[data-theme="dark"] .rte-root div[contenteditable="true"] a,
+[data-theme="dark"] .rte-root div[contenteditable="true"] a *:not([class*="rte-"]):not([class*="media-"]) {
+  color: #60a5fa !important;
+}
+
 .rte-editable a,
 .rte-editable a span,
 .rte-editable a *:not([class*="rte-"]):not([class*="media-"]) {
