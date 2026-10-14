@@ -1176,8 +1176,19 @@
   margin: 0;
   outline: none;
   font: inherit;
+  /* `font: inherit` above resets the size to the page default; set it after */
+  font-size: 12px;
+  font-weight: 500;
   line-height: normal;
+  padding: 4px 10px;
+  gap: 6px;
   cursor: pointer;
+}
+
+.cp-legend-filter .cp-legend-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
 }
 
 .cp-legend-filter.active {
@@ -1195,7 +1206,7 @@
   line-height: normal;
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   background: transparent;
@@ -1270,4 +1281,881 @@
 }
 .cp-sub-table tr:last-child td {
   border-bottom: none;
+}
+
+
+/* ─── Project View: Project → CR cards → Project Team ─── */
+.cp-cr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-cr-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-primary, var(--bg-primary));
+  border: 1px solid var(--border-primary);
+  /* Slightly stronger than the theme border so cards stand out in the light theme */
+  border: 1px solid color-mix(in srgb, var(--text-primary) 22%, transparent);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* CR header panel */
+.cp-cr-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.cp-cr-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cp-cr-id {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+  cursor: help;
+}
+
+.cp-cr-summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-cr-stage {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cp-cr-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 0;
+}
+
+.cp-cr-fact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  border-left: 1px solid var(--border-tertiary);
+}
+
+.cp-cr-fact:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.cp-cr-fact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.cp-cr-fact-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.cp-cr-fact-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.cp-cr-fact-strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cp-cr-fact-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.cp-cr-arrow {
+  margin: 0 6px;
+  color: var(--text-secondary);
+}
+
+.cp-cr-fact-value em,
+.cp-muted {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.cp-cr-progress {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-left: 20px;
+}
+
+.cp-cr-progress-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.cp-progress-track {
+  flex: 1;
+  height: 8px;
+  min-width: 60px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.2));
+}
+
+.cp-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--c-primary-dark), var(--c-primary));
+}
+
+/* Project Team panel */
+.cp-team-panel {
+  padding: 10px 16px 12px;
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.07));
+  border-top: 1px solid var(--border-tertiary);
+}
+
+.cp-team-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cp-team-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-primary);
+}
+
+.cp-team-panel-title h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cp-team-count {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-cr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cp-cr-toggle:hover,
+.cp-cr-toggle:focus-visible {
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-team-table-wrap {
+  margin-top: 10px;
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+.cp-cr-dev-empty {
+  margin-top: 12px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.cp-cr-dev-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: transparent;
+}
+
+/* Beat the global table header styling (dark bar + column dividers) */
+.cp-cr-dev-table thead th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-primary);
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+  border: none;
+  /* Black in the light theme, white in the dark theme */
+  border-bottom: 1px solid var(--text-primary);
+  position: static;
+}
+
+.cp-cr-dev-table thead th:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.cp-cr-dev-table thead th:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.cp-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.cp-sort-btn svg {
+  opacity: 0.55;
+}
+
+.cp-sort-btn.is-active svg {
+  opacity: 1;
+  color: var(--c-primary);
+}
+
+.cp-cr-dev-table td {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-tertiary);
+  vertical-align: middle;
+}
+
+.cp-cr-dev-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cp-dev-index {
+  color: var(--text-secondary);
+}
+
+.cp-dev-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cp-cr-dev-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  object-fit: cover;
+}
+
+.cp-cr-dev-effort {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.cp-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.14);
+  cursor: help;
+}
+
+.cp-effort {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.cp-effort-raw,
+.cp-effort-arrow {
+  color: var(--text-secondary);
+}
+
+.cp-effort-pro {
+  color: var(--text-primary);
+}
+
+.cp-effort-unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .cp-cr-head,
+  .cp-team-panel {
+    padding: 12px;
+  }
+
+  .cp-cr-title {
+    flex-wrap: wrap;
+  }
+
+  .cp-cr-fact {
+    padding: 0 16px;
+  }
+
+  .cp-cr-progress {
+    flex-basis: 100%;
+    padding-left: 0;
+  }
+}
+
+
+/* ─── Project View: project header row ─── */
+.cp-project-row {
+  background-color: var(--bg-secondary);
+}
+
+.cp-project-row .cp-project-cell {
+  padding: 12px 16px !important;
+}
+
+.cp-project-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cp-project-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-project-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cp-project-stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cp-project-stat {
+  padding: 4px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cp-project-stat strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.cp-project-stat--effort {
+  border-color: transparent;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+}
+
+.cp-project-stat--effort strong {
+  color: var(--c-primary);
+}
+
+.cp-data-table th.cp-project-th-stats {
+  text-align: right;
+  width: 360px;
+  padding-right: 16px;
+}
+
+.cp-project-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-avatar-stack {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.cp-avatar-stack .cp-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border: 2px solid var(--bg-secondary);
+  margin-left: -6px;
+}
+
+.cp-avatar-stack .cp-avatar:first-child {
+  margin-left: 0;
+}
+
+.cp-avatar-more {
+  background: var(--bg-tertiary, #6b7280);
+  color: var(--text-primary);
+}
+
+/* Fixed columns so the three pills line up row to row */
+.cp-project-stats {
+  display: grid;
+  grid-template-columns: 88px 262px 104px;
+  gap: 8px;
+  justify-content: end;
+  align-items: center;
+}
+
+.cp-project-stats .cp-project-stat {
+  justify-content: center;
+}
+
+.cp-project-stats .cp-project-stat[role="button"] {
+  justify-content: flex-start;
+}
+
+.cp-project-stats .cp-avatar-stack {
+  width: 92px;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.cp-data-table th.cp-project-th-stats {
+  width: 480px;
+}
+
+/* The whole Developers bar toggles the list */
+.cp-team-panel-head {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 6px;
+}
+
+.cp-team-panel-head:hover .cp-cr-toggle,
+.cp-team-panel-head:focus-visible .cp-cr-toggle {
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-team-panel-head:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+/* Next 7/30/90 Days summary badges above the Project View table */
+.team-size-badge.cp-window-badge {
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cp-expand-all-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cp-expand-all-btn:hover:not(:disabled),
+.cp-expand-all-btn:focus-visible {
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-expand-all-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+
+/* ─── Gantt View ─── */
+.cp-gantt-axis {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.cp-gantt-axis-label {
+  position: sticky;
+  left: 0;
+  z-index: 13;
+  width: 380px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+}
+
+.cp-gantt-axis-months {
+  position: relative;
+  flex: 1;
+  height: 40px;
+  overflow: hidden;
+}
+
+.cp-gantt-axis-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  border-left: 1px solid var(--border-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.cp-gantt-today-pill {
+  position: absolute;
+  bottom: 3px;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: #ef4444;
+  z-index: 2;
+}
+
+.cp-gantt-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-gantt-row:hover .cp-gantt-label,
+.cp-gantt-row:hover .cp-gantt-track {
+  background-color: var(--bg-hover, rgba(127, 127, 127, 0.08));
+}
+
+.cp-gantt-label {
+  position: sticky;
+  left: 0;
+  z-index: 12;
+  width: 380px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-primary);
+}
+
+.cp-gantt-track {
+  position: relative;
+  flex: 1;
+  min-height: 46px;
+  overflow: hidden;
+}
+
+/* project header row */
+.cp-gantt-project-row {
+  cursor: pointer;
+  border-top: 1px solid var(--border-primary);
+}
+
+.cp-gantt-project-row .cp-gantt-label,
+.cp-gantt-project-row .cp-gantt-track {
+  background-color: var(--bg-secondary);
+}
+
+.cp-gantt-project-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cp-gantt-project-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-gantt-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cp-gantt-meta--project {
+  padding-left: 34px;
+}
+
+/* CR rows, indented under their project with a connector line */
+.cp-gantt-label--cr {
+  padding-left: 40px;
+}
+
+.cp-gantt-label--cr::before {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 0;
+  bottom: 0;
+  border-left: 2px solid var(--border-primary);
+}
+
+.cp-gantt-label--cr::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 50%;
+  width: 10px;
+  border-top: 2px solid var(--border-primary);
+}
+
+.cp-gantt-cr-title {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.cp-gantt-cr-title strong {
+  flex-shrink: 0;
+}
+
+.cp-gantt-cr-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* timeline */
+.cp-gantt-month {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--border-tertiary);
+  z-index: 0;
+}
+
+.cp-gantt-month.is-alt {
+  background: rgba(127, 127, 127, 0.07);
+}
+
+.cp-gantt-bar {
+  position: absolute;
+  top: 50%;
+  height: 20px;
+  min-width: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  transform: translateY(-50%);
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+  cursor: pointer;
+}
+
+.cp-gantt-bar:hover {
+  filter: brightness(1.12);
+}
+
+.cp-gantt-bar-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.cp-gantt-bar-outside {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.cp-gantt-mini {
+  position: absolute;
+  top: 50%;
+  height: 8px;
+  min-width: 4px;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  opacity: 0.6;
+  z-index: 1;
+}
+
+.cp-gantt-unscheduled {
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-secondary);
+  z-index: 1;
+}
+
+/* CR with no prorated effort in the selected window: faded + dashed so it reads as inactive */
+.cp-cr-card.is-inactive {
+  opacity: 0.55;
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+  filter: grayscale(0.6);
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.cp-cr-card.is-inactive:hover,
+.cp-cr-card.is-inactive:focus-within {
+  opacity: 0.95;
+  filter: none;
+}
+
+.cp-cr-card.is-inactive .cp-progress-fill {
+  background: var(--text-tertiary, #9ca3af);
+}
+
+/* Moving diagonal stripes over inactive CR cards (decorative, never blocks clicks) */
+.cp-cr-card.is-inactive {
+  position: relative;
+}
+
+.cp-cr-card.is-inactive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 9px,
+    rgba(127, 127, 127, 0.28) 9px,
+    rgba(127, 127, 127, 0.28) 11px
+  );
+  background-size: 28px 28px;
+  animation: cp-inactive-stripes 1.2s linear infinite;
+}
+
+@keyframes cp-inactive-stripes {
+  from { background-position: 0 0; }
+  to { background-position: 28px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cp-cr-card.is-inactive::after {
+    animation: none;
+  }
 }

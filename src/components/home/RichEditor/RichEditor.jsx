@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import ReactDOM from 'react-dom';
 import DOMPurify from 'dompurify';
 import { useToast } from '@hooks/useToast';
-import { attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, withFreshMediaToken, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
+import { uploadMediaFile, assertWithinSizeLimit, attachHomeMediaToken, stripHomeMediaToken, useHomeMediaToken, deleteMediaFile, withFreshMediaToken, themeAdaptiveColors, handleUnifiedCopyClick } from './mediaUtils';
 import { copyWithToast } from '@utils/copyToClipboard';
 import * as ImageHandler from './ImageHandler';
 import * as VideoHandler from './VideoHandler';
@@ -10,7 +10,12 @@ import * as PdfHandler from './PdfHandler';
 import * as AttachmentHandler from './AttachmentHandler';
 import { ProgressTooltip } from '@pages/ProjectMonitoring/components/ProgressTooltip';
 
+import { createFreeLayoutController } from './FreeLayoutController';
+import { cleanEditorHtml } from './freeLayoutDom';
+import { hasFreeLayout } from './freeLayoutCore';
+
 import './RichEditor.css';
+import './FreeLayout.css';
 import { initializeIcons } from '@fluentui/react';
 import { tableCornerAt, startTableResize } from './TableResize';
 
@@ -22,39 +27,41 @@ import {
   Rooster,
   undoButton,
   redoButton,
-  boldButton,
-  italicButton,
-  underlineButton,
-  fontButton,
-  fontSizeButton,
-  textColorButton,
-  backgroundColorButton,
-  bulletedListButton,
-  numberedListButton,
-  decreaseIndentButton,
-  increaseIndentButton,
+  boldButton as boldButtonStock,
+  italicButton as italicButtonStock,
+  underlineButton as underlineButtonStock,
+  fontButton as fontButtonStock,
+  fontSizeButton as fontSizeButtonStock,
+  textColorButton as textColorButtonStock,
+  backgroundColorButton as backgroundColorButtonStock,
+  bulletedListButton as bulletedListButtonStock,
+  numberedListButton as numberedListButtonStock,
+  decreaseIndentButton as decreaseIndentButtonStock,
+  increaseIndentButton as increaseIndentButtonStock,
   insertLinkButton,
-  removeLinkButton,
+  removeLinkButton as removeLinkButtonStock,
   insertImageButton,
-  insertTableButton,
-  alignLeftButton,
-  alignCenterButton,
-  alignRightButton,
-  alignJustifyButton,
-  blockQuoteButton,
-  clearFormatButton,
+  insertTableButton as insertTableButtonStock,
+  alignLeftButton as alignLeftButtonStock,
+  alignCenterButton as alignCenterButtonStock,
+  alignRightButton as alignRightButtonStock,
+  alignJustifyButton as alignJustifyButtonStock,
+  blockQuoteButton as blockQuoteButtonStock,
+  clearFormatButton as clearFormatButtonStock,
   codeButton,
-  decreaseFontSizeButton,
-  increaseFontSizeButton,
-  ltrButton,
-  rtlButton,
-  setHeadingLevelButton,
-  strikethroughButton,
-  subscriptButton,
-  superscriptButton,
+  decreaseFontSizeButton as decreaseFontSizeButtonStock,
+  increaseFontSizeButton as increaseFontSizeButtonStock,
+  ltrButton as ltrButtonStock,
+  rtlButton as rtlButtonStock,
+  setHeadingLevelButton as setHeadingLevelButtonStock,
+  strikethroughButton as strikethroughButtonStock,
+  subscriptButton as subscriptButtonStock,
+  superscriptButton as superscriptButtonStock,
   showInputDialog,
   createContextMenuPlugin,
-  createTableEditMenuProvider
+  createTableEditMenuProvider,
+  getTextColorValue,
+  getBackgroundColorValue
 } from "roosterjs-react";
 
 import {
@@ -69,6 +76,58 @@ import {
   ImageEditPlugin,
   DragAndDropPlugin
 } from 'roosterjs';
+
+
+// ── Ribbon commands forwarded to a free-layout text box ───────────────────
+// RoosterJS's ribbon only understands Rooster's own selection, so with a text
+// box active (its caret is in a nested editable region) every formatting
+// button — bold, colours, size, lists, alignment ... — is routed to the text
+// box's own command handler instead. Everywhere else the stock button runs.
+let activeFreeLayout = null;
+
+function forwardable(stock, command, argKind) {
+  return {
+    ...stock,
+    onClick: (editor, key, ...rest) => {
+      const free = activeFreeLayout;
+      if (free && free.isTextActive()) {
+        let arg = key;
+        if (argKind === 'text') arg = getTextColorValue(key).lightModeColor;
+        else if (argKind === 'back') arg = getBackgroundColorValue(key).lightModeColor;
+        if (free.applyCommand(command, arg)) return;
+      }
+      return stock.onClick(editor, key, ...rest);
+    },
+  };
+}
+
+const boldButton = forwardable(boldButtonStock, 'bold');
+const italicButton = forwardable(italicButtonStock, 'italic');
+const underlineButton = forwardable(underlineButtonStock, 'underline');
+const strikethroughButton = forwardable(strikethroughButtonStock, 'strikethrough');
+const subscriptButton = forwardable(subscriptButtonStock, 'subscript');
+const superscriptButton = forwardable(superscriptButtonStock, 'superscript');
+const bulletedListButton = forwardable(bulletedListButtonStock, 'ul');
+const numberedListButton = forwardable(numberedListButtonStock, 'ol');
+const alignLeftButton = forwardable(alignLeftButtonStock, 'left');
+const alignCenterButton = forwardable(alignCenterButtonStock, 'center');
+const alignRightButton = forwardable(alignRightButtonStock, 'right');
+const alignJustifyButton = forwardable(alignJustifyButtonStock, 'justify');
+const increaseIndentButton = forwardable(increaseIndentButtonStock, 'indent');
+const decreaseIndentButton = forwardable(decreaseIndentButtonStock, 'outdent');
+const clearFormatButton = forwardable(clearFormatButtonStock, 'clear');
+const fontButton = forwardable(fontButtonStock, 'font');
+const fontSizeButton = forwardable(fontSizeButtonStock, 'size');
+const increaseFontSizeButton = forwardable(increaseFontSizeButtonStock, 'size-up');
+const decreaseFontSizeButton = forwardable(decreaseFontSizeButtonStock, 'size-down');
+const blockQuoteButton = forwardable(blockQuoteButtonStock, 'quote');
+const insertTableButton = forwardable(insertTableButtonStock, 'table');
+const setHeadingLevelButton = forwardable(setHeadingLevelButtonStock, 'heading');
+const ltrButton = forwardable(ltrButtonStock, 'ltr');
+const rtlButton = forwardable(rtlButtonStock, 'rtl');
+const removeLinkButton = forwardable(removeLinkButtonStock, 'unlink');
+const textColorButton = forwardable(textColorButtonStock, 'color', 'text');
+const backgroundColorButton = forwardable(backgroundColorButtonStock, 'background', 'back');
 
 // ── Code Language Detection ─────────────────────────────────────────────
 const CODE_PATTERNS = [
@@ -249,7 +308,9 @@ const getEditorHtml = (editor) => {
     // ALWAYS prioritize grabbing the raw innerHTML directly to bypass RoosterJS's strict ContentModel
     // which silently strips out complex layouts like flexbox and CSS gradients.
     const editorDiv = document.querySelector('.rte-root div[contenteditable="true"]');
-    if (editorDiv) return editorDiv.innerHTML;
+    // cleanEditorHtml drops free-layout editor chrome (handles, toolbar, selection
+    // state) and is a no-op for content without a canvas.
+    if (editorDiv) return cleanEditorHtml(editorDiv.innerHTML);
 
     // Fallback only
     return exportContent(editor);
@@ -353,7 +414,7 @@ const RIBBON_STYLES = {
   },
 };
 
-export function RichEditor({ value = '', onChange, placeholder }) {
+export function RichEditor({ value = '', onChange, placeholder, canvasDesignWidth = 800 }) {
   const toast = useToast();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeTab, setActiveTab] = useState('Main');
@@ -361,6 +422,15 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const wrapperRef = useRef(null);
   const editorRef = useRef(null);
+  const freeLayoutRef = useRef(null);
+  const designWidthRef = useRef(canvasDesignWidth);
+  designWidthRef.current = canvasDesignWidth;
+  const linkForTextBoxRef = useRef(false);
+  const inlineImgInputRef = useRef(null);
+  const inlineVideoInputRef = useRef(null);
+  const inlinePdfInputRef = useRef(null);
+  const inlineFileInputRef = useRef(null);
+  const isFullscreenRef = useRef(false);
   const selectedMediaRef = useRef(null);
   const imgInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -374,6 +444,19 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   const [tableContextMenu, setTableContextMenu] = useState({ visible: false, x: 0, y: 0, targetCell: null, targetTable: null });
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  useEffect(() => { isFullscreenRef.current = isFullscreen; }, [isFullscreen]);
+
+  // With a free text box active, Image / Video / PDF / File uploads go INSIDE it.
+  const pickInput = (inputRef) => {
+    const free = freeLayoutRef.current;
+    if (!free || !free.isTextActive()) return inputRef;
+    free.rememberRange();
+    if (inputRef === imgInputRef) return inlineImgInputRef;
+    if (inputRef === videoInputRef) return inlineVideoInputRef;
+    if (inputRef === pdfInputRef) return inlinePdfInputRef;
+    if (inputRef === fileInputRef) return inlineFileInputRef;
+    return inputRef;
+  };
 
   const mediaToken = useHomeMediaToken();
   // insertRawHtml / upload handlers are memoized; read the token through a
@@ -407,9 +490,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       setTimeout(() => {
         try {
           let root = document.querySelector('.rte-root div[contenteditable="true"]');
-          if (root && (root.innerHTML === '' || root.innerHTML === '<div><br></div>')) {
+          // Cards with a free-layout canvas are always loaded as raw HTML: the
+          // content model does not know the canvas' data-* geometry and would
+          // otherwise be free to drop it.
+          if (root && (hasFreeLayout(initialValue) || root.innerHTML === '' || root.innerHTML === '<div><br></div>')) {
             root.innerHTML = initialValue;
           }
+          freeLayoutRef.current?.hydrate();
         } catch (err) { }
       }, 50); // slight delay to let roosterjs initialize first
     }
@@ -419,6 +506,47 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     const stripped = stripHomeMediaToken(newContent);
     onChange?.(stripped);
   }, [onChange]);
+
+  const handleChangeRef = useRef(handleChange);
+  handleChangeRef.current = handleChange;
+  const syncNow = useCallback(() => {
+    if (editorRef.current) handleChangeRef.current(getEditorHtml(editorRef.current));
+  }, []);
+
+  // Free-layout canvas (draggable/resizable text boxes, images and videos).
+  useEffect(() => {
+    const controller = createFreeLayoutController({
+      getWrapper: () => wrapperRef.current,
+      getRoot: () => wrapperRef.current?.querySelector('div[contenteditable="true"]') || null,
+      onChange: syncNow,
+      notify: (kind, msg) => toast[kind]?.(msg),
+      onSelect: (type) => {
+        if (!isFullscreenRef.current) return;
+        if (type === 'video') setActiveTab('Video');
+        else if (type === 'image') setActiveTab('Image');
+        else if (activeTabRef.current === 'Video' || activeTabRef.current === 'Image') setActiveTab('Main');
+      },
+      getDesignWidth: () => designWidthRef.current,
+      requestLink: () => { linkForTextBoxRef.current = true; setShowLinkModal(true); },
+      requestInlineMedia: (kind) => (kind === 'image' ? inlineImgInputRef : inlineVideoInputRef).current?.click(),
+    });
+    freeLayoutRef.current = controller;
+    activeFreeLayout = controller;
+    controller.attach();
+    const t = setTimeout(() => controller.hydrate(), 120);
+    return () => {
+      clearTimeout(t);
+      controller.detach();
+      freeLayoutRef.current = null;
+      if (activeFreeLayout === controller) activeFreeLayout = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Images/videos inside the canvas are rendered with a media token; refresh it when it arrives.
+  useEffect(() => {
+    if (mediaToken) freeLayoutRef.current?.refreshMediaTokens(withFreshMediaToken);
+  }, [mediaToken]);
 
   const editorSyncPlugin = useMemo(() => {
     let timeout;
@@ -459,6 +587,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           if (editorRef.current) {
+            freeLayoutRef.current?.ensureHydrated();
             const currentHtml = getEditorHtml(editorRef.current);
             if (currentHtml === null) return; // Prevent wipe on critical extraction error
             // Prevent overwriting initial value with empty state during mount
@@ -560,6 +689,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     ...insertLinkButton,
     key: 'customInsertLink',
     onClick: () => {
+      const free = freeLayoutRef.current;
+      if (free && free.isTextActive()) { free.rememberRange(); linkForTextBoxRef.current = true; }
       if (!isFullscreen) setIsFullscreen(true);
       setShowLinkModal(true);
     }
@@ -582,10 +713,11 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     onClick: () => {
       rememberImgCaret();
       if (isFullscreen) {
-        imgInputRef.current?.click();
+        pickInput(imgInputRef).current?.click();
       } else {
         setIsFullscreen(true);
-        setTimeout(() => imgInputRef.current?.click(), 80);
+        const target = pickInput(imgInputRef);
+        setTimeout(() => target.current?.click(), 80);
       }
     }
   }), [isFullscreen]);
@@ -596,10 +728,11 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     iconName: 'Video',
     onClick: () => {
       if (isFullscreen) {
-        videoInputRef.current?.click();
+        pickInput(videoInputRef).current?.click();
       } else {
         setIsFullscreen(true);
-        setTimeout(() => videoInputRef.current?.click(), 80);
+        const target = pickInput(videoInputRef);
+        setTimeout(() => target.current?.click(), 80);
       }
     }
   }), [isFullscreen]);
@@ -625,6 +758,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           } else if (typeof editorRef.current.setContent === 'function') {
             editorRef.current.setContent(sanitized);
           }
+          freeLayoutRef.current?.hydrate();
           handleChange(getEditorHtml(editorRef.current));
         }
       }
@@ -642,11 +776,17 @@ export function RichEditor({ value = '', onChange, placeholder }) {
 
   // Handle link insertion from the fullscreen modal
   const handleLinkInsert = useCallback(({ url, text, newTab }) => {
+    // Link requested from a free-layout text box's own toolbar.
+    if (linkForTextBoxRef.current) {
+      linkForTextBoxRef.current = false;
+      freeLayoutRef.current?.insertLink({ url, text, newTab });
+      return;
+    }
     const editor = editorRef.current;
     if (!editor) return;
     const target = newTab ? '_blank' : '';
     const rel = newTab ? 'noopener noreferrer' : '';
-    const anchor = `<a href="${url}"${target ? ` target="${target}"` : ''}${rel ? ` rel="${rel}"` : ''}>${escapeHtml(text)}</a>&nbsp;`;
+    const anchor = `<a href="${escapeHtml(url)}"${target ? ` target="${target}"` : ''}${rel ? ` rel="${rel}"` : ''}>${escapeHtml(text)}</a>&nbsp;`;
 
     editor.focus();
     const doc = typeof editor.getDocument === 'function' ? editor.getDocument() : document;
@@ -669,6 +809,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   }, [getEditorHtml, handleChange]);
 
   const getSelectedImage = useCallback(() => {
+    const free = freeLayoutRef.current?.selectedMedia('img');
+    if (free) return free;
     try {
       if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('img');
     } catch (e) { }
@@ -683,6 +825,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   }, []);
 
   const getSelectedVideo = useCallback(() => {
+    const free = freeLayoutRef.current?.selectedMedia('video');
+    if (free) return free;
     try {
       if (editorRef.current?.getElementAtCursor) return editorRef.current.getElementAtCursor('video');
     } catch (e) { }
@@ -726,8 +870,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       try {
         toast.info?.('Uploading image…');
         const result = await ImageHandler.ingestFile(file);
-        selectedImg.setAttribute('src', result.url);
+        selectedImg.setAttribute('src', await withFreshMediaToken(result.url));
         selectedImg.setAttribute('alt', file.name);
+        const freeItem = selectedImg.closest('.rte-abs-image');
+        if (freeItem && result.id != null) freeItem.setAttribute('data-media-id', String(result.id));
         const wrap = selectedImg.closest('.rte-media-wrap');
         if (wrap) wrap.setAttribute('data-src', result.url);
         handleChange(getEditorHtml(editor));
@@ -840,6 +986,13 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     }
   }, [handleChange]);
 
+  const customTextBoxButton = useMemo(() => ({
+    key: 'customTextBox',
+    unlocalizedText: 'Text Box (free-position)',
+    iconName: 'InsertTextBox',
+    onClick: () => freeLayoutRef.current?.beginTextBox(),
+  }), []);
+
   // Categorized Buttons matched exactly to the screenshot's order
   const mainButtons = [
     formatPainterButton,
@@ -865,6 +1018,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     customInsertLinkButton,
     removeLinkButton,
     insertTableButton,
+    customTextBoxButton,
     superscriptButton,
     subscriptButton,
     strikethroughButton,
@@ -912,6 +1066,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
         }
       },
       onClick: (editor, key) => {
+        if (freeLayoutRef.current?.isTextActive() && freeLayoutRef.current.applyCommand('line-height', key)) return;
         if (editor) {
           editor.formatElements((element) => {
             element.style.lineHeight = key;
@@ -927,12 +1082,12 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       insertTableButton
     ];
     if (isFullscreen) {
-      btns.push(customInsertImageButton, removeLinkButton);
+      btns.push(customTextBoxButton, customInsertImageButton, removeLinkButton);
     }
     return btns;
-  }, [isFullscreen, customInsertLinkButton, insertTableButton, customInsertImageButton, removeLinkButton]);
+  }, [isFullscreen, customInsertLinkButton, insertTableButton, customTextBoxButton, customInsertImageButton, removeLinkButton]);
 
-  const tableButtons = [
+  const tableButtonsStock = [
     insertTableButton,
     {
       key: 'table2',
@@ -1214,6 +1369,32 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     }
   ];
 
+  // Table-tab commands: while a text box is active they edit the table inside it
+  // (Rooster cannot see a nested editable region); otherwise the stock handler runs.
+  const TABLE_FORWARD = {
+    table2: 'table-format', table3: 'table-shade', table5: 'table-option', table6: 'table-insert', table7: 'table-delete',
+    table8: 'table-border', table9: 'table-border-color', table10: 'table-border-width', table11: 'table-border-style',
+    table12: 'table-merge', table13: 'table-split', table14: 'table-cell-align', table15: 'table-align',
+  };
+  const colorOf = (getter, key) => { try { return getter(key).lightModeColor; } catch { return null; } };
+  const tableButtons = tableButtonsStock.map((btn) => {
+    const cmd = TABLE_FORWARD[btn.key];
+    if (!cmd) return btn;
+    return {
+      ...btn,
+      onClick: (editor, key, ...rest) => {
+        const free = freeLayoutRef.current;
+        if (free && free.isTextActive()) {
+          let arg = key;
+          if (cmd === 'table-shade') arg = colorOf(getBackgroundColorValue, key);
+          else if (cmd === 'table-border-color') arg = colorOf(getTextColorValue, key);
+          if (free.applyCommand(cmd, arg)) return undefined;
+        }
+        return btn.onClick(editor, key, ...rest);
+      },
+    };
+  });
+
   const imageButtons = useMemo(() => [
     customInsertImageButton,
     {
@@ -1234,6 +1415,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   key: color,
                   text: color === 'transparent' ? 'Transparent' : color,
                   onClick: () => {
+                    if (freeLayoutRef.current?.setMediaBorder({ color })) return;
                     if (editorRef.current) setImageBorder(editorRef.current, { color });
                   }
                 }))
@@ -1249,6 +1431,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   text: pt,
                   onClick: () => {
                     const width = pt === '1/4 pt' ? '0.25pt' : pt === '1/2 pt' ? '0.5pt' : pt === '3/4 pt' ? '0.75pt' : pt === '1 1/2 pt' ? '1.5pt' : pt === '2 1/4 pt' ? '2.25pt' : pt === '4 1/2 pt' ? '4.5pt' : pt;
+                    if (freeLayoutRef.current?.setMediaBorder({ width })) return;
                     if (editorRef.current) setImageBorder(editorRef.current, { width });
                   }
                 }))
@@ -1263,6 +1446,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   key: style,
                   text: style,
                   onClick: () => {
+                    if (freeLayoutRef.current?.setMediaBorder({ style: style.toLowerCase() })) return;
                     if (editorRef.current) setImageBorder(editorRef.current, { style: style.toLowerCase() });
                   }
                 }))
@@ -1273,7 +1457,8 @@ export function RichEditor({ value = '', onChange, placeholder }) {
               text: 'Remove Image Border',
               iconProps: { iconName: 'Cancel' },
               onClick: () => {
-                if (editorRef.current) setImageBorder(editorRef.current, null);
+                if (freeLayoutRef.current?.setMediaBorder(null)) return;
+                    if (editorRef.current) setImageBorder(editorRef.current, null);
               }
             },
             {
@@ -1296,6 +1481,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                       'bottomLeft': '-2px 2px 5px rgba(0,0,0,0.5)', 'right': '2px 0px 5px rgba(0,0,0,0.5)', 'center': '0px 0px 5px rgba(0,0,0,0.5)',
                       'left': '-2px 0px 5px rgba(0,0,0,0.5)', 'topRight': '2px -2px 5px rgba(0,0,0,0.5)', 'top': '0px -2px 5px rgba(0,0,0,0.5)', 'topLeft': '-2px -2px 5px rgba(0,0,0,0.5)'
                     };
+                    if (freeLayoutRef.current?.setMediaStyle('boxShadow', shadowMap[key] || '')) return;
                     if (editorRef.current) setImageBoxShadow(editorRef.current, shadowMap[key] || '');
                   }
                 }))
@@ -1362,6 +1548,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                   onClick: () => {
                     if (!editorRef.current) return;
                     const selectedImg = getSelectedImage();
+                    if (freeLayoutRef.current?.resizeSelectedPreset({ 'Best fit': 1, Small: 0.25, Medium: 0.5, Original: 'natural' }[size])) return;
                     if (selectedImg && selectedImg.tagName === 'IMG') {
                       if (size === 'Best fit') { selectedImg.style.width = '100%'; selectedImg.style.height = 'auto'; }
                       else if (size === 'Small') { selectedImg.style.width = '25%'; selectedImg.style.height = 'auto'; }
@@ -1388,8 +1575,9 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       iconName: 'SizeLegacy',
       dropDownMenu: { items: { '25%': '25%', '50%': '50%', '100%': '100%' } },
       onClick: (editor, key) => {
+        if (freeLayoutRef.current?.resizeSelectedPreset(parseInt(key, 10) / 100)) return;
         const vid = getSelectedVideo();
-        if (vid) vid.style.width = key;
+        if (vid) { vid.style.width = key; syncNow(); }
       }
     },
     {
@@ -1398,7 +1586,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       iconName: 'Play',
       onClick: () => {
         const vid = getSelectedVideo();
-        if (vid) vid.autoplay = !vid.autoplay;
+        if (vid) { vid.autoplay = !vid.autoplay; syncNow(); }
       }
     },
     {
@@ -1407,7 +1595,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       iconName: 'Settings',
       onClick: () => {
         const vid = getSelectedVideo();
-        if (vid) vid.controls = !vid.controls;
+        if (vid) { vid.controls = !vid.controls; syncNow(); }
       }
     },
     {
@@ -1416,7 +1604,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       iconName: 'VolumeDisabled',
       onClick: () => {
         const vid = getSelectedVideo();
-        if (vid) vid.muted = !vid.muted;
+        if (vid) { vid.muted = !vid.muted; vid.toggleAttribute('muted', vid.muted); syncNow(); }
       }
     },
     {
@@ -1425,10 +1613,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       iconName: 'RepeatAll',
       onClick: () => {
         const vid = getSelectedVideo();
-        if (vid) vid.loop = !vid.loop;
+        if (vid) { vid.loop = !vid.loop; syncNow(); }
       }
     }
-  ], [getSelectedVideo, customInsertVideoButton]);
+  ], [getSelectedVideo, customInsertVideoButton, syncNow]);
 
   // Global right-side buttons handled inline to access state
 
@@ -1439,12 +1627,14 @@ export function RichEditor({ value = '', onChange, placeholder }) {
   }, [handleChange]);
 
   const handleMediaBtnClick = useCallback((inputRef) => {
+    const target = pickInput(inputRef);
     if (isFullscreen) {
-      inputRef.current?.click();
+      target.current?.click();
     } else {
       setIsFullscreen(true);
-      setTimeout(() => inputRef.current?.click(), 80);
+      setTimeout(() => target.current?.click(), 80);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFullscreen]);
 
   // Mirrors handleVideoUpload/handlePdfUpload/handleFileUpload below — all
@@ -1464,23 +1654,52 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     try {
       toast.info?.('Uploading image…');
       const result = await ImageHandler.ingestFile(file);
-      const markup = ImageHandler.buildImageMarkup({ url: await withFreshMediaToken(result.url), alt: file.name });
-      const saved = imgCaretRef.current;
       imgCaretRef.current = null;
-      if (saved) {
-        try {
-          editorRef.current.focus();
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(saved);
-        } catch { /* fall back to editor's own selection */ }
-      }
-      insertRawHtml(editorRef.current, markup);
-      handleChange(getEditorHtml(editorRef.current));
+      // Images are free-positioned elements on the layout canvas (drag/resize).
+      await freeLayoutRef.current?.addImage({ url: await withFreshMediaToken(result.url), mediaId: result.id, alt: file.name });
     } catch (err) {
       toast.error(err?.message || 'Image upload failed');
     }
   }, [handleChange, insertRawHtml, toast]);
+
+  // Image / video uploaded from a free text box's own toolbar: inserted at the
+  // caret INSIDE that box (same upload endpoint, media id kept on the element).
+  const handleInlineMediaUpload = useCallback(async (e, kind) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !freeLayoutRef.current) return;
+    if (kind === 'video' && !VideoHandler.isSupportedVideoFile(file)) {
+      toast.error('Unsupported video format. Use MP4, WebM or OGG.');
+      return;
+    }
+    try {
+      toast.info?.(kind === 'image' ? 'Uploading image…' : 'Uploading video…');
+      const result = await (kind === 'image' ? ImageHandler : VideoHandler).ingestFile(file);
+      await freeLayoutRef.current?.insertInlineMedia(kind, { url: await withFreshMediaToken(result.url), mediaId: result.id, filename: file.name });
+    } catch (err) {
+      toast.error(err?.message || `${kind === 'image' ? 'Image' : 'Video'} upload failed`);
+    }
+  }, [toast]);
+
+  // PDF / Office / zip uploaded while a text box is active: stored through the
+  // same upload endpoint and inserted as a download link inside that box.
+  const handleInlineFileUpload = useCallback(async (e, kind) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !freeLayoutRef.current) return;
+    if (kind === 'file' && !AttachmentHandler.isSupportedAttachment(file)) {
+      toast.error('Unsupported file type. Use doc, docx, xls, xlsx, ppt, pptx or zip.');
+      return;
+    }
+    try {
+      toast.info?.('Uploading file…');
+      assertWithinSizeLimit(file, 40);
+      const result = await uploadMediaFile(file);
+      freeLayoutRef.current?.insertInlineFile({ url: result.url, mediaId: result.id, filename: file.name });
+    } catch (err) {
+      toast.error(err?.message || 'File upload failed');
+    }
+  }, [toast]);
 
   const handleVideoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -1493,9 +1712,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
     try {
       toast.info?.('Uploading video…');
       const result = await VideoHandler.ingestFile(file);
-      const markup = VideoHandler.buildVideoMarkup({ url: result.url, filename: file.name, filesize: file.size, mime: file.type });
-      insertRawHtml(editorRef.current, markup);
-      handleChange(getEditorHtml(editorRef.current));
+      await freeLayoutRef.current?.addVideo({ url: await withFreshMediaToken(result.url), mediaId: result.id, filename: file.name, mime: file.type });
     } catch (err) {
       // assertWithinSizeLimit's message (e.g. "'clip.mp4' is 25.3 MB — the
       // limit is 19MB.") was previously discarded in favor of this generic
@@ -1727,6 +1944,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                       <Ribbon plugin={ribbonPlugin} styles={RIBBON_STYLES} buttons={insertButtons} />
                       <div style={{ width: '1px', height: '16px', background: 'var(--border-primary, #e2e8f0)', margin: '0 4px' }} />
+                      <button type="button" onClick={() => freeLayoutRef.current?.beginTextBox()} title="Add a text box you can drag and resize anywhere on the canvas" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5" strokeDasharray="2 1.5" /><path d="M5 6.5h6M8 6.5v4" /></svg>
+                        Text Box
+                      </button>
                       <button type="button" onClick={() => { rememberImgCaret(); handleMediaBtnClick(imgInputRef); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', border: '1px solid var(--border-primary)', borderRadius: '4px', background: 'var(--surface-primary)', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="14" height="14" rx="2" /><circle cx="5.5" cy="5.5" r="1.5" /><path d="M1 11l4-4 3 3 2-2 5 5" /></svg>
                         Image
@@ -1775,6 +1996,10 @@ export function RichEditor({ value = '', onChange, placeholder }) {
           {/* Hidden file inputs for media upload */}
           <input ref={imgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
           <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" style={{ display: 'none' }} onChange={handleVideoUpload} />
+          <input ref={inlineImgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleInlineMediaUpload(e, 'image')} />
+          <input ref={inlineVideoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" style={{ display: 'none' }} onChange={(e) => handleInlineMediaUpload(e, 'video')} />
+          <input ref={inlinePdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={(e) => handleInlineFileUpload(e, 'pdf')} />
+          <input ref={inlineFileInputRef} type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={(e) => handleInlineFileUpload(e, 'file')} />
           <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
           <input ref={fileInputRef} type="file" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={handleFileUpload} />
 
@@ -1885,7 +2110,7 @@ export function RichEditor({ value = '', onChange, placeholder }) {
       </div>
       <InsertLinkModal
         isOpen={showLinkModal}
-        onClose={() => setShowLinkModal(false)}
+        onClose={() => { setShowLinkModal(false); setTimeout(() => { linkForTextBoxRef.current = false; }, 0); }}
         onInsert={handleLinkInsert}
       />
       <ProgressTooltip

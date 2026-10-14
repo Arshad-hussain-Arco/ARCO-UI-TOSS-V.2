@@ -1,12 +1,14 @@
 import { env } from '@config/env';
+import {
+  parseDate,
+  isWeekend,
+  toDateKey,
+  isHoliday,
+  countBusinessDays,
+  calculateProratedEffort
+} from './dateMath.js';
 
-export function parseDate(val) {
-  if (!val) return null;
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return null;
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+export { parseDate, isWeekend, toDateKey, isHoliday, countBusinessDays, calculateProratedEffort };
 
 // Resolve a photo field (base64 or relative/absolute URL) into a usable src string
 export function resolvePhotoUrl(raw) {
@@ -23,39 +25,11 @@ export function resolvePhotoUrl(raw) {
   return `data:image/jpeg;base64,${v}`;
 }
 
-export function isWeekend(date, weekendDays = [5, 6]) {
-  const day = date.getDay();
-  return weekendDays.includes(day);
-}
-
-// holidaySet holds 'YYYY-MM-DD' strings (local calendar date, matching the
-// dates returned by /leaves/holidays/) — a plain Set, not Date objects, so
-// membership checks don't have to worry about time-of-day/timezone drift.
-export function toDateKey(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-export function isHoliday(date, holidaySet) {
-  return !!holidaySet && holidaySet.has(toDateKey(date));
-}
-
-export function countBusinessDays(start, end, weekendDays = [5, 6], holidaySet = null) {
-  const s = parseDate(start);
-  const e = parseDate(end);
-  if (!s || !e || s > e) return 0;
-
-  let count = 0;
-  const cur = new Date(s);
-  while (cur <= e) {
-    if (!isWeekend(cur, weekendDays) && !isHoliday(cur, holidaySet)) {
-      count++;
-    }
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
+// Canonical form for comparing employee names: trim, collapse inner
+// whitespace, lowercase. Comparison only — never used to rewrite stored names.
+export function normalizeName(name) {
+  if (name == null) return '';
+  return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 const DEFAULT_PRI_PCT = 0.7;
@@ -70,7 +44,7 @@ export function buildPrimaryTeamByName(assignments = []) {
   const map = new Map();
   assignments.forEach(item => {
     if (!item.IsAssignedProgrammer) return;
-    const name = (item.EmployeeName || '').trim().toLowerCase();
+    const name = normalizeName(item.EmployeeName);
     if (name && item.TeamId != null) {
       map.set(name, item.TeamId);
     }
@@ -85,7 +59,7 @@ export function buildPrimaryTeamByName(assignments = []) {
 function resolveContributionPct(record, teamPercentMap, primaryTeamByName) {
   let primaryTeamId = record.IsAssignedProgrammer ? record.TeamId : null;
   if (primaryTeamId == null && primaryTeamByName) {
-    const key = (record.Assigned_Developer || '').trim().toLowerCase();
+    const key = normalizeName(record.Assigned_Developer);
     primaryTeamId = primaryTeamByName.get(key) ?? null;
   }
 
@@ -121,8 +95,8 @@ export function calculateDeveloperMDs(record, teamPercentMap = null, primaryTeam
       .map(name => name.trim())
       .filter(Boolean);
 
-    const uniqueDevs = Array.from(new Set(rawDevs)).filter(name => {
-      return name.toLowerCase() !== primaryDev.toLowerCase();
+    const uniqueDevs = Array.from(new Map(rawDevs.map(n => [normalizeName(n), n])).values()).filter(name => {
+      return normalizeName(name) !== normalizeName(primaryDev);
     });
 
     addDevCount = uniqueDevs.length;
@@ -152,27 +126,6 @@ export function calculateRemainingPercentage(start, end, referenceDate = new Dat
   const total = e.getTime() - s.getTime();
   if (total === 0) return 0;
   return (e.getTime() - ref.getTime()) / total;
-}
-
-export function calculateProratedEffort(start, end, effortMDs, windowDays, referenceDate = new Date(), weekendDays = [5, 6], holidaySet = null) {
-  const s = parseDate(start);
-  const e = parseDate(end);
-  const ref = parseDate(referenceDate);
-  if (!s || !e || !ref || effortMDs <= 0) return 0;
-
-  const windowEnd = new Date(ref);
-  windowEnd.setDate(windowEnd.getDate() + windowDays - 1);
-
-  const overlapStart = new Date(Math.max(ref.getTime(), s.getTime()));
-  const overlapEnd = new Date(Math.min(e.getTime(), windowEnd.getTime()));
-
-  if (overlapStart > overlapEnd) return 0;
-
-  const totalBiz = countBusinessDays(s, e, weekendDays, holidaySet);
-  if (totalBiz === 0) return 0;
-
-  const overlapBiz = countBusinessDays(overlapStart, overlapEnd, weekendDays, holidaySet);
-  return effortMDs * (overlapBiz / totalBiz);
 }
 
 export function processCapacityData(assignments, weekendDays = [5, 6], referenceDate = new Date(), holidaySet = null, teamPercentMap = null) {
@@ -220,6 +173,7 @@ export function processCapacityData(assignments, weekendDays = [5, 6], reference
     emp.next90Days.occupied += occ90;
 
     emp.assignments.push({
+      crId: item.CR_Id ?? null,
       summary: item.Summary || 'No Summary',
       status: item.Status || 'N/A',
       startDate: item.Start_Date,

@@ -198,13 +198,13 @@
 /* Force text color and strip hardcoded backgrounds from pasted HTML (e.g. Word) 
    so it adapts perfectly to both light and dark themes, overriding any inline styles.
    We exclude our own custom components (.rte-*, .media-*) to preserve their styling. */
-.home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
+.home-card-html-content *:not([class*="rte-"]):not([class*="media-"]):not(.rte-abs-body *):not([style*="color"]) {
   background-color: transparent !important;
   color: var(--text-primary, #0f172a) !important;
   border-color: var(--border-primary, #e2e8f0) !important;
 }
 
-[data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]) {
+[data-theme="dark"] .home-card-html-content *:not([class*="rte-"]):not([class*="media-"]):not(.rte-abs-body *):not([style*="color"]) {
   color: var(--text-primary, #f8fafc) !important;
   border-color: var(--border-primary, #374151) !important;
 }
@@ -714,3 +714,64 @@
     padding: 20px;
   }
 }
+
+/* ---- Free-layout canvas (positioned text boxes / images / videos) ----------
+   Geometry comes from data-* attributes (see RichEditor/freeLayoutCore.js);
+   the canvas is scaled as a whole by HomeCard so the layout is proportional
+   at any card width. Text-box content keeps the author's own colours/fonts
+   (themeAdaptiveColors() still maps near-black/near-grey to theme colours). */
+.home-card-html-content .rte-canvas { margin: 0; }
+.home-card-html-content .rte-abs-text .rte-abs-body {
+  color: var(--text-primary, #0f172a);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.home-card-html-content .rte-abs-text .rte-abs-body p { margin: 0; }
+.home-card-html-content .rte-abs-image img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: fill;
+  margin: 0;
+  border-radius: 0;
+}
+.home-card-html-content .rte-abs-video video,
+.home-card-html-content .rte-abs-video .rte-video-lazy-wrap,
+.home-card-html-content .rte-abs-video .rte-video-lazy-wrap video {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Media uploaded inside a free text box keeps its own (smaller) size. */
+.home-card-html-content .rte-abs-body img { max-width: 100%; height: auto; margin: 4px 0; }
+.home-card-html-content .rte-abs-body .rte-video-lazy-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 4px 0;
+}
+.home-card-html-content .rte-abs-body .rte-video-lazy-wrap video {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* List markers: the app's CSS reset sets list-style: none, which hid the
+   bullets / numbers of every list in a card. Inline list-style-type from the
+   editor still wins over these defaults. */
+.home-card-html-content ul { list-style: disc outside; }
+.home-card-html-content ol { list-style: decimal outside; }
+.home-card-html-content ul ul { list-style-type: circle; }
+.home-card-html-content ul ul ul { list-style-type: square; }
+.home-card-html-content ol ol { list-style-type: lower-alpha; }
+.home-card-html-content ol ol ol { list-style-type: lower-roman; }
+.home-card-html-content li { display: list-item; }
+.home-card-html-content .rte-abs-body ul { padding-left: 24px; margin: 0; }
+.home-card-html-content .rte-abs-body ol { padding-left: 26px; margin: 0; }

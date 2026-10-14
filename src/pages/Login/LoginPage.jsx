@@ -37,7 +37,7 @@ export function LoginPage() {
       tl.fromTo(
         '.login-logo-fixed',
         { y: -20, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+        { y: 0, opacity: 1, duration: 1, ease: 'power3.out' },
       );
 
       // 2. TOSS Accent: Fade in and slide right
@@ -45,7 +45,7 @@ export function LoginPage() {
         '.brand-accent',
         { x: -20, opacity: 0 },
         { x: 0, opacity: 1, duration: 1, ease: 'power3.out' },
-        '-=0.8'
+        '-=0.8',
       );
 
       // 3. Massive Title Reveal (Desktop only)
@@ -55,7 +55,7 @@ export function LoginPage() {
           '.brand-title-reveal-line',
           { y: '100%' },
           { y: '0%', duration: 1.2, stagger: 0.15, ease: 'expo.out' },
-          '-=0.8'
+          '-=0.8',
         );
       }
 
@@ -64,7 +64,7 @@ export function LoginPage() {
         cardRef.current,
         { y: 30, opacity: 0 },
         { y: 0, opacity: 1, duration: 1.5, ease: 'power4.out' },
-        '-=1.0'
+        '-=1.0',
       );
     }, pageRef);
 
@@ -126,7 +126,7 @@ export function LoginPage() {
       setCredentials((current) => ({ ...current, [field]: value }));
       clearError();
     },
-    [clearError]
+    [clearError],
   );
 
   const handleSubmit = useCallback(
@@ -140,7 +140,7 @@ export function LoginPage() {
         // The failure message is surfaced through AuthContext's `error`.
       }
     },
-    [login, credentials, navigate, location.state]
+    [login, credentials, navigate, location.state],
   );
 
   return (
@@ -157,7 +157,9 @@ export function LoginPage() {
         </div>
 
         <div className="brand-title-reveal-wrapper">
-          <h1 className="brand-title-reveal-line">Treasury IT</h1>
+          <h1 className="brand-title-reveal-line">
+            Treasu<span className="ry-fix">ry</span> IT
+          </h1>
         </div>
         <div className="brand-title-reveal-wrapper">
           <h1 className="brand-title-reveal-line">One Stop Store</h1>
@@ -243,7 +245,16 @@ export function LoginPage() {
       </div>
 
       {/* Version Info */}
-      <div style={{ position: 'absolute', bottom: '16px', right: '24px', fontSize: '11px', color: 'var(--text-tertiary, #999999)', zIndex: 10 }}>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '16px',
+          right: '24px',
+          fontSize: '11px',
+          color: 'var(--text-tertiary, #999999)',
+          zIndex: 10,
+        }}
+      >
         Version 2.0.0
       </div>
     </div>

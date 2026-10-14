@@ -15,9 +15,17 @@ import {
   GanttChart,
   X,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  CalendarDays,
+  BarChart3,
+  EyeOff,
+  ChevronsUpDown,
+  ChevronsDownUp,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
+import { useEmployeePhotos } from '@hooks/useEmployeePhotos';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { Loader } from '@components/feedback/Loader/Loader';
 import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
@@ -41,6 +49,12 @@ import {
   parseDate,
   calculateProratedEffort
 } from './capacityCalculations';
+import {
+  buildProjectModel,
+  filterProjectModel,
+  buildGanttLayout,
+  getZeroEffortReason
+} from './projectModel.js';
 import { PMStatusGroups, PMStatus, mapStatusToIds } from '../ProjectMonitoring/utils/staticData';
 import {
   exportToExcel,
@@ -48,6 +62,7 @@ import {
 } from './capacityExportUtils';
 
 import './CapacityPlanningPage.css';
+
 
 const DAYS_OF_WEEK = [
   'Sunday',
@@ -89,6 +104,10 @@ export function CapacityPlanningPage() {
 
   // Project View state
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
+  // CRs whose developer table is open (default closed).
+  const [expandedCrs, setExpandedCrs] = useState(new Set());
+  // Per-CR developer table sort: { [crKey]: { col, dir } }
+  const [devSort, setDevSort] = useState({});
   const [projectViewTimeframe, setProjectViewTimeframe] = useState(30);
   // SDLC (7-stage) vs Tech (17-stage) lifecycle — same toggle concept as
   // Gantt View / Project Monitoring, kept independent so switching one
@@ -104,6 +123,7 @@ export function CapacityPlanningPage() {
   // stage definitions rather than a separate guessed color mapping.
   const [ganttLifecycleMode, setGanttLifecycleMode] = useState('business');
   const [ganttStageFilter, setGanttStageFilter] = useState(null);
+  const [collapsedGanttProjects, setCollapsedGanttProjects] = useState(new Set());
 
 
 
@@ -187,6 +207,10 @@ export function CapacityPlanningPage() {
   const fetchPlan = useCallback(() => capacityService.getCapacityPlanning({ timeRange: 90 }), []);
   const { data, isLoading, error, refetch } = useAsync(fetchPlan);
 
+  // Same employee photo directory the Consultants page uses; falls back to an
+  // initials avatar when an employee has no photo or the lookup fails.
+  const { getPhoto } = useEmployeePhotos({ includeInactive: true });
+
   // Persist viewMode changes
   useEffect(() => {
     localStorage.setItem('capacity_view_mode', viewMode);
@@ -249,147 +273,68 @@ export function CapacityPlanningPage() {
     return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name));
   }, [filteredConsultants]);
 
-  // Group every developer's assignments by Project — shared base data for
-  // both Project View and Gantt View, each of which applies its own
-  // independent search filter on top (see projectGroups / ganttData below).
-  // Shows who's Primary vs Additional on a given project and each person's
-  // own prorated MDs share for the selected timeframe, reusing the same
-  // per-assignment `effort` share (already split by team percentage) that
-  // backs the Summary/Team views and the drill-down modal.
-  const allProjectGroups = useMemo(() => {
-    const groups = new Map();
+  // Shared Project -> CR -> Developer model (see projectModel.js). Both Project
+  // View and Gantt View read this one structure; each applies its own search /
+  // stage filters on top. Every CR keeps its own summary, status, dates and
+  // effort — nothing is taken from "the first CR" of a project.
+  const projectModel = useMemo(
+    () => buildProjectModel(processedConsultants, {
+      timeframe: projectViewTimeframe,
+      referenceDate,
+      weekendDays: weekendIndices,
+      holidaySet,
+    }),
+    [processedConsultants, projectViewTimeframe, referenceDate, weekendIndices, holidaySet]
+  );
 
-    processedConsultants.forEach(c => {
-      c.assignments.forEach(a => {
-        const groupKey = a.project ? a.project.trim() : `${a.summary}_${a.startDate}_${a.endDate}`;
-        if (!groups.has(groupKey)) {
-          groups.set(groupKey, {
-            key: groupKey,
-            project: a.project || '',
-            summary: a.summary,
-            status: a.status,
-            startDate: a.startDate,
-            endDate: a.endDate,
-            developers: [],
-          });
-        }
-
-        const proratedEffort = calculateProratedEffort(
-          a.startDate, a.endDate, Number(a.effort) || 0,
-          projectViewTimeframe, referenceDate, weekendIndices, holidaySet
-        );
-
-        groups.get(groupKey).developers.push({
-          empId: c.id,
-          name: c.name,
-          teamName: c.teamName,
-          isAssignedProgrammer: a.isAssignedProgrammer,
-          isUnmatchedDeveloper: a.isUnmatchedDeveloper,
-          effort: Number(a.effort) || 0,
-          proratedEffort,
-        });
-      });
-    });
-
-    // Whether this project's own span overlaps a given N-day window at all
-    // (calendar-day overlap, same formula as the drill-down modal's filter —
-    // not a business-day count, just "is this project active in this window").
-    const overlapsWindow = (startDate, endDate, windowDays) => {
-      const s = parseDate(startDate);
-      const e = parseDate(endDate);
-      const ref = parseDate(referenceDate);
-      if (!s || !e || !ref) return false;
-      const windowEnd = new Date(ref);
-      windowEnd.setDate(windowEnd.getDate() + windowDays - 1);
-      const overlapStart = new Date(Math.max(ref.getTime(), s.getTime()));
-      const overlapEnd = new Date(Math.min(e.getTime(), windowEnd.getTime()));
-      return overlapStart <= overlapEnd;
-    };
-
-    const result = Array.from(groups.values()).map(g => ({
-      ...g,
-      // Primary developer(s) first, then additional, each group sorted by name
-      developers: g.developers.sort((a, b) => {
-        if (a.isAssignedProgrammer !== b.isAssignedProgrammer) return a.isAssignedProgrammer ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      }),
-      totalProratedEffort: g.developers.reduce((sum, d) => sum + d.proratedEffort, 0),
-      overlaps7: overlapsWindow(g.startDate, g.endDate, 7),
-      overlaps30: overlapsWindow(g.startDate, g.endDate, 30),
-      overlaps90: overlapsWindow(g.startDate, g.endDate, 90),
-    }));
-
-    return result;
-  }, [processedConsultants, projectViewTimeframe, referenceDate, weekendIndices, holidaySet]);
-
-  // Project View's own filtered (by its own search box) + sorted list.
-  const projectGroups = useMemo(() => {
-    const q = debouncedProjectSearchQuery.toLowerCase().trim();
-    const filtered = q
-      ? allProjectGroups.filter(g =>
-        g.project.toLowerCase().includes(q) ||
-        g.summary.toLowerCase().includes(q) ||
-        g.developers.some(d => d.name.toLowerCase().includes(q))
-      )
-      : allProjectGroups;
-
-    const withStage = filtered.map(g => {
-      const { statusId, statusGroup } = mapStatusToIds(g.status);
-      const stage = projectViewLifecycleMode === 'development'
-        ? PMStatus.find(s => s.id === statusId)
-        : PMStatusGroups.find(sg => sg.id === statusGroup);
-      return {
-        ...g,
-        stageKey: stage ? stage.id : null,
-        stageName: stage ? stage.name : 'Unmapped',
-        stageColor: stage ? stage.color : '#9ca3af',
-      };
-    });
-
-    const byStage = projectStageFilter
-      ? withStage.filter(g => g.stageKey === projectStageFilter)
-      : withStage;
-
-    // The Next 7/30/90 Days toggle filters the table to projects whose own
-    // span overlaps that window — same overlap flags used by the stats
-    // strip below, so clicking a window button and clicking a legend chip
-    // compose into one combined filter instead of the toggle only relabeling
-    // the effort column.
-    const windowKey = `overlaps${projectViewTimeframe}`;
-    const byWindow = byStage.filter(g => g[windowKey]);
-
-    return byWindow.sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
-  }, [allProjectGroups, debouncedProjectSearchQuery, projectViewLifecycleMode, projectStageFilter, projectViewTimeframe]);
-
-  // Count of distinct projects (from the currently searched + stage-filtered
-  // set, but BEFORE the Next-N-Days window filter) whose own span overlaps
-  // each window — independent of the 7/30/90 toggle, so all three counts
-  // stay visible together in the stats strip regardless of which window is
-  // currently selected in the table above.
-  const projectCountsByWindow = useMemo(() => {
-    const q = debouncedProjectSearchQuery.toLowerCase().trim();
-    const filtered = q
-      ? allProjectGroups.filter(g =>
-        g.project.toLowerCase().includes(q) ||
-        g.summary.toLowerCase().includes(q) ||
-        g.developers.some(d => d.name.toLowerCase().includes(q))
-      )
-      : allProjectGroups;
-
-    const byStage = projectStageFilter
-      ? filtered.filter(g => {
-        const { statusId, statusGroup } = mapStatusToIds(g.status);
-        const stageKey = projectViewLifecycleMode === 'development' ? statusId : statusGroup;
-        return stageKey === projectStageFilter;
-      })
-      : filtered;
-
+  const stageForStatus = (status, mode) => {
+    const { statusId, statusGroup } = mapStatusToIds(status);
+    return mode === 'development'
+      ? PMStatus.find(s => s.id === statusId)
+      : PMStatusGroups.find(sg => sg.id === statusGroup);
+  };
+  const withStage = (cr, mode) => {
+    const stage = stageForStatus(cr.status, mode);
     return {
-      next7: byStage.filter(g => g.overlaps7).length,
-      next30: byStage.filter(g => g.overlaps30).length,
-      next90: byStage.filter(g => g.overlaps90).length,
+      ...cr,
+      stageKey: stage ? stage.id : null,
+      stageName: stage ? stage.name : 'Unmapped',
+      stageColor: stage ? stage.color : '#9ca3af',
     };
-  }, [allProjectGroups, debouncedProjectSearchQuery, projectStageFilter, projectViewLifecycleMode]);
+  };
+
+  // Project View: CR-level stage + Next-N-Days window filters. A CR with no
+  // valid dates has no span to test, so it is never excluded by the window.
+  const projectCrFilter = (windowDays) => (cr) => {
+    if (projectStageFilter && withStage(cr, projectViewLifecycleMode).stageKey !== projectStageFilter) return false;
+    if (cr.scheduleState !== 'ok') return true;
+    return cr[`overlaps${windowDays}`];
+  };
+
+  const projectGroups = useMemo(() => {
+    const filtered = filterProjectModel(projectModel, {
+      query: debouncedProjectSearchQuery,
+      crFilter: projectCrFilter(projectViewTimeframe),
+    });
+    return filtered
+      .map(g => ({ ...g, crs: g.crs.map(cr => withStage(cr, projectViewLifecycleMode)) }))
+      .sort((a, b) => b.totalProratedEffort - a.totalProratedEffort);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectModel, debouncedProjectSearchQuery, projectViewLifecycleMode, projectStageFilter, projectViewTimeframe]);
+
+  // Distinct projects / CRs per window (search + stage applied, independent of
+  // the 7/30/90 toggle) for the stats strip.
+  const projectCountsByWindow = useMemo(() => {
+    const countFor = (w) => {
+      const filtered = filterProjectModel(projectModel, {
+        query: debouncedProjectSearchQuery,
+        crFilter: projectCrFilter(w),
+      });
+      return { projects: filtered.length, crs: filtered.reduce((n, p) => n + p.crs.length, 0) };
+    };
+    return { next7: countFor(7), next30: countFor(30), next90: countFor(90) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectModel, debouncedProjectSearchQuery, projectStageFilter, projectViewLifecycleMode]);
 
   const toggleProjectCollapse = (key) => {
     setCollapsedProjects(prev => {
@@ -400,75 +345,76 @@ export function CapacityPlanningPage() {
     });
   };
 
-  // Gantt View — reuses the same base project grouping as Project View
-  // (allProjectGroups), filtered by its OWN independent search box, laid
-  // out on a shared timeline so each project's bar position/width reflects
-  // its actual Start/End Date relative to every other visible project.
-  const ganttData = useMemo(() => {
-    const q = debouncedGanttSearchQuery.toLowerCase().trim();
-    const searched = q
-      ? allProjectGroups.filter(g =>
-        g.project.toLowerCase().includes(q) ||
-        g.summary.toLowerCase().includes(q) ||
-        g.developers.some(d => d.name.toLowerCase().includes(q))
-      )
-      : allProjectGroups;
-
-    const withStageKey = searched.map(g => {
-      const { statusId, statusGroup } = mapStatusToIds(g.status);
-      const stageKey = ganttLifecycleMode === 'development' ? statusId : statusGroup;
-      return { ...g, stageKey };
+  const toggleDevSort = (crKey, col) => {
+    setDevSort(prev => {
+      const cur = prev[crKey];
+      const dir = cur && cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc';
+      return { ...prev, [crKey]: { col, dir } };
     });
-    const byStage = ganttStageFilter
-      ? withStageKey.filter(g => g.stageKey === ganttStageFilter)
-      : withStageKey;
+  };
 
-    const projects = byStage
-      .map(g => ({ ...g, startObj: parseDate(g.startDate), endObj: parseDate(g.endDate) }))
-      .filter(g => g.startObj && g.endObj && g.endObj >= g.startObj)
-      .sort((a, b) => a.startObj - b.startObj);
-
-    if (projects.length === 0) {
-      return { projects: [], todayPct: null, monthTicks: [] };
-    }
-
-    const ref = parseDate(referenceDate);
-    const minStart = new Date(Math.min(...projects.map(p => p.startObj.getTime()), ref.getTime()));
-    const maxEnd = new Date(Math.max(...projects.map(p => p.endObj.getTime()), ref.getTime()));
-
-    const rangeStart = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
-    const rangeEnd = new Date(maxEnd.getFullYear(), maxEnd.getMonth() + 1, 0);
-    const totalMs = rangeEnd.getTime() - rangeStart.getTime();
-    const pct = (d) => totalMs > 0 ? ((d.getTime() - rangeStart.getTime()) / totalMs) * 100 : 0;
-
-    const projectsWithBars = projects.map(p => {
-      const left = pct(p.startObj);
-      const right = pct(p.endObj);
-      const { statusId, statusGroup } = mapStatusToIds(p.status);
-      const stage = ganttLifecycleMode === 'development'
-        ? PMStatus.find(s => s.id === statusId)
-        : PMStatusGroups.find(g => g.id === statusGroup);
-      return {
-        ...p,
-        leftPct: Math.max(0, left),
-        widthPct: Math.max(0.6, right - left),
-        stageName: stage ? stage.name : 'Unmapped',
-        stageColor: stage ? stage.color : '#9ca3af',
-      };
-    });
-
-    const monthTicks = [];
-    const cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
-    while (cursor <= rangeEnd) {
-      monthTicks.push({
-        label: cursor.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        leftPct: pct(cursor),
+  // Expand / collapse every project currently listed (after search and filters).
+  const allProjectsExpanded = projectGroups.length > 0 && projectGroups.every(g => !collapsedProjects.has(g.key));
+  const toggleAllProjects = () => {
+    setCollapsedProjects(prev => {
+      const next = new Set(prev);
+      projectGroups.forEach(g => {
+        if (allProjectsExpanded) next.add(g.key);
+        else next.delete(g.key);
       });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
+      return next;
+    });
+  };
 
-    return { projects: projectsWithBars, todayPct: pct(ref), monthTicks };
-  }, [allProjectGroups, debouncedGanttSearchQuery, referenceDate, ganttLifecycleMode, ganttStageFilter]);
+  const toggleCrExpand = (key) => {
+    setExpandedCrs(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleGanttProject = (key) => {
+    setCollapsedGanttProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Gantt View — same model, its OWN search + stage filter. One bar per CR on
+  // a shared timeline, positioned from that CR's own Start/End Date.
+  const ganttData = useMemo(() => {
+    const filtered = filterProjectModel(projectModel, {
+      query: debouncedGanttSearchQuery,
+      crFilter: ganttStageFilter
+        ? (cr) => withStage(cr, ganttLifecycleMode).stageKey === ganttStageFilter
+        : null,
+    });
+    const layout = buildGanttLayout(filtered, referenceDate);
+    return {
+      ...layout,
+      projects: layout.projects.map(p => ({
+        ...p,
+        crs: p.crs.map(cr => withStage(cr, ganttLifecycleMode)),
+      })),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectModel, debouncedGanttSearchQuery, referenceDate, ganttLifecycleMode, ganttStageFilter]);
+
+  const allGanttExpanded = ganttData.projects.length > 0 && ganttData.projects.every(g => !collapsedGanttProjects.has(g.key));
+  const toggleAllGanttProjects = () => {
+    setCollapsedGanttProjects(prev => {
+      const next = new Set(prev);
+      ganttData.projects.forEach(g => {
+        if (allGanttExpanded) next.add(g.key);
+        else next.delete(g.key);
+      });
+      return next;
+    });
+  };
 
   // Team tab data filter
   const activeSubtabConsultants = useMemo(() => {
@@ -1528,9 +1474,18 @@ export function CapacityPlanningPage() {
         ) : (
           <div className="cp-table-card">
             <div style={{ display: 'flex', gap: '10px', padding: '14px 16px 0' }}>
-              <span className="team-size-badge">Next 7 Days: {projectCountsByWindow.next7} project{projectCountsByWindow.next7 === 1 ? '' : 's'}</span>
-              <span className="team-size-badge">Next 30 Days: {projectCountsByWindow.next30} project{projectCountsByWindow.next30 === 1 ? '' : 's'}</span>
-              <span className="team-size-badge">Next 90 Days: {projectCountsByWindow.next90} project{projectCountsByWindow.next90 === 1 ? '' : 's'}</span>
+              <span className="team-size-badge cp-window-badge">Next 7 Days: {projectCountsByWindow.next7.projects} project{projectCountsByWindow.next7.projects === 1 ? '' : 's'} / {projectCountsByWindow.next7.crs} CR{projectCountsByWindow.next7.crs === 1 ? '' : 's'}</span>
+              <span className="team-size-badge cp-window-badge">Next 30 Days: {projectCountsByWindow.next30.projects} project{projectCountsByWindow.next30.projects === 1 ? '' : 's'} / {projectCountsByWindow.next30.crs} CR{projectCountsByWindow.next30.crs === 1 ? '' : 's'}</span>
+              <span className="team-size-badge cp-window-badge">Next 90 Days: {projectCountsByWindow.next90.projects} project{projectCountsByWindow.next90.projects === 1 ? '' : 's'} / {projectCountsByWindow.next90.crs} CR{projectCountsByWindow.next90.crs === 1 ? '' : 's'}</span>
+              <button
+                type="button"
+                className="cp-expand-all-btn"
+                onClick={toggleAllProjects}
+                disabled={projectGroups.length === 0}
+              >
+                {allProjectsExpanded ? <ChevronsDownUp size={14} aria-hidden="true" /> : <ChevronsUpDown size={14} aria-hidden="true" />}
+                {allProjectsExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
             </div>
             <div className="cp-legend-container" style={{ paddingTop: '10px' }}>
               {(projectViewLifecycleMode === 'development' ? PMStatus : PMStatusGroups).map(stage => (
@@ -1555,10 +1510,7 @@ export function CapacityPlanningPage() {
                 <thead>
                   <tr>
                     <th>Project</th>
-                    <th>Stage</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th className="text-center">{`Next ${projectViewTimeframe} Days (Total)`}</th>
+                    <th className="cp-project-th-stats">{`Next ${projectViewTimeframe} Days (Total)`}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1567,36 +1519,55 @@ export function CapacityPlanningPage() {
                     const rows = [
                       <tr
                         key={`project-${group.key}`}
-                        className="cp-team-subheader-row"
+                        className="cp-team-subheader-row cp-project-row"
                         onClick={() => toggleProjectCollapse(group.key)}
                       >
-                        <td className="cp-team-subheader-cell">
-                          <div className="cp-team-subheader-content">
-                            <div className="cp-team-subheader-left">
-                              {isCollapsed ? <ChevronRight size={14} className="cp-team-chevron" /> : <ChevronDown size={14} className="cp-team-chevron" />}
-                              <span className="team-name-label">
-                                <ProjectText projectStr={group.project} summary={group.summary} />
-                              </span>
-                            </div>
+                        <td className="cp-team-subheader-cell cp-project-cell">
+                          <div className="cp-project-main">
+                            <span className="cp-project-chevron" aria-hidden="true">
+                              {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                            </span>
+                            <span className="cp-project-name">
+                              <ProjectText projectStr={group.project} />
+                            </span>
                           </div>
                         </td>
-                        <td>
-                          <span
-                            style={{
-                              display: 'inline-block', padding: '2px 10px', borderRadius: '12px',
-                              fontSize: '11px', fontWeight: 600, color: '#fff', background: group.stageColor,
-                            }}
-                            title={`Status: ${group.status || 'N/A'}`}
-                          >
-                            {group.stageName}
-                          </span>
-                        </td>
-                        <td>{formatDateDMY(group.startDate)}</td>
-                        <td>{formatDateDMY(group.endDate)}</td>
-                        <td className="text-center">
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <span className="team-size-badge">{group.developers.length} developer{group.developers.length === 1 ? '' : 's'}</span>
-                            <span className="team-size-badge">{group.totalProratedEffort.toFixed(1)} MDs</span>
+                        <td className="cp-team-subheader-cell cp-project-cell">
+                          <div className="cp-project-stats">
+                            <span className="cp-project-stat">
+                              <strong>{group.crs.length}</strong> CR{group.crs.length === 1 ? '' : 's'}
+                            </span>
+                            <span
+                              className="cp-project-stat"
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: 'help' }}
+                              onMouseEnter={(e) => setActiveTooltip({
+                                title: `${group.developerCount} unique developer${group.developerCount === 1 ? '' : 's'}`,
+                                description: group.developers.map(d => d.name || 'Unknown').join(', '),
+                                state: 'none',
+                                targetRect: e.currentTarget.getBoundingClientRect()
+                              })}
+                              onMouseLeave={() => setActiveTooltip(null)}
+                              onFocus={(e) => setActiveTooltip({
+                                title: `${group.developerCount} unique developer${group.developerCount === 1 ? '' : 's'}`,
+                                description: group.developers.map(d => d.name || 'Unknown').join(', '),
+                                state: 'none',
+                                targetRect: e.currentTarget.getBoundingClientRect()
+                              })}
+                              onBlur={() => setActiveTooltip(null)}
+                            >
+                              <span className="cp-avatar-stack" aria-hidden="true">
+                                {group.developers.slice(0, 4).map(d => (
+                                  <DevAvatar key={d.empId} name={d.name} photo={getPhoto(d.empId) || d.photo} />
+                                ))}
+                                {group.developers.length > 4 && <span className="cp-avatar cp-avatar-more">+{group.developers.length - 4}</span>}
+                              </span>
+                              <strong>{group.developerCount}</strong> unique developer{group.developerCount === 1 ? '' : 's'}
+                            </span>
+                            <span className="cp-project-stat cp-project-stat--effort">
+                              <strong>{group.totalProratedEffort.toFixed(1)}</strong> MDs
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -1605,46 +1576,206 @@ export function CapacityPlanningPage() {
                     if (!isCollapsed) {
                       rows.push(
                         <tr key={`project-${group.key}-expanded`} className="cp-team-expanded-row">
-                          <td colSpan={5} style={{ padding: 0 }}>
-                            <div className="cp-sub-table-wrapper">
-                              <table className="cp-sub-table" style={{ tableLayout: 'fixed' }}>
-                                <thead>
-                                  <tr>
-                                    <th style={{ width: '35%' }}>Developer</th>
-                                    <th style={{ width: '25%' }}>Role</th>
-                                    <th style={{ width: '20%' }}>Team</th>
-                                    <th className="text-center" style={{ width: '20%' }}>Effort (Raw → Prorated)</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {group.developers.map((d, idx) => (
-                                    <tr key={`${group.key}-dev-${d.empId}-${idx}`} className="cp-member-row">
-                                      <td className="member-name-cell">
-                                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                                          {d.isUnmatchedDeveloper && (
-                                            <AlertTriangle
-                                              size={12}
-                                              style={{ color: '#d97706', marginRight: '6px', cursor: 'help' }}
-                                              title="This developer's name could not be matched to a known employee record."
-                                            />
+                          <td colSpan={2} style={{ padding: 0 }}>
+                            <div className="cp-cr-list">
+                              {group.crs.map(cr => {
+                                const crOpen = expandedCrs.has(cr.key);
+                                const crLabel = cr.crId != null ? `CR ${cr.crId}` : 'CR (no ID)';
+                                // Any zero-effort reason (no dates, ended, outside the window, ...) marks the CR as inactive for this window
+                                const crZeroReason = getZeroEffortReason(cr.startDate, cr.endDate, cr.totalProratedEffort, referenceDate, projectViewTimeframe, cr.totalEffort);
+                                const panelId = `cr-devs-${cr.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+                                const crTip = (e) => setActiveTooltip({
+                                  title: cr.crId != null ? `CR ID ${cr.crId}` : 'CR ID not available',
+                                  description: cr.summary || 'No Summary',
+                                  state: 'none',
+                                  targetRect: e.currentTarget.getBoundingClientRect()
+                                });
+                                return (
+                                  <section
+                                    key={cr.key}
+                                    className={`cp-cr-card${crOpen ? ' is-open' : ''}${crZeroReason ? ' is-inactive' : ''}`}
+                                    aria-label={`${crLabel}: ${cr.summary || 'No Summary'}`}
+                                  >
+                                    <header className="cp-cr-head">
+                                      <div className="cp-cr-title">
+                                        <span
+                                          className="cp-cr-id"
+                                          role="button"
+                                          tabIndex={0}
+                                          onMouseEnter={crTip}
+                                          onFocus={crTip}
+                                          onBlur={() => setActiveTooltip(null)}
+                                          onMouseLeave={() => setActiveTooltip(null)}
+                                          onKeyDown={(e) => { if (e.key === 'Escape') setActiveTooltip(null); }}
+                                        >
+                                          {crLabel}
+                                        </span>
+                                        <h3 className="cp-cr-summary" title={cr.summary || ''}>
+                                          {cr.summary || 'No Summary'}
+                                        </h3>
+                                        <span
+                                          className="cp-cr-stage"
+                                          style={{ background: cr.stageColor }}
+                                          title={`Status: ${cr.status || 'N/A'}`}
+                                        >
+                                          {cr.stageName}
+                                        </span>
+                                      </div>
+
+                                      <div className="cp-cr-facts">
+                                        <div className="cp-cr-fact">
+                                          <span className="cp-cr-fact-icon"><CalendarDays size={15} aria-hidden="true" /></span>
+                                          <div>
+                                            <div className="cp-cr-fact-label">Timeline</div>
+                                            <div className="cp-cr-fact-value">
+                                              {cr.startObj ? formatDateDMY(cr.startDate) : <em>Not scheduled</em>}
+                                              <span className="cp-cr-arrow" aria-hidden="true">→</span>
+                                              {cr.endObj ? formatDateDMY(cr.endDate) : <em>Not scheduled</em>}
+                                              {cr.scheduleState === 'invalid' && (
+                                                <span className="cp-flag" title="End date is before start date in the source data">Invalid range</span>
+                                              )}
+                                            </div>
+                                            {cr.scheduleState === 'ok' && (
+                                              <div className="cp-cr-fact-sub">({formatDuration(cr.startObj, cr.endObj)})</div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="cp-cr-fact">
+                                          <span className="cp-cr-fact-icon"><Users size={15} aria-hidden="true" /></span>
+                                          <div>
+                                            <div className="cp-cr-fact-label">Developers</div>
+                                            <div className="cp-cr-fact-value cp-cr-fact-strong">{cr.developers.length}</div>
+                                          </div>
+                                        </div>
+
+                                        <div className="cp-cr-fact">
+                                          <span className="cp-cr-fact-icon"><BarChart3 size={15} aria-hidden="true" /></span>
+                                          <div>
+                                            <div className="cp-cr-fact-label">Effort (Raw → Prorated)</div>
+                                            <div className="cp-cr-fact-value cp-cr-fact-strong">
+                                              {cr.totalEffort.toFixed(1)}<span className="cp-cr-arrow" aria-hidden="true">→</span>{cr.totalProratedEffort.toFixed(1)} MDs
+                                              <ZeroEffortInfo
+                                                reason={crZeroReason}
+                                                proratedEffort={cr.totalProratedEffort}
+                                                setActiveTooltip={setActiveTooltip}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {cr.totalEffort > 0 && (
+                                          <div className="cp-cr-progress" title="Prorated effort as a share of raw effort for the selected window">
+                                            <div className="cp-progress-track">
+                                              <div className="cp-progress-fill" style={{ width: `${Math.min(100, (cr.totalProratedEffort / cr.totalEffort) * 100)}%` }} />
+                                            </div>
+                                            <span className="cp-cr-progress-text">
+                                              {cr.totalProratedEffort.toFixed(1)} / {cr.totalEffort.toFixed(1)} MDs ({Math.round((cr.totalProratedEffort / cr.totalEffort) * 100)}%)
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </header>
+
+                                    <div className="cp-team-panel">
+                                      <div
+                                        className="cp-team-panel-head"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-expanded={crOpen}
+                                        aria-controls={panelId}
+                                        onClick={() => toggleCrExpand(cr.key)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            toggleCrExpand(cr.key);
+                                          }
+                                        }}
+                                      >
+                                        <div className="cp-team-panel-title">
+                                          <Users size={14} aria-hidden="true" />
+                                          <h4>Developers</h4>
+                                          <span className="cp-team-count">{cr.developers.length} Developer{cr.developers.length === 1 ? '' : 's'}</span>
+                                        </div>
+                                        <span className="cp-cr-toggle">
+                                          {crOpen ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                                          {crOpen ? 'Hide developers' : 'Show developers'}
+                                          {crOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+                                        </span>
+                                      </div>
+
+                                      {crOpen && (
+                                        <div id={panelId}>
+                                          {cr.developers.length === 0 ? (
+                                            <div className="cp-cr-dev-empty">No developers assigned</div>
+                                          ) : (
+                                            <div className="cp-team-table-wrap">
+                                              <table className="cp-cr-dev-table">
+                                                <thead>
+                                                  <tr>
+                                                    <th style={{ width: '4%' }}>#</th>
+                                                    <SortTh col="developer" label="Developer" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="26%" />
+                                                    <SortTh col="role" label="Role" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
+                                                    <SortTh col="designation" label="Designation" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
+                                                    <SortTh col="effort" label="Effort (Raw → Prorated)" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
+                                                    <SortTh col="allocation" label="Allocation" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="10%" />
+                                                                                                      </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {sortDevelopers(cr.developers, devSort[cr.key], cr.totalEffort).map((d, idx) => {
+                                                    const share = cr.totalEffort > 0 ? Math.round((d.effort / cr.totalEffort) * 100) : null;
+                                                    return (
+                                                      <tr key={`${cr.key}-dev-${d.empId}-${idx}`}>
+                                                        <td className="cp-dev-index">{idx + 1}</td>
+                                                        <td>
+                                                          <div className="cp-dev-person">
+                                                            <DevAvatar name={d.name} photo={getPhoto(d.empId) || d.photo} />
+                                                            <span className="cp-cr-dev-name">{d.name || 'Unknown developer'}</span>
+                                                            {d.isUnmatchedDeveloper && (
+                                                              <span
+                                                                className="cp-flag"
+                                                                title="This developer's name could not be matched to a known employee record."
+                                                              >
+                                                                <AlertTriangle size={11} aria-hidden="true" /> Unmatched
+                                                              </span>
+                                                            )}
+                                                          </div>
+                                                        </td>
+                                                        <td>
+                                                          <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
+                                                            {d.isAssignedProgrammer ? <Star size={13} aria-hidden="true" /> : <PlusCircle size={13} aria-hidden="true" />}
+                                                            <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
+                                                          </div>
+                                                        </td>
+                                                        <td>
+                                                          {d.teamName && d.teamName !== 'Unassigned Team'
+                                                            ? d.teamName
+                                                            : <span className="cp-muted">Unassigned</span>}
+                                                        </td>
+                                                        <td>
+                                                          <span className="cp-cr-dev-effort">
+                                                            <EffortPair raw={d.effort} prorated={d.proratedEffort} />
+                                                            <ZeroEffortInfo
+                                                              reason={getZeroEffortReason(cr.startDate, cr.endDate, d.proratedEffort, referenceDate, projectViewTimeframe, d.effort)}
+                                                              proratedEffort={d.proratedEffort}
+                                                              setActiveTooltip={setActiveTooltip}
+                                                            />
+                                                          </span>
+                                                        </td>
+                                                        <td title="Share of this CR's raw effort">{share !== null ? `${share}%` : '—'}</td>
+                                                      </tr>
+                                                    );
+                                                  })}
+                                                </tbody>
+                                              </table>
+                                            </div>
                                           )}
-                                          {d.name}
                                         </div>
-                                      </td>
-                                      <td>
-                                        <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
-                                          {d.isAssignedProgrammer ? <Star size={13} /> : <PlusCircle size={13} />}
-                                          <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
-                                        </div>
-                                      </td>
-                                      <td>{d.teamName || 'Unassigned Team'}</td>
-                                      <td className="text-center">
-                                        {d.effort.toFixed(1)} → {d.proratedEffort.toFixed(1)} MDs
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                      )}
+                                    </div>
+                                  </section>
+                                );
+                              })}
                             </div>
                           </td>
                         </tr>
@@ -1654,7 +1785,7 @@ export function CapacityPlanningPage() {
                   })}
                   {projectGroups.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="cp-empty-state">
+                      <td colSpan={2} className="cp-empty-state">
                         No projects found matching the criteria
                       </td>
                     </tr>
@@ -1687,6 +1818,15 @@ export function CapacityPlanningPage() {
                   Clear filter ×
                 </button>
               )}
+              <button
+                type="button"
+                className="cp-expand-all-btn"
+                onClick={toggleAllGanttProjects}
+                disabled={ganttData.projects.length === 0}
+              >
+                {allGanttExpanded ? <ChevronsDownUp size={14} aria-hidden="true" /> : <ChevronsUpDown size={14} aria-hidden="true" />}
+                {allGanttExpanded ? 'Collapse all' : 'Expand all'}
+              </button>
             </div>
             {ganttData.projects.length === 0 ? (
               <div className="cp-empty-state">No projects found matching the criteria</div>
@@ -1722,88 +1862,137 @@ export function CapacityPlanningPage() {
                     </div>
                   )}
 
-                  {/* Month axis header — sticky within cp-table-wrapper's own
-                      scroll so it stays visible while scrolling through a
-                      long project list, same as the other views' tables. */}
-                  <div
-                    style={{
-                      display: 'flex', borderBottom: '2px solid var(--border-primary)',
-                      position: 'sticky', top: 0, zIndex: 15, background: 'var(--bg-secondary)',
-                    }}
-                  >
-                    <div style={{
-                      position: 'sticky', left: 0, top: 0, zIndex: 13, background: 'var(--bg-secondary)',
-                      width: '380px', flexShrink: 0, padding: '10px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase',
-                      borderRight: '1px solid var(--border-primary)'
-                    }}>
-                      Project
-                    </div>
-                    <div style={{ flex: 1, position: 'relative', height: '34px', overflow: 'hidden' }}>
+                  {/* Month axis header — sticky so it stays visible while scrolling a long list */}
+                  <div className="cp-gantt-axis">
+                    <div className="cp-gantt-axis-label">Project / CR</div>
+                    <div className="cp-gantt-axis-months">
                       {ganttData.monthTicks.map((tick, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            position: 'absolute', left: `${tick.leftPct}%`, top: 0, bottom: 0,
-                            borderLeft: '1px solid var(--border-primary)', paddingLeft: '4px',
-                            fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)',
-                            textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center',
-                          }}
-                        >
+                        <div key={idx} className="cp-gantt-axis-tick" style={{ left: `${tick.leftPct}%` }}>
                           {tick.label}
                         </div>
                       ))}
+                      {ganttData.todayPct !== null && (
+                        <span className="cp-gantt-today-pill" style={{ left: `${ganttData.todayPct}%` }}>Today</span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Project rows */}
-                  {ganttData.projects.map(p => (
-                    <div key={p.key} className="cp-member-row" style={{ display: 'flex', alignItems: 'center' }}>
-                      <div style={{
-                        position: 'sticky', left: 0, zIndex: 12, background: 'var(--bg-primary)',
-                        width: '380px', flexShrink: 0, padding: '10px 14px',
-                        borderRight: '1px solid var(--border-primary)'
-                      }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <ProjectText projectStr={p.project} summary={p.summary} />
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
-                          {p.developers.length} developer{p.developers.length === 1 ? '' : 's'} · {p.totalProratedEffort.toFixed(1)} MDs
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, position: 'relative', height: '32px', overflow: 'hidden' }}>
-                        {ganttData.monthTicks.map((tick, idx) => (
-                          <div
-                            key={`grid-${idx}`}
-                            style={{
-                              position: 'absolute', left: `${tick.leftPct}%`, top: 0, bottom: 0,
-                              borderLeft: '1px solid var(--border-tertiary)', zIndex: 0
-                            }}
-                          />
-                        ))}
+                  {/* Project group rows + one timeline row per CR */}
+                  {ganttData.projects.flatMap(p => {
+                    const collapsed = collapsedGanttProjects.has(p.key);
+                    const devCount = new Set(p.crs.flatMap(cr => cr.developers.map(d => d.empId))).size;
+                    const totalMDs = p.crs.reduce((s, cr) => s + cr.totalProratedEffort, 0);
+                    // Alternating month bands + month lines behind the bars
+                    const grid = ganttData.monthTicks.map((tick, idx) => {
+                      const next = ganttData.monthTicks[idx + 1];
+                      return (
                         <div
-                          style={{
-                            position: 'absolute', left: `${p.leftPct}%`, width: `${p.widthPct}%`, top: '8px', height: '16px',
-                            borderRadius: '4px', background: p.stageColor, minWidth: '4px', zIndex: 1,
-                          }}
-                          onMouseEnter={(e) => setActiveTooltip({
-                            title: `${p.summary} — ${p.status} (${p.stageName}) (${formatDateDMY(p.startDate)} - ${formatDateDMY(p.endDate)})`,
-                            targetRect: e.currentTarget.getBoundingClientRect()
-                          })}
-                          onMouseLeave={() => setActiveTooltip(null)}
+                          key={`grid-${idx}`}
+                          className={`cp-gantt-month${idx % 2 ? ' is-alt' : ''}`}
+                          style={{ left: `${tick.leftPct}%`, width: `${(next ? next.leftPct : 100) - tick.leftPct}%` }}
                         />
-                        <div
-                          style={{
-                            position: 'absolute', left: `calc(${p.leftPct + p.widthPct}% + 8px)`, top: 0, bottom: 0,
-                            display: 'flex', alignItems: 'center',
-                            fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap',
-                          }}
-                          title={`${p.status} → ${p.stageName}`}
-                        >
-                          {p.stageName}
+                      );
+                    });
+                    const barTip = (cr) => (e) => setActiveTooltip({
+                      title: `${cr.crId != null ? `CR ${cr.crId}` : 'CR'}: ${cr.summary || 'No Summary'}`,
+                      description: `Project: ${p.project || 'N/A'} | ${formatDateDMY(cr.startDate)} - ${formatDateDMY(cr.endDate)} | ${cr.status || 'N/A'} (${cr.stageName}) | ${cr.developers.length} developer${cr.developers.length === 1 ? '' : 's'}, ${cr.totalProratedEffort.toFixed(1)} MDs`,
+                      state: 'none',
+                      targetRect: e.currentTarget.getBoundingClientRect()
+                    });
+                    const out = [
+                      <div
+                        key={p.key}
+                        className="cp-gantt-row cp-gantt-project-row"
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsed}
+                        onClick={() => toggleGanttProject(p.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleGanttProject(p.key);
+                          }
+                        }}
+                      >
+                        <div className="cp-gantt-label">
+                          <div className="cp-gantt-project-title">
+                            <span className="cp-project-chevron" aria-hidden="true">
+                              {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                            </span>
+                            <span className="cp-gantt-project-name"><ProjectText projectStr={p.project} /></span>
+                          </div>
+                          <div className="cp-gantt-meta cp-gantt-meta--project">
+                            {p.crs.length} CR{p.crs.length === 1 ? '' : 's'} · {devCount} developer{devCount === 1 ? '' : 's'} · {totalMDs.toFixed(1)} MDs
+                          </div>
+                        </div>
+                        <div className="cp-gantt-track">
+                          {grid}
+                          {/* Collapsed: each CR's own faint bar in one row (no project-level dates) */}
+                          {collapsed && p.crs.filter(cr => cr.bar).map(cr => (
+                            <div
+                              key={`mini-${cr.key}`}
+                              className="cp-gantt-mini"
+                              style={{ left: `${cr.bar.leftPct}%`, width: `${cr.bar.widthPct}%`, background: cr.stageColor }}
+                              onMouseEnter={barTip(cr)}
+                              onMouseLeave={() => setActiveTooltip(null)}
+                            />
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ];
+                    if (!collapsed) {
+                      p.crs.forEach(cr => {
+                        const labelInside = cr.bar && cr.bar.widthPct >= 9;
+                        out.push(
+                          <div key={cr.key} className="cp-gantt-row cp-gantt-cr-row">
+                            <div className="cp-gantt-label cp-gantt-label--cr">
+                              <div className="cp-gantt-cr-title" title={cr.summary || ''}>
+                                <strong>{cr.crId != null ? `CR ${cr.crId}` : 'CR —'}</strong>
+                                <span>{cr.summary || 'No Summary'}</span>
+                              </div>
+                              <div className="cp-gantt-meta">
+                                {cr.scheduleState === 'ok'
+                                  ? `${formatDateDMY(cr.startDate)} → ${formatDateDMY(cr.endDate)}`
+                                  : cr.scheduleState === 'invalid' ? 'Invalid date range in source data' : 'Not scheduled'}
+                                {' · '}{cr.developers.length} developer{cr.developers.length === 1 ? '' : 's'} · {cr.totalProratedEffort.toFixed(1)} MDs
+                              </div>
+                            </div>
+                            <div className="cp-gantt-track">
+                              {grid}
+                              {cr.bar ? (
+                                <>
+                                  <div
+                                    className="cp-gantt-bar"
+                                    role="img"
+                                    aria-label={`${cr.crId != null ? `CR ${cr.crId}` : 'CR'}: ${cr.stageName}, ${formatDateDMY(cr.startDate)} to ${formatDateDMY(cr.endDate)}`}
+                                    style={{ left: `${cr.bar.leftPct}%`, width: `${cr.bar.widthPct}%`, background: cr.stageColor }}
+                                    onMouseEnter={barTip(cr)}
+                                    onMouseLeave={() => setActiveTooltip(null)}
+                                  >
+                                    {labelInside && <span className="cp-gantt-bar-text">{cr.stageName}</span>}
+                                  </div>
+                                  {!labelInside && (
+                                    <div
+                                      className="cp-gantt-bar-outside"
+                                      style={{ left: `calc(${cr.bar.leftPct + cr.bar.widthPct}% + 8px)` }}
+                                      title={`${cr.status} → ${cr.stageName}`}
+                                    >
+                                      {cr.stageName}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="cp-gantt-unscheduled">
+                                  {cr.scheduleState === 'invalid' ? 'Invalid date range' : 'Not scheduled'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      });
+                    }
+                    return out;
+                  })}
                 </div>
               </div>
             )}
@@ -2000,6 +2189,100 @@ export function CapacityPlanningPage() {
         placement="bottom"
       />
     </div>
+  );
+}
+
+// Duration label for a CR's timeline, e.g. "16 weeks" or "9 days".
+function formatDuration(startObj, endObj) {
+  const days = Math.round((endObj.getTime() - startObj.getTime()) / 86400000) + 1;
+  if (days < 14) return `${days} day${days === 1 ? '' : 's'}`;
+  return `${Math.round(days / 7)} weeks`;
+}
+
+// Sorts a CR's developers by the clicked column; no sort keeps the model order
+// (primary first, then by name).
+function sortDevelopers(devs, sort, crTotalEffort) {
+  if (!sort) return devs;
+  const val = {
+    developer: d => (d.name || '').toLowerCase(),
+    role: d => (d.isAssignedProgrammer ? 0 : 1),
+    designation: d => (d.teamName || '').toLowerCase(),
+    effort: d => d.proratedEffort,
+    allocation: d => (crTotalEffort > 0 ? d.effort / crTotalEffort : 0),
+  }[sort.col];
+  if (!val) return devs;
+  const sign = sort.dir === 'desc' ? -1 : 1;
+  return [...devs].sort((x, y) => {
+    const a = val(x);
+    const b = val(y);
+    if (a < b) return -1 * sign;
+    if (a > b) return 1 * sign;
+    return 0;
+  });
+}
+
+function SortTh({ col, label, sort, onSort, width }) {
+  const active = sort && sort.col === col;
+  const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th style={{ width }} aria-sort={!active ? 'none' : sort.dir === 'asc' ? 'ascending' : 'descending'}>
+      <button type="button" className={`cp-sort-btn${active ? ' is-active' : ''}`} onClick={() => onSort(col)}>
+        {label}
+        <Icon size={12} aria-hidden="true" />
+      </button>
+    </th>
+  );
+}
+
+const AVATAR_COLORS = ['#16a34a', '#2563eb', '#9333ea', '#d97706', '#db2777', '#0891b2'];
+
+function DevAvatar({ name, photo }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (name || '?').trim().charAt(0).toUpperCase() || '?';
+  let hash = 0;
+  for (const ch of name || '') hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  if (photo && !broken) {
+    return <img className="cp-avatar" src={photo} alt="" onError={() => setBroken(true)} />;
+  }
+  return (
+    <span className="cp-avatar" style={{ background: AVATAR_COLORS[hash % AVATAR_COLORS.length] }} aria-hidden="true">
+      {initial}
+    </span>
+  );
+}
+
+function EffortPair({ raw, prorated }) {
+  return (
+    <span className="cp-effort" title="Raw effort → effort prorated to the selected window">
+      <span className="cp-effort-raw">{raw.toFixed(1)}</span>
+      <span className="cp-effort-arrow" aria-hidden="true">→</span>
+      <strong className="cp-effort-pro">{prorated.toFixed(1)}</strong>
+      <span className="cp-effort-unit">MDs</span>
+    </span>
+  );
+}
+
+function ZeroEffortInfo({ reason, proratedEffort, setActiveTooltip }) {
+  if (!reason) return null;
+  const show = (e) => setActiveTooltip({
+    title: reason,
+    description: proratedEffort > 0 ? `Exact prorated effort: ${Number(proratedEffort.toPrecision(3))} MDs` : undefined,
+    state: 'none',
+    targetRect: e.currentTarget.getBoundingClientRect()
+  });
+  return (
+    <Info
+      size={13}
+      role="button"
+      tabIndex={0}
+      style={{ marginLeft: '6px', flexShrink: 0, cursor: 'help', color: 'var(--text-secondary)' }}
+      onMouseEnter={show}
+      onClick={show}
+      onFocus={show}
+      onBlur={() => setActiveTooltip(null)}
+      onMouseLeave={() => setActiveTooltip(null)}
+      onKeyDown={(e) => { if (e.key === 'Escape') setActiveTooltip(null); }}
+    />
   );
 }
 
