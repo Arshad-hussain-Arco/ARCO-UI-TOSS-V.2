@@ -62,7 +62,7 @@
 .brand-accent-text {
   font-size: 28px;
   font-weight: 600;
-  color: #00664F;
+  color: #00664f;
   text-transform: uppercase;
   letter-spacing: 0.35em;
   margin: 0;
@@ -71,7 +71,7 @@
 .brand-accent-line {
   width: 40px;
   height: 1px;
-  background-color: #00664F;
+  background-color: #00664f;
   opacity: 0.6;
 }
 
@@ -90,6 +90,11 @@
   margin: 0;
   white-space: nowrap;
   letter-spacing: -0.02em;
+}
+
+.ry-fix {
+  letter-spacing: 0.05em;
+  margin-left: 0.01em;
 }
 
 /* Right Side (Login Card Container) - Desktop default */
@@ -130,7 +135,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform-style: preserve-3d;
   box-sizing: border-box;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .login-form-title {
@@ -214,16 +221,16 @@
   margin: 0;
 }
 
-.login-input:focus~.login-form-label,
-.login-input:not(:placeholder-shown)~.login-form-label,
-.login-input:-webkit-autofill~.login-form-label {
+.login-input:focus ~ .login-form-label,
+.login-input:not(:placeholder-shown) ~ .login-form-label,
+.login-input:-webkit-autofill ~ .login-form-label {
   transform: translateY(-14px) scale(0.85);
   color: #6b7280;
   font-weight: 500;
 }
 
-.login-input:focus~.login-form-label {
-  color: #00664F;
+.login-input:focus ~ .login-form-label {
+  color: #00664f;
 }
 
 /* Visibility Password Toggle */

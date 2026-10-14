@@ -12,6 +12,7 @@ import { HomeCardLayoutSelector } from '@components/home/HomeCardLayoutSelector'
 import { RichEditor } from '@components/home/RichEditor/RichEditor';
 import { uploadMediaFile, toAbsoluteMediaUrl, attachHomeMediaToken, useHomeMediaToken, withFreshMediaToken } from '@components/home/RichEditor/mediaUtils';
 import DOMPurify from 'dompurify';
+import { hasFreeLayout } from '@components/home/RichEditor/freeLayoutCore';
 
 // Content tab only accepts images ΓÇö video attaches through the Rich Text
 // Editor tab instead (its own HomeMedia/SFTP upload pipeline).
@@ -37,6 +38,11 @@ function formatFileSize(bytes) {
  */
 function resolveHtmlForPreview(html) {
   if (!html) return html;
+  // Free-layout canvases carry their geometry in data-* attributes and may
+  // legitimately contain escaped markup typed into a text box (e.g. the text
+  // "<div>"). Decoding + re-sanitising the whole document would corrupt the
+  // layout, so such content is returned untouched (HomeCard validates it).
+  if (hasFreeLayout(html)) return html;
   // Quick check: does the content contain HTML-escaped angle brackets?
   if (!/&lt;\s*\/?(?:table|thead|tbody|tfoot|tr|td|th|div|p|h[1-6]|ul|ol|li|dl|dt|dd|span|a|img|section|article|header|footer|nav|main|aside|strong|em|b|i|u|br|hr|blockquote|pre|code|figure|figcaption|details|summary|caption|colgroup|col)\b/i.test(html)) {
     return html; // No escaped HTML tags found — return original content
@@ -1155,6 +1161,9 @@ function HomeManagementPanelComponent() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Card Display Width — a free-layout canvas scales proportionally with it */}
+                        {renderWidthSelector(htmlWidth, setHtmlWidth)}
+
                         {/* Rich Text Content — images/video/etc. are inserted
                         from within the editor itself; there is no separate
                         banner upload for this card type. */}
@@ -1164,6 +1173,7 @@ function HomeManagementPanelComponent() {
                             key={editId ?? 'new'}
                             value={htmlContent}
                             onChange={setHtmlContent}
+                            canvasDesignWidth={htmlWidth === '50%' ? 400 : 800}
                             placeholder="Start writing your homepage card content..."
                           />
                         </div>

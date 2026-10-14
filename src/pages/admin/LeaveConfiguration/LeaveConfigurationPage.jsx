@@ -35,7 +35,7 @@ const WORK_SCHEDULE_OPTIONS = {
     { value: 'CUSTOM', label: 'Custom' },
   ],
   custom_weekend_days: {
-    description: 'Weekday numbers used in custom_weekend_days (Mon=0 ... Sun=6).',
+    // description: 'Weekday numbers used in custom_weekend_days (Mon=0 ... Sun=6).',
     days: [
       { value: 0, label: 'Monday' },
       { value: 1, label: 'Tuesday' },
@@ -1778,7 +1778,7 @@ export function LeaveConfigurationPage() {
         {activeTab === 'work-schedule' && (
           <div className="lc-card-panel" style={{ flex: 'none' }}>
             <div style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>weekend configurations Settings</h3>
+              {/* <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>weekend configurations Settings</h3> */}
 
               {isSummaryLoading ? (
                 <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
@@ -1823,9 +1823,9 @@ export function LeaveConfigurationPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div className="ss-modal-form-group">
                       <div style={{ marginBottom: '20px' }}>
-                        <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block' }}>Select Weekend Days</label>
+                        <label className="ss-modal-label" style={{ marginBottom: '4px', display: 'block', fontSize: '14px' }}>Select Weekend Days</label>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitute a weekend.'}
+                          {workScheduleOptions.custom_weekend_days?.description || 'Select the days that constitutes weekends.'}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

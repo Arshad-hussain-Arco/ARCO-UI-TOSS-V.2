@@ -1,0 +1,314 @@
+/* Free-layout canvas — shared by the editor (RichEditor) and the employee
+   renderer (HomeCard). See freeLayoutCore.js for the coordinate system.
+   The stage is a fixed design-size surface scaled with transform (set from JS
+   by fitCanvas); the outer canvas gets its height from `aspect-ratio`. */
+
+.rte-canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  /* Clip anything that ends up outside the card (and, because the stage is
+     transformed, contain fixed/absolute descendants as well). */
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint;
+  margin: 8px 0;
+  user-select: none;
+}
+
+.rte-canvas-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.rte-abs {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.rte-abs-text .rte-abs-body {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  user-select: text;
+  scrollbar-width: thin;
+}
+.rte-abs-text .rte-abs-body p,
+.rte-abs-text .rte-abs-body div { margin: 0; }
+.rte-abs-text .rte-abs-body ul,
+.rte-abs-text .rte-abs-body ol { margin: 0; padding-left: 22px; }
+.rte-abs-text .rte-abs-body a { color: var(--c-primary, #2563eb); text-decoration: underline; }
+
+.rte-abs-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  -webkit-user-drag: none;
+}
+
+.rte-abs-video {
+  background: #000;
+}
+.rte-abs-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+}
+/* The lazy-load wrapper that HomeCard builds around videos must fill the box. */
+.rte-abs-video .rte-video-lazy-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------- editor */
+
+.rte-root .rte-canvas {
+  /* room above the canvas for the element toolbar of items placed at y = 0 */
+  margin: 44px 0 28px;
+  overflow: visible;
+  contain: layout;
+  background-color: var(--surface-primary, #fff);
+  background-image:
+    linear-gradient(to right, rgba(100, 116, 139, 0.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, 0.10) 1px, transparent 1px);
+  background-size: 20px 20px;
+  outline: 1px dashed var(--border-primary, #cbd5e1);
+}
+.rte-root .rte-canvas-stage { overflow: visible; }
+
+.rte-root .rte-abs { outline: 1px dashed transparent; cursor: move; }
+.rte-root .rte-abs:hover { outline-color: rgba(0, 102, 51, 0.45); }
+.rte-root .rte-abs-text { cursor: default; background: transparent; }
+.rte-root .rte-abs-text .rte-abs-body { cursor: text; outline: none; min-height: 100%; }
+.rte-root .rte-abs-text:not(.rte-abs-editing) .rte-abs-body { cursor: move; }
+.rte-root .rte-abs-dragging { opacity: 0.92; }
+.rte-root .rte-abs-dragging,
+.rte-root .rte-abs-dragging * { user-select: none !important; }
+
+/* Never let a video swallow pointer events while editing, so it can be
+   dragged; "preview" mode (bar button) turns playback back on. */
+.rte-root .rte-abs-video video { pointer-events: none; }
+.rte-root .rte-abs-video.rte-abs-preview video { pointer-events: auto; }
+.rte-root .rte-abs-image img { pointer-events: none; }
+.rte-root .rte-is-dragging,
+.rte-root .rte-is-dragging * { cursor: grabbing !important; }
+
+.rte-root.rte-tool-textbox .rte-canvas,
+.rte-tool-textbox .rte-canvas { cursor: crosshair; outline-color: var(--c-primary, #006633); outline-style: solid; }
+.rte-tool-textbox .rte-abs { cursor: crosshair; }
+
+.rte-ui-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 100000;
+}
+
+.rte-frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1.5px * var(--rte-inv, 1)) solid var(--c-primary, #006633);
+  pointer-events: none;
+  outline: none;
+}
+.rte-frame:focus-visible { box-shadow: 0 0 0 calc(2px * var(--rte-inv, 1)) rgba(0, 102, 51, 0.35); }
+
+.rte-handle {
+  position: absolute;
+  width: calc(10px * var(--rte-inv, 1));
+  height: calc(10px * var(--rte-inv, 1));
+  box-sizing: border-box;
+  background: #fff;
+  border: calc(1.5px * var(--rte-inv, 1)) solid var(--c-primary, #006633);
+  border-radius: calc(2px * var(--rte-inv, 1));
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 2;
+}
+.rte-handle-nw { left: 0; top: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.rte-handle-n  { left: 50%; top: 0; transform: translate(-50%, -50%); cursor: ns-resize; }
+.rte-handle-ne { left: 100%; top: 0; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.rte-handle-e  { left: 100%; top: 50%; transform: translate(-50%, -50%); cursor: ew-resize; }
+.rte-handle-se { left: 100%; top: 100%; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.rte-handle-s  { left: 50%; top: 100%; transform: translate(-50%, -50%); cursor: ns-resize; }
+.rte-handle-sw { left: 0; top: 100%; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.rte-handle-w  { left: 0; top: 50%; transform: translate(-50%, -50%); cursor: ew-resize; }
+
+/* Floating element toolbar: counter-scaled so it keeps a constant on-screen size. */
+.rte-bar {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: calc(6px * var(--rte-inv, 1));
+  transform: scale(var(--rte-inv, 1));
+  transform-origin: left bottom;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  white-space: nowrap;
+  background: var(--surface-primary, #fff);
+  color: var(--text-primary, #0f172a);
+  border: 1px solid var(--border-primary, #cbd5e1);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+  font: 12px/1 system-ui, sans-serif;
+  user-select: none;
+}
+.rte-bar-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  cursor: move;
+  border-radius: 4px;
+  background: var(--bg-secondary, #f1f5f9);
+  touch-action: none;
+}
+.rte-bar-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.rte-bar-btn:hover { background: var(--bg-secondary, #f1f5f9); border-color: var(--border-primary, #cbd5e1); }
+.rte-bar-danger:hover { background: rgba(220, 38, 38, 0.12); color: #dc2626; }
+.rte-bar-select { height: 26px; max-width: 86px; font: inherit; color: inherit; background: var(--surface-primary, #fff); border: 1px solid var(--border-primary, #cbd5e1); border-radius: 4px; }
+.rte-bar-color { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border-primary, #cbd5e1); border-radius: 4px; background: transparent; cursor: pointer; }
+.rte-bar-sep { width: 1px; height: 18px; background: var(--border-primary, #cbd5e1); margin: 0 2px; }
+
+.rte-hgrip {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: calc(64px * var(--rte-inv, 1));
+  height: calc(8px * var(--rte-inv, 1));
+  margin-top: calc(4px * var(--rte-inv, 1));
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--border-primary, #94a3b8);
+  cursor: ns-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+.rte-hgrip:hover { background: var(--c-primary, #006633); }
+.rte-canvas-remove {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: calc(6px * var(--rte-inv, 1));
+  transform: scale(var(--rte-inv, 1));
+  transform-origin: right bottom;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  border: 1px solid var(--border-primary, #cbd5e1);
+  border-radius: 4px;
+  background: var(--surface-primary, #fff);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.rte-canvas-remove:hover { color: #dc2626; border-color: #dc2626; }
+
+/* Colour fields in a text box's toolbar: glyph + native colour input */
+.rte-bar-colorfield {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 2px;
+  border: 1px solid var(--border-primary, #cbd5e1);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.rte-bar-colorglyph { font-weight: 700; font-size: 12px; line-height: 1; pointer-events: none; }
+.rte-bar-colorfield .rte-bar-color { width: 18px; height: 18px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+
+/* Inline media inside a free text box */
+.rte-abs-body img,
+.rte-abs-body video { max-width: 100%; height: auto; vertical-align: middle; }
+.rte-root .rte-abs-body video { pointer-events: auto; }
+
+/* Lists inside a free text box. The app's CSS reset removes list markers
+   (list-style: none), which is why bullets / numbers were invisible. */
+.rte-abs-text .rte-abs-body ul { list-style: disc outside; padding-left: 24px; margin: 0; }
+.rte-abs-text .rte-abs-body ol { list-style: decimal outside; padding-left: 26px; margin: 0; }
+.rte-abs-text .rte-abs-body ul ul { list-style-type: circle; }
+.rte-abs-text .rte-abs-body ul ul ul { list-style-type: square; }
+.rte-abs-text .rte-abs-body ol ol { list-style-type: lower-alpha; }
+.rte-abs-text .rte-abs-body ol ol ol { list-style-type: lower-roman; }
+.rte-abs-text .rte-abs-body li { display: list-item; }
+
+/* Media inside a text box: selectable / movable / resizable (editor only) */
+.rte-root .rte-abs-body img,
+.rte-root .rte-abs-body video { cursor: move; }
+.rte-root .rte-abs-body video { pointer-events: none; }
+.rte-root .rte-abs-body img { user-select: none; -webkit-user-drag: none; }
+
+.rte-mframe {
+  position: absolute;
+  box-sizing: border-box;
+  border: calc(1.5px * var(--rte-inv, 1)) dashed #2563eb;
+  pointer-events: none;
+}
+.rte-mframe .rte-handle { border-color: #2563eb; }
+.rte-mbar {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: calc(4px * var(--rte-inv, 1));
+  transform: scale(var(--rte-inv, 1));
+  transform-origin: right bottom;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-primary, #fff);
+  border: 1px solid var(--border-primary, #cbd5e1);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+  font: 12px/1 system-ui, sans-serif;
+}
+
+/* Rich content inside a free text box: headings, quotes, tables, links */
+.rte-abs-text .rte-abs-body h1 { font-size: 2em; font-weight: 700; margin: 0.3em 0; line-height: 1.25; }
+.rte-abs-text .rte-abs-body h2 { font-size: 1.6em; font-weight: 700; margin: 0.3em 0; line-height: 1.25; }
+.rte-abs-text .rte-abs-body h3 { font-size: 1.3em; font-weight: 700; margin: 0.3em 0; line-height: 1.3; }
+.rte-abs-text .rte-abs-body h4 { font-size: 1.1em; font-weight: 700; margin: 0.3em 0; }
+.rte-abs-text .rte-abs-body h5 { font-size: 1em; font-weight: 700; margin: 0.3em 0; }
+.rte-abs-text .rte-abs-body h6 { font-size: 0.9em; font-weight: 700; margin: 0.3em 0; }
+.rte-abs-text .rte-abs-body blockquote { margin: 4px 0; padding: 2px 10px; border-left: 3px solid var(--border-primary, #cbd5e1); color: var(--text-secondary, #475569); }
+.rte-abs-text .rte-abs-body table { border-collapse: collapse; max-width: 100%; }
+.rte-abs-text .rte-abs-body td, .rte-abs-text .rte-abs-body th { padding: 4px; vertical-align: top; min-width: 24px; }
+.rte-abs-text .rte-abs-body sub { vertical-align: sub; font-size: 0.8em; }
+.rte-abs-text .rte-abs-body sup { vertical-align: super; font-size: 0.8em; }

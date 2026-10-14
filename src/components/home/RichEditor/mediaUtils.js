@@ -4,6 +4,7 @@ import endpoints from '@api/endpoints';
 import { env } from '@config/env';
 import { isOfficePreviewable } from '@components/media/officeViewer';
 import { getFileTypeIconSvg } from './fileTypeIcons';
+import { createInertContainer } from './freeLayoutDom';
 
 /**
  * Shared low-level helper reused by ImageHandler / VideoHandler / PdfHandler
@@ -37,7 +38,7 @@ export function formatFileSize(bytes) {
  */
 export function stripEditorControls(html) {
   if (!html) return html;
-  const container = document.createElement('div');
+  const container = createInertContainer();
   container.innerHTML = html;
   container.querySelectorAll('.rte-media-remove-btn').forEach((btn) => btn.remove());
   return container.innerHTML;
@@ -70,7 +71,7 @@ function extensionOf(filename = '') {
 
 export function rebuildPublicMediaActions(html) {
   if (!html) return html;
-  const container = document.createElement('div');
+  const container = createInertContainer();
   container.innerHTML = html;
 
   container.querySelectorAll('.rte-pdf-card').forEach((card) => {
@@ -242,7 +243,7 @@ function appendMediaToken(url, token) {
  */
 export function attachHomeMediaToken(html, token) {
   if (!html || !token) return html;
-  const container = document.createElement('div');
+  const container = createInertContainer();
   container.innerHTML = html;
 
   container.querySelectorAll('video[data-video-src], source[data-video-src]').forEach((el) => {
@@ -297,7 +298,7 @@ export async function withFreshMediaToken(url) {
 
 export function stripHomeMediaToken(html) {
   if (!html || !html.includes('media_token=')) return html;
-  const container = document.createElement('div');
+  const container = createInertContainer();
   container.innerHTML = html;
 
   container.querySelectorAll(TOKENIZABLE_SELECTOR).forEach((el) => {
@@ -348,7 +349,7 @@ export async function deleteMediaFile(id) {
  */
 export function deferPublicVideoLoad(html) {
   if (!html) return html;
-  const container = document.createElement('div');
+  const container = createInertContainer();
   container.innerHTML = html;
 
   container.querySelectorAll('video').forEach((video) => {
@@ -372,6 +373,16 @@ export function deferPublicVideoLoad(html) {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'rte-video-lazy-wrap';
+    // A video placed inside a free text box carries its own size / horizontal
+    // offset; move those onto the wrapper (which is what the lazy loader
+    // lays out) and let the video fill it.
+    if (video.closest('.rte-abs-body')) {
+      const { width, marginLeft } = video.style;
+      if (width) wrapper.style.width = width;
+      if (marginLeft) wrapper.style.marginLeft = marginLeft;
+      wrapper.style.maxWidth = '100%';
+      video.removeAttribute('style');
+    }
     video.parentNode.insertBefore(wrapper, video);
     wrapper.appendChild(video);
 
@@ -430,7 +441,10 @@ export function classifyAdaptiveColor(r, g, b) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   if (max - min < 20 && max < 130) return 'var(--adaptive-text-secondary)';
-  if (b > r + 20 && b > g + 10) return 'var(--adaptive-blue)';
+  // Only genuinely blue colours: the old, looser test (b > r + 20 && b > g + 10)
+  // also caught purples and violets, so a purple picked in the editor was
+  // silently rendered blue on the Home page.
+  if (b > r + 60 && b > g + 30) return 'var(--adaptive-blue)';
   return null;
 }
 

@@ -1,18 +1,15 @@
-import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile, readFileAsDataUrl } from './mediaUtils';
+import { assertWithinSizeLimit, escapeAttr, formatFileSize, uploadMediaFile } from './mediaUtils';
 
 const MAX_VIDEO_MB = 19;
 const ACCEPTED_MIME = ['video/mp4', 'video/webm', 'video/ogg'];
 
 export async function ingestFile(file) {
   assertWithinSizeLimit(file, MAX_VIDEO_MB);
-  try {
-    const result = await uploadMediaFile(file);
-    return { ...result, mime: result.mime || 'video/mp4' };
-  } catch (err) {
-    // Fallback to data URL if backend is unavailable
-    const dataUrl = await readFileAsDataUrl(file);
-    return { url: dataUrl, mime: 'video/mp4' };
-  }
+  // A failed upload must surface as an error. It used to fall back to an
+  // inline base64 data: URL, which silently put up to ~25 MB into the saved
+  // html_content CLOB and masked 401/413/500 responses as success.
+  const result = await uploadMediaFile(file);
+  return { ...result, mime: result.mime || 'video/mp4' };
 }
 
 export function isSupportedVideoFile(file) {

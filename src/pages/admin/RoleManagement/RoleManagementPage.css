@@ -47,8 +47,11 @@
   color: var(--text-secondary);
 }
 
-.rm-btn-primary { 
+.rm-btn-primary {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   gap: 6px;
   height: 34px;
   padding: 0 14px;

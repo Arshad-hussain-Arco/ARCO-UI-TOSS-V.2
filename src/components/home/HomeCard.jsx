@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { Image as ImageIcon, Play } from 'lucide-react';
 import { MediaViewerModal } from '@components/media/MediaViewerModal';
 import { stripEditorControls, rebuildPublicMediaActions, deferPublicVideoLoad, attachHomeMediaToken, useHomeMediaToken, getHomeMediaToken, withFreshMediaToken, toAbsoluteMediaUrl, themeAdaptiveColors } from './RichEditor/mediaUtils';
 import { copyWithToast } from '@utils/copyToClipboard';
 import { Skeleton } from '@components/feedback/Skeleton/Skeleton';
+import { normalizeFreeLayoutHtml, observeFit } from './RichEditor/freeLayoutDom';
+import './RichEditor/FreeLayout.css';
 import './HomeCard.css';
 
 
@@ -48,6 +50,36 @@ export function HomeCard({ card, className = '', style = {} }) {
   const [confirmedVideoSrc, setConfirmedVideoSrc] = useState(null);
   const [activeMediaModal, setActiveMediaModal] = useState({ isOpen: false, src: '', fileName: '', mediaType: 'pdf' });
   const mediaToken = useHomeMediaToken();
+  const contentRef = useRef(null);
+
+  // Rich-text pipeline (kept in one place so the free-layout fit effect below
+  // can depend on its final output). Order: theme colours -> DOMPurify -> strip
+  // editor controls -> rebuild PDF/Office actions -> defer video loading -> DOMPurify
+  // -> free-layout validation (positions rebuilt from data-*, text-box styles
+  // allowlisted, media restricted to the HomeMedia endpoint) -> media tokens.
+  const richHtml = card && (card.card_type === 'html_code' || card.html_content) ? (card.html_content || null) : null;
+  const sanitizedHtml = useMemo(() => {
+    if (!richHtml) return null;
+    // The stripEditorControls / rebuildPublicMediaActions / deferPublicVideoLoad
+    // helpers parse their input into a live (detached) DOM, where an <img
+    // onerror=...> would already execute. Sanitise BEFORE them as well as after.
+    const themeAdaptiveHtml = DOMPurify.sanitize(themeAdaptiveColors(richHtml), HOME_CARD_SANITIZE_CONFIG);
+    const purified = DOMPurify.sanitize(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(themeAdaptiveHtml))), HOME_CARD_SANITIZE_CONFIG);
+    return normalizeFreeLayoutHtml(purified);
+  }, [richHtml]);
+  const contentHtml = useMemo(() => (sanitizedHtml == null ? null : attachHomeMediaToken(sanitizedHtml, mediaToken)), [sanitizedHtml, mediaToken]);
+  // Stable object identity: React 19 re-applies innerHTML whenever the
+  // dangerouslySetInnerHTML object itself changes, which would throw away
+  // runtime DOM state (canvas scale, a started video, a "Copied" label) on
+  // every unrelated re-render such as a card width change.
+  const innerHtml = useMemo(() => ({ __html: contentHtml || '' }), [contentHtml]);
+
+  // Scale every free-layout canvas to the card's rendered width (and keep it
+  // fitted when the card or window resizes). No-op for cards without a canvas.
+  useLayoutEffect(() => {
+    if (!contentRef.current || !contentHtml) return undefined;
+    return observeFit(contentRef.current);
+  }, [contentHtml]);
 
   if (!card) return null;
 
@@ -256,16 +288,12 @@ export function HomeCard({ card, className = '', style = {} }) {
 
   const renderContent = () => {
     if (card.card_type === 'html_code' || rawHtml) {
-      // Clean up hardcoded black/dark-grey/blue colors from the WYSIWYG
-      // editor (or pasted Word/Outlook HTML) so the text dynamically adapts
-      // to dark mode — see themeAdaptiveColors() above.
-      const themeAdaptiveHtml = themeAdaptiveColors(rawHtml);
-
       return (
         <div
+          ref={contentRef}
           className="home-card-html-content"
           onClick={handleContentClick}
-          dangerouslySetInnerHTML={{ __html: attachHomeMediaToken(DOMPurify.sanitize(deferPublicVideoLoad(rebuildPublicMediaActions(stripEditorControls(themeAdaptiveHtml))), HOME_CARD_SANITIZE_CONFIG), mediaToken) }}
+          dangerouslySetInnerHTML={innerHtml}
         />
       );
     }

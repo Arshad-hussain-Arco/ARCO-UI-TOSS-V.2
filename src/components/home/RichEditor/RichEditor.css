@@ -311,7 +311,11 @@
    root. Without this, pasted HTML keeps inline white backgrounds / dark
    text colors and is unreadable in dark mode. Mirrors the rule HomeCard.css
    applies when the card is rendered, so the editor matches the saved result. */
-.rte-root div[contenteditable="true"] *:not([class*="rte-"]):not([class*="media-"]) {
+/* Elements the author deliberately coloured (inline color / background-color
+   from the Text colour / Background colour buttons or a text box's own
+   toolbar) are exempt: forcing them made those buttons appear to do nothing.
+   Pasted Word/Outlook colours are already normalised by themeAdaptiveColors(). */
+.rte-root div[contenteditable="true"] *:not([class*="rte-"]):not([class*="media-"]):not([style*="color"]) {
   background-color: transparent !important;
   color: var(--text-primary) !important;
 }
@@ -1454,3 +1458,12 @@ body.rte-hide-fluent-tooltips .ms-Layer .ms-Tooltip {
 [data-theme="dark"] .rte-context-menu-divider {
   background: var(--border-primary, #334155);
 }
+
+/* Show list markers in the editing surface (the app reset removes them). */
+.rte-root div[contenteditable="true"] ul { list-style: disc outside; padding-left: 24px; }
+.rte-root div[contenteditable="true"] ol { list-style: decimal outside; padding-left: 26px; }
+.rte-root div[contenteditable="true"] ul ul { list-style-type: circle; }
+.rte-root div[contenteditable="true"] ul ul ul { list-style-type: square; }
+.rte-root div[contenteditable="true"] ol ol { list-style-type: lower-alpha; }
+.rte-root div[contenteditable="true"] ol ol ol { list-style-type: lower-roman; }
+.rte-root div[contenteditable="true"] li { display: list-item; }
