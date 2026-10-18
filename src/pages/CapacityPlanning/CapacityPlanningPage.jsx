@@ -1716,7 +1716,7 @@ export function CapacityPlanningPage() {
                                                     <th style={{ width: '4%' }}>#</th>
                                                     <SortTh col="developer" label="Developer" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="26%" />
                                                     <SortTh col="role" label="Role" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
-                                                    <SortTh col="designation" label="Designation" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
+                                                    <SortTh col="team" label="Team" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
                                                     <SortTh col="effort" label="Effort (Raw → Prorated)" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
                                                     <SortTh col="allocation" label="Allocation" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="10%" />
                                                                                                       </tr>
@@ -2206,7 +2206,7 @@ function sortDevelopers(devs, sort, crTotalEffort) {
   const val = {
     developer: d => (d.name || '').toLowerCase(),
     role: d => (d.isAssignedProgrammer ? 0 : 1),
-    designation: d => (d.teamName || '').toLowerCase(),
+    team: d => (d.teamName || '').toLowerCase(),
     effort: d => d.proratedEffort,
     allocation: d => (crTotalEffort > 0 ? d.effort / crTotalEffort : 0),
   }[sort.col];
