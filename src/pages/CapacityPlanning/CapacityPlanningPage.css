@@ -249,7 +249,8 @@
   border-bottom: 2px solid var(--border-primary);
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* must stay below the app header (z-index 30) so its notifications dropdown covers the table */
+  z-index: 20;
 }
 .cp-data-table th:last-child {
   border-right: none;
@@ -270,7 +271,7 @@
      the group-header row's own rendered height, so both rows stay stuck
      correctly when scrolling. */
   top: 37px;
-  z-index: 49;
+  z-index: 19;
 }
 
 .cp-data-table td {
@@ -1338,7 +1339,7 @@
   min-width: 0;
   margin: 0;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1712,7 +1713,8 @@
 
 .cp-project-name {
   font-size: 14px;
-  font-weight: 700;
+  /* summary text is regular weight; only the #number (a <strong>) stays bold */
+  font-weight: 400;
   color: var(--text-primary);
 }
 
@@ -1890,7 +1892,7 @@
 .cp-gantt-axis-months {
   position: relative;
   flex: 1;
-  height: 40px;
+  height: 48px;
   overflow: hidden;
 }
 
@@ -1899,8 +1901,8 @@
   top: 0;
   bottom: 0;
   display: flex;
-  align-items: center;
-  padding-left: 6px;
+  align-items: flex-start;
+  padding: 7px 0 0 6px;
   border-left: 1px solid var(--border-primary);
   font-size: 10px;
   font-weight: 700;
@@ -1912,7 +1914,7 @@
 
 .cp-gantt-today-pill {
   position: absolute;
-  bottom: 3px;
+  bottom: 4px;
   transform: translateX(-50%);
   padding: 1px 8px;
   border-radius: 10px;
@@ -1972,7 +1974,7 @@
 
 .cp-gantt-project-name {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1991,24 +1993,31 @@
 
 /* CR rows, indented under their project with a connector line */
 .cp-gantt-label--cr {
-  padding-left: 40px;
+  /* children sit to the right of the project name, under its text */
+  padding-left: 88px;
 }
 
+/* vertical guide drops from the project's chevron */
 .cp-gantt-label--cr::before {
   content: '';
   position: absolute;
-  left: 23px;
+  left: 27px;
   top: 0;
   bottom: 0;
   border-left: 2px solid var(--border-primary);
 }
 
+/* the last CR ends its guide at its own row */
+.cp-gantt-cr-row.is-last .cp-gantt-label--cr::before {
+  bottom: 50%;
+}
+
 .cp-gantt-label--cr::after {
   content: '';
   position: absolute;
-  left: 23px;
+  left: 27px;
   top: 50%;
-  width: 10px;
+  width: 48px;
   border-top: 2px solid var(--border-primary);
 }
 
@@ -2108,54 +2117,215 @@
   z-index: 1;
 }
 
-/* CR with no prorated effort in the selected window: faded + dashed so it reads as inactive */
+/* CR with no prorated effort in the selected window: the card and its details are greyed out
+   like a disabled item. The stage pill and the View developers button stay normal, and nothing
+   changes on hover. */
 .cp-cr-card.is-inactive {
-  opacity: 0.55;
-  border-style: dashed;
-  background: transparent;
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.1));
   box-shadow: none;
-  filter: grayscale(0.6);
-  transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
-.cp-cr-card.is-inactive:hover,
-.cp-cr-card.is-inactive:focus-within {
-  opacity: 0.95;
-  filter: none;
+.cp-cr-card.is-inactive .cp-cr-id,
+.cp-cr-card.is-inactive .cp-cr-summary,
+.cp-cr-card.is-inactive .cp-cr-facts {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+.cp-cr-card.is-inactive .cp-cr-facts {
+  cursor: not-allowed;
+}
+
+/* keep the reason icon readable inside the greyed facts */
+.cp-cr-card.is-inactive .cp-cr-facts [role="button"] {
+  cursor: pointer;
 }
 
 .cp-cr-card.is-inactive .cp-progress-fill {
   background: var(--text-tertiary, #9ca3af);
 }
 
-/* Moving diagonal stripes over inactive CR cards (decorative, never blocks clicks) */
-.cp-cr-card.is-inactive {
-  position: relative;
+/* Visible explanation of why the card is disabled: plain text line, no box */
+.cp-cr-inactive-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 16px 12px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
-.cp-cr-card.is-inactive::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent 0,
-    transparent 9px,
-    rgba(127, 127, 127, 0.28) 9px,
-    rgba(127, 127, 127, 0.28) 11px
-  );
-  background-size: 28px 28px;
-  animation: cp-inactive-stripes 1.2s linear infinite;
+.cp-cr-inactive-note svg {
+  flex-shrink: 0;
+  color: #d97706;
 }
 
-@keyframes cp-inactive-stripes {
-  from { background-position: 0 0; }
-  to { background-position: 28px 0; }
+.cp-cr-inactive-note strong {
+  font-style: normal;
+  font-weight: 700;
+  color: #d97706;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cp-cr-card.is-inactive::after {
-    animation: none;
-  }
+/* ─── Project View: "View developers" button + popover card ─── */
+.cp-cr-view-devs {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cp-cr-view-devs:hover,
+.cp-cr-view-devs.is-open,
+.cp-cr-view-devs:focus-visible {
+  background: var(--bg-tertiary, rgba(127, 127, 127, 0.14));
+}
+
+.cp-cr-view-devs.is-open svg:last-child {
+  transform: rotate(180deg);
+}
+
+.cp-cr-view-devs-count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.cp-dev-popover {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-primary, var(--bg-primary));
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.cp-dev-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-tertiary);
+}
+
+.cp-dev-popover-count {
+  padding: 1px 8px;
+  border-radius: 10px;
+  color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+
+.cp-dev-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+}
+
+.cp-dev-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+}
+
+.cp-dev-popover-item:hover {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.1));
+}
+
+.cp-dev-popover-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cp-dev-popover-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cp-dev-popover-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-dev-popover-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cp-dev-popover-sub .dev-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  font-size: 10px;
+}
+
+.cp-dev-popover-effort {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.cp-dev-popover-effort-line {
+  display: inline-flex;
+  align-items: center;
+}
+
+.cp-dev-popover-share {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.cp-dev-popover-item .cp-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+/* "more" link after a truncated project title */
+.cp-more-link {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-primary);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
 }

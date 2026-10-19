@@ -1122,17 +1122,18 @@ export function LeaveManagementPage() {
                   reflected automatically without touching this page — no card can be
                   left out and silently render wrong (as WFH's card previously did,
                   since it never passed isUnlimited at all). */}
+              {/* Card order: Annual, Sick, Weekend Work, Comp Off, Paternity, Maternity, Work From Home, Offshore Work. */}
               {balanceCard(leaveBalances, isLoading, 'AL', 'Annual Leave', '#006633')}
-              {balanceCard(leaveBalances, isLoading, 'CompOff', 'Comp Off', '#8b5cf6')}
-              {balanceCard(leaveBalances, isLoading, 'SL', 'Sick Leaves', '#dc2626')}
+              {balanceCard(leaveBalances, isLoading, 'SL', 'Sick Leave', '#dc2626')}
               {balanceCard(leaveBalances, isLoading, 'WW', 'Weekend Work', '#f59e0b')}
+              {balanceCard(leaveBalances, isLoading, 'CompOff', 'Compensatory Off', '#8b5cf6')}
               {/* Gender-restricted types: the backend only returns a balance for
                   the ones this employee is eligible for, so show a card only
                   when one exists (while loading, show none to avoid a flash). */}
-              {leaveBalances?.ML && balanceCard(leaveBalances, isLoading, 'ML', 'Maternity Leave', '#ec4899')}
               {leaveBalances?.PL && balanceCard(leaveBalances, isLoading, 'PL', 'Paternity Leave', '#0ea5e9')}
-              {balanceCard(leaveBalances, isLoading, 'OW', 'Offshore Work', '#6366f1', 'Outside KSA')}
+              {leaveBalances?.ML && balanceCard(leaveBalances, isLoading, 'ML', 'Maternity Leave', '#ec4899')}
               {balanceCard(leaveBalances, isLoading, 'WFH', 'Work From Home', '#d97706', 'Inside KSA')}
+              {balanceCard(leaveBalances, isLoading, 'OW', 'Offshore Work', '#6366f1', 'Outside KSA')}
             </div>
 
             <div className="leave-content-split-section" style={{ display: 'block' }}>

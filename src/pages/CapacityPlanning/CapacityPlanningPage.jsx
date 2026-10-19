@@ -18,11 +18,8 @@ import {
   AlertTriangle,
   CalendarDays,
   BarChart3,
-  EyeOff,
   ChevronsUpDown,
-  ChevronsDownUp,
-  ArrowUp,
-  ArrowDown
+  ChevronsDownUp
 } from 'lucide-react';
 
 import { useEmployeePhotos } from '@hooks/useEmployeePhotos';
@@ -104,10 +101,8 @@ export function CapacityPlanningPage() {
 
   // Project View state
   const [collapsedProjects, setCollapsedProjects] = useState(new Set());
-  // CRs whose developer table is open (default closed).
-  const [expandedCrs, setExpandedCrs] = useState(new Set());
-  // Per-CR developer table sort: { [crKey]: { col, dir } }
-  const [devSort, setDevSort] = useState({});
+  // The "View developers" popover currently open: { crKey, left, top | bottom, maxHeight } (one at a time).
+  const [devPopover, setDevPopover] = useState(null);
   const [projectViewTimeframe, setProjectViewTimeframe] = useState(30);
   // SDLC (7-stage) vs Tech (17-stage) lifecycle — same toggle concept as
   // Gantt View / Project Monitoring, kept independent so switching one
@@ -210,6 +205,31 @@ export function CapacityPlanningPage() {
   // Same employee photo directory the Consultants page uses; falls back to an
   // initials avatar when an employee has no photo or the lookup fails.
   const { getPhoto } = useEmployeePhotos({ includeInactive: true });
+
+  // Close the developers popover on outside click, Escape, resize or page scroll.
+  useEffect(() => {
+    if (!devPopover) return undefined;
+    const close = () => setDevPopover(null);
+    const onDown = (e) => {
+      if (e.target instanceof Element && e.target.closest('[data-dev-popover],[data-dev-trigger]')) return;
+      close();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const onScroll = (e) => {
+      if (e.target instanceof Element && e.target.closest('[data-dev-popover]')) return;
+      close();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [devPopover]);
 
   // Persist viewMode changes
   useEffect(() => {
@@ -345,11 +365,22 @@ export function CapacityPlanningPage() {
     });
   };
 
-  const toggleDevSort = (crKey, col) => {
-    setDevSort(prev => {
-      const cur = prev[crKey];
-      const dir = cur && cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc';
-      return { ...prev, [crKey]: { col, dir } };
+  const POPOVER_WIDTH = 360;
+  const toggleDevPopover = (e, cr) => {
+    if (devPopover && devPopover.crKey === cr.key) {
+      setDevPopover(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const below = spaceBelow >= 280 || spaceBelow >= rect.top;
+    const left = Math.max(8, Math.min(rect.right - POPOVER_WIDTH, window.innerWidth - POPOVER_WIDTH - 8));
+    setDevPopover({
+      crKey: cr.key,
+      left,
+      ...(below
+        ? { top: rect.bottom + 6, maxHeight: Math.min(360, spaceBelow - 16) }
+        : { bottom: window.innerHeight - rect.top + 6, maxHeight: Math.min(360, rect.top - 16) }),
     });
   };
 
@@ -362,15 +393,6 @@ export function CapacityPlanningPage() {
         if (allProjectsExpanded) next.add(g.key);
         else next.delete(g.key);
       });
-      return next;
-    });
-  };
-
-  const toggleCrExpand = (key) => {
-    setExpandedCrs(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
       return next;
     });
   };
@@ -1528,7 +1550,7 @@ export function CapacityPlanningPage() {
                               {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                             </span>
                             <span className="cp-project-name">
-                              <ProjectText projectStr={group.project} />
+                              <ProjectText projectStr={group.project} maxChars={125} />
                             </span>
                           </div>
                         </td>
@@ -1579,11 +1601,10 @@ export function CapacityPlanningPage() {
                           <td colSpan={2} style={{ padding: 0 }}>
                             <div className="cp-cr-list">
                               {group.crs.map(cr => {
-                                const crOpen = expandedCrs.has(cr.key);
+                                const devsOpen = devPopover?.crKey === cr.key;
                                 const crLabel = cr.crId != null ? `CR ${cr.crId}` : 'CR (no ID)';
                                 // Any zero-effort reason (no dates, ended, outside the window, ...) marks the CR as inactive for this window
                                 const crZeroReason = getZeroEffortReason(cr.startDate, cr.endDate, cr.totalProratedEffort, referenceDate, projectViewTimeframe, cr.totalEffort);
-                                const panelId = `cr-devs-${cr.key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
                                 const crTip = (e) => setActiveTooltip({
                                   title: cr.crId != null ? `CR ID ${cr.crId}` : 'CR ID not available',
                                   description: cr.summary || 'No Summary',
@@ -1593,7 +1614,7 @@ export function CapacityPlanningPage() {
                                 return (
                                   <section
                                     key={cr.key}
-                                    className={`cp-cr-card${crOpen ? ' is-open' : ''}${crZeroReason ? ' is-inactive' : ''}`}
+                                    className={`cp-cr-card${crZeroReason ? ' is-inactive' : ''}`}
                                     aria-label={`${crLabel}: ${cr.summary || 'No Summary'}`}
                                   >
                                     <header className="cp-cr-head">
@@ -1620,6 +1641,19 @@ export function CapacityPlanningPage() {
                                         >
                                           {cr.stageName}
                                         </span>
+                                        <button
+                                          type="button"
+                                          className={`cp-cr-view-devs${devsOpen ? ' is-open' : ''}`}
+                                          data-dev-trigger
+                                          aria-haspopup="dialog"
+                                          aria-expanded={devsOpen}
+                                          onClick={(e) => toggleDevPopover(e, cr)}
+                                        >
+                                          <Users size={14} aria-hidden="true" />
+                                          View developers
+                                          <span className="cp-cr-view-devs-count">{cr.developers.length}</span>
+                                          <ChevronDown size={14} aria-hidden="true" />
+                                        </button>
                                       </div>
 
                                       <div className="cp-cr-facts">
@@ -1655,11 +1689,6 @@ export function CapacityPlanningPage() {
                                             <div className="cp-cr-fact-label">Effort (Raw → Prorated)</div>
                                             <div className="cp-cr-fact-value cp-cr-fact-strong">
                                               {cr.totalEffort.toFixed(1)}<span className="cp-cr-arrow" aria-hidden="true">→</span>{cr.totalProratedEffort.toFixed(1)} MDs
-                                              <ZeroEffortInfo
-                                                reason={crZeroReason}
-                                                proratedEffort={cr.totalProratedEffort}
-                                                setActiveTooltip={setActiveTooltip}
-                                              />
                                             </div>
                                           </div>
                                         </div>
@@ -1675,104 +1704,17 @@ export function CapacityPlanningPage() {
                                           </div>
                                         )}
                                       </div>
-                                    </header>
-
-                                    <div className="cp-team-panel">
-                                      <div
-                                        className="cp-team-panel-head"
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-expanded={crOpen}
-                                        aria-controls={panelId}
-                                        onClick={() => toggleCrExpand(cr.key)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            toggleCrExpand(cr.key);
-                                          }
-                                        }}
-                                      >
-                                        <div className="cp-team-panel-title">
-                                          <Users size={14} aria-hidden="true" />
-                                          <h4>Developers</h4>
-                                          <span className="cp-team-count">{cr.developers.length} Developer{cr.developers.length === 1 ? '' : 's'}</span>
-                                        </div>
-                                        <span className="cp-cr-toggle">
-                                          {crOpen ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
-                                          {crOpen ? 'Hide developers' : 'Show developers'}
-                                          {crOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-                                        </span>
-                                      </div>
-
-                                      {crOpen && (
-                                        <div id={panelId}>
-                                          {cr.developers.length === 0 ? (
-                                            <div className="cp-cr-dev-empty">No developers assigned</div>
-                                          ) : (
-                                            <div className="cp-team-table-wrap">
-                                              <table className="cp-cr-dev-table">
-                                                <thead>
-                                                  <tr>
-                                                    <th style={{ width: '4%' }}>#</th>
-                                                    <SortTh col="developer" label="Developer" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="26%" />
-                                                    <SortTh col="role" label="Role" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
-                                                    <SortTh col="team" label="Team" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
-                                                    <SortTh col="effort" label="Effort (Raw → Prorated)" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="20%" />
-                                                    <SortTh col="allocation" label="Allocation" sort={devSort[cr.key]} onSort={(col) => toggleDevSort(cr.key, col)} width="10%" />
-                                                                                                      </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {sortDevelopers(cr.developers, devSort[cr.key], cr.totalEffort).map((d, idx) => {
-                                                    const share = cr.totalEffort > 0 ? Math.round((d.effort / cr.totalEffort) * 100) : null;
-                                                    return (
-                                                      <tr key={`${cr.key}-dev-${d.empId}-${idx}`}>
-                                                        <td className="cp-dev-index">{idx + 1}</td>
-                                                        <td>
-                                                          <div className="cp-dev-person">
-                                                            <DevAvatar name={d.name} photo={getPhoto(d.empId) || d.photo} />
-                                                            <span className="cp-cr-dev-name">{d.name || 'Unknown developer'}</span>
-                                                            {d.isUnmatchedDeveloper && (
-                                                              <span
-                                                                className="cp-flag"
-                                                                title="This developer's name could not be matched to a known employee record."
-                                                              >
-                                                                <AlertTriangle size={11} aria-hidden="true" /> Unmatched
-                                                              </span>
-                                                            )}
-                                                          </div>
-                                                        </td>
-                                                        <td>
-                                                          <div className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`} style={{ display: 'inline-flex' }}>
-                                                            {d.isAssignedProgrammer ? <Star size={13} aria-hidden="true" /> : <PlusCircle size={13} aria-hidden="true" />}
-                                                            <span>{d.isAssignedProgrammer ? 'Primary Developer' : 'Additional Developer'}</span>
-                                                          </div>
-                                                        </td>
-                                                        <td>
-                                                          {d.teamName && d.teamName !== 'Unassigned Team'
-                                                            ? d.teamName
-                                                            : <span className="cp-muted">Unassigned</span>}
-                                                        </td>
-                                                        <td>
-                                                          <span className="cp-cr-dev-effort">
-                                                            <EffortPair raw={d.effort} prorated={d.proratedEffort} />
-                                                            <ZeroEffortInfo
-                                                              reason={getZeroEffortReason(cr.startDate, cr.endDate, d.proratedEffort, referenceDate, projectViewTimeframe, d.effort)}
-                                                              proratedEffort={d.proratedEffort}
-                                                              setActiveTooltip={setActiveTooltip}
-                                                            />
-                                                          </span>
-                                                        </td>
-                                                        <td title="Share of this CR's raw effort">{share !== null ? `${share}%` : '—'}</td>
-                                                      </tr>
-                                                    );
-                                                  })}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                          )}
+                                      {crZeroReason && (
+                                        <div className="cp-cr-inactive-note" role="note">
+                                          <Info size={14} aria-hidden="true" />
+                                          <span>
+                                            <strong>No effort in the next {projectViewTimeframe} days</strong>
+                                            {' — '}{crZeroReason}
+                                          </span>
                                         </div>
                                       )}
-                                    </div>
+                                    </header>
+
                                   </section>
                                 );
                               })}
@@ -1941,10 +1883,10 @@ export function CapacityPlanningPage() {
                       </div>
                     ];
                     if (!collapsed) {
-                      p.crs.forEach(cr => {
+                      p.crs.forEach((cr, crIdx) => {
                         const labelInside = cr.bar && cr.bar.widthPct >= 9;
                         out.push(
-                          <div key={cr.key} className="cp-gantt-row cp-gantt-cr-row">
+                          <div key={cr.key} className={`cp-gantt-row cp-gantt-cr-row${crIdx === p.crs.length - 1 ? ' is-last' : ''}`}>
                             <div className="cp-gantt-label cp-gantt-label--cr">
                               <div className="cp-gantt-cr-title" title={cr.summary || ''}>
                                 <strong>{cr.crId != null ? `CR ${cr.crId}` : 'CR —'}</strong>
@@ -2180,6 +2122,73 @@ export function CapacityPlanningPage() {
           </div>
         </div>
       )}
+      {devPopover && (() => {
+        const popCr = projectGroups.flatMap(g => g.crs).find(c => c.key === devPopover.crKey);
+        if (!popCr) return null;
+        const popLabel = popCr.crId != null ? `CR ${popCr.crId}` : 'CR';
+        return (
+          <div
+            className="cp-dev-popover"
+            role="dialog"
+            aria-label={`Developers assigned to ${popLabel}`}
+            data-dev-popover
+            style={{
+              left: devPopover.left,
+              top: devPopover.top,
+              bottom: devPopover.bottom,
+              width: POPOVER_WIDTH,
+              maxHeight: devPopover.maxHeight,
+            }}
+          >
+            <div className="cp-dev-popover-head">
+              <span>Developers · {popLabel}</span>
+              <span className="cp-dev-popover-count">{popCr.developers.length}</span>
+            </div>
+            {popCr.developers.length === 0 ? (
+              <div className="cp-cr-dev-empty" style={{ padding: '10px 14px' }}>No developers assigned</div>
+            ) : (
+              <ul className="cp-dev-popover-list">
+                {popCr.developers.map((d, idx) => {
+                  const share = popCr.totalEffort > 0 ? Math.round((d.effort / popCr.totalEffort) * 100) : null;
+                  return (
+                    <li key={`${popCr.key}-pop-${d.empId}-${idx}`} className="cp-dev-popover-item">
+                      <DevAvatar name={d.name} photo={getPhoto(d.empId) || d.photo} />
+                      <div className="cp-dev-popover-main">
+                        <div className="cp-dev-popover-name">
+                          <span>{d.name || 'Unknown developer'}</span>
+                          {d.isUnmatchedDeveloper && (
+                            <span className="cp-flag" title="This developer's name could not be matched to a known employee record.">
+                              <AlertTriangle size={10} aria-hidden="true" /> Unmatched
+                            </span>
+                          )}
+                        </div>
+                        <div className="cp-dev-popover-sub">
+                          <span className={`dev-badge ${d.isAssignedProgrammer ? 'dev-primary' : 'dev-additional'}`}>
+                            {d.isAssignedProgrammer ? <Star size={11} aria-hidden="true" /> : <PlusCircle size={11} aria-hidden="true" />}
+                            <span>{d.isAssignedProgrammer ? 'Primary' : 'Additional'}</span>
+                          </span>
+                          <span>{d.teamName && d.teamName !== 'Unassigned Team' ? d.teamName : 'Unassigned team'}</span>
+                        </div>
+                      </div>
+                      <div className="cp-dev-popover-effort">
+                        <span className="cp-dev-popover-effort-line">
+                          <EffortPair raw={d.effort} prorated={d.proratedEffort} />
+                          <ZeroEffortInfo
+                            reason={getZeroEffortReason(popCr.startDate, popCr.endDate, d.proratedEffort, referenceDate, projectViewTimeframe, d.effort)}
+                            proratedEffort={d.proratedEffort}
+                            setActiveTooltip={setActiveTooltip}
+                          />
+                        </span>
+                        {share !== null && <span className="cp-dev-popover-share" title="Share of this CR's raw effort">{share}%</span>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
       <ProgressTooltip
         title={activeTooltip?.title}
         description={activeTooltip?.description}
@@ -2197,41 +2206,6 @@ function formatDuration(startObj, endObj) {
   const days = Math.round((endObj.getTime() - startObj.getTime()) / 86400000) + 1;
   if (days < 14) return `${days} day${days === 1 ? '' : 's'}`;
   return `${Math.round(days / 7)} weeks`;
-}
-
-// Sorts a CR's developers by the clicked column; no sort keeps the model order
-// (primary first, then by name).
-function sortDevelopers(devs, sort, crTotalEffort) {
-  if (!sort) return devs;
-  const val = {
-    developer: d => (d.name || '').toLowerCase(),
-    role: d => (d.isAssignedProgrammer ? 0 : 1),
-    team: d => (d.teamName || '').toLowerCase(),
-    effort: d => d.proratedEffort,
-    allocation: d => (crTotalEffort > 0 ? d.effort / crTotalEffort : 0),
-  }[sort.col];
-  if (!val) return devs;
-  const sign = sort.dir === 'desc' ? -1 : 1;
-  return [...devs].sort((x, y) => {
-    const a = val(x);
-    const b = val(y);
-    if (a < b) return -1 * sign;
-    if (a > b) return 1 * sign;
-    return 0;
-  });
-}
-
-function SortTh({ col, label, sort, onSort, width }) {
-  const active = sort && sort.col === col;
-  const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
-  return (
-    <th style={{ width }} aria-sort={!active ? 'none' : sort.dir === 'asc' ? 'ascending' : 'descending'}>
-      <button type="button" className={`cp-sort-btn${active ? ' is-active' : ''}`} onClick={() => onSort(col)}>
-        {label}
-        <Icon size={12} aria-hidden="true" />
-      </button>
-    </th>
-  );
 }
 
 const AVATAR_COLORS = ['#16a34a', '#2563eb', '#9333ea', '#d97706', '#db2777', '#0891b2'];
@@ -2286,16 +2260,26 @@ function ZeroEffortInfo({ reason, proratedEffort, setActiveTooltip }) {
   );
 }
 
-function ProjectText({ projectStr, summary }) {
+// Cuts at a word boundary near maxChars so the preview doesn't end mid-word.
+function truncateAtWord(text, maxChars) {
+  const cut = text.slice(0, maxChars);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd();
+}
+
+function ProjectText({ projectStr, summary, maxChars = 40 }) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [targetRect, setTargetRect] = useState(null);
   const timeoutRef = useRef(null);
+  const moreRef = useRef(null);
 
   if (!projectStr) return <span>N/A</span>;
 
+  // Anchor the card to the "more" link (right where the text is cut), not to the whole wide line.
   const handleMouseEnter = (e) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setTargetRect(e.currentTarget.getBoundingClientRect());
+    const anchor = moreRef.current || e.currentTarget;
+    setTargetRect(anchor.getBoundingClientRect());
     setShowTooltip(true);
   };
 
@@ -2325,7 +2309,7 @@ function ProjectText({ projectStr, summary }) {
   const displayRef = ref ? (ref.startsWith('#') ? ref : `#${ref}`) : '';
   const fullText = summary ? `${title} — ${summary}` : title;
 
-  if (fullText.length <= 40) {
+  if (fullText.length <= maxChars) {
     return (
       <span>
         {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
@@ -2340,12 +2324,28 @@ function ProjectText({ projectStr, summary }) {
       onMouseLeave={handleMouseLeave}
     >
       {displayRef && <strong style={{ color: 'var(--text-secondary)' }}>{displayRef} · </strong>}
-      {`${fullText.slice(0, 40)}...`}
+      {truncateAtWord(fullText, maxChars)}…{' '}
+      <button
+        type="button"
+        className="cp-more-link"
+        ref={moreRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          setTargetRect(e.currentTarget.getBoundingClientRect());
+          setShowTooltip(v => !v);
+        }}
+        onKeyDown={(e) => { if (e.key === 'Escape') setShowTooltip(false); }}
+        onBlur={() => setShowTooltip(false)}
+        aria-expanded={showTooltip}
+      >
+        more
+      </button>
       <ProgressTooltip
         title={displayRef ? `${displayRef} Details` : "Project Details"}
         description={fullText}
         targetRect={targetRect}
         visible={showTooltip}
+        placement="bottom"
         onMouseEnter={handleTooltipMouseEnter}
         onMouseLeave={handleTooltipMouseLeave}
       />
