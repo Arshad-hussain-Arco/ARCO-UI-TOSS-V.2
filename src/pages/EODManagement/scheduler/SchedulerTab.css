@@ -115,6 +115,7 @@
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
   font: inherit;
+  font-weight: 400;
 }
 .eodsch input:focus-visible,
 .eodsch select:focus-visible,
@@ -505,4 +506,62 @@
 .eodsch-node.eodsch-tone-run .eodsch-node-name,
 .eodsch-node.eodsch-tone-wait .eodsch-node-name {
   fill: var(--text-primary);
+}
+
+.eodsch-field small,
+.eodsch-field-inline small {
+  font-weight: 400;
+}
+
+/* Problem boxes and chips: keep the text readable in dark mode (the tinted backgrounds are strong there), colour carries on the border */
+.eodsch-problems-bad {
+  color: var(--text-primary);
+  border-left: 4px solid var(--c-danger);
+}
+.eodsch-problems-warn {
+  border-left: 4px solid var(--c-warning);
+}
+.eodsch-error {
+  color: var(--text-primary);
+  border-left: 4px solid var(--c-danger);
+}
+.eodsch-chip {
+  color: var(--text-primary);
+  border: 1px solid transparent;
+}
+.eodsch-chip.eodsch-tone-good {
+  border-color: var(--c-success);
+  color: var(--text-primary);
+}
+.eodsch-chip.eodsch-tone-bad {
+  border-color: var(--c-danger);
+  color: var(--text-primary);
+}
+.eodsch-chip.eodsch-tone-run {
+  border-color: var(--c-info);
+  color: var(--text-primary);
+}
+.eodsch-chip.eodsch-tone-wait {
+  border-color: var(--c-warning);
+  color: var(--text-primary);
+}
+
+/* Narrow screens: the section tabs scroll sideways instead of widening the page; the schedule column keeps one line */
+.eodsch-subtabs {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.eodsch-subtab {
+  flex: 0 0 auto;
+}
+.eodsch-table td:nth-child(2) {
+  white-space: nowrap;
+}
+.eodsch {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.eodsch-envbar,
+.eodsch-toolbar {
+  min-width: 0;
 }

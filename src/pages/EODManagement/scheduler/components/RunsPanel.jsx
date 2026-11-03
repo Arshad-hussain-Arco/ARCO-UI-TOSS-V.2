@@ -12,9 +12,10 @@ function Chip({ tone, children }) {
   return <span className={`eodsch-chip eodsch-tone-${tone}`}>{children}</span>;
 }
 
-function LogViewer({ env, runId, jobs }) {
+function LogViewer({ env, runId, jobs, running }) {
   const [job, setJob] = useState('');
   const log = useResource(() => svc.getRunLog(env, runId, job), [env, runId, job]);
+  usePolling(() => log.reload(true), 4000, running);
   return (
     <div className="eodsch-card">
       <div className="eodsch-toolbar">
@@ -175,7 +176,7 @@ function RunDetail({ env, runId, onChanged }) {
           <p className="eodsch-muted">Conditions set: {conditions.join(', ')}</p>
         ) : null}
       </div>
-      <LogViewer env={env} runId={runId} jobs={jobs} />
+      <LogViewer env={env} runId={runId} jobs={jobs} running={running} />
       <AdminModal
         title="Cancel this run?"
         isOpen={confirm}

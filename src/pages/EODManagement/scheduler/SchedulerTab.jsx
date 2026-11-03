@@ -7,7 +7,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { isEnvironmentCode } from './schedulerModel';
-import { useResource } from './useResource';
+import { usePolling, useResource } from './useResource';
 import { RunsPanel } from './components/RunsPanel';
 import { SchedulePanel } from './components/SchedulePanel';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -48,6 +48,7 @@ export function SchedulerTab() {
   const { hasPermission } = useAuth();
   const toast = useToast();
   const envs = useResource(() => svc.listEnvironments(), []);
+  usePolling(() => envs.reload(true), 15000); // who serves which environment changes without any click
   const [env, setEnv] = useState(remembered);
   const [section, setSection] = useState('workflow');
   const [focusRun, setFocusRun] = useState('');
