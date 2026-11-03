@@ -198,6 +198,7 @@ export const routes = [
                       'EOD_CONFIG_VIEW',
                       'EOD_SCHEDULE_VIEW',
                       'EOD_CONTROL_VIEW',
+                      'EOD_SCHEDULER_VIEW',
                     ]}
                   >
                     <EODManagementPage />

@@ -1,0 +1,508 @@
+/* ============================================================
+   EOD Management — Scheduler tab. Tokens only (theme/tokens.css), so dark mode follows the theme.
+   ============================================================ */
+
+.eodsch {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 24px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+}
+.eodsch-pad {
+  padding: 16px;
+}
+.eodsch-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.eodsch-muted {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.eodsch-bad {
+  color: var(--c-danger);
+}
+
+.eodsch-envbar,
+.eodsch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.eodsch-envbar {
+  padding: 8px 12px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+.eodsch-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.eodsch-subtabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-primary);
+}
+.eodsch-subtab {
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.eodsch-subtab:hover {
+  color: var(--text-primary);
+}
+.eodsch-subtab[data-active='true'] {
+  color: var(--c-primary);
+  border-bottom-color: var(--c-primary);
+}
+.eodsch-subtab:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.eodsch-card {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 12px;
+}
+.eodsch-empty {
+  padding: 32px;
+  text-align: center;
+  background: var(--surface-primary);
+  border: 1px dashed var(--border-secondary);
+  border-radius: 8px;
+}
+.eodsch-error {
+  padding: 10px 12px;
+  color: var(--c-danger);
+  background: var(--c-danger-light);
+  border-radius: 8px;
+}
+.eodsch-card .eodsch-toolbar {
+  margin-bottom: 8px;
+}
+
+/* Forms */
+.eodsch input[type='text'],
+.eodsch input[type='number'],
+.eodsch input[type='password'],
+.eodsch input[type='search'],
+.eodsch select,
+.eodsch textarea,
+.admin-modal-shell .eodsch-field input,
+.admin-modal-shell .eodsch-field select,
+.admin-modal-shell .eodsch-field textarea {
+  min-height: 32px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  font: inherit;
+}
+.eodsch input:focus-visible,
+.eodsch select:focus-visible,
+.eodsch textarea:focus-visible,
+.admin-modal-shell .eodsch-field input:focus-visible,
+.admin-modal-shell .eodsch-field select:focus-visible,
+.admin-modal-shell .eodsch-field textarea:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+.eodsch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.eodsch-field,
+.eodsch-field-inline > span,
+.eodsch-field-inline {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.eodsch-field input,
+.eodsch-field select,
+.eodsch-field textarea,
+.eodsch-field-inline input,
+.eodsch-field-inline select {
+  font-weight: 400;
+}
+.eodsch-field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.eodsch-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.eodsch-settings {
+  max-width: 640px;
+}
+.eodsch-inline-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.eodsch-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 400;
+}
+.eodsch-mono,
+.eodsch code,
+.eodsch-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.eodsch-search {
+  min-width: 240px;
+}
+
+/* Link-style buttons inside tables */
+.eodsch-link {
+  padding: 0;
+  color: var(--c-primary);
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.eodsch-link:hover {
+  text-decoration: underline;
+}
+.eodsch-link:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Stats */
+.eodsch-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.eodsch-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+  padding: 8px 12px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+.eodsch-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+.eodsch-stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.eodsch-stat[data-bad='true'] {
+  border-color: var(--c-danger);
+}
+.eodsch-stat[data-bad='true'] .eodsch-stat-value {
+  color: var(--c-danger);
+}
+
+/* Problems and approval */
+.eodsch-problems {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.eodsch-problems summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.eodsch-problems ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.eodsch-problems-bad {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+.eodsch-problems-warn {
+  background: var(--c-warning-light);
+  color: var(--text-primary);
+}
+.eodsch-approval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  background: var(--surface-primary);
+}
+.eodsch-approval-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.eodsch-approval-approved {
+  border-color: var(--c-success);
+  background: var(--c-success-light);
+  color: var(--text-primary);
+}
+.eodsch-approval-blocked {
+  border-color: var(--c-danger);
+}
+.eodsch-approval-pending {
+  border-color: var(--c-warning);
+}
+
+/* Tables */
+.eodsch-table-wrap {
+  overflow: auto;
+}
+.eodsch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.eodsch-table th {
+  position: sticky;
+  top: 0;
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--text-secondary);
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+.eodsch-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-tertiary);
+  vertical-align: top;
+}
+.eodsch-table tr[data-selected='true'] td {
+  background: var(--c-primary-light);
+}
+.eodsch-table td[data-bad='true'] {
+  color: var(--c-danger);
+}
+.eodsch-cell-command {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.eodsch-row-actions {
+  display: flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.eodsch-more {
+  padding: 8px;
+  text-align: center;
+}
+
+.eodsch-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.eodsch-split-runs {
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+}
+@media (max-width: 960px) {
+  .eodsch-split,
+  .eodsch-split-runs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.eodsch-side {
+  position: sticky;
+  top: 8px;
+}
+.eodsch-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.eodsch-details dt {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.eodsch-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Status chips: one tone vocabulary for runs, jobs and graph nodes */
+.eodsch-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.eodsch-chip.eodsch-tone-good {
+  background: var(--c-success-light);
+  color: var(--c-success);
+}
+.eodsch-chip.eodsch-tone-bad {
+  background: var(--c-danger-light);
+  color: var(--c-danger);
+}
+.eodsch-chip.eodsch-tone-run {
+  background: var(--c-info-light);
+  color: var(--c-info);
+}
+.eodsch-chip.eodsch-tone-wait {
+  background: var(--c-warning-light);
+  color: var(--c-warning);
+}
+.eodsch-chip.eodsch-tone-off,
+.eodsch-chip.eodsch-tone-idle {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+/* Log */
+.eodsch-log {
+  max-height: 360px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Dependency graph */
+.eodsch-graph-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.eodsch-legend {
+  padding-left: 22px;
+  position: relative;
+}
+.eodsch-legend::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 16px;
+  border-top: 2px solid currentColor;
+}
+.eodsch-graph-scroll {
+  max-height: 460px;
+  overflow: auto;
+  border: 1px solid var(--border-tertiary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+.eodsch-edge {
+  fill: none;
+}
+.eodsch-edge-info {
+  stroke: var(--c-info);
+  color: var(--c-info);
+}
+.eodsch-edge-danger {
+  stroke: var(--c-danger);
+  color: var(--c-danger);
+}
+.eodsch-edge-muted {
+  stroke: var(--text-tertiary);
+  color: var(--text-tertiary);
+}
+.eodsch-arrow-info {
+  fill: var(--c-info);
+}
+.eodsch-arrow-danger {
+  fill: var(--c-danger);
+}
+.eodsch-arrow-muted {
+  fill: var(--text-tertiary);
+}
+.eodsch-node {
+  cursor: pointer;
+}
+.eodsch-node rect {
+  fill: var(--surface-primary);
+  stroke: var(--border-secondary);
+  stroke-width: 1.5;
+}
+.eodsch-node:focus-visible rect {
+  stroke: var(--border-focus);
+  stroke-width: 3;
+  outline: none;
+}
+.eodsch-node[data-selected='true'] rect {
+  stroke: var(--c-primary);
+  stroke-width: 3;
+}
+.eodsch-node-name {
+  fill: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.eodsch-node-state {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+.eodsch-node.eodsch-tone-good rect {
+  fill: var(--c-success-light);
+  stroke: var(--c-success);
+}
+.eodsch-node.eodsch-tone-bad rect {
+  fill: var(--c-danger-light);
+  stroke: var(--c-danger);
+}
+.eodsch-node.eodsch-tone-run rect {
+  fill: var(--c-info-light);
+  stroke: var(--c-info);
+}
+.eodsch-node.eodsch-tone-wait rect {
+  fill: var(--c-warning-light);
+  stroke: var(--c-warning);
+}
+.eodsch-node.eodsch-tone-off rect {
+  fill: var(--bg-tertiary);
+  stroke: var(--border-secondary);
+}
+.eodsch-node.eodsch-tone-good .eodsch-node-name,
+.eodsch-node.eodsch-tone-bad .eodsch-node-name,
+.eodsch-node.eodsch-tone-run .eodsch-node-name,
+.eodsch-node.eodsch-tone-wait .eodsch-node-name {
+  fill: var(--text-primary);
+}

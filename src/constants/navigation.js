@@ -70,9 +70,15 @@ export const SIDEBAR_NAVIGATION = [
     label: 'EOD Management',
     icon: Sunset,
     to: ROUTES.EOD_MANAGEMENT,
-    // 4 independent tab-view permissions, no single screen-level code —
-    // visible if the user can see any one of the 4 tabs.
-    permissions: ['EOD_OVERVIEW_VIEW', 'EOD_CONFIG_VIEW', 'EOD_SCHEDULE_VIEW', 'EOD_CONTROL_VIEW'],
+    // 5 independent tab-view permissions, no single screen-level code —
+    // visible if the user can see any one of the 5 tabs.
+    permissions: [
+      'EOD_OVERVIEW_VIEW',
+      'EOD_CONFIG_VIEW',
+      'EOD_SCHEDULE_VIEW',
+      'EOD_CONTROL_VIEW',
+      'EOD_SCHEDULER_VIEW',
+    ],
   },
   {
     id: 'consultants',

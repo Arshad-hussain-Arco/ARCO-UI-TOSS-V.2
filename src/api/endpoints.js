@@ -286,6 +286,28 @@ const endpoints = {
     groupUpdate: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/update/`,
     groupDelete: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/delete/`,
   },
+  // Control-M style EOD scheduler (backend app eod_scheduler). Everything except the environment list is scoped to one environment code.
+  eodScheduler: {
+    environments: '/eod-scheduler/environments/',
+    environment: (env) => `/eod-scheduler/environments/${encodeURIComponent(env)}/`,
+    workflow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/`,
+    upload: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/upload/`,
+    approve: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/approve/`,
+    settings: (env) => `/eod-scheduler/${encodeURIComponent(env)}/settings/`,
+    schedule: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedule/`,
+    scheduler: (env) => `/eod-scheduler/${encodeURIComponent(env)}/scheduler/`,
+    runs: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/`,
+    run: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/`,
+    runLog: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/log/`,
+    runCancel: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/cancel/`,
+    runNow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/run-now/`,
+    command: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/commands/${id}/`,
+    targets: (env) => `/eod-scheduler/${encodeURIComponent(env)}/targets/`,
+    target: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/`,
+    targetSecret: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/secret/`,
+    nodeMappings: (env) => `/eod-scheduler/${encodeURIComponent(env)}/node-mappings/`,
+    readiness: (env) => `/eod-scheduler/${encodeURIComponent(env)}/ssh-readiness/`,
+  },
 };
 
 export default endpoints;

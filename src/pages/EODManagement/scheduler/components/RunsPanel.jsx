@@ -1,0 +1,286 @@
+import { useEffect, useState } from 'react';
+import { RefreshCw, XCircle } from 'lucide-react';
+import { Button } from '@components/ui/Button/Button';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { useAuth } from '@hooks/useAuth';
+import { useToast } from '@hooks/useToast';
+import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
+import { formatDuration, jobTone, runTone, secondsBetween } from '../schedulerModel';
+import { usePolling, useResource } from '../useResource';
+
+function Chip({ tone, children }) {
+  return <span className={`eodsch-chip eodsch-tone-${tone}`}>{children}</span>;
+}
+
+function LogViewer({ env, runId, jobs }) {
+  const [job, setJob] = useState('');
+  const log = useResource(() => svc.getRunLog(env, runId, job), [env, runId, job]);
+  return (
+    <div className="eodsch-card">
+      <div className="eodsch-toolbar">
+        <label className="eodsch-field-inline">
+          Log
+          <select value={job} onChange={(e) => setJob(e.target.value)}>
+            <option value="">Workflow log</option>
+            {jobs.map((j) => (
+              <option key={j.job} value={j.job}>
+                {j.job}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          variant="ghost"
+          size="sm"
+          leadingIcon={RefreshCw}
+          onClick={() => log.reload()}
+          aria-label="Reload the log"
+        />
+      </div>
+      {log.error ? (
+        <div className="eodsch-error" role="alert">
+          {log.error}
+        </div>
+      ) : null}
+      {/* plain text only: never rendered as HTML */}
+      <pre className="eodsch-log">{log.loading && !log.data ? 'Loading…' : log.data}</pre>
+    </div>
+  );
+}
+
+function RunDetail({ env, runId, onChanged }) {
+  const { hasPermission } = useAuth();
+  const toast = useToast();
+  const detail = useResource(() => svc.getRun(env, runId), [env, runId]);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const running = detail.data?.run?.status === 'RUNNING';
+  usePolling(() => detail.reload(true), 4000, running);
+
+  useEffect(() => {
+    if (detail.data && !running) onChanged?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
+  const cancel = async () => {
+    setBusy(true);
+    try {
+      await svc.cancelRun(env, runId);
+      toast.success(
+        'Cancel requested. Running jobs are asked to stop; a remote command cannot be killed and is reported as uncertain if it does not end.',
+      );
+      setConfirm(false);
+      detail.reload(true);
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (detail.loading && !detail.data) return <p className="eodsch-muted">Loading the run…</p>;
+  if (detail.error)
+    return (
+      <div className="eodsch-error" role="alert">
+        {detail.error}
+      </div>
+    );
+  const { run, jobs, attempts, conditions } = detail.data;
+
+  return (
+    <div className="eodsch-stack">
+      <div className="eodsch-card">
+        <div className="eodsch-toolbar">
+          <div>
+            <strong>{run.run_id}</strong> <Chip tone={runTone(run.status)}>{run.status}</Chip>
+            <div className="eodsch-muted">
+              {run.run_type} · business date {run.odate} · started {run.started} ·{' '}
+              {run.ended ? `ended ${run.ended}` : 'still running'}
+              {run.message ? ` · ${run.message}` : ''}
+            </div>
+          </div>
+          {running && hasPermission('EOD_SCHEDULER_EXECUTE') ? (
+            <Button
+              variant="danger"
+              size="sm"
+              leadingIcon={XCircle}
+              onClick={() => setConfirm(true)}
+            >
+              Cancel run
+            </Button>
+          ) : null}
+        </div>
+        <div className="eodsch-table-wrap">
+          <table className="eodsch-table">
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Status</th>
+                <th>Tries</th>
+                <th>Exit</th>
+                <th>Time</th>
+                <th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.map((j) => (
+                <tr key={j.job}>
+                  <td>{j.job}</td>
+                  <td>
+                    <Chip tone={jobTone(j.status)}>{j.status}</Chip>
+                  </td>
+                  <td>{j.attempts}</td>
+                  <td>{j.exit_code ?? '—'}</td>
+                  <td>{formatDuration(j.duration ?? secondsBetween(j.started, j.ended))}</td>
+                  <td className="eodsch-cell-command" title={j.reason}>
+                    {j.reason || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {attempts.length ? (
+          <details>
+            <summary>{attempts.length} attempt(s)</summary>
+            <table className="eodsch-table">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>#</th>
+                  <th>Status</th>
+                  <th>Exit</th>
+                  <th>Time</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((a) => (
+                  <tr key={`${a.job}-${a.attempt}`}>
+                    <td>{a.job}</td>
+                    <td>{a.attempt}</td>
+                    <td>{a.status}</td>
+                    <td>{a.exit_code ?? '—'}</td>
+                    <td>{formatDuration(a.duration)}</td>
+                    <td className="eodsch-cell-command" title={a.error}>
+                      {a.error || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        ) : null}
+        {conditions.length ? (
+          <p className="eodsch-muted">Conditions set: {conditions.join(', ')}</p>
+        ) : null}
+      </div>
+      <LogViewer env={env} runId={runId} jobs={jobs} />
+      <AdminModal
+        title="Cancel this run?"
+        isOpen={confirm}
+        onClose={() => !busy && setConfirm(false)}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirm(false)} disabled={busy}>
+              Keep running
+            </Button>
+            <Button variant="danger" onClick={cancel} isLoading={busy}>
+              Cancel run
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Jobs that have not started will be skipped. A command already running on a target server
+          is not killed by SSH; if it does not end, the job is reported as uncertain and is never
+          retried automatically.
+        </p>
+      </AdminModal>
+    </div>
+  );
+}
+
+/** Run history of one environment with per-job results, attempts and logs. Refreshes while a run is active. */
+export function RunsPanel({ env, focusRun }) {
+  const runs = useResource(() => svc.listRuns(env), [env]);
+  const [selected, setSelected] = useState(focusRun || '');
+  const anyRunning = (runs.data ?? []).some((r) => r.status === 'RUNNING');
+  usePolling(() => runs.reload(true), 5000, true);
+
+  useEffect(() => {
+    if (focusRun) setSelected(focusRun);
+  }, [focusRun]);
+
+  if (runs.loading && !runs.data) return <p className="eodsch-muted">Loading runs…</p>;
+  if (runs.error)
+    return (
+      <div className="eodsch-error" role="alert">
+        {runs.error}
+      </div>
+    );
+
+  return (
+    <div className="eodsch-split eodsch-split-runs">
+      <div className="eodsch-card eodsch-table-wrap">
+        <div className="eodsch-toolbar">
+          <strong>Runs</strong>
+          {anyRunning ? <Chip tone="run">live</Chip> : null}
+        </div>
+        <table className="eodsch-table">
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.data.map((r) => (
+              <tr key={r.run_id} data-selected={r.run_id === selected}>
+                <td>
+                  <button
+                    type="button"
+                    className="eodsch-link"
+                    aria-pressed={r.run_id === selected}
+                    onClick={() => setSelected(r.run_id)}
+                  >
+                    {r.run_id}
+                  </button>
+                </td>
+                <td>{r.run_type}</td>
+                <td>
+                  <Chip tone={runTone(r.status)}>{r.status}</Chip>
+                </td>
+                <td>{r.started}</td>
+              </tr>
+            ))}
+            {!runs.data.length ? (
+              <tr>
+                <td colSpan={4} className="eodsch-muted">
+                  No runs yet in this environment.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        {selected ? (
+          <RunDetail
+            key={selected}
+            env={env}
+            runId={selected}
+            onChanged={() => runs.reload(true)}
+          />
+        ) : (
+          <p className="eodsch-muted">Select a run to see its jobs and logs.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default RunsPanel;
