@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Component, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -6,7 +6,7 @@ import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { isEnvironmentCode } from './schedulerModel';
+import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
 import { RunsPanel } from './components/RunsPanel';
 import { SchedulePanel } from './components/SchedulePanel';
@@ -39,6 +39,34 @@ const remember = (code) => {
     /* storage can be blocked: the choice simply is not remembered */
   }
 };
+
+class TabBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="eodsch-pad">
+        <div className="eodsch-error" role="alert">
+          Something went wrong while showing this section:{' '}
+          {String(this.state.error?.message || this.state.error)}
+          <div>
+            <Button size="sm" variant="outline" onClick={() => this.setState({ error: null })}>
+              Try again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
 
 /**
  * The Control-M style scheduler. Everything in it belongs to ONE environment (Dev, SIT, UAT ...): its own workflow, approval, settings, target
@@ -166,6 +194,12 @@ export function SchedulerTab() {
         </div>
       </div>
 
+      {engineNotice(current) ? (
+        <div className={`eodsch-notice eodsch-notice-${engineNotice(current).tone}`} role="status">
+          {engineNotice(current).text}
+        </div>
+      ) : null}
+
       {!current ? (
         <div className="eodsch-empty">
           <strong>No environment yet.</strong>
@@ -192,21 +226,23 @@ export function SchedulerTab() {
               </button>
             ))}
           </div>
-          <div className="eodsch-section" key={`${env}-${section}`}>
-            {section === 'workflow' ? (
-              <WorkflowPanel
-                env={env}
-                onRunStarted={(id) => {
-                  setFocusRun(id || '');
-                  setSection('runs');
-                }}
-              />
-            ) : null}
-            {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
-            {section === 'schedule' ? <SchedulePanel env={env} /> : null}
-            {section === 'targets' ? <TargetsPanel env={env} /> : null}
-            {section === 'settings' ? <SettingsPanel env={env} /> : null}
-          </div>
+          <TabBoundary key={`${env}-${section}`}>
+            <div className="eodsch-section">
+              {section === 'workflow' ? (
+                <WorkflowPanel
+                  env={env}
+                  onRunStarted={(id) => {
+                    setFocusRun(id || '');
+                    setSection('runs');
+                  }}
+                />
+              ) : null}
+              {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
+              {section === 'schedule' ? <SchedulePanel env={env} /> : null}
+              {section === 'targets' ? <TargetsPanel env={env} /> : null}
+              {section === 'settings' ? <SettingsPanel env={env} /> : null}
+            </div>
+          </TabBoundary>
         </>
       )}
 

@@ -246,3 +246,37 @@ export function filterJobs(jobs, query) {
     ),
   );
 }
+
+/**
+ * What the environment bar should warn about, from the environment record the API returns ({enabled, engine: {mode, publish_error, heartbeat}}).
+ * tones: bad (nothing will run), warn (will not run until something is started), info (works, but not the production set-up).
+ */
+export function engineNotice(environment) {
+  if (!environment || !environment.enabled) return null;
+  const engine = environment.engine;
+  if (!engine) {
+    return {
+      tone: 'warn',
+      text: 'No engine is serving this environment, so Run all now and the scheduler do nothing. Start one: python manage.py run_eod_engine',
+    };
+  }
+  if (engine.mode === 'refusing') {
+    return {
+      tone: 'bad',
+      text: 'An engine is serving this environment but is not set up to run jobs: EOD_SCHEDULER_EXECUTION_MODE is not set on the engine. Every job would fail with "no SSH launcher is configured".',
+    };
+  }
+  if (engine.publish_error) {
+    return {
+      tone: 'bad',
+      text: `The engine cannot reach the job queue (${engine.publish_error}). Jobs stay pending and fail after 15 minutes until the broker is reachable.`,
+    };
+  }
+  if (engine.mode === 'inline') {
+    return {
+      tone: 'info',
+      text: 'Development mode: the engine itself runs commands over SSH (no Celery worker). Use queue mode with workers in production.',
+    };
+  }
+  return null;
+}

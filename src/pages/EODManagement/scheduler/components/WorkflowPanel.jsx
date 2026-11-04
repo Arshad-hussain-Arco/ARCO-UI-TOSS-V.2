@@ -174,7 +174,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
     try {
       const { command_id: id } = await svc.runNow(env, body);
       let answer = null;
-      for (let i = 0; i < 30; i += 1) {
+      for (let i = 0; i < 34; i += 1) {
         await new Promise((r) => setTimeout(r, 1000));
         answer = await svc.getCommand(env, id);
         if (!['PENDING', 'CLAIMED'].includes(answer.status)) break;
@@ -187,7 +187,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
         toast.error(answer.result?.message || `The engine answered ${answer.status}.`);
       } else {
         toast.error(
-          'No engine has picked the request up yet. Is the engine running for this environment? It will start when one does.',
+          'No engine answered within 30 seconds, so the request has expired and nothing was started. Make sure an engine is running for this environment (the bar at the top says whether one is serving it), then try again.',
         );
       }
     } catch (err) {

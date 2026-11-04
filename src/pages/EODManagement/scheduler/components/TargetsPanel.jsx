@@ -18,6 +18,7 @@ const EMPTY = {
   pin: true,
   fingerprint: '',
   enabled: true,
+  secret: '',
 };
 
 const CHECK_LABELS = {
@@ -38,6 +39,7 @@ function formOf(t) {
     pin: t.host_key.policy === 'strict-fingerprint',
     fingerprint: t.host_key.fingerprint || '',
     enabled: t.enabled,
+    secret: '',
   };
 }
 
@@ -113,10 +115,16 @@ export function TargetsPanel({ env }) {
 
   const save = () =>
     run(
-      () =>
-        form.id
-          ? svc.updateTarget(env, form.id, bodyOf(form))
-          : svc.createTarget(env, bodyOf(form)),
+      async () => {
+        const saved = form.id
+          ? await svc.updateTarget(env, form.id, bodyOf(form))
+          : await svc.createTarget(env, bodyOf(form));
+        // the secret goes through its own write-only endpoint, after the server exists (a failure here keeps the dialog open on the saved server)
+        if (form.method !== 'unconfigured' && form.secret) {
+          setForm((f) => ({ ...f, id: saved.id }));
+          await svc.setTargetSecret(env, saved.id, form.secret);
+        }
+      },
       form.id
         ? 'Target server updated. If it was approved, review and approve again.'
         : 'Target server added.',
@@ -395,7 +403,7 @@ export function TargetsPanel({ env }) {
                   </option>
                 ))}
               </select>
-              {form.id && form.method !== formOf(targets.find((t) => t.id === form.id)).method ? (
+              {form.id && targets.find((t) => t.id === form.id)?.auth.method !== form.method ? (
                 <small className="eodsch-bad">Changing the method removes the saved secret.</small>
               ) : null}
             </label>
@@ -419,6 +427,38 @@ export function TargetsPanel({ env }) {
                 <small className="eodsch-muted">
                   Read it on the server: ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256.
                   Do not copy it from a first connection.
+                </small>
+              </label>
+            ) : null}
+            {form.method === 'private_key' ? (
+              <label className="eodsch-field">
+                Private key (optional now; unencrypted RSA, ECDSA or Ed25519)
+                <textarea
+                  rows={6}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="eodsch-mono"
+                  value={form.secret}
+                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
+                />
+                <small className="eodsch-muted">
+                  Encrypted before it is stored and never shown again.{' '}
+                  {form.id ? 'Leave empty to keep the saved key.' : ''}
+                </small>
+              </label>
+            ) : null}
+            {form.method === 'password' ? (
+              <label className="eodsch-field">
+                Password (optional now)
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={form.secret}
+                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
+                />
+                <small className="eodsch-muted">
+                  Encrypted before it is stored and never shown again.{' '}
+                  {form.id ? 'Leave empty to keep the saved password.' : ''}
                 </small>
               </label>
             ) : null}

@@ -565,3 +565,21 @@
 .eodsch-toolbar {
   min-width: 0;
 }
+
+.eodsch-notice {
+  padding: 8px 12px;
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  border: 1px solid var(--border-primary);
+  border-left-width: 4px;
+  border-radius: 8px;
+}
+.eodsch-notice-bad {
+  border-left-color: var(--c-danger);
+}
+.eodsch-notice-warn {
+  border-left-color: var(--c-warning);
+}
+.eodsch-notice-info {
+  border-left-color: var(--c-info);
+}

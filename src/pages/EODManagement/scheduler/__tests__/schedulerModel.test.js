@@ -287,3 +287,40 @@ test('the job filter searches name, command, target and schedule', () => {
   );
   assert.equal(filterJobs(jobs, 'zzz').length, 0);
 });
+
+test('the engine notice says what is wrong, and stays quiet when all is well', async () => {
+  const { engineNotice } = await import('../schedulerModel.js');
+  assert.equal(engineNotice(null), null);
+  assert.equal(
+    engineNotice({ enabled: false, engine: null }),
+    null,
+    'a disabled environment needs no engine',
+  );
+  assert.equal(engineNotice({ enabled: true, engine: null }).tone, 'warn');
+  assert.match(engineNotice({ enabled: true, engine: null }).text, /run_eod_engine/);
+  const refusing = engineNotice({ enabled: true, engine: { mode: 'refusing' } });
+  assert.equal(refusing.tone, 'bad');
+  assert.match(refusing.text, /EOD_SCHEDULER_EXECUTION_MODE/);
+  const broker = engineNotice({
+    enabled: true,
+    engine: { mode: 'queue', publish_error: 'ConnectionError: refused' },
+  });
+  assert.equal(broker.tone, 'bad');
+  assert.match(broker.text, /ConnectionError: refused/);
+  assert.equal(
+    engineNotice({ enabled: true, engine: { mode: 'inline', publish_error: null } }).tone,
+    'info',
+  );
+  assert.equal(
+    engineNotice({ enabled: true, engine: { mode: 'queue', publish_error: null } }),
+    null,
+  );
+  assert.equal(
+    engineNotice({ enabled: true, engine: { mode: 'custom', publish_error: null } }),
+    null,
+  );
+  assert.equal(
+    engineNotice({ enabled: true, engine: { mode: 'refusing', publish_error: 'x' } }).tone,
+    'bad',
+  );
+});
