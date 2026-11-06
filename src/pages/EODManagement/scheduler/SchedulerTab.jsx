@@ -166,7 +166,7 @@ export function SchedulerTab() {
         {current ? (
           <span className="eodsch-muted">
             {current.engine
-              ? `Engine ${current.engine.host || ''} serving it`
+              ? 'Engine is serving it'
               : 'No engine is serving it right now'}
           </span>
         ) : null}
@@ -229,13 +229,7 @@ export function SchedulerTab() {
           <TabBoundary key={`${env}-${section}`}>
             <div className="eodsch-section">
               {section === 'workflow' ? (
-                <WorkflowPanel
-                  env={env}
-                  onRunStarted={(id) => {
-                    setFocusRun(id || '');
-                    setSection('runs');
-                  }}
-                />
+                <WorkflowPanel env={env} onRunStarted={(id) => setFocusRun(id || '')} />
               ) : null}
               {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
               {section === 'schedule' ? <SchedulePanel env={env} /> : null}

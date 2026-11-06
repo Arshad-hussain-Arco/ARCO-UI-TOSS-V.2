@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Play, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
-import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
@@ -9,11 +8,10 @@ import {
   approvalState,
   filterJobs,
   groupMessages,
-  isHHMM,
   nodeStates,
   targetLabel,
 } from '../schedulerModel';
-import { useResource } from '../useResource';
+import { usePolling, useResource } from '../useResource';
 import { DependencyGraph } from './DependencyGraph';
 
 const ROW_LIMIT = 200;
@@ -109,13 +107,20 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const [showAll, setShowAll] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [colourRun, setColourRun] = useState('');
+  const [colourChoice, setColourChoice] = useState('auto'); // 'auto' follows the live run, 'none', or the run id picked by hand
+  const folderName = wf.data?.folders?.[Math.min(folderIdx, (wf.data?.folders?.length ?? 1) - 1)]?.folder;
+  const folderRuns = (runs.data ?? []).filter((r) => r.folder === folderName); // newest first
+  const liveRun = (folderRuns.find((r) => r.status === 'RUNNING') ?? folderRuns[0])?.run_id ?? '';
+  const colourRun = colourChoice === 'auto' ? liveRun : colourChoice === 'none' ? '' : colourChoice;
   const detail = useResource(
     () => (colourRun ? svc.getRun(env, colourRun) : Promise.resolve(null)),
     [env, colourRun],
   );
-  const [runOpen, setRunOpen] = useState(false);
-  const [runForm, setRunForm] = useState({ reference: '', overlap: false, sure: false });
+  // the graph is a live view: new runs appear in the list, and the coloured run refreshes while it is running
+  const colourRunning = detail.data?.run?.status === 'RUNNING';
+  usePolling(() => runs.reload(true), 3000);
+  usePolling(() => wf.reload(true), 10000, !busy); // uploads, approvals and settings changes made by someone else
+  usePolling(() => detail.reload(true), 2000, colourRunning);
 
   const view = wf.data;
   const state = approvalState(view, hasPermission);
@@ -151,7 +156,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
       setReviewed(false);
       setSelected(null);
       setFolderIdx(0);
-      setColourRun('');
+      setColourChoice('auto');
       wf.reload();
     }
   };
@@ -168,11 +173,9 @@ export function WorkflowPanel({ env, onRunStarted }) {
   };
 
   const startRun = async () => {
-    const body = { allow_overlap: runForm.overlap };
-    if (runForm.reference) body.reference = runForm.reference;
     setBusy(true);
     try {
-      const { command_id: id } = await svc.runNow(env, body);
+      const { command_id: id } = await svc.runNow(env, { allow_overlap: false });
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
         await new Promise((r) => setTimeout(r, 1000));
@@ -181,7 +184,8 @@ export function WorkflowPanel({ env, onRunStarted }) {
       }
       if (answer?.status === 'DONE') {
         toast.success('The engine accepted the run.');
-        setRunOpen(false);
+        setColourChoice('auto'); // stay on this tab and show the new run in the graph
+        runs.reload(true);
         onRunStarted?.(answer.result?.runs?.[0]?.run_id);
       } else if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
         toast.error(answer.result?.message || `The engine answered ${answer.status}.`);
@@ -196,9 +200,6 @@ export function WorkflowPanel({ env, onRunStarted }) {
       setBusy(false);
     }
   };
-
-  const refMsg =
-    runForm.reference && !isHHMM(runForm.reference) ? 'Use HH:MM, for example 18:30.' : '';
 
   if (wf.loading && !view) return <p className="eodsch-muted">Loading the workflow…</p>;
   if (wf.error) {
@@ -314,14 +315,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 </>
               ) : null}
               {state.state === 'approved' && state.canRun ? (
-                <Button
-                  size="sm"
-                  leadingIcon={Play}
-                  onClick={() => {
-                    setRunForm({ reference: '', overlap: false, sure: false });
-                    setRunOpen(true);
-                  }}
-                >
+                <Button size="sm" leadingIcon={Play} isLoading={busy} onClick={startRun}>
                   Run all now
                 </Button>
               ) : null}
@@ -353,8 +347,15 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 )}
                 <label className="eodsch-field-inline">
                   Colour by run
-                  <select value={colourRun} onChange={(e) => setColourRun(e.target.value)}>
-                    <option value="">none</option>
+                  <select
+                    value={colourRun || 'none'}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      // picking the run that is being followed keeps following; any other run is a manual choice
+                      setColourChoice(v === liveRun ? 'auto' : v);
+                    }}
+                  >
+                    <option value="none">none</option>
                     {(runs.data ?? [])
                       .filter((r) => r.folder === folder?.folder)
                       .map((r) => (
@@ -364,6 +365,11 @@ export function WorkflowPanel({ env, onRunStarted }) {
                       ))}
                   </select>
                 </label>
+                {colourChoice !== 'auto' && liveRun ? (
+                  <Button size="sm" variant="outline" onClick={() => setColourChoice('auto')}>
+                    Follow the live run
+                  </Button>
+                ) : null}
               </div>
               <input
                 className="eodsch-search"
@@ -441,56 +447,6 @@ export function WorkflowPanel({ env, onRunStarted }) {
           </div>
         </>
       ) : null}
-
-      <AdminModal
-        title="Run all now"
-        isOpen={runOpen}
-        onClose={() => !busy && setRunOpen(false)}
-        size="sm"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setRunOpen(false)} disabled={busy}>
-              Cancel
-            </Button>
-            <Button onClick={startRun} isLoading={busy} disabled={!runForm.sure || Boolean(refMsg)}>
-              Start now
-            </Button>
-          </>
-        }
-      >
-        <p>
-          This starts the approved workflow in <strong>{env}</strong> on its target servers now. The
-          earliest job starts at the reference time and the others keep their original gaps. The
-          normal schedule is not changed.
-        </p>
-        <label className="eodsch-field">
-          Reference time (optional, HH:MM, default now)
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 14:00"
-            value={runForm.reference}
-            onChange={(e) => setRunForm({ ...runForm, reference: e.target.value.trim() })}
-          />
-          {refMsg ? <small className="eodsch-bad">{refMsg}</small> : null}
-        </label>
-        <label className="eodsch-check">
-          <input
-            type="checkbox"
-            checked={runForm.overlap}
-            onChange={(e) => setRunForm({ ...runForm, overlap: e.target.checked })}
-          />
-          Allow it to overlap a run that is still active
-        </label>
-        <label className="eodsch-check">
-          <input
-            type="checkbox"
-            checked={runForm.sure}
-            onChange={(e) => setRunForm({ ...runForm, sure: e.target.checked })}
-          />
-          I understand this really runs the commands on the target servers
-        </label>
-      </AdminModal>
     </div>
   );
 }

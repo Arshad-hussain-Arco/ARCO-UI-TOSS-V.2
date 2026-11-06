@@ -57,6 +57,8 @@ function bodyOf(f) {
   };
 }
 
+const OTHER_NODEID = '__other__'; // dropdown choice that reveals a text box for a NODEID the workflow does not use (yet)
+
 /** SSH target servers of one environment, their write-only secrets, and the NODEID mappings that decide which server runs which job. */
 export function TargetsPanel({ env }) {
   const { hasPermission } = useAuth();
@@ -68,7 +70,7 @@ export function TargetsPanel({ env }) {
   const [form, setForm] = useState(null); // {id?, ...fields}
   const [secret, setSecret] = useState(null); // {target, value}
   const [removal, setRemoval] = useState(null);
-  const [map, setMap] = useState({ nodeid: '', target: '' });
+  const [map, setMap] = useState({ nodeid: '', custom: '', target: '' });
 
   const refresh = () => {
     data.reload(true);
@@ -98,6 +100,9 @@ export function TargetsPanel({ env }) {
     );
   const { targets, mappings, auth_methods: methods, secrets_available: secretsOk } = data.data;
   const nameOf = (id) => targets.find((t) => t.id === id)?.name ?? id;
+  const workflowNodeids = data.data.workflow_nodeids ?? [];
+  const unmappedNodeids = workflowNodeids.filter((n) => !n.mapped).map((n) => n.nodeid);
+  const chosenNodeid = (map.nodeid === OTHER_NODEID ? map.custom : map.nodeid).trim();
 
   const formProblem =
     form &&
@@ -300,13 +305,35 @@ export function TargetsPanel({ env }) {
           <div className="eodsch-inline-form">
             <label className="eodsch-field">
               NODEID
-              <input
-                type="text"
+              <select
                 value={map.nodeid}
                 onChange={(e) => setMap({ ...map, nodeid: e.target.value })}
-                placeholder="as written in the XML"
-              />
+              >
+                <option value="">
+                  {unmappedNodeids.length
+                    ? `choose… (${unmappedNodeids.length} not mapped yet)`
+                    : workflowNodeids.length
+                      ? 'every NODEID of the workflow is mapped'
+                      : 'choose…'}
+                </option>
+                {unmappedNodeids.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+                <option value={OTHER_NODEID}>Other (type it)…</option>
+              </select>
             </label>
+            {map.nodeid === OTHER_NODEID ? (
+              <label className="eodsch-field">
+                NODEID as written in the XML
+                <input
+                  type="text"
+                  value={map.custom}
+                  onChange={(e) => setMap({ ...map, custom: e.target.value })}
+                />
+              </label>
+            ) : null}
             <label className="eodsch-field">
               Target server
               <select
@@ -323,13 +350,13 @@ export function TargetsPanel({ env }) {
             </label>
             <Button
               size="sm"
-              disabled={!map.nodeid.trim() || !map.target}
+              disabled={!chosenNodeid || !map.target}
               isLoading={busy}
               onClick={() =>
                 run(
-                  () => svc.setMapping(env, map.nodeid.trim(), map.target),
+                  () => svc.setMapping(env, chosenNodeid, map.target),
                   'Mapping saved. If a workflow was approved, review and approve again.',
-                  () => setMap({ nodeid: '', target: '' }),
+                  () => setMap({ nodeid: '', custom: '', target: '' }),
                 )
               }
             >

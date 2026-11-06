@@ -96,6 +96,8 @@ function RunDetail({ env, runId, onChanged }) {
             <strong>{run.run_id}</strong> <Chip tone={runTone(run.status)}>{run.status}</Chip>
             <div className="eodsch-muted">
               {run.run_type} · business date {run.odate} · started {run.started} ·{' '}
+              {run.started_by ? `started by ${run.started_by} · ` : ''}
+              {run.approved_by ? `approved by ${run.approved_by} · ` : ''}
               {run.ended ? `ended ${run.ended}` : 'still running'}
               {run.message ? ` · ${run.message}` : ''}
             </div>
@@ -235,6 +237,8 @@ export function RunsPanel({ env, focusRun }) {
               <th>Run</th>
               <th>Type</th>
               <th>Status</th>
+              <th>Started by</th>
+              <th>Approved by</th>
               <th>Started</th>
             </tr>
           </thead>
@@ -255,12 +259,14 @@ export function RunsPanel({ env, focusRun }) {
                 <td>
                   <Chip tone={runTone(r.status)}>{r.status}</Chip>
                 </td>
+                <td>{r.started_by || '—'}</td>
+                <td>{r.approved_by || '—'}</td>
                 <td>{r.started}</td>
               </tr>
             ))}
             {!runs.data.length ? (
               <tr>
-                <td colSpan={4} className="eodsch-muted">
+                <td colSpan={6} className="eodsch-muted">
                   No runs yet in this environment.
                 </td>
               </tr>
