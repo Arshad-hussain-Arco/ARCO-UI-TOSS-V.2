@@ -13,6 +13,7 @@ import { SchedulePanel } from './components/SchedulePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TargetsPanel } from './components/TargetsPanel';
 import { WorkflowPanel } from './components/WorkflowPanel';
+import { SchedulesNewSection } from '../components/SchedulesNewSection';
 
 import './SchedulerTab.css';
 
@@ -20,6 +21,7 @@ const SECTIONS = [
   { key: 'workflow', label: 'Workflow', Icon: Network },
   { key: 'runs', label: 'Runs', Icon: PlayCircle },
   { key: 'schedule', label: 'Schedule', Icon: Calendar },
+  { key: 'schedules-new', label: 'Schedules (New)', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
@@ -239,6 +241,7 @@ export function SchedulerTab() {
                   ) : null}
                   {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
                   {section === 'schedule' ? <SchedulePanel env={env} /> : null}
+                  {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
                   {section === 'targets' ? <TargetsPanel env={env} /> : null}
                   {section === 'settings' ? <SettingsPanel env={env} /> : null}
                 </div>

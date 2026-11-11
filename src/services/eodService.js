@@ -2,6 +2,83 @@ import httpClient from '@api/httpClient';
 import endpoints from '@api/endpoints';
 import { formToCron, formToCronList, cronToHuman, cronGroupToHuman } from '@utils/cronUtils';
 
+const SHORT_ENV_NAMES = {
+  dev: 'DEV',
+  development: 'DEV',
+  deveopment: 'DEV',
+  uat: 'UAT',
+  'user acceptance testing': 'UAT',
+  'user acceptance': 'UAT',
+  sat: 'SAT',
+  'system acceptance testing': 'SAT',
+  'system acceptance': 'SAT',
+  sit: 'SIT',
+  'system integration testing': 'SIT',
+  staging: 'STAGING',
+  prod: 'PROD',
+  production: 'PROD',
+};
+
+export const toShortEnvName = (val) => {
+  if (!val) return 'DEV';
+  const str = String(val).trim();
+  const lower = str.toLowerCase();
+  if (SHORT_ENV_NAMES[lower]) return SHORT_ENV_NAMES[lower];
+  if (str.length <= 5) return str.toUpperCase();
+  return str.toUpperCase();
+};
+
+const SCHEDULE_META_KEY = 'toss.eod_schedules_meta.v1';
+
+export function getAllScheduleMeta() {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(SCHEDULE_META_KEY) : null;
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getScheduleMeta(id, groupId) {
+  const all = getAllScheduleMeta();
+  if (id && all[String(id)]) return all[String(id)];
+  if (groupId && all[String(groupId)]) return all[String(groupId)];
+  return null;
+}
+
+export function saveScheduleMeta(id, groupId, meta) {
+  try {
+    if (typeof window === 'undefined') return;
+    const all = getAllScheduleMeta();
+    const cleanMeta = {
+      runScope: meta?.runScope || (meta?.targetJob ? 'job' : 'batch'),
+      targetJob: meta?.targetJob || '',
+      name: meta?.name || '',
+    };
+    if (id) {
+      all[String(id)] = { ...all[String(id)], ...cleanMeta };
+    }
+    if (groupId) {
+      all[String(groupId)] = { ...all[String(groupId)], ...cleanMeta };
+    }
+    window.localStorage.setItem(SCHEDULE_META_KEY, JSON.stringify(all));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function deleteScheduleMeta(id, groupId) {
+  try {
+    if (typeof window === 'undefined') return;
+    const all = getAllScheduleMeta();
+    if (id) delete all[String(id)];
+    if (groupId) delete all[String(groupId)];
+    window.localStorage.setItem(SCHEDULE_META_KEY, JSON.stringify(all));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export const eodService = {
   /**
    * Fetches EOD overview status & metrics directly from /api/eod-jobs/overview/
@@ -125,19 +202,88 @@ export const eodService = {
   },
 
   /**
-   * Fetches lightweight list of EOD environments (id, name, status) directly from DB.
-   * Fast response without SFTP/SSH overhead, ideal for dropdowns & schedule modal.
+   * Fetches list of all EOD environments across the system (from both scheduler partitions
+   * and EOD job configurations) so all environments present in Scheduler appear in schedule modals.
    */
   getEnvironments: async () => {
-    const response = await httpClient.get(endpoints.eodJobs.environments);
-    const data = response.data || [];
-    return data.map((item) => ({
-      id: item.id,
-      name: item.environment || item.name || '',
-      environment: item.environment || item.name || '',
-      status: item.status || 'idle',
-      isActive: item.is_active !== false,
-    }));
+    try {
+      const [jobsRes, schedulerRes] = await Promise.allSettled([
+        httpClient.get(endpoints.eodJobs.environments),
+        httpClient.get(endpoints.eodScheduler.environments),
+      ]);
+
+      const jobsData =
+        jobsRes.status === 'fulfilled' && Array.isArray(jobsRes.value?.data)
+          ? jobsRes.value.data
+          : [];
+      const schedulerData =
+        schedulerRes.status === 'fulfilled' && Array.isArray(schedulerRes.value?.data)
+          ? schedulerRes.value.data
+          : [];
+
+      // If scheduler environments are available, include all environments present in Scheduler exactly as preset
+      if (schedulerData.length > 0) {
+        const merged = schedulerData.map((sch, idx) => {
+          const rawCode = sch.code || sch.name || '';
+          const code = toShortEnvName(rawCode);
+          const matched = jobsData.find(
+            (j) =>
+              (j.environment && j.environment.toLowerCase() === code.toLowerCase()) ||
+              (j.name && j.name.toLowerCase() === code.toLowerCase()) ||
+              toShortEnvName(j.environment || j.name || '').toLowerCase() === code.toLowerCase()
+          );
+          return {
+            id: matched?.id ?? sch.id ?? code ?? idx + 1,
+            code,
+            name: code,
+            environment: code,
+            fullName: sch.name || code,
+            status: matched?.status || (sch.enabled ? 'active' : 'disabled'),
+            isActive: sch.enabled !== false,
+            color: matched?.color || (sch.enabled ? '#005a36' : '#94a3b8'),
+          };
+        });
+
+        // Append any additional environments from jobsData that aren't in schedulerData
+        jobsData.forEach((j) => {
+          const name = j.environment || j.name || '';
+          const shortCode = toShortEnvName(name);
+          if (
+            !merged.some(
+              (m) =>
+                (m.code && m.code.toLowerCase() === shortCode.toLowerCase()) ||
+                (m.name && m.name.toLowerCase() === shortCode.toLowerCase()) ||
+                m.id === j.id
+            )
+          ) {
+            merged.push({
+              id: j.id,
+              code: shortCode,
+              name: shortCode,
+              environment: shortCode,
+              fullName: name,
+              status: j.status || 'idle',
+              isActive: j.is_active !== false,
+            });
+          }
+        });
+
+        return merged;
+      }
+
+      // Fallback to jobsData if scheduler environments endpoint is empty
+      return jobsData.map((item) => ({
+        id: item.id,
+        code: item.environment || item.name || '',
+        name: item.environment || item.name || '',
+        environment: item.environment || item.name || '',
+        status: item.status || 'idle',
+        isActive: item.is_active !== false,
+      }));
+    } catch (err) {
+      console.error('Failed to load environments:', err);
+      return [];
+    }
   },
 
   /**
@@ -272,6 +418,11 @@ export const eodService = {
     return response.data;
   },
 
+  getAllScheduleMeta: () => getAllScheduleMeta(),
+  getScheduleMeta: (id, groupId) => getScheduleMeta(id, groupId),
+  saveScheduleMeta: (id, groupId, meta) => saveScheduleMeta(id, groupId, meta),
+  deleteScheduleMeta: (id, groupId) => deleteScheduleMeta(id, groupId),
+
   /**
    * Fetches EOD execution schedule records directly from /api/eod-schedules/eod-schedules/
    * Reads environment_id, environment name, and cron_expression, parsing cron_expression for human UI display.
@@ -302,6 +453,18 @@ export const eodService = {
       const primary = rows[0];
       const cronExpressions = rows.map((r) => r.cron_expression);
       const parsedCron = cronGroupToHuman(cronExpressions, '22:00');
+      const meta = getScheduleMeta(primary.id, groupId) || {};
+      const runScope =
+        primary.run_scope ||
+        primary.runScope ||
+        meta.runScope ||
+        (primary.target_job || meta.targetJob ? 'job' : 'batch');
+      const targetJob = primary.target_job || primary.targetJob || meta.targetJob || '';
+      const name = primary.name || meta.name || '';
+      // Synchronize back to local storage if API returned metadata
+      if (primary.run_scope || primary.target_job || primary.name) {
+        saveScheduleMeta(primary.id, groupId, { runScope, targetJob, name });
+      }
       results.push({
         id: primary.id,
         rowIds: rows.map((r) => r.id),
@@ -319,6 +482,9 @@ export const eodService = {
         selectedMonth: parsedCron.selectedMonth,
         selectedQuarters: parsedCron.selectedQuarters,
         quarterPosition: parsedCron.quarterPosition,
+        runScope,
+        targetJob,
+        name,
         isActive: true,
         lastModifiedBy: primary.last_modified_by || '',
         lastModifiedOn: primary.last_modified_on || '',
@@ -327,6 +493,18 @@ export const eodService = {
 
     ungrouped.forEach((item) => {
       const parsedCron = cronToHuman(item.cron_expression, '22:00');
+      const meta = getScheduleMeta(item.id, null) || {};
+      const runScope =
+        item.run_scope ||
+        item.runScope ||
+        meta.runScope ||
+        (item.target_job || meta.targetJob ? 'job' : 'batch');
+      const targetJob = item.target_job || item.targetJob || meta.targetJob || '';
+      const name = item.name || meta.name || '';
+      // Synchronize back to local storage if API returned metadata
+      if (item.run_scope || item.target_job || item.name) {
+        saveScheduleMeta(item.id, null, { runScope, targetJob, name });
+      }
       results.push({
         id: item.id,
         rowIds: [item.id],
@@ -344,6 +522,9 @@ export const eodService = {
         selectedMonth: parsedCron.selectedMonth,
         selectedQuarters: parsedCron.selectedQuarters,
         quarterPosition: parsedCron.quarterPosition,
+        runScope,
+        targetJob,
+        name,
         isActive: true,
         lastModifiedBy: item.last_modified_by || '',
         lastModifiedOn: item.last_modified_on || '',
@@ -362,20 +543,40 @@ export const eodService = {
   createEodSchedule: async (payload) => {
     const cronExpressions = payload.cronExpressions || formToCronList(payload);
     const environmentId = payload.envId || payload.environment_id;
+    const runScope = payload.runScope || (payload.targetJob ? 'job' : 'batch');
+    const targetJob = payload.targetJob || '';
+    const name = payload.name || '';
 
+    let resData;
     if (cronExpressions.length > 1) {
       const response = await httpClient.post(endpoints.eodSchedules.bulkCreate, {
         environment_id: environmentId,
         cron_expressions: cronExpressions,
+        run_scope: runScope,
+        target_job: targetJob,
+        name,
       });
-      return response.data;
+      resData = response.data;
+    } else {
+      const response = await httpClient.post(endpoints.eodSchedules.create, {
+        environment_id: environmentId,
+        cron_expression: cronExpressions[0] || formToCron(payload),
+        run_scope: runScope,
+        target_job: targetJob,
+        name,
+      });
+      resData = response.data;
     }
 
-    const response = await httpClient.post(endpoints.eodSchedules.create, {
-      environment_id: environmentId,
-      cron_expression: cronExpressions[0] || formToCron(payload),
-    });
-    return response.data;
+    const firstItem = Array.isArray(resData) ? resData[0] : resData;
+    if (firstItem) {
+      saveScheduleMeta(firstItem.id, firstItem.schedule_group_id, {
+        runScope,
+        targetJob,
+        name,
+      });
+    }
+    return resData;
   },
 
   /**
@@ -388,12 +589,20 @@ export const eodService = {
     const cronExpressions = payload.cronExpressions || formToCronList(payload);
     const environmentId = payload.envId || payload.environment_id;
     const groupId = payload.groupId || payload.scheduleGroupId;
+    const runScope = payload.runScope || (payload.targetJob ? 'job' : 'batch');
+    const targetJob = payload.targetJob || '';
+    const name = payload.name || '';
+
+    saveScheduleMeta(id, groupId, { runScope, targetJob, name });
 
     if (groupId || cronExpressions.length > 1) {
       if (groupId) {
         const response = await httpClient.put(endpoints.eodSchedules.groupUpdate(groupId), {
           environment_id: environmentId,
           cron_expressions: cronExpressions,
+          run_scope: runScope,
+          target_job: targetJob,
+          name,
         });
         return response.data;
       }
@@ -402,18 +611,29 @@ export const eodService = {
       const response = await httpClient.post(endpoints.eodSchedules.bulkCreate, {
         environment_id: environmentId,
         cron_expressions: cronExpressions,
+        run_scope: runScope,
+        target_job: targetJob,
+        name,
       });
+      const firstItem = Array.isArray(response.data) ? response.data[0] : response.data;
+      if (firstItem) {
+        saveScheduleMeta(firstItem.id, firstItem.schedule_group_id, { runScope, targetJob, name });
+      }
       return response.data;
     }
 
     const response = await httpClient.put(endpoints.eodSchedules.update(id), {
       environment_id: environmentId,
       cron_expression: cronExpressions[0] || formToCron(payload),
+      run_scope: runScope,
+      target_job: targetJob,
+      name,
     });
     return response.data;
   },
 
   deleteEodSchedule: async (id, groupId) => {
+    deleteScheduleMeta(id, groupId);
     if (groupId) {
       const response = await httpClient.delete(endpoints.eodSchedules.groupDelete(groupId));
       return response.data;
