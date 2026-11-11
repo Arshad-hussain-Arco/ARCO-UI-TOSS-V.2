@@ -1,5 +1,5 @@
 import { Component, useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Calendar, Network, PlayCircle, Plus, Server, Settings } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
@@ -17,11 +17,11 @@ import { WorkflowPanel } from './components/WorkflowPanel';
 import './SchedulerTab.css';
 
 const SECTIONS = [
-  { key: 'workflow', label: 'Workflow' },
-  { key: 'runs', label: 'Runs' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'targets', label: 'Target servers' },
-  { key: 'settings', label: 'Settings' },
+  { key: 'workflow', label: 'Workflow', Icon: Network },
+  { key: 'runs', label: 'Runs', Icon: PlayCircle },
+  { key: 'schedule', label: 'Schedule', Icon: Calendar },
+  { key: 'targets', label: 'Target Server', Icon: Server },
+  { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 const STORAGE_KEY = 'toss.eodScheduler.environment';
 
@@ -145,42 +145,40 @@ export function SchedulerTab() {
       : '';
 
   return (
-    <div className="eodsch">
-      <div className="eodsch-envbar">
-        <label className="eodsch-field-inline">
-          Environment
-          <select
-            value={env}
-            onChange={(e) => choose(e.target.value)}
-            disabled={!list.length}
-            aria-label="Environment"
-          >
-            {list.map((e) => (
-              <option key={e.code} value={e.code}>
-                {e.code} — {e.name}
-                {e.enabled ? '' : ' (disabled)'}
-              </option>
-            ))}
-          </select>
-        </label>
-        {current ? (
-          <span className="eodsch-muted">
-            {current.engine
-              ? 'Engine is serving it'
-              : 'No engine is serving it right now'}
-          </span>
-        ) : null}
-        <div className="eodsch-actions">
-          {current && canAdmin ? (
-            <div className="eodsch-field-inline">
-              <span>Enabled</span>
-              <Toggle
-                checked={current.enabled}
-                onChange={setEnabled}
-                ariaLabel="Environment enabled"
-              />
-            </div>
-          ) : null}
+    <>
+      {/* Same tab bar as the EOD Management page; environment controls sit on its right */}
+      <div className="eod-tabs">
+        {current
+          ? SECTIONS.map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                className="eod-tab"
+                data-active={section === key}
+                onClick={() => setSection(key)}
+              >
+                <Icon className="eod-tab-icon" />
+                <span className="eod-tab-label">{label}</span>
+              </button>
+            ))
+          : null}
+        <div className="eodsch-topbar-right">
+          <label className="eodsch-field-inline">
+            Environment
+            <select
+              value={env}
+              onChange={(e) => choose(e.target.value)}
+              disabled={!list.length}
+              aria-label="Environment"
+            >
+              {list.map((e) => (
+                <option key={e.code} value={e.code}>
+                  {e.code} — {e.name}
+                  {e.enabled ? '' : ' (disabled)'}
+                </option>
+              ))}
+            </select>
+          </label>
           {canAdmin ? (
             <Button
               size="sm"
@@ -188,105 +186,115 @@ export function SchedulerTab() {
               leadingIcon={Plus}
               onClick={() => setCreating({ code: '', name: '' })}
             >
-              New environment
+              New Environment
             </Button>
           ) : null}
         </div>
       </div>
 
-      {engineNotice(current) ? (
-        <div className={`eodsch-notice eodsch-notice-${engineNotice(current).tone}`} role="status">
-          {engineNotice(current).text}
-        </div>
-      ) : null}
-
-      {!current ? (
-        <div className="eodsch-empty">
-          <strong>No environment yet.</strong>
-          <p className="eodsch-muted">
-            {canAdmin
-              ? 'Create one (for example UAT) to upload a workflow and add its target servers.'
-              : 'Ask an administrator to create an environment for the scheduler.'}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="eodsch-subtabs" role="tablist" aria-label="Scheduler sections">
-            {SECTIONS.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                role="tab"
-                aria-selected={section === s.key}
-                className="eodsch-subtab"
-                data-active={section === s.key}
-                onClick={() => setSection(s.key)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <TabBoundary key={`${env}-${section}`}>
-            <div className="eodsch-section">
-              {section === 'workflow' ? (
-                <WorkflowPanel env={env} onRunStarted={(id) => setFocusRun(id || '')} />
+      <div className="eod-body">
+        <div className="eodsch">
+          {current ? (
+            <div className="eodsch-statusbar">
+              <span className="eodsch-muted">
+                {current.engine ? 'Engine is serving it' : 'No engine is serving it right now'}
+              </span>
+              {canAdmin ? (
+                <div className="eodsch-field-inline">
+                  <span>Enabled</span>
+                  <Toggle
+                    checked={current.enabled}
+                    onChange={setEnabled}
+                    ariaLabel="Environment enabled"
+                  />
+                </div>
               ) : null}
-              {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
-              {section === 'schedule' ? <SchedulePanel env={env} /> : null}
-              {section === 'targets' ? <TargetsPanel env={env} /> : null}
-              {section === 'settings' ? <SettingsPanel env={env} /> : null}
             </div>
-          </TabBoundary>
-        </>
-      )}
+          ) : null}
 
-      <AdminModal
-        title="New environment"
-        isOpen={Boolean(creating)}
-        onClose={() => !busy && setCreating(null)}
-        size="sm"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setCreating(null)} disabled={busy}>
-              Cancel
-            </Button>
-            <Button
-              onClick={create}
-              isLoading={busy}
-              disabled={!creating?.code || !creating?.name.trim() || Boolean(codeProblem)}
+          {engineNotice(current) ? (
+            <div
+              className={`eodsch-notice eodsch-notice-${engineNotice(current).tone}`}
+              role="status"
             >
-              Create
-            </Button>
-          </>
-        }
-      >
-        {creating ? (
-          <div className="eodsch-form">
-            <label className="eodsch-field">
-              Code (also the queue name, cannot be changed)
-              <input
-                type="text"
-                value={creating.code}
-                maxLength={50}
-                onChange={(e) => setCreating({ ...creating, code: e.target.value.trim() })}
-                placeholder="UAT"
-              />
-              {codeProblem ? <small className="eodsch-bad">{codeProblem}</small> : null}
-            </label>
-            <label className="eodsch-field">
-              Name
-              <input
-                type="text"
-                value={creating.name}
-                maxLength={255}
-                onChange={(e) => setCreating({ ...creating, name: e.target.value })}
-                placeholder="User acceptance testing"
-              />
-            </label>
-          </div>
-        ) : null}
-      </AdminModal>
-    </div>
+              {engineNotice(current).text}
+            </div>
+          ) : null}
+
+          {!current ? (
+            <div className="eodsch-empty">
+              <strong>No environment yet.</strong>
+              <p className="eodsch-muted">
+                {canAdmin
+                  ? 'Create one (for example UAT) to upload a workflow and add its target servers.'
+                  : 'Ask an administrator to create an environment for the scheduler.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <TabBoundary key={`${env}-${section}`}>
+                <div className="eodsch-section">
+                  {section === 'workflow' ? (
+                    <WorkflowPanel env={env} onRunStarted={(id) => setFocusRun(id || '')} />
+                  ) : null}
+                  {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
+                  {section === 'schedule' ? <SchedulePanel env={env} /> : null}
+                  {section === 'targets' ? <TargetsPanel env={env} /> : null}
+                  {section === 'settings' ? <SettingsPanel env={env} /> : null}
+                </div>
+              </TabBoundary>
+            </>
+          )}
+
+          <AdminModal
+            title="New environment"
+            isOpen={Boolean(creating)}
+            onClose={() => !busy && setCreating(null)}
+            size="sm"
+            footer={
+              <>
+                <Button variant="outline" onClick={() => setCreating(null)} disabled={busy}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={create}
+                  isLoading={busy}
+                  disabled={!creating?.code || !creating?.name.trim() || Boolean(codeProblem)}
+                >
+                  Create
+                </Button>
+              </>
+            }
+          >
+            {creating ? (
+              <div className="eodsch-form">
+                <label className="eodsch-field">
+                  Code (also the queue name, cannot be changed)
+                  <input
+                    type="text"
+                    value={creating.code}
+                    maxLength={50}
+                    onChange={(e) => setCreating({ ...creating, code: e.target.value.trim() })}
+                    placeholder="UAT"
+                  />
+                  {codeProblem ? <small className="eodsch-bad">{codeProblem}</small> : null}
+                </label>
+                <label className="eodsch-field">
+                  Name
+                  <input
+                    type="text"
+                    value={creating.name}
+                    maxLength={255}
+                    onChange={(e) => setCreating({ ...creating, name: e.target.value })}
+                    placeholder="User acceptance testing"
+                  />
+                </label>
+              </div>
+            ) : null}
+          </AdminModal>
+        </div>
+      </div>
+    </>
   );
 }
 

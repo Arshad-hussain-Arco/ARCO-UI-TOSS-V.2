@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 16px 24px;
+  padding: 0 0 12px;
   color: var(--text-primary);
   font-family: var(--font-family);
   font-size: 13px;
@@ -104,6 +104,7 @@
 .eodsch input[type='password'],
 .eodsch input[type='search'],
 .eodsch select,
+.eodsch-topbar-right select,
 .eodsch textarea,
 .admin-modal-shell .eodsch-field input,
 .admin-modal-shell .eodsch-field select,
@@ -119,6 +120,7 @@
 }
 .eodsch input:focus-visible,
 .eodsch select:focus-visible,
+.eodsch-topbar-right select:focus-visible,
 .eodsch textarea:focus-visible,
 .admin-modal-shell .eodsch-field input:focus-visible,
 .admin-modal-shell .eodsch-field select:focus-visible,
@@ -582,4 +584,40 @@
 }
 .eodsch-notice-info {
   border-left-color: var(--c-info);
+}
+
+/* Environment picker and "New Environment" sit at the right end of the shared .eod-tabs bar */
+.eodsch-topbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+  align-self: center;
+  padding-bottom: 6px;
+}
+.eodsch-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+/* Native dropdown list: follow the theme (the browser draws it white otherwise) */
+.eodsch select,
+.eodsch-topbar-right select {
+  color-scheme: light;
+}
+[data-theme='dark'] .eodsch select,
+[data-theme='dark'] .eodsch-topbar-right select {
+  color-scheme: dark;
+}
+.eodsch select option,
+.eodsch-topbar-right select option {
+  color: var(--text-primary);
+  background-color: var(--surface-primary);
+}
+.eodsch-topbar-right .eodsch-field-inline {
+  color: var(--text-secondary);
 }

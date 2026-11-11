@@ -17,6 +17,7 @@ export const ROUTES = Object.freeze({
   ENVIRONMENT_DASHBOARD: '/environment-dashboard',
   MUREX_RUNTIME: '/murex-runtime',
   EOD_MANAGEMENT: '/eod-management',
+  EOD_MANAGEMENT_2: '/eod-management-2',
   CONSULTANTS: '/consultants',
   CONSULTANT_DETAIL: '/consultants/:consultantId',
   LEAVE_MANAGEMENT: '/leave-management',

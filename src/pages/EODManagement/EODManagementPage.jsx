@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Settings, Calendar, Zap, Workflow } from 'lucide-react';
+import { Activity, Settings, Calendar, Zap } from 'lucide-react';
 import { useAuth } from '@hooks/useAuth';
 import { useDocumentTitle } from '@hooks/useDocumentTitle';
 
@@ -7,7 +7,6 @@ import { OverviewSection } from './components/OverviewSection';
 import { ConfigSection } from './components/ConfigSection';
 import { SchedulesSection } from './components/SchedulesSection';
 import { ControlSection } from './components/ControlSection';
-import { SchedulerTab } from './scheduler/SchedulerTab';
 import { EodProvider } from './context/EodContext';
 
 import './EODManagementPage.css';
@@ -17,8 +16,6 @@ const ALL_TABS = [
   { key: 'configuration', label: 'Configuration', Icon: Settings, permission: 'EOD_CONFIG_VIEW' },
   { key: 'schedules', label: 'Schedules', Icon: Calendar, permission: 'EOD_SCHEDULE_VIEW' },
   { key: 'control', label: 'Control', Icon: Zap, permission: 'EOD_CONTROL_VIEW' },
-  // Control-M style scheduler: workflows with dependencies, runs on SSH target servers, one environment at a time.
-  { key: 'scheduler', label: 'Scheduler', Icon: Workflow, permission: 'EOD_SCHEDULER_VIEW' },
 ];
 
 /** End-of-day batch management: overview, configuration, schedules and controls. */
@@ -70,7 +67,6 @@ export function EODManagementPage() {
           {activeSection === 'configuration' && <ConfigSection />}
           {activeSection === 'schedules' && <SchedulesSection />}
           {activeSection === 'control' && <ControlSection />}
-          {activeSection === 'scheduler' && <SchedulerTab />}
         </div>
       </div>
     </EodProvider>
