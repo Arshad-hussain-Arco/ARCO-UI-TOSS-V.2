@@ -179,6 +179,30 @@ function computeNextRun(sch) {
     }
   }
 
+  if (sch.recurrence === 'Monthly' || (sch.dateGroup && sch.dateGroup.toLowerCase().startsWith('monthly'))) {
+    const yr = now.getFullYear();
+    const mo = now.getMonth();
+    const domSetting = sch.selectedDayOfMonth;
+
+    const getDom = (year, month, setting) => {
+      if (setting === 'L' || setting === 'last') {
+        return new Date(year, month + 1, 0).getDate();
+      }
+      const num = parseInt(setting, 10);
+      return isNaN(num) || num < 1 ? 1 : Math.min(num, new Date(year, month + 1, 0).getDate());
+    };
+
+    const targetDomThisMonth = getDom(yr, mo, domSetting);
+    const candidateThisMonth = new Date(yr, mo, targetDomThisMonth, hh, mm, 0, 0);
+
+    if (candidateThisMonth.getTime() > now.getTime()) {
+      return candidateThisMonth;
+    }
+
+    const targetDomNextMonth = getDom(yr, mo + 1, domSetting);
+    return new Date(yr, mo + 1, targetDomNextMonth, hh, mm, 0, 0);
+  }
+
   if (candidate.getTime() <= now.getTime()) {
     candidate.setDate(candidate.getDate() + 1);
   }
@@ -263,12 +287,19 @@ function formatFrequency(sch) {
 /** Evaluates whether a schedule runs on a specific day of the week (0 = Sunday ... 6 = Saturday) */
 function isScheduleOnDay(sch, dayIndex) {
   if (!sch) return false;
-  if (sch.recurrence === 'Daily' || sch.recurrence === 'daily' || !sch.recurrence) return true;
 
   const targetDay = DAYS_OF_WEEK[dayIndex];
   if (!targetDay) return false;
 
-  if (sch.recurrence === 'Weekly' || sch.recurrence === 'weekly') {
+  const rec = (sch.recurrence || '').toLowerCase().trim();
+
+  // 1. Daily schedules run every day of the week
+  if (rec === 'daily' || !sch.recurrence) {
+    return true;
+  }
+
+  // 2. Weekly schedules: check if targetDay is in selectedDays or dayOfWeek
+  if (rec === 'weekly') {
     const days = (sch.selectedDays || (sch.dayOfWeek ? sch.dayOfWeek.split(',') : [])).map((d) =>
       d.trim().toLowerCase()
     );
@@ -277,16 +308,33 @@ function isScheduleOnDay(sch, dayIndex) {
     );
   }
 
-  if (sch.dateGroup && typeof sch.dateGroup === 'string') {
-    const dg = sch.dateGroup.trim().toLowerCase();
-    if (dg.startsWith(targetDay.short.toLowerCase()) || dg.startsWith(targetDay.name.toLowerCase())) {
+  // 3. Monthly and Quarterly schedules run on specific calendar dates, not recurring weekdays
+  if (
+    rec === 'monthly' ||
+    rec === 'quarterly' ||
+    (sch.dateGroup &&
+      (sch.dateGroup.toLowerCase().startsWith('monthly') ||
+        sch.dateGroup.toLowerCase().startsWith('quarterly')))
+  ) {
+    return false;
+  }
+
+  // 4. Specific Date / One-Time / Annually: check if the date falls on this weekday
+  if (sch.selectedDate) {
+    const d = new Date(sch.selectedDate);
+    if (!isNaN(d.getTime()) && d.getDay() === dayIndex) {
       return true;
     }
   }
 
-  if (sch.selectedDate) {
-    const d = new Date(sch.selectedDate);
-    if (!isNaN(d.getTime()) && d.getDay() === dayIndex) {
+  // 5. Date group string for specific dates (e.g. "Sat 28 Feb", "Mon 15 Mar")
+  if (sch.dateGroup && typeof sch.dateGroup === 'string') {
+    const dg = sch.dateGroup.trim().toLowerCase();
+    // Only match if followed by a space to prevent "monthly" matching "mon"
+    if (
+      dg.startsWith(targetDay.short.toLowerCase() + ' ') ||
+      dg.startsWith(targetDay.name.toLowerCase() + ' ')
+    ) {
       return true;
     }
   }
