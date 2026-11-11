@@ -621,3 +621,76 @@
 .eodsch-topbar-right .eodsch-field-inline {
   color: var(--text-secondary);
 }
+
+/* ── Context Menu for Scheduler Tab ────────────────────────── */
+.eodsch-context-menu {
+  position: fixed;
+  background-color: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-primary, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 99999;
+  min-width: 190px;
+  box-sizing: border-box;
+  padding: 5px;
+  animation: eodschMenuEnter 0.12s ease-out;
+}
+
+@keyframes eodschMenuEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.eodsch-context-menu-header {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-tertiary, #f3f4f6);
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.eodsch-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  text-align: left;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.eodsch-context-menu-item:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.eodsch-context-menu-item:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.eodsch-context-menu-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.eodsch-context-menu-icon.primary {
+  color: var(--c-primary);
+}
