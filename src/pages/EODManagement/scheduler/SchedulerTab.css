@@ -621,3 +621,46 @@
 .eodsch-topbar-right .eodsch-field-inline {
   color: var(--text-secondary);
 }
+
+/* Job form, condition chips, delete dialog lists */
+.eodsch-jobform {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.eodsch-jobform .eodsch-span-2,
+.eodsch-form .eodsch-span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .eodsch-jobform {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.eodsch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.eodsch-chips .eodsch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+}
+.eodsch-chip-x {
+  display: inline-flex;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.eodsch-chip-x:hover {
+  color: var(--c-danger);
+}
+.eodsch-bullets {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

@@ -42,6 +42,34 @@ export const eodSchedulerService = {
       })
     ).data;
   },
+  // several workflow files per environment: one is active (the one that runs)
+  activateWorkflow: (env, id) => send('post', E.workflowActivate(env, id)),
+  deleteWorkflow: (env, id) => send('delete', E.workflowItem(env, id)),
+
+  // editing the stored workflow: jobs and folders. `baseSha256` is the hash the user is looking at: a changed file is refused, not overwritten.
+  getJobFields: (env, id, folder, job) => get(E.workflowJob(env, id, folder, job)),
+  addJob: (env, id, folder, body) => send('post', E.workflowJobs(env, id, folder), body),
+  updateJob: (env, id, folder, job, body) =>
+    send('patch', E.workflowJob(env, id, folder, job), body),
+  deleteJob: (env, id, folder, job, { confirm, baseSha256 } = {}) =>
+    httpClient
+      .delete(E.workflowJob(env, id, folder, job), {
+        params: {
+          ...(confirm ? { confirm: 1 } : {}),
+          ...(baseSha256 ? { base_sha256: baseSha256 } : {}),
+        },
+      })
+      .then((r) => r.data),
+  addFolder: (env, id, body) => send('post', E.workflowFolders(env, id), body),
+  deleteFolder: (env, id, folder, { confirm, baseSha256 } = {}) =>
+    httpClient
+      .delete(E.workflowFolder(env, id, folder), {
+        params: {
+          ...(confirm ? { confirm: 1 } : {}),
+          ...(baseSha256 ? { base_sha256: baseSha256 } : {}),
+        },
+      })
+      .then((r) => r.data),
   approve: (env, digest) => send('post', E.approve(env), { digest }),
   setScheduler: (env, enabled) => send('post', E.scheduler(env), { enabled }),
   runNow: (env, body) => send('post', E.runNow(env), body),

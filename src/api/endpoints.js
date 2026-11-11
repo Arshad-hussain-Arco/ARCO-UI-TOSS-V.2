@@ -302,6 +302,15 @@ const endpoints = {
     runCancel: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/cancel/`,
     runNow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/run-now/`,
     command: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/commands/${id}/`,
+    workflowItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/`,
+    workflowActivate: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/activate/`,
+    workflowFolders: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/`,
+    workflowFolder: (env, id, folder) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/`,
+    workflowJobs: (env, id, folder) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/jobs/`,
+    workflowJob: (env, id, folder, job) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/jobs/${encodeURIComponent(job)}/`,
     targets: (env) => `/eod-scheduler/${encodeURIComponent(env)}/targets/`,
     target: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/`,
     targetSecret: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/secret/`,

@@ -1,5 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Play, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
+import {
+  CheckCircle2,
+  FileText,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  ShieldAlert,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
@@ -13,6 +23,10 @@ import {
 } from '../schedulerModel';
 import { usePolling, useResource } from '../useResource';
 import { DependencyGraph } from './DependencyGraph';
+import { DeleteDialog } from './DeleteDialog';
+import { FolderFormModal } from './FolderFormModal';
+import { JobFormModal } from './JobFormModal';
+import { WorkflowFilesModal } from './WorkflowFilesModal';
 
 const ROW_LIMIT = 200;
 
@@ -107,8 +121,15 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const [showAll, setShowAll] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [jobModal, setJobModal] = useState(null); // { mode: 'add' | 'edit', job? }
+  const [folderModal, setFolderModal] = useState(false);
+  const [del, setDel] = useState(null); // what the delete dialog is about, see DeleteDialog
+  const [delBusy, setDelBusy] = useState(false);
+  const [delError, setDelError] = useState('');
   const [colourChoice, setColourChoice] = useState('auto'); // 'auto' follows the live run, 'none', or the run id picked by hand
-  const folderName = wf.data?.folders?.[Math.min(folderIdx, (wf.data?.folders?.length ?? 1) - 1)]?.folder;
+  const folderName =
+    wf.data?.folders?.[Math.min(folderIdx, (wf.data?.folders?.length ?? 1) - 1)]?.folder;
   const folderRuns = (runs.data ?? []).filter((r) => r.folder === folderName); // newest first
   const liveRun = (folderRuns.find((r) => r.status === 'RUNNING') ?? folderRuns[0])?.run_id ?? '';
   const colourRun = colourChoice === 'auto' ? liveRun : colourChoice === 'none' ? '' : colourChoice;
@@ -130,6 +151,101 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const job = folder?.jobs?.find((j) => j.name === selected) ?? null;
   const states = useMemo(() => nodeStates(detail.data), [detail.data]);
 
+  // editing: needs the settings permission and no run in progress (the server enforces both)
+  const running = (runs.data ?? []).some((r) => r.status === 'RUNNING');
+  const canEdit = hasPermission('EOD_SCHEDULER_SETTINGS');
+  const editable = canEdit && !running;
+  const editHint = running ? 'A run is in progress in this environment' : undefined;
+  const workflowId = view?.meta?.id;
+  const baseSha = view?.meta?.sha256;
+  const files = view?.workflows ?? [];
+  const suggestions = useMemo(() => {
+    const all = (view?.folders ?? []).flatMap((f) => f.jobs);
+    return {
+      nodeids: [...new Set(all.map((j) => j.nodeid).filter(Boolean))].sort(),
+      conditions: [
+        ...new Set(all.flatMap((j) => [...(j.waits_for ?? []), ...(j.produces ?? [])])),
+      ].sort(),
+    };
+  }, [view]);
+
+  const afterEdit = (message) => {
+    toast.success(message);
+    setSelected(null);
+    wf.reload(true);
+  };
+  const saveJob = async (payload) => {
+    if (jobModal.mode === 'edit') {
+      await svc.updateJob(env, workflowId, folderName, jobModal.job, payload);
+      afterEdit(`Job ${jobModal.job} saved. Review and approve the workflow again.`);
+    } else {
+      await svc.addJob(env, workflowId, folderName, payload);
+      afterEdit(`Job ${payload.name} added. Review and approve the workflow again.`);
+    }
+  };
+  const saveFolder = async (payload) => {
+    await svc.addFolder(env, workflowId, { ...payload, base_sha256: baseSha });
+    setFolderIdx(view.folders.length); // the new, last workflow
+    afterEdit(`Workflow ${payload.name} added.`);
+  };
+  const startDelete = async (next) => {
+    setDelError('');
+    if (next.kind !== 'folder') {
+      setDel(next);
+      return;
+    }
+    try {
+      // a workflow always asks first: the answer lists its jobs and what would stall
+      await svc.deleteFolder(env, workflowId, next.folder, { baseSha256: baseSha });
+      setDel(null);
+      afterEdit(`Workflow ${next.folder} deleted.`);
+    } catch (err) {
+      const data = err?.response?.data;
+      if (data?.needs_confirm) setDel({ ...next, info: data });
+      else {
+        setDel(null);
+        toast.error(errorText(err));
+      }
+    }
+  };
+  const confirmDelete = async () => {
+    setDelBusy(true);
+    setDelError('');
+    const confirm = Boolean(del.info) || del.kind === 'folder';
+    try {
+      if (del.kind === 'file') {
+        await svc.deleteWorkflow(env, del.file.id);
+        toast.success(`${del.file.filename} deleted.`);
+        wf.reload(true);
+      } else if (del.kind === 'folder') {
+        await svc.deleteFolder(env, workflowId, del.folder, { confirm, baseSha256: baseSha });
+        afterEdit(`Workflow ${del.folder} deleted.`);
+      } else {
+        await svc.deleteJob(env, workflowId, del.folder, del.job, { confirm, baseSha256: baseSha });
+        afterEdit(`Job ${del.job} deleted. Review and approve the workflow again.`);
+      }
+      setDel(null);
+    } catch (err) {
+      const data = err?.response?.data;
+      if (data?.needs_confirm) setDel({ ...del, info: data });
+      else setDelError(errorText(err));
+    } finally {
+      setDelBusy(false);
+    }
+  };
+  const activate = async (file) => {
+    const done = await guarded(
+      () => svc.activateWorkflow(env, file.id),
+      `${file.filename} is now the active workflow. Review it before approving.`,
+    );
+    if (done) {
+      setSelected(null);
+      setFolderIdx(0);
+      setColourChoice('auto');
+      wf.reload(true);
+    }
+  };
+
   const guarded = async (fn, ok) => {
     setBusy(true);
     try {
@@ -148,16 +264,18 @@ export function WorkflowPanel({ env, onRunStarted }) {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
-    const done = await guarded(
-      () => svc.uploadWorkflow(env, file),
-      `${file.name} uploaded. Review it before approving.`,
-    );
+    const done = await guarded(() => svc.uploadWorkflow(env, file));
     if (done) {
-      setReviewed(false);
-      setSelected(null);
-      setFolderIdx(0);
-      setColourChoice('auto');
-      wf.reload();
+      if (done.uploaded?.active) {
+        toast.success(`${file.name} uploaded and active. Review it before approving.`);
+        setReviewed(false);
+        setSelected(null);
+        setFolderIdx(0);
+        setColourChoice('auto');
+      } else {
+        toast.success(`${file.name} stored. Choose it in "Workflow file" to review and run it.`);
+      }
+      wf.reload(true);
     }
   };
 
@@ -223,7 +341,11 @@ export function WorkflowPanel({ env, onRunStarted }) {
               <span className="eodsch-muted">
                 {' '}
                 uploaded {new Date(view.meta.uploaded_at).toLocaleString()} by{' '}
-                {view.meta.uploaded_by || 'unknown'} · sha256 {view.meta.sha256.slice(0, 12)}…
+                {view.meta.uploaded_by || 'unknown'}
+                {view.meta.edited_at
+                  ? ` · edited ${new Date(view.meta.edited_at).toLocaleString()} by ${view.meta.edited_by || 'unknown'}`
+                  : ''}{' '}
+                · sha256 {view.meta.sha256.slice(0, 12)}…
               </span>
             </>
           ) : (
@@ -233,6 +355,38 @@ export function WorkflowPanel({ env, onRunStarted }) {
           )}
         </div>
         <div className="eodsch-actions">
+          {files.length ? (
+            <>
+              <label className="eodsch-field-inline">
+                Workflow file
+                <select
+                  value={files.find((f) => f.active)?.id ?? ''}
+                  disabled={busy || !canEdit || running}
+                  title={editHint}
+                  onChange={(e) => {
+                    const file = files.find((f) => String(f.id) === e.target.value);
+                    if (file && !file.active) activate(file);
+                  }}
+                  aria-label="Workflow file"
+                >
+                  {files.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.filename}
+                      {f.active ? ' (active)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                leadingIcon={FileText}
+                onClick={() => setFilesOpen(true)}
+              >
+                Files ({files.length})
+              </Button>
+            </>
+          ) : null}
           <Button
             variant="ghost"
             size="sm"
@@ -345,6 +499,32 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 ) : (
                   <strong>{folder?.folder}</strong>
                 )}
+                {canEdit ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leadingIcon={Plus}
+                      disabled={!editable}
+                      title={editHint}
+                      onClick={() => setFolderModal(true)}
+                    >
+                      Add workflow
+                    </Button>
+                    {folder ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leadingIcon={Trash2}
+                        disabled={!editable}
+                        title={editHint}
+                        onClick={() => startDelete({ kind: 'folder', folder: folder.folder })}
+                      >
+                        Delete workflow
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
                 <label className="eodsch-field-inline">
                   Colour by run
                   <select
@@ -392,6 +572,23 @@ export function WorkflowPanel({ env, onRunStarted }) {
 
           <div className="eodsch-split">
             <div className="eodsch-card eodsch-table-wrap">
+              {canEdit && folder ? (
+                <div className="eodsch-toolbar">
+                  <span className="eodsch-muted">
+                    {folder.jobs.length} job(s) in {folder.folder}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leadingIcon={Plus}
+                    disabled={!editable}
+                    title={editHint}
+                    onClick={() => setJobModal({ mode: 'add' })}
+                  >
+                    Add job
+                  </Button>
+                </div>
+              ) : null}
               <table className="eodsch-table">
                 <thead>
                   <tr>
@@ -400,6 +597,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     <th>Waits for</th>
                     <th>Target</th>
                     <th>Command</th>
+                    {canEdit ? <th aria-label="Actions" /> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -421,11 +619,37 @@ export function WorkflowPanel({ env, onRunStarted }) {
                       <td className="eodsch-cell-command" title={j.command}>
                         {j.command || '—'}
                       </td>
+                      {canEdit ? (
+                        <td>
+                          <div className="eodsch-actions">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              leadingIcon={Pencil}
+                              disabled={!editable}
+                              title={editHint ?? `Edit ${j.name}`}
+                              aria-label={`Edit ${j.name}`}
+                              onClick={() => setJobModal({ mode: 'edit', job: j.name })}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              leadingIcon={Trash2}
+                              disabled={!editable}
+                              title={editHint ?? `Delete ${j.name}`}
+                              aria-label={`Delete ${j.name}`}
+                              onClick={() =>
+                                startDelete({ kind: 'job', folder: folder.folder, job: j.name })
+                              }
+                            />
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                   {!shown.length ? (
                     <tr>
-                      <td colSpan={5} className="eodsch-muted">
+                      <td colSpan={canEdit ? 6 : 5} className="eodsch-muted">
                         No job matches.
                       </td>
                     </tr>
@@ -447,6 +671,44 @@ export function WorkflowPanel({ env, onRunStarted }) {
           </div>
         </>
       ) : null}
+      <WorkflowFilesModal
+        isOpen={filesOpen}
+        onClose={() => setFilesOpen(false)}
+        files={files}
+        canManage={canEdit}
+        canRun={!running}
+        busy={busy}
+        onActivate={async (f) => {
+          await activate(f);
+          setFilesOpen(false);
+        }}
+        onDelete={(f) => setDel({ kind: 'file', file: f })}
+      />
+      <JobFormModal
+        isOpen={Boolean(jobModal)}
+        onClose={() => setJobModal(null)}
+        mode={jobModal?.mode}
+        env={env}
+        workflowId={workflowId}
+        folder={folderName}
+        job={jobModal?.job}
+        baseSha256={baseSha}
+        nodeids={suggestions.nodeids}
+        conditions={suggestions.conditions}
+        onSave={saveJob}
+      />
+      <FolderFormModal
+        isOpen={folderModal}
+        onClose={() => setFolderModal(false)}
+        onSave={saveFolder}
+      />
+      <DeleteDialog
+        state={del}
+        busy={delBusy}
+        error={delError}
+        onClose={() => setDel(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
