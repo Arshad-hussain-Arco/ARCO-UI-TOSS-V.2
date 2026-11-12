@@ -232,7 +232,7 @@ export function SchedulerTab() {
             <>
               <TabBoundary key={`${env}-${section}`}>
                 <div className="eodsch-section">
-                  {section === 'cockpit' ? <CockpitTab env={env} /> : null}
+                  {section === 'cockpit' ? <CockpitTab key={env} env={env} /> : null}
                   {section === 'schedule' ? <SchedulePanel env={env} /> : null}
                   {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
                   {section === 'targets' ? <TargetsPanel env={env} /> : null}

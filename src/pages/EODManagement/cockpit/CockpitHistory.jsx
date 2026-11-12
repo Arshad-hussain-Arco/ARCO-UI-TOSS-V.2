@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { RunDetailModal } from './RunDetailModal';
 
 export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLoading = false }) {
-  const list = runs || [];
+  const list = (runs || []).filter((r) => {
+    if (!r) return false;
+    const rEnv = r.environment || r.partition;
+    return !rEnv || String(rEnv).trim().toUpperCase() === String(env).trim().toUpperCase();
+  });
   const [viewingRunId, setViewingRunId] = useState(null);
 
   return (
