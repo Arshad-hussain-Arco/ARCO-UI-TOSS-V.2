@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
 import { CockpitFlow } from './CockpitFlow';
@@ -63,6 +63,12 @@ export function CockpitTab({ env } = {}) {
   const [busy, setBusy] = useState(false);
   const [flowGroupFilter, setFlowGroupFilter] = useState(null);
 
+  // Clear environment-specific state when switching environments so stale run IDs aren't retained
+  useEffect(() => {
+    setSelectedRunId('');
+    setSelectedJobName(null);
+  }, [env]);
+
   const handleNavigateView = (view, group = null) => {
     if (group) {
       setFlowGroupFilter(group);
@@ -95,6 +101,7 @@ export function CockpitTab({ env } = {}) {
   const isBackendPaused = runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
   const isRunActive = isRunningBatch || isPaused;
+  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && !runDetail.data);
 
   // Polling for live status
   usePolling(() => runsList.reload(true), 4000);
@@ -529,6 +536,13 @@ export function CockpitTab({ env } = {}) {
             </label>
           </div>
         </div>
+      ) : runsList.loading ? (
+        <div className="cr-run-context-strip" style={{ justifyContent: 'flex-start', color: 'var(--cr-text-muted)' }}>
+          <span style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <span className="cr-spinner" style={{ width: '13px', height: '13px', borderWidth: '2px' }} />
+            Loading runs for {String(env).toUpperCase()}...
+          </span>
+        </div>
       ) : (
         <div className="cr-run-context-strip" style={{ justifyContent: 'flex-start', color: 'var(--cr-text-muted)' }}>
           <span style={{ fontSize: '12px' }}>
@@ -547,6 +561,7 @@ export function CockpitTab({ env } = {}) {
 
         {activeView === 'overview' && (
           <CockpitOverview
+            isLoading={isOverviewLoading}
             run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
             definition={enrichedDefinition}
             folders={view?.folders || []}
@@ -594,6 +609,7 @@ export function CockpitTab({ env } = {}) {
 
         {activeView === 'history' && (
           <CockpitHistory
+            isLoading={runsList.loading}
             runs={runs}
             currentRunId={currentRunId}
             env={env}

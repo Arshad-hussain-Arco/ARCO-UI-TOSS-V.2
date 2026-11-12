@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RunDetailModal } from './RunDetailModal';
 
-export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env }) {
+export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLoading = false }) {
   const list = runs || [];
   const [viewingRunId, setViewingRunId] = useState(null);
 
@@ -16,7 +16,12 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env }) {
       </div>
 
       <div className="cr-history-table-card">
-        {list.length === 0 ? (
+        {isLoading ? (
+          <div className="cr-history-empty" style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--cr-text-muted)' }}>
+            <span className="cr-spinner" style={{ width: '28px', height: '28px', marginBottom: '12px' }} />
+            <p style={{ margin: '8px 0 0', fontWeight: 500 }}>Loading run history...</p>
+          </div>
+        ) : list.length === 0 ? (
           <div className="cr-history-empty" style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--cr-text-muted)' }}>
             <p>No runs recorded yet for this environment.</p>
             <span style={{ fontSize: '12px' }}>Start a run from the Cockpit to view its history here.</span>

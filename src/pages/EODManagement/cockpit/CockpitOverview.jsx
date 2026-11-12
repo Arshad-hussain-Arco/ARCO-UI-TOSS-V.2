@@ -12,7 +12,22 @@ export function CockpitOverview({
   onStartRun,
   onCancelRun,
   canRun,
+  isLoading = false,
 }) {
+  if (isLoading) {
+    return (
+      <div className="cr-overview-content cr-loading-state">
+        <div style={{ maxWidth: '440px', margin: '0 auto', textAlign: 'center' }}>
+          <span className="cr-spinner" style={{ width: '32px', height: '32px', marginBottom: '16px' }} />
+          <h2 style={{ fontSize: '18px', margin: '12px 0 6px', color: 'var(--cr-text)' }}>Loading Batch Overview...</h2>
+          <p style={{ fontSize: '13px', lineHeight: 1.5, color: 'var(--cr-text-muted)' }}>
+            Fetching execution details and job metrics for this environment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!run) {
     return (
       <div className="cr-overview-content" style={{ padding: '48px 16px', textAlign: 'center' }}>
