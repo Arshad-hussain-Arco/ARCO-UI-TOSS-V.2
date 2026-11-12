@@ -291,7 +291,36 @@ export function CockpitTab({ env } = {}) {
                   <CockpitIcon name="i-hold" className="xs" /> Needs Approval
                 </span>
               )}
-              <strong className="cr-wf-filename">{view.meta.filename}</strong>
+              {view.workflows && view.workflows.length > 1 ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <select
+                    className="cr-select sm"
+                    style={{ fontWeight: 700, fontSize: '13px', maxWidth: '280px', color: 'var(--cr-text)' }}
+                    value={view.meta?.id}
+                    onChange={async (e) => {
+                      const wid = e.target.value;
+                      const ok = await guarded(
+                        () => svc.activateWorkflow(env, wid),
+                        'Switched active workflow file.',
+                      );
+                      if (ok) {
+                        setReviewed(false);
+                        setSelectedJobName(null);
+                        await Promise.all([wf.reload(true), def.reload(true)]);
+                      }
+                    }}
+                    title="Switch active workflow file"
+                  >
+                    {view.workflows.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.filename} {w.active ? '(Active)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <strong className="cr-wf-filename">{view.meta?.filename}</strong>
+              )}
               <span className="cr-wf-meta">
                 sha256 {view.meta.sha256.slice(0, 10)}… · uploaded {new Date(view.meta.uploaded_at).toLocaleDateString()} by {view.meta.uploaded_by || 'unknown'}
               </span>
