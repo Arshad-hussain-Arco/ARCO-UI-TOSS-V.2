@@ -73,6 +73,7 @@ export const eodSchedulerService = {
   approve: (env, digest) => send('post', E.approve(env), { digest }),
   setScheduler: (env, enabled) => send('post', E.scheduler(env), { enabled }),
   runNow: (env, body) => send('post', E.runNow(env), body),
+  recordExecution: (env, body) => send('post', E.recordExecution(env), body),
   getCommand: (env, id) => get(E.command(env, id)),
 
   // settings and schedule

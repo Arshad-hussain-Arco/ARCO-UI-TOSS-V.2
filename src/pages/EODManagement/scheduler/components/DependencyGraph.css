@@ -1,0 +1,564 @@
+/* React Flow Modern Canvas Styles for Scheduler Dependency Graph */
+
+.rf-graph-container {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  min-height: 440px;
+  border: 1px solid var(--border-tertiary, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Floating Toolbar ── */
+.rf-graph-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+  flex-wrap: wrap;
+}
+
+.rf-toolbar-left,
+.rf-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-tertiary, #e2e8f0);
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.rf-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary, #64748b);
+}
+
+.rf-search-box input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-primary, #0f172a);
+  outline: none;
+  width: 140px;
+  transition: width 0.2s ease;
+}
+
+.rf-search-box input:focus {
+  width: 180px;
+}
+
+.rf-search-clear {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary, #94a3b8);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.rf-search-clear:hover {
+  color: var(--text-primary, #0f172a);
+}
+
+.rf-btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary, #cbd5e1);
+  background: var(--surface-primary, #ffffff);
+  color: var(--text-secondary, #475569);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rf-btn-toggle:hover {
+  background: var(--bg-secondary, #f1f5f9);
+  color: var(--text-primary, #0f172a);
+}
+
+.rf-btn-toggle.is-active {
+  background: var(--c-primary, #2563eb);
+  color: #ffffff;
+  border-color: var(--c-primary, #2563eb);
+}
+
+/* Legend items in toolbar */
+.rf-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  padding: 0 4px;
+}
+
+.rf-legend-line {
+  width: 14px;
+  height: 2px;
+  display: inline-block;
+  border-radius: 1px;
+}
+
+.rf-legend-line.rf-edge-info {
+  background-color: var(--c-info, #0284c7);
+  border-top: 2px dashed var(--c-info, #0284c7);
+  height: 0;
+}
+
+.rf-legend-line.rf-edge-danger {
+  background-color: var(--c-danger, #ef4444);
+  border-top: 2px dashed var(--c-danger, #ef4444);
+  height: 0;
+}
+
+.rf-legend-line.rf-edge-muted {
+  background-color: var(--text-tertiary, #94a3b8);
+}
+
+/* ── Custom Job Node Card ── */
+.rf-job-node {
+  width: 230px;
+  box-sizing: border-box;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+.rf-job-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.rf-job-node.is-selected {
+  outline: 2px solid var(--c-primary, #2563eb);
+  outline-offset: 2px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+}
+
+.rf-job-node.is-hot {
+  outline: 2px solid var(--c-info, #0284c7);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+  opacity: 1 !important;
+}
+
+.rf-job-node.is-dim {
+  opacity: 0.25 !important;
+  filter: grayscale(40%);
+}
+
+/* Node tone accents */
+.rf-tone-good {
+  border-left: 4px solid var(--c-success, #16a34a);
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+}
+
+.rf-tone-run {
+  border-left: 4px solid var(--c-info, #0284c7);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, var(--surface-primary, #ffffff) 60%);
+  animation: rf-pulse-border 2s infinite ease-in-out;
+}
+
+.rf-tone-bad {
+  border-left: 4px solid var(--c-danger, #ef4444);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+}
+
+.rf-tone-wait {
+  border-left: 4px solid var(--c-warning, #f59e0b);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+}
+
+.rf-tone-off {
+  border-left: 4px solid var(--border-secondary, #94a3b8);
+  opacity: 0.75;
+}
+
+.rf-tone-idle {
+  border-left: 4px solid var(--border-secondary, #cbd5e1);
+}
+
+@keyframes rf-pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(2, 132, 199, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(2, 132, 199, 0);
+  }
+}
+
+/* Node Internal Elements */
+.rf-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+}
+
+.rf-pill-good {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--c-success, #16a34a);
+}
+
+.rf-pill-run {
+  background: rgba(2, 132, 199, 0.12);
+  color: var(--c-info, #0284c7);
+}
+
+.rf-pill-bad {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--c-danger, #ef4444);
+}
+
+.rf-pill-wait {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--c-warning, #d97706);
+}
+
+.rf-pill-off {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-tertiary, #64748b);
+}
+
+.rf-pill-idle {
+  background: var(--bg-tertiary, #e2e8f0);
+  color: var(--text-secondary, #64748b);
+}
+
+.rf-status-icon.rf-spin {
+  animation: rf-spin-anim 1.4s linear infinite;
+}
+
+@keyframes rf-spin-anim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rf-node-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-tertiary, #64748b);
+  font-family: var(--eodw-mono, monospace);
+}
+
+.rf-node-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.rf-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--border-secondary, #cbd5e1);
+  background: var(--surface-primary, #ffffff);
+  color: var(--c-primary, #2563eb);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.rf-play-btn:hover:not(:disabled) {
+  background: var(--c-primary, #2563eb);
+  color: #ffffff;
+  border-color: var(--c-primary, #2563eb);
+  transform: scale(1.12);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.rf-play-btn:disabled,
+.rf-play-btn.is-running {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--c-primary, #2563eb);
+  border-color: rgba(37, 99, 235, 0.2);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Live Execution Progress Banner ── */
+.rf-execution-banner {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  border-left: 4px solid var(--c-info, #0284c7);
+  border-radius: 8px;
+  padding: 8px 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  color: var(--text-primary, #0f172a);
+  animation: rf-slide-up 0.2s ease-out;
+}
+
+.rf-execution-banner.is-failed {
+  border-left-color: var(--c-danger, #ef4444);
+}
+
+.rf-execution-banner.is-success {
+  border-left-color: var(--c-success, #16a34a);
+}
+
+.rf-exec-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rf-exec-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rf-exec-stop-btn:hover {
+  background: var(--c-danger, #ef4444);
+  color: #ffffff;
+}
+
+.rf-exec-view-logs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.rf-exec-view-logs:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+@keyframes rf-slide-up {
+  from {
+    transform: translate(-50%, 12px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.rf-node-folder {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-tertiary, #64748b);
+  background: var(--bg-secondary, #f1f5f9);
+  border: 1px solid var(--border-tertiary, #e2e8f0);
+  padding: 1px 5px;
+  border-radius: 4px;
+  max-width: 105px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rf-meta-duration {
+  margin-left: auto;
+}
+
+.rf-node-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  line-height: 1.3;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rf-node-meta {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  gap: 6px;
+  min-height: 16px;
+}
+
+.rf-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rf-meta-target {
+  color: var(--text-secondary, #475569);
+  font-weight: 500;
+}
+
+.rf-meta-cmd code {
+  font-family: var(--eodw-mono, monospace);
+  font-size: 10px;
+  color: var(--text-tertiary, #64748b);
+  background: var(--bg-secondary, #f1f5f9);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.rf-meta-muted {
+  color: var(--text-tertiary, #94a3b8);
+  font-size: 10px;
+}
+
+/* ── Connection Handles ── */
+.rf-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--border-primary, #94a3b8) !important;
+  border: 2px solid var(--surface-primary, #ffffff) !important;
+  border-radius: 50% !important;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.rf-job-node:hover .rf-handle {
+  background: var(--c-primary, #2563eb) !important;
+  transform: scale(1.2);
+}
+
+/* ── React Flow Canvas Overrides ── */
+.rf-graph-container .react-flow__controls {
+  bottom: 14px;
+  left: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-secondary, #e2e8f0);
+}
+
+.rf-graph-container .react-flow__controls-button {
+  background: var(--surface-primary, #ffffff);
+  border-bottom: 1px solid var(--border-tertiary, #f1f5f9);
+  color: var(--text-secondary, #475569);
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+}
+
+.rf-graph-container .react-flow__controls-button:hover {
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-primary, #0f172a);
+}
+
+.rf-graph-container .react-flow__minimap {
+  bottom: 14px;
+  right: 14px;
+  background: var(--surface-primary, #ffffff);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* Edge Hover / Touch */
+.react-flow__edge-path {
+  transition: stroke-width 0.2s ease, stroke 0.2s ease, opacity 0.2s ease;
+}
+
+.react-flow__edge.is-connected .react-flow__edge-path,
+.react-flow__edge.is-hot .react-flow__edge-path {
+  stroke-width: 3px !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 2px 4px rgba(2, 132, 199, 0.3));
+}
+
+.react-flow__edge.is-dim .react-flow__edge-path {
+  opacity: 0.12 !important;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3.2px !important;
+  opacity: 1 !important;
+}
+
+/* Empty Graph Notice */
+.rf-empty-graph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-tertiary, #64748b);
+  gap: 8px;
+}
+

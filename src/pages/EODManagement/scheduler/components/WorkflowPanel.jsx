@@ -138,7 +138,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const fileRef = useRef(null);
   const wf = useResource(() => svc.getWorkflow(env), [env]);
   const runs = useResource(() => svc.listRuns(env), [env]);
-  const [folderIdx, setFolderIdx] = useState(0);
+  const [folderChoice, setFolderChoice] = useState('ALL');
   const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState('');
   const [showAll, setShowAll] = useState(false);
@@ -151,9 +151,14 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const [delBusy, setDelBusy] = useState(false);
   const [delError, setDelError] = useState('');
   const [colourChoice, setColourChoice] = useState('auto'); // 'auto' follows the live run, 'none', or the run id picked by hand
-  const folderName =
-    wf.data?.folders?.[Math.min(folderIdx, (wf.data?.folders?.length ?? 1) - 1)]?.folder;
-  const folderRuns = (runs.data ?? []).filter((r) => r.folder === folderName); // newest first
+  const view = wf.data;
+  const isAll = folderChoice === 'ALL' || !view?.folders?.length;
+  const folderIdx = isAll ? 0 : Number(folderChoice);
+  const folder = view?.folders?.[Math.min(folderIdx, (view?.folders?.length ?? 1) - 1)];
+  const folderName = isAll ? null : folder?.folder;
+  const folderRuns = isAll
+    ? (runs.data ?? [])
+    : (runs.data ?? []).filter((r) => r.folder === folderName); // newest first
   const liveRun = (folderRuns.find((r) => r.status === 'RUNNING') ?? folderRuns[0])?.run_id ?? '';
   const colourRun = colourChoice === 'auto' ? liveRun : colourChoice === 'none' ? '' : colourChoice;
   const detail = useResource(
@@ -166,13 +171,85 @@ export function WorkflowPanel({ env, onRunStarted }) {
   usePolling(() => wf.reload(true), 10000, !busy); // uploads, approvals and settings changes made by someone else
   usePolling(() => detail.reload(true), 2000, colourRunning);
 
-  const view = wf.data;
   const state = approvalState(view, hasPermission);
-  const folder = view?.folders?.[Math.min(folderIdx, (view?.folders?.length ?? 1) - 1)];
-  const jobs = useMemo(() => filterJobs(folder?.jobs ?? [], query), [folder, query]);
+
+  const allFolderJobs = useMemo(() => {
+    return (view?.folders ?? []).flatMap((f) =>
+      (f.jobs || []).map((j) => ({ ...j, folder: f.folder }))
+    );
+  }, [view]);
+
+  const activeJobs = useMemo(() => {
+    if (isAll) return allFolderJobs;
+    return (folder?.jobs || []).map((j) => ({ ...j, folder: folder?.folder }));
+  }, [isAll, allFolderJobs, folder]);
+
+  const jobs = useMemo(() => filterJobs(activeJobs, query), [activeJobs, query]);
   const shown = showAll ? jobs : jobs.slice(0, ROW_LIMIT);
-  const job = folder?.jobs?.find((j) => j.name === selected) ?? null;
+  const job = allFolderJobs.find((j) => j.name === selected) ?? null;
   const states = useMemo(() => nodeStates(detail.data), [detail.data]);
+
+  const graph = useMemo(() => {
+    if (!view?.folders?.length) return { nodes: [], edges: [] };
+    if (!isAll && folder?.graph) {
+      return folder.graph;
+    }
+
+    const nodes = [];
+    const nodeIds = new Set();
+    const edges = [];
+    const edgeIds = new Set();
+    const conditionProducers = new Map();
+
+    for (const f of view.folders) {
+      for (const j of f.jobs || []) {
+        if (!nodeIds.has(j.name)) {
+          nodeIds.add(j.name);
+          nodes.push({ id: j.name, name: j.description || j.name, enabled: true, folder: f.folder });
+        }
+        for (const oc of j.produces || []) {
+          if (!conditionProducers.has(oc)) conditionProducers.set(oc, []);
+          conditionProducers.get(oc).push({ source: j.name, branch: 'SUCCESS' });
+        }
+      }
+
+      for (const e of f.graph?.edges || []) {
+        const eid = e.id || `${e.source}->${e.target}:${e.label || ''}`;
+        if (!edgeIds.has(eid)) {
+          edgeIds.add(eid);
+          edges.push(e);
+        }
+      }
+    }
+
+    // Connect cross-folder conditions between jobs
+    for (const f of view.folders) {
+      for (const j of f.jobs || []) {
+        for (const ic of j.waits_for || []) {
+          const producers = conditionProducers.get(ic) || [];
+          for (const prod of producers) {
+            if (prod.source !== j.name) {
+              const eid = `cond:${prod.source}>${j.name}:${ic}`;
+              if (!edgeIds.has(eid)) {
+                edgeIds.add(eid);
+                edges.push({
+                  id: eid,
+                  source: prod.source,
+                  target: j.name,
+                  kind: 'CONDITION',
+                  branch: prod.branch,
+                  label: ic,
+                  description: `${j.name} waits for condition ${ic} from ${prod.source}`,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return { nodes, edges };
+  }, [view, isAll, folder]);
 
   // editing: needs the settings permission and no run in progress (the server enforces both)
   const running = (runs.data ?? []).some((r) => r.status === 'RUNNING');
@@ -198,17 +275,18 @@ export function WorkflowPanel({ env, onRunStarted }) {
     wf.reload(true);
   };
   const saveJob = async (payload) => {
+    const targetFolder = jobModal?.folder || folderName || payload.folder;
     if (jobModal.mode === 'edit') {
-      await svc.updateJob(env, workflowId, folderName, jobModal.job, payload);
+      await svc.updateJob(env, workflowId, targetFolder, jobModal.job, payload);
       afterEdit(`Job ${jobModal.job} saved. Review and approve the workflow again.`);
     } else {
-      await svc.addJob(env, workflowId, folderName, payload);
+      await svc.addJob(env, workflowId, targetFolder, payload);
       afterEdit(`Job ${payload.name} added. Review and approve the workflow again.`);
     }
   };
   const saveFolder = async (payload) => {
     await svc.addFolder(env, workflowId, { ...payload, base_sha256: baseSha });
-    setFolderIdx(view.folders.length); // the new, last workflow
+    setFolderChoice(String(view.folders.length)); // the new, last workflow
     afterEdit(`Workflow ${payload.name} added.`);
   };
   const startDelete = async (next) => {
@@ -263,7 +341,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
     );
     if (done) {
       setSelected(null);
-      setFolderIdx(0);
+      setFolderChoice('ALL');
       setColourChoice('auto');
       wf.reload(true);
     }
@@ -293,7 +371,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
         toast.success(`${file.name} uploaded and active. Review it before approving.`);
         setReviewed(false);
         setSelected(null);
-        setFolderIdx(0);
+        setFolderChoice('ALL');
         setColourChoice('auto');
       } else {
         toast.success(`${file.name} stored. Choose it in "Workflow file" to review and run it.`);
@@ -370,7 +448,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
     <div className="eodw-root eodw-stack">
       {wf.error && view ? (
         <div className="eodsch-notice eodsch-notice-warn" role="status">
-          Couldn't refresh the workflow: {wf.error}
+          Couldn&apos;t refresh the workflow: {wf.error}
         </div>
       ) : null}
 
@@ -511,9 +589,8 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 <strong>{state.label}</strong>
                 <p className="eodw-muted">
                   {state.state === 'approved'
-                    ? `Approved by ${view.meta.approved_by || 'unknown'}${
-                        view.meta.approved_at ? ` on ${formatWhen(view.meta.approved_at)}` : ''
-                      }. Changing the file, a setting, a target server or a mapping cancels the approval.`
+                    ? `Approved by ${view.meta.approved_by || 'unknown'}${view.meta.approved_at ? ` on ${formatWhen(view.meta.approved_at)}` : ''
+                    }. Changing the file, a setting, a target server or a mapping cancels the approval.`
                     : 'Approval covers exactly the commands, target servers and settings shown below.'}
                 </p>
               </div>
@@ -550,14 +627,17 @@ export function WorkflowPanel({ env, onRunStarted }) {
                   <label className="eodsch-field-inline">
                     Workflow
                     <select
-                      value={folderIdx}
+                      value={folderChoice}
                       onChange={(e) => {
-                        setFolderIdx(Number(e.target.value));
+                        setFolderChoice(e.target.value);
                         setSelected(null);
                       }}
                     >
+                      <option value="ALL">
+                        All Workflows ({allFolderJobs.length})
+                      </option>
                       {view.folders.map((f, i) => (
-                        <option key={f.folder} value={i}>
+                        <option key={f.folder} value={String(i)}>
                           {f.folder} ({f.jobs.length})
                         </option>
                       ))}
@@ -577,13 +657,11 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     }}
                   >
                     <option value="none">none</option>
-                    {(runs.data ?? [])
-                      .filter((r) => r.folder === folder?.folder)
-                      .map((r) => (
-                        <option key={r.run_id} value={r.run_id}>
-                          {r.run_id} ({r.status})
-                        </option>
-                      ))}
+                    {folderRuns.map((r) => (
+                      <option key={r.run_id} value={r.run_id}>
+                        {r.run_id} ({isAll && r.folder ? `${r.folder}: ` : ''}{r.status})
+                      </option>
+                    ))}
                   </select>
                 </label>
                 {colourChoice !== 'auto' && liveRun ? (
@@ -605,7 +683,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                   >
                     Add workflow
                   </Button>
-                  {folder ? (
+                  {folder && !isAll ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -621,12 +699,24 @@ export function WorkflowPanel({ env, onRunStarted }) {
               ) : null}
             </div>
             <div className="eodw-graph-body">
-              {folder ? (
+              {graph?.nodes?.length ? (
                 <DependencyGraph
-                  graph={folder.graph}
+                  graph={graph}
+                  jobs={activeJobs}
+                  detail={detail.data}
                   states={states}
                   selected={selected}
                   onSelect={setSelected}
+                  isAllWorkflows={isAll}
+                  env={env}
+                  folder={folder?.folder}
+                  onRunRecorded={(runId) => {
+                    runs.reload(true);
+                    setColourChoice(runId);
+                  }}
+                  onViewLogs={(runId) => {
+                    onRunStarted?.(runId);
+                  }}
                 />
               ) : null}
             </div>
@@ -639,7 +729,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 <div className="eodw-jobs-title">
                   <strong>Jobs</strong>
                   <span className="eodw-count">
-                    {query ? `${jobs.length} of ${folder?.jobs?.length ?? 0}` : jobs.length}
+                    {query ? `${jobs.length} of ${activeJobs.length}` : jobs.length}
                   </span>
                 </div>
                 <label className="eodw-search">
@@ -652,7 +742,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     aria-label="Filter jobs"
                   />
                 </label>
-                {canEdit && folder ? (
+                {canEdit && !isAll && folder ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -669,6 +759,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 <table className="eodsch-table eodw-table">
                   <thead>
                     <tr>
+                      {isAll ? <th>Workflow</th> : null}
                       <th>Job</th>
                       <th>Schedule</th>
                       <th className="eodw-num">Waits</th>
@@ -684,6 +775,11 @@ export function WorkflowPanel({ env, onRunStarted }) {
                         data-selected={j.name === selected}
                         onClick={() => setSelected(j.name)}
                       >
+                        {isAll ? (
+                          <td className="eodw-nowrap">
+                            <span className="eodw-pill">{j.folder}</span>
+                          </td>
+                        ) : null}
                         <td>
                           <button
                             type="button"
@@ -718,7 +814,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                               aria-label={`Edit ${j.name}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setJobModal({ mode: 'edit', job: j.name });
+                                setJobModal({ mode: 'edit', job: j.name, folder: j.folder || folder?.folder });
                               }}
                             />
                             <Button
@@ -730,7 +826,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                               aria-label={`Delete ${j.name}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                startDelete({ kind: 'job', folder: folder.folder, job: j.name });
+                                startDelete({ kind: 'job', folder: j.folder || folder?.folder, job: j.name });
                               }}
                             />
                           </td>
@@ -739,7 +835,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     ))}
                     {!shown.length ? (
                       <tr>
-                        <td colSpan={canEdit ? 6 : 5} className="eodw-muted eodw-none">
+                        <td colSpan={canEdit ? (isAll ? 7 : 6) : (isAll ? 6 : 5)} className="eodw-muted eodw-none">
                           No job matches.
                         </td>
                       </tr>

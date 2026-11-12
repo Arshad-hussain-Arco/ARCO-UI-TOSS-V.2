@@ -303,6 +303,7 @@ const endpoints = {
     runPause: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/pause/`,
     runResume: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/resume/`,
     runNow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/run-now/`,
+    recordExecution: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/record-execution/`,
     command: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/commands/${id}/`,
     workflowItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/`,
     workflowActivate: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/activate/`,
