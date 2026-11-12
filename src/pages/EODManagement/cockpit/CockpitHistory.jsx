@@ -7,12 +7,24 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLo
 
   return (
     <div className="cr-history-container">
-      <div className="cr-history-header">
-        <h2>Run Execution History</h2>
-        <span className="cr-history-sub">
-          Inspect past batch runs, execution durations, and metrics for environment{' '}
-          <strong>{String(env).toUpperCase()}</strong>.
-        </span>
+      <div className="cr-history-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h2>Run Execution History</h2>
+          <span className="cr-history-sub">
+            Inspect past batch runs, execution durations, and metrics for environment{' '}
+            <strong>{String(env).toUpperCase()}</strong>.
+          </span>
+        </div>
+        {currentRunId && currentRunId !== 'current_workflow' && (
+          <button
+            type="button"
+            className="cr-btn sm outline"
+            onClick={() => onSelectRun('current_workflow', env)}
+            title="Return to the active uploaded workflow in Cockpit"
+          >
+            ★ Switch to Current Uploaded Workflow
+          </button>
+        )}
       </div>
 
       <div className="cr-history-table-card">

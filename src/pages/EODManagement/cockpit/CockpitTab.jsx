@@ -89,11 +89,16 @@ export function CockpitTab({ env } = {}) {
   );
 
   const runs = useMemo(() => runsList.data || [], [runsList.data]);
-  const liveRun = (runs.find((r) => r.status === 'RUNNING' || r.status === 'Running') ?? runs[0])?.id ?? (runs[0]?.run_id ?? '');
-  const currentRunId = selectedRunId || liveRun || '';
+  const activeRunningRun = runs.find((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
+  const currentRunId = isViewingCurrentWorkflow
+    ? 'current_workflow'
+    : (selectedRunId || (activeRunningRun?.id || activeRunningRun?.run_id || ''));
 
   const runDetail = useResource(
-    () => (env && currentRunId ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId)) : Promise.resolve(null)),
+    () => (env && currentRunId && currentRunId !== 'current_workflow'
+      ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
+      : Promise.resolve(null)),
     [env, currentRunId],
   );
 
@@ -101,7 +106,7 @@ export function CockpitTab({ env } = {}) {
   const isBackendPaused = runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
   const isRunActive = isRunningBatch || isPaused;
-  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && !runDetail.data);
+  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
   // Polling for live status
   usePolling(() => runsList.reload(true), 4000);
@@ -129,6 +134,54 @@ export function CockpitTab({ env } = {}) {
     };
   }, [def.data, view]);
 
+  // Staged run representing the current/uploaded workflow ready for execution
+  const stagedRun = useMemo(() => {
+    if (!def.data && !view) return null;
+    const jobsList = enrichedDefinition?.jobs || [];
+    return {
+      id: 'READY',
+      file_name: view?.meta?.filename || 'batch_workflow.xml',
+      environment: env,
+      status: 'Ready',
+      isReadyState: true,
+      started_at: null,
+      ended_at: null,
+      took: '—',
+      counts: {
+        total: jobsList.length,
+        done: 0,
+        failed: 0,
+        running: 0,
+        on_hold: 0,
+        waiting: jobsList.length,
+        skipped: 0,
+        killed: 0,
+        queued: 0,
+      },
+      options: { simulate_all: false },
+      jobs: jobsList.map((j) => ({
+        name: j.name,
+        group: j.group || 'EOD-CORE',
+        level: j.level || 1,
+        status: 'Waiting',
+        action: 'run',
+        attempt: 0,
+        started_at: null,
+        ended_at: null,
+        exit_code: null,
+        error_message: '',
+        predecessors: j.predecessors || [],
+        successors: j.successors || [],
+        command: j.command,
+        target: j.target,
+        attempts: [],
+      })),
+      folders: view?.folders || [],
+    };
+  }, [def.data, view, enrichedDefinition, env]);
+
+  const run = isViewingCurrentWorkflow ? stagedRun : runDetail.data;
+
   // Merge selected job properties from workflow definition + active run
   const selectedJobObj = useMemo(() => {
     if (!selectedJobName) return null;
@@ -141,9 +194,9 @@ export function CockpitTab({ env } = {}) {
       }
     }
     const defJob = def.data?.jobs?.find((j) => j.name === selectedJobName);
-    const runJob = runDetail.data?.jobs?.find((j) => j.name === selectedJobName);
+    const runJob = run?.jobs?.find((j) => j.name === selectedJobName);
     return wfJob || defJob || runJob ? { ...defJob, ...wfJob, ...runJob } : null;
-  }, [selectedJobName, view, def.data, runDetail.data]);
+  }, [selectedJobName, view, def.data, run?.jobs]);
 
   // Actions
   const guarded = async (fn, okMsg) => {
@@ -171,7 +224,8 @@ export function CockpitTab({ env } = {}) {
     if (done) {
       setReviewed(false);
       setSelectedJobName(null);
-      await Promise.all([wf.reload(true), def.reload(true)]);
+      setSelectedRunId('current_workflow');
+      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
     }
   };
 
@@ -269,8 +323,6 @@ export function CockpitTab({ env } = {}) {
     setSelectedRunId(runId);
   };
 
-  const run = runDetail.data;
-
   return (
     <div className="cr-cockpit">
       {/* ── Internal SVG Icon Sprites ── */}
@@ -291,36 +343,7 @@ export function CockpitTab({ env } = {}) {
                   <CockpitIcon name="i-hold" className="xs" /> Needs Approval
                 </span>
               )}
-              {view.workflows && view.workflows.length > 1 ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <select
-                    className="cr-select sm"
-                    style={{ fontWeight: 700, fontSize: '13px', maxWidth: '280px', color: 'var(--cr-text)' }}
-                    value={view.meta?.id}
-                    onChange={async (e) => {
-                      const wid = e.target.value;
-                      const ok = await guarded(
-                        () => svc.activateWorkflow(env, wid),
-                        'Switched active workflow file.',
-                      );
-                      if (ok) {
-                        setReviewed(false);
-                        setSelectedJobName(null);
-                        await Promise.all([wf.reload(true), def.reload(true)]);
-                      }
-                    }}
-                    title="Switch active workflow file"
-                  >
-                    {view.workflows.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.filename} {w.active ? '(Active)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <strong className="cr-wf-filename">{view.meta?.filename}</strong>
-              )}
+              <strong className="cr-wf-filename">{view.meta?.filename}</strong>
               <span className="cr-wf-meta">
                 sha256 {view.meta.sha256.slice(0, 10)}… · uploaded {new Date(view.meta.uploaded_at).toLocaleDateString()} by {view.meta.uploaded_by || 'unknown'}
               </span>
@@ -527,18 +550,23 @@ export function CockpitTab({ env } = {}) {
       {run ? (
         <div className="cr-run-context-strip">
           <div className="cr-rcs-left">
-            <span className="cr-scope-pill">RUN #{run.id}</span>
+            <span className="cr-scope-pill">{run.isReadyState ? 'NEW BATCH' : `RUN #${run.id}`}</span>
             <span className={`cr-env-pill ${String(env).toLowerCase()}`}>{String(env).toUpperCase()}</span>
             <span className={`cr-status-badge ${isPaused ? 'paused' : String(run.status).toLowerCase().replace(/\s+/g, '-')}`}>
               {isPaused ? 'Paused' : run.status}
             </span>
             <span className="cr-rcs-started">
-              started {run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}
+              {run.isReadyState ? (
+                <>file: <strong>{run.file_name}</strong> · Ready to execute</>
+              ) : (
+                `started ${run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}`
+              )}
             </span>
             <span className="cr-rcs-desc">
-              {activeView === 'overview' && 'High level status, metrics, and progress for this run.'}
-              {activeView === 'flow' && 'The jobs of the batch file and how they depend on each other, coloured by this run.'}
-              {activeView === 'timeline' && 'When each job of this run started and ended.'}
+              {activeView === 'overview' && (run.isReadyState ? 'Overview of the newly uploaded workflow ready for execution.' : 'High level status, metrics, and progress for this run.')}
+              {activeView === 'flow' && (run.isReadyState ? 'Execution dependency graph for the uploaded workflow.' : 'The jobs and dependencies of this run.')}
+              {activeView === 'timeline' && (run.isReadyState ? 'Batch timeline will display execution times once started.' : 'When each job of this run started and ended.')}
+              {activeView === 'history' && 'Past executions recorded for this environment.'}
             </span>
           </div>
 
@@ -550,6 +578,9 @@ export function CockpitTab({ env } = {}) {
                 value={currentRunId}
                 onChange={(e) => handleSelectRun(e.target.value)}
               >
+                <option value="current_workflow">
+                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'} {run.isReadyState ? '(Active)' : ''}
+                </option>
                 {runs.map((r) => {
                   const rid = r.id || r.run_id;
                   const rstat = r.status || 'Unknown';
@@ -557,7 +588,7 @@ export function CockpitTab({ env } = {}) {
                   return (
                     <option key={rid} value={rid}>
                       #{rid} · {rstat} · {rstart ? new Date(rstart).toLocaleTimeString([], { hour12: false }) : '—'}
-                      {String(currentRunId) === String(rid) ? ' (current)' : ''}
+                      {String(currentRunId) === String(rid) ? ' (viewing)' : ''}
                     </option>
                   );
                 })}
@@ -593,7 +624,7 @@ export function CockpitTab({ env } = {}) {
             isLoading={isOverviewLoading}
             run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
             definition={enrichedDefinition}
-            folders={view?.folders || []}
+            folders={run?.folders || view?.folders || []}
             onSelectJob={(name) => {
               setSelectedJobName(name);
               setIsDrawerOpen(true);
@@ -618,7 +649,7 @@ export function CockpitTab({ env } = {}) {
             onCancelRun={handleCancelRun}
             isPaused={isPaused}
             onTogglePause={handleTogglePause}
-            folders={view?.folders || []}
+            folders={run?.folders || view?.folders || []}
             initialGroupFilter={flowGroupFilter}
             onClearGroupFilter={() => setFlowGroupFilter(null)}
           />
