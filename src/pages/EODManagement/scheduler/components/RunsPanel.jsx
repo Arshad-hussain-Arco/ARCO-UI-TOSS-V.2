@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { RefreshCw, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Copy, RefreshCw, Search, WrapText, XCircle } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
@@ -8,20 +8,83 @@ import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerSer
 import { formatDuration, jobTone, runTone, secondsBetween } from '../schedulerModel';
 import { usePolling, useResource } from '../useResource';
 
+import './RunsPanel.css';
+
+const NO_LOG = '(no log yet)';
+
+/** The log endpoint may return plain text, a list of lines or an object: always end up with text. */
+const toLogText = (res) => {
+  if (res == null) return '';
+  if (typeof res === 'string') return res;
+  if (Array.isArray(res)) return res.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n');
+  if (typeof res === 'object') {
+    const inner = res.log ?? res.text ?? res.content ?? res.output;
+    return inner != null ? toLogText(inner) : JSON.stringify(res, null, 2);
+  }
+  return String(res);
+};
+
+/** Groups any status text into a few visual buckets. */
+const statusGroup = (status) => {
+  const v = String(status || '').toUpperCase();
+  if (v === 'SUCCESS') return 'ok';
+  if (['FAILED', 'FAILURE', 'ERROR', 'UNCERTAIN', 'TIMEOUT'].includes(v)) return 'bad';
+  if (v === 'RUNNING') return 'run';
+  if (['SKIPPED', 'CANCELLED', 'CANCELED'].includes(v)) return 'skip';
+  return 'other';
+};
+
+/** "2026-11-12 16:22:31.865" -> "2026-11-12 16:22:31" */
+const shortTime = (value) => (value ? String(value).replace(/\.\d+$/, '') : '—');
+
 export function Chip({ tone, children }) {
   return <span className={`eodsch-chip eodsch-tone-${tone}`}>{children}</span>;
 }
 
-export function LogViewer({ env, runId, jobs = [], running }) {
-  const [job, setJob] = useState('');
-  const log = useResource(
-    () => svc.getRunLog(env, runId, job).catch(() => '(no log yet)'),
-    [env, runId, job]
-  );
+/* ------------------------------------------------------------------ */
+/* Log viewer                                                          */
+/* ------------------------------------------------------------------ */
+
+export function LogViewer({ env, runId, jobs = [], running, job: jobProp, onJobChange }) {
+  const toast = useToast();
+  const [innerJob, setInnerJob] = useState('');
+  const job = jobProp ?? innerJob;
+  const setJob = onJobChange ?? setInnerJob;
+  const [wrap, setWrap] = useState(false);
+  const bodyRef = useRef(null);
+
+  // Only a 404 means "no log yet". Any other failure is shown, not hidden.
+  const log = useResource(async () => {
+    try {
+      return toLogText(await svc.getRunLog(env, runId, job));
+    } catch (err) {
+      if (err?.status === 404 || err?.response?.status === 404) return NO_LOG;
+      throw err;
+    }
+  }, [env, runId, job]);
   usePolling(() => log.reload(true), 4000, running);
+
+  // keep the newest lines in view while the run is live
+  useEffect(() => {
+    if (running && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [log.data, running]);
+
+  const text = log.data || '';
+  const failed = Boolean(log.error) && !log.data;
+  const empty = !log.loading && !failed && (!text.trim() || text === NO_LOG);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Log copied.');
+    } catch {
+      toast.error('Could not copy the log.');
+    }
+  };
+
   return (
-    <div className="eodsch-card">
-      <div className="eodsch-toolbar">
+    <div className="eodsch-card eodr-root eodr-log" id="eodr-log">
+      <div className="eodr-log-bar">
         <label className="eodsch-field-inline">
           Log
           <select value={job} onChange={(e) => setJob(e.target.value)}>
@@ -33,6 +96,24 @@ export function LogViewer({ env, runId, jobs = [], running }) {
             ))}
           </select>
         </label>
+        {running ? <span className="eodr-live">Live</span> : null}
+        <div className="eodr-spacer" />
+        <Button
+          variant="ghost"
+          size="sm"
+          leadingIcon={WrapText}
+          onClick={() => setWrap((w) => !w)}
+          aria-pressed={wrap}
+          aria-label="Toggle line wrap"
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          leadingIcon={Copy}
+          onClick={copy}
+          disabled={empty}
+          aria-label="Copy the log"
+        />
         <Button
           variant="ghost"
           size="sm"
@@ -47,8 +128,114 @@ export function LogViewer({ env, runId, jobs = [], running }) {
         </div>
       ) : null}
       {/* plain text only: never rendered as HTML */}
-      <pre className="eodsch-log">{log.loading && !log.data ? 'Loading…' : log.data}</pre>
+      <div className="eodr-log-body" ref={bodyRef} data-wrap={wrap}>
+        {log.loading && !log.data ? (
+          <p className="eodr-log-empty">Loading…</p>
+        ) : failed ? (
+          <p className="eodr-log-empty">Could not load the log.</p>
+        ) : empty ? (
+          <p className="eodr-log-empty">
+            {job ? `No log for ${job} yet. Skipped jobs never produce one.` : 'No log yet.'}
+          </p>
+        ) : (
+          <pre className="eodr-log-text">{text}</pre>
+        )}
+      </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Run detail                                                          */
+/* ------------------------------------------------------------------ */
+
+function JobProgress({ jobs }) {
+  const counts = { ok: 0, bad: 0, run: 0, skip: 0, other: 0 };
+  jobs.forEach((j) => {
+    counts[statusGroup(j.status)] += 1;
+  });
+  const total = jobs.length || 1;
+  const legend = [
+    ['ok', 'succeeded'],
+    ['bad', 'failed'],
+    ['run', 'running'],
+    ['skip', 'skipped'],
+    ['other', 'other'],
+  ].filter(([key]) => counts[key]);
+
+  return (
+    <div className="eodr-progress">
+      <div
+        className="eodr-progress-bar"
+        role="img"
+        aria-label={legend.map(([k, label]) => `${counts[k]} ${label}`).join(', ')}
+      >
+        {legend.map(([key]) => (
+          <span
+            key={key}
+            className={`eodr-seg eodr-seg-${key}`}
+            style={{ width: `${(counts[key] / total) * 100}%` }}
+          />
+        ))}
+      </div>
+      <div className="eodr-progress-legend">
+        <strong>{jobs.length} jobs</strong>
+        {legend.map(([key, label]) => (
+          <span key={key} className="eodr-legend-item">
+            <i className={`eodr-dot eodr-seg-${key}`} />
+            {counts[key]} {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JobRow({ j, maxSeconds, onShowLog, active }) {
+  const [open, setOpen] = useState(false);
+  const seconds = j.duration ?? secondsBetween(j.started, j.ended);
+  const reason = j.reason || '';
+  const long = reason.length > 90;
+  const pct = seconds && maxSeconds ? Math.max(4, Math.round((seconds / maxSeconds) * 100)) : 0;
+  const group = statusGroup(j.status);
+
+  return (
+    <tr className={`eodr-job eodr-job-${group}`} data-active={active}>
+      <td className="eodr-job-name">{j.job}</td>
+      <td>
+        <Chip tone={jobTone(j.status)}>{j.status}</Chip>
+      </td>
+      <td className="eodr-num">{j.attempts}</td>
+      <td className="eodr-num">{j.exit_code ?? '—'}</td>
+      <td className="eodr-time">
+        <span>{formatDuration(seconds)}</span>
+        {pct ? (
+          <span className="eodr-timebar">
+            <span style={{ width: `${pct}%` }} />
+          </span>
+        ) : null}
+      </td>
+      <td className="eodr-why">
+        <span className="eodr-why-text" data-open={open} title={open ? undefined : reason}>
+          {reason || '—'}
+        </span>
+        {long ? (
+          <button type="button" className="eodsch-link eodr-more" onClick={() => setOpen((o) => !o)}>
+            {open ? 'less' : 'more'}
+          </button>
+        ) : null}
+      </td>
+      <td>
+        <button
+          type="button"
+          className="eodsch-link"
+          onClick={() => onShowLog(j.job)}
+          aria-label={`Show the log of ${j.job}`}
+        >
+          Log
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -98,6 +285,8 @@ export function RunDetail({ env, runId, onChanged }) {
   }, [env, runId]);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [jobFilter, setJobFilter] = useState('all');
+  const [logJob, setLogJob] = useState('');
   const running = detail.data?.run?.status === 'RUNNING';
   usePolling(() => detail.reload(true), 4000, running);
 
@@ -105,6 +294,12 @@ export function RunDetail({ env, runId, onChanged }) {
     if (detail.data && !running) onChanged?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
+
+  const jobs = useMemo(() => detail.data?.jobs ?? [], [detail.data]);
+  const maxSeconds = useMemo(
+    () => Math.max(0, ...jobs.map((j) => j.duration ?? secondsBetween(j.started, j.ended) ?? 0)),
+    [jobs],
+  );
 
   const cancel = async () => {
     setBusy(true);
@@ -122,28 +317,48 @@ export function RunDetail({ env, runId, onChanged }) {
     }
   };
 
+  const showLog = (jobName) => {
+    setLogJob(jobName);
+    document.getElementById('eodr-log')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
   if (detail.loading && !detail.data) return <p className="eodsch-muted">Loading the run…</p>;
-  if (detail.error)
+  if (detail.error && !detail.data)
     return (
       <div className="eodsch-error" role="alert">
         {detail.error}
       </div>
     );
-  const { run, jobs, attempts, conditions } = detail.data;
+  const { run } = detail.data;
+  const attempts = detail.data.attempts ?? [];
+  const conditions = detail.data.conditions ?? [];
+  const notOk = jobs.filter((j) => statusGroup(j.status) !== 'ok');
+  const visibleJobs = jobFilter === 'issues' ? notOk : jobs;
+  const duration = run.ended ? secondsBetween(run.started, run.ended) : null;
+
+  const meta = [
+    ['Type', run.run_type],
+    ['Business date', run.odate],
+    ['Started', shortTime(run.started)],
+    ['Ended', run.ended ? shortTime(run.ended) : 'still running'],
+    ['Duration', duration != null ? formatDuration(duration) : running ? 'running…' : '—'],
+    ['Started by', run.started_by || '—'],
+    ['Approved by', run.approved_by || '—'],
+  ];
 
   return (
-    <div className="eodsch-stack">
-      <div className="eodsch-card">
-        <div className="eodsch-toolbar">
-          <div>
-            <strong>{run.run_id}</strong> <Chip tone={runTone(run.status)}>{run.status}</Chip>
-            <div className="eodsch-muted">
-              {run.run_type} · business date {run.odate} · started {run.started} ·{' '}
-              {run.started_by ? `started by ${run.started_by} · ` : ''}
-              {run.approved_by ? `approved by ${run.approved_by} · ` : ''}
-              {run.ended ? `ended ${run.ended}` : 'still running'}
-              {run.message ? ` · ${run.message}` : ''}
-            </div>
+    <div className="eodr-root eodr-stack">
+      {detail.error ? (
+        <div className="eodsch-notice eodsch-notice-warn" role="status">
+          Couldn't refresh this run: {detail.error}
+        </div>
+      ) : null}
+
+      <div className="eodsch-card eodr-summary">
+        <div className="eodr-summary-head">
+          <div className="eodr-title">
+            <strong className="eodr-run-id">{run.run_id}</strong>
+            <Chip tone={runTone(run.status)}>{run.status}</Chip>
           </div>
           {running && hasPermission('EOD_SCHEDULER_EXECUTE') ? (
             <Button
@@ -156,72 +371,132 @@ export function RunDetail({ env, runId, onChanged }) {
             </Button>
           ) : null}
         </div>
+
+        <dl className="eodr-meta">
+          {meta.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {run.message ? <p className="eodr-message">{run.message}</p> : null}
+
+        <JobProgress jobs={jobs} />
+      </div>
+
+      <div className="eodsch-card eodr-jobs">
+        <div className="eodr-jobs-bar">
+          <strong>Jobs</strong>
+          <div className="eodr-seg-toggle" role="group" aria-label="Filter jobs">
+            <button
+              type="button"
+              data-active={jobFilter === 'all'}
+              onClick={() => setJobFilter('all')}
+            >
+              All ({jobs.length})
+            </button>
+            <button
+              type="button"
+              data-active={jobFilter === 'issues'}
+              onClick={() => setJobFilter('issues')}
+              disabled={!notOk.length}
+            >
+              Not successful ({notOk.length})
+            </button>
+          </div>
+        </div>
         <div className="eodsch-table-wrap">
-          <table className="eodsch-table">
+          <table className="eodsch-table eodr-table">
             <thead>
               <tr>
                 <th>Job</th>
                 <th>Status</th>
-                <th>Tries</th>
-                <th>Exit</th>
+                <th className="eodr-num">Tries</th>
+                <th className="eodr-num">Exit</th>
                 <th>Time</th>
                 <th>Why</th>
+                <th aria-label="Log" />
               </tr>
             </thead>
             <tbody>
-              {jobs.map((j) => (
-                <tr key={j.job}>
-                  <td>{j.job}</td>
-                  <td>
-                    <Chip tone={jobTone(j.status)}>{j.status}</Chip>
-                  </td>
-                  <td>{j.attempts}</td>
-                  <td>{j.exit_code ?? '—'}</td>
-                  <td>{formatDuration(j.duration ?? secondsBetween(j.started, j.ended))}</td>
-                  <td className="eodsch-cell-command" title={j.reason}>
-                    {j.reason || '—'}
+              {visibleJobs.map((j) => (
+                <JobRow
+                  key={j.job}
+                  j={j}
+                  maxSeconds={maxSeconds}
+                  active={logJob === j.job}
+                  onShowLog={showLog}
+                />
+              ))}
+              {!visibleJobs.length ? (
+                <tr>
+                  <td colSpan={7} className="eodsch-muted">
+                    No jobs to show.
                   </td>
                 </tr>
-              ))}
+              ) : null}
             </tbody>
           </table>
         </div>
-        {attempts.length ? (
-          <details>
-            <summary>{attempts.length} attempt(s)</summary>
-            <table className="eodsch-table">
-              <thead>
-                <tr>
-                  <th>Job</th>
-                  <th>#</th>
-                  <th>Status</th>
-                  <th>Exit</th>
-                  <th>Time</th>
-                  <th>Error</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attempts.map((a) => (
-                  <tr key={`${a.job}-${a.attempt}`}>
-                    <td>{a.job}</td>
-                    <td>{a.attempt}</td>
-                    <td>{a.status}</td>
-                    <td>{a.exit_code ?? '—'}</td>
-                    <td>{formatDuration(a.duration)}</td>
-                    <td className="eodsch-cell-command" title={a.error}>
-                      {a.error || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+        {conditions.length ? (
+          <details className="eodr-details">
+            <summary>{conditions.length} condition(s) set</summary>
+            <div className="eodr-conditions">
+              {conditions.map((c) => (
+                <code key={c}>{c}</code>
+              ))}
+            </div>
           </details>
         ) : null}
-        {conditions.length ? (
-          <p className="eodsch-muted">Conditions set: {conditions.join(', ')}</p>
+
+        {attempts.length ? (
+          <details className="eodr-details">
+            <summary>{attempts.length} attempt(s)</summary>
+            <div className="eodsch-table-wrap">
+              <table className="eodsch-table eodr-table">
+                <thead>
+                  <tr>
+                    <th>Job</th>
+                    <th className="eodr-num">#</th>
+                    <th>Status</th>
+                    <th className="eodr-num">Exit</th>
+                    <th>Time</th>
+                    <th>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attempts.map((a) => (
+                    <tr key={`${a.job}-${a.attempt}`}>
+                      <td className="eodr-job-name">{a.job}</td>
+                      <td className="eodr-num">{a.attempt}</td>
+                      <td>
+                        <Chip tone={jobTone(a.status)}>{a.status}</Chip>
+                      </td>
+                      <td className="eodr-num">{a.exit_code ?? '—'}</td>
+                      <td>{formatDuration(a.duration)}</td>
+                      <td className="eodr-why" title={a.error}>
+                        <span className="eodr-why-text">{a.error || '—'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         ) : null}
       </div>
-      <LogViewer env={env} runId={runId} jobs={jobs} running={running} />
+
+      <LogViewer
+        env={env}
+        runId={runId}
+        jobs={jobs}
+        running={running}
+        job={logJob}
+        onJobChange={setLogJob}
+      />
+
       <AdminModal
         title="Cancel this run?"
         isOpen={confirm}
@@ -248,10 +523,16 @@ export function RunDetail({ env, runId, onChanged }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Run list                                                            */
+/* ------------------------------------------------------------------ */
+
 /** Run history of one environment with per-job results, attempts and logs. Refreshes while a run is active. */
 export function RunsPanel({ env, focusRun }) {
   const runs = useResource(() => svc.listRuns(env), [env]);
   const [selected, setSelected] = useState(focusRun || '');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const anyRunning = (runs.data ?? []).some((r) => r.status === 'RUNNING');
   usePolling(() => runs.reload(true), 5000, true);
 
@@ -259,8 +540,24 @@ export function RunsPanel({ env, focusRun }) {
     if (focusRun) setSelected(focusRun);
   }, [focusRun]);
 
+  const all = useMemo(() => runs.data ?? [], [runs.data]);
+  const statuses = useMemo(() => [...new Set(all.map((r) => r.status).filter(Boolean))], [all]);
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter(
+      (r) =>
+        (!statusFilter || r.status === statusFilter) &&
+        (!q ||
+          [r.run_id, r.run_type, r.started_by, r.approved_by].some((v) =>
+            String(v || '')
+              .toLowerCase()
+              .includes(q),
+          )),
+    );
+  }, [all, query, statusFilter]);
+
   if (runs.loading && !runs.data) return <p className="eodsch-muted">Loading runs…</p>;
-  if (runs.error)
+  if (runs.error && !runs.data)
     return (
       <div className="eodsch-error" role="alert">
         {runs.error}
@@ -268,56 +565,75 @@ export function RunsPanel({ env, focusRun }) {
     );
 
   return (
-    <div className="eodsch-split eodsch-split-runs">
-      <div className="eodsch-card eodsch-table-wrap">
-        <div className="eodsch-toolbar">
+    <div className="eodr-root eodr-layout">
+      <aside className="eodsch-card eodr-list">
+        <div className="eodr-list-head">
           <strong>Runs</strong>
+          <span className="eodr-count">{all.length}</span>
           {anyRunning ? <Chip tone="run">live</Chip> : null}
         </div>
-        <table className="eodsch-table">
-          <thead>
-            <tr>
-              <th>Run</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Started by</th>
-              <th>Approved by</th>
-              <th>Started</th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.data.map((r) => (
-              <tr key={r.run_id} data-selected={r.run_id === selected}>
-                <td>
-                  <button
-                    type="button"
-                    className="eodsch-link"
-                    aria-pressed={r.run_id === selected}
-                    onClick={() => setSelected(r.run_id)}
-                  >
-                    {r.run_id}
-                  </button>
-                </td>
-                <td>{r.run_type}</td>
-                <td>
-                  <Chip tone={runTone(r.status)}>{r.status}</Chip>
-                </td>
-                <td>{r.started_by || '—'}</td>
-                <td>{r.approved_by || '—'}</td>
-                <td>{r.started}</td>
-              </tr>
+
+        <div className="eodr-filters">
+          <label className="eodr-search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search runs"
+              aria-label="Search runs"
+            />
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
+          >
+            <option value="">All statuses</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
-            {!runs.data.length ? (
-              <tr>
-                <td colSpan={6} className="eodsch-muted">
-                  No runs yet in this environment.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-      <div>
+          </select>
+        </div>
+
+        {runs.error ? (
+          <div className="eodsch-notice eodsch-notice-warn" role="status">
+            Couldn't refresh runs: {runs.error}
+          </div>
+        ) : null}
+
+        <ul className="eodr-items">
+          {shown.map((r) => (
+            <li key={r.run_id}>
+              <button
+                type="button"
+                className="eodr-item"
+                data-selected={r.run_id === selected}
+                aria-pressed={r.run_id === selected}
+                onClick={() => setSelected(r.run_id)}
+              >
+                <span className="eodr-item-top">
+                  <span className="eodr-item-id">{r.run_id}</span>
+                  <Chip tone={runTone(r.status)}>{r.status}</Chip>
+                </span>
+                <span className="eodr-item-sub">
+                  {r.run_type} · {shortTime(r.started)}
+                  {r.started_by ? ` · ${r.started_by}` : ''}
+                </span>
+              </button>
+            </li>
+          ))}
+          {!shown.length ? (
+            <li className="eodsch-muted eodr-empty">
+              {all.length ? 'No runs match the filter.' : 'No runs yet in this environment.'}
+            </li>
+          ) : null}
+        </ul>
+      </aside>
+
+      <section className="eodr-main">
         {selected ? (
           <RunDetail
             key={selected}
@@ -326,9 +642,12 @@ export function RunsPanel({ env, focusRun }) {
             onChanged={() => runs.reload(true)}
           />
         ) : (
-          <p className="eodsch-muted">Select a run to see its jobs and logs.</p>
+          <div className="eodsch-card eodr-placeholder">
+            <strong>Select a run</strong>
+            <p className="eodsch-muted">Pick a run on the left to see its jobs, attempts and logs.</p>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

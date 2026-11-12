@@ -1,5 +1,5 @@
 import { Component, useEffect, useMemo, useState } from 'react';
-import { Calendar, Gauge, Plus, Server, Settings } from 'lucide-react';
+import { Calendar, Network, PlayCircle, Gauge, Plus, Server, Settings } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
@@ -8,17 +8,22 @@ import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
-import { SchedulePanel } from './components/SchedulePanel';
+import { RunsPanel } from './components/RunsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TargetsPanel } from './components/TargetsPanel';
 import { CockpitTab } from '../cockpit/CockpitTab';
+import { WorkflowPanel } from './components/WorkflowPanel';
 import { SchedulesNewSection } from '../components/SchedulesNewSection';
 
 import './SchedulerTab.css';
 
+// The old "Schedule" section (SchedulePanel) is intentionally removed: it was
+// commented out of this list, so it could never render. Restore the import,
+// the entry below and the render line if it is needed again.
 const SECTIONS = [
+  { key: 'workflow', label: 'Workflow', Icon: Network },
+  { key: 'runs', label: 'Runs', Icon: PlayCircle },
   { key: 'cockpit', label: 'Control Run Cockpit', Icon: Gauge },
-  { key: 'schedule', label: 'Schedule', Icon: Calendar },
   { key: 'schedules-new', label: 'Schedules (New)', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
   { key: 'settings', label: 'Settings', Icon: Settings },
@@ -50,6 +55,10 @@ class TabBoundary extends Component {
     return { error };
   }
 
+  componentDidCatch(error, info) {
+    console.error('EOD scheduler section crashed', error, info);
+  }
+
   render() {
     if (!this.state.error) return this.props.children;
     return (
@@ -78,7 +87,8 @@ export function SchedulerTab() {
   const envs = useResource(() => svc.listEnvironments(), []);
   usePolling(() => envs.reload(true), 15000); // who serves which environment changes without any click
   const [env, setEnv] = useState(remembered);
-  const [section, setSection] = useState('cockpit');
+  const [section, setSection] = useState('workflow');
+  const [focusRun, setFocusRun] = useState('');
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
   const canAdmin = hasPermission('EOD_SCHEDULER_SETTINGS');
@@ -88,18 +98,24 @@ export function SchedulerTab() {
 
   useEffect(() => {
     if (!envs.data) return;
-    if (!list.some((e) => e.code === env)) setEnv(list[0]?.code ?? '');
+    if (!list.some((e) => e.code === env)) {
+      const next = list[0]?.code ?? '';
+      setEnv(next);
+      if (next) remember(next);
+    }
   }, [envs.data, list, env]);
 
   const choose = (code) => {
     setEnv(code);
     remember(code);
+    setFocusRun('');
   };
 
   const create = async () => {
     setBusy(true);
     try {
-      const made = await svc.createEnvironment(creating.code.trim(), creating.name.trim());
+      // creating.code is already trimmed in the input's onChange
+      const made = await svc.createEnvironment(creating.code, creating.name.trim());
       toast.success(`Environment ${made.code} created.`);
       setCreating(null);
       await envs.reload(true);
@@ -125,9 +141,11 @@ export function SchedulerTab() {
     }
   };
 
+  // Only block the page when there is nothing to show. A failed background
+  // poll must not replace the section the user is working in.
   if (envs.loading && !envs.data)
     return <p className="eodsch-muted eodsch-pad">Loading environments…</p>;
-  if (envs.error) {
+  if (envs.error && !envs.data) {
     return (
       <div className="eodsch-pad">
         <div className="eodsch-error" role="alert">
@@ -137,6 +155,8 @@ export function SchedulerTab() {
     );
   }
 
+  const notice = current ? engineNotice(current) : null;
+
   const codeProblem =
     creating && creating.code && !isEnvironmentCode(creating.code)
       ? 'Letters, digits, - and _ only, starting with a letter or digit.'
@@ -145,12 +165,14 @@ export function SchedulerTab() {
   return (
     <>
       {/* Same tab bar as the EOD Management page; environment controls sit on its right */}
-      <div className="eod-tabs">
+      <div className="eod-tabs" role="tablist">
         {current
           ? SECTIONS.map(({ key, label, Icon }) => (
               <button
                 key={key}
                 type="button"
+                role="tab"
+                aria-selected={section === key}
                 className="eod-tab"
                 data-active={section === key}
                 onClick={() => setSection(key)}
@@ -192,6 +214,12 @@ export function SchedulerTab() {
 
       <div className="eod-body">
         <div className="eodsch">
+          {envs.error && envs.data ? (
+            <div className="eodsch-notice eodsch-notice-warn" role="status">
+              Couldn't refresh environments: {envs.error}
+            </div>
+          ) : null}
+
           {current ? (
             <div className="eodsch-statusbar">
               <span className="eodsch-muted">
@@ -210,12 +238,9 @@ export function SchedulerTab() {
             </div>
           ) : null}
 
-          {engineNotice(current) ? (
-            <div
-              className={`eodsch-notice eodsch-notice-${engineNotice(current).tone}`}
-              role="status"
-            >
-              {engineNotice(current).text}
+          {notice ? (
+            <div className={`eodsch-notice eodsch-notice-${notice.tone}`} role="status">
+              {notice.text}
             </div>
           ) : null}
 
@@ -229,17 +254,24 @@ export function SchedulerTab() {
               </p>
             </div>
           ) : (
-            <>
-              <TabBoundary key={`${env}-${section}`}>
-                <div className="eodsch-section">
-                  {section === 'cockpit' ? <CockpitTab env={env} /> : null}
-                  {section === 'schedule' ? <SchedulePanel env={env} /> : null}
-                  {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
-                  {section === 'targets' ? <TargetsPanel env={env} /> : null}
-                  {section === 'settings' ? <SettingsPanel env={env} /> : null}
-                </div>
-              </TabBoundary>
-            </>
+            <TabBoundary key={`${env}-${section}`}>
+              <div className="eodsch-section">
+                {section === 'workflow' ? (
+                  <WorkflowPanel
+                    env={env}
+                    onRunStarted={(id) => {
+                      setFocusRun(id || '');
+                      setSection('runs'); // RunsPanel is the consumer of focusRun
+                    }}
+                  />
+                ) : null}
+                {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
+                {section === 'cockpit' ? <CockpitTab env={env} /> : null}
+                {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
+                {section === 'targets' ? <TargetsPanel env={env} /> : null}
+                {section === 'settings' ? <SettingsPanel env={env} /> : null}
+              </div>
+            </TabBoundary>
           )}
 
           <AdminModal

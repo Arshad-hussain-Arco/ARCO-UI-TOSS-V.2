@@ -6,6 +6,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Search,
   ShieldAlert,
   Trash2,
   Upload,
@@ -28,15 +29,20 @@ import { FolderFormModal } from './FolderFormModal';
 import { JobFormModal } from './JobFormModal';
 import { WorkflowFilesModal } from './WorkflowFilesModal';
 
+import './WorkflowPanel.css';
+
 const ROW_LIMIT = 200;
+
+const formatWhen = (value) => (value ? new Date(value).toLocaleString() : '—');
 
 function Problems({ title, tone, messages, open }) {
   const groups = useMemo(() => groupMessages(messages), [messages]);
   if (!groups.length) return null;
   return (
-    <details className={`eodsch-problems eodsch-problems-${tone}`} open={open}>
+    <details className={`eodw-problems eodw-problems-${tone}`} open={open}>
       <summary>
-        {title} ({messages.length})
+        <span className="eodw-problems-title">{title}</span>
+        <span className="eodw-problems-count">{messages.length}</span>
       </summary>
       <ul>
         {groups.map((g) => (
@@ -44,7 +50,7 @@ function Problems({ title, tone, messages, open }) {
             {g.count > 1 ? <strong>{g.count} jobs: </strong> : null}
             {g.text}
             {g.where.length ? (
-              <span className="eodsch-muted">
+              <span className="eodw-muted">
                 {' '}
                 — {g.where.join(', ')}
                 {g.count > g.where.length ? ', …' : ''}
@@ -60,51 +66,68 @@ function Problems({ title, tone, messages, open }) {
 function JobDetails({ job }) {
   if (!job)
     return (
-      <p className="eodsch-muted">
-        Select a job in the table or the graph to see its command and target.
-      </p>
+      <div className="eodw-side-empty">
+        <strong>No job selected</strong>
+        <p className="eodw-muted">
+          Select a job in the table or the graph to see its command and target.
+        </p>
+      </div>
     );
+
+  const rows = [
+    ['NODEID', job.nodeid || '—'],
+    ['Schedule', job.schedule || '—'],
+    ['Retries', job.retries ?? '—'],
+    [
+      'Waits for',
+      job.waits_for?.length ? `${job.waits_for.join(', ')} (${job.logic})` : '—',
+    ],
+    ['Produces', job.produces?.length ? job.produces.join(', ') : '—'],
+  ];
+
   return (
-    <dl className="eodsch-details">
-      <dt>Job</dt>
-      <dd>{job.name}</dd>
-      <dt>Command</dt>
-      <dd>
-        <code>{job.command || '—'}</code>
-      </dd>
-      {job.command_ok ? (
-        <>
-          <dt>Runs as</dt>
-          <dd>
-            <code>{[job.executable, ...(job.args ?? [])].join(' ')}</code>
-          </dd>
-        </>
-      ) : (
-        <>
-          <dt>Command problems</dt>
-          <dd>
+    <div className="eodw-side">
+      <div className="eodw-side-head">
+        <strong className="eodw-side-title">{job.name}</strong>
+        <span className="eodw-pill" data-ok={Boolean(job.command_ok)}>
+          {job.command_ok ? 'Command permitted' : 'Command blocked'}
+        </span>
+      </div>
+
+      <section>
+        <h4>Command</h4>
+        <pre className="eodw-code">{job.command || '—'}</pre>
+        {job.command_ok ? (
+          <>
+            <h4>Runs as</h4>
+            <pre className="eodw-code">{[job.executable, ...(job.args ?? [])].join(' ')}</pre>
+          </>
+        ) : (
+          <div className="eodw-issue">
             {(job.command_issues ?? []).map(([code, reason]) => `${code}: ${reason}`).join('; ') ||
               'not permitted'}
-          </dd>
-        </>
-      )}
-      <dt>Target</dt>
-      <dd>
-        {job.target?.ok
-          ? `${job.target.target_name} (${targetLabel(job.target)})`
-          : job.target?.message || '—'}
-      </dd>
-      <dt>NODEID</dt>
-      <dd>{job.nodeid || '—'}</dd>
-      <dt>Schedule</dt>
-      <dd>{job.schedule}</dd>
-      <dt>Waits for</dt>
-      <dd>{job.waits_for?.length ? `${job.waits_for.join(', ')} (${job.logic})` : '—'}</dd>
-      <dt>Produces</dt>
-      <dd>{job.produces?.length ? job.produces.join(', ') : '—'}</dd>
-      <dt>Retries</dt>
-      <dd>{job.retries}</dd>
-    </dl>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h4>Target</h4>
+        <div className="eodw-target" data-ok={Boolean(job.target?.ok)}>
+          {job.target?.ok
+            ? `${job.target.target_name} (${targetLabel(job.target)})`
+            : job.target?.message || '—'}
+        </div>
+      </section>
+
+      <dl className="eodw-kv">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -320,7 +343,8 @@ export function WorkflowPanel({ env, onRunStarted }) {
   };
 
   if (wf.loading && !view) return <p className="eodsch-muted">Loading the workflow…</p>;
-  if (wf.error) {
+  // a failed background refresh must not replace a workflow that is already on screen
+  if (wf.error && !view) {
     return (
       <div className="eodsch-error" role="alert">
         {wf.error}{' '}
@@ -331,30 +355,56 @@ export function WorkflowPanel({ env, onRunStarted }) {
     );
   }
 
+  const canUpload = hasPermission('EOD_SCHEDULER_UPLOAD');
+  const stats = [
+    ['Workflows', view.summary?.folders, ''],
+    ['Jobs', view.summary?.jobs, ''],
+    ['Dependencies', view.summary?.dependencies, ''],
+    ['Timed jobs', view.summary?.timed_jobs, ''],
+    ['External conditions', view.summary?.external_conditions, ''],
+    ['Warnings', view.summary?.warnings, 'warn'],
+    ['Errors', view.summary?.errors, 'bad'],
+  ];
+
   return (
-    <div className="eodsch-stack">
-      <div className="eodsch-toolbar">
-        <div>
+    <div className="eodw-root eodw-stack">
+      {wf.error && view ? (
+        <div className="eodsch-notice eodsch-notice-warn" role="status">
+          Couldn't refresh the workflow: {wf.error}
+        </div>
+      ) : null}
+
+      {/* ---------- file header ---------- */}
+      <div className="eodsch-card eodw-header">
+        <div className="eodw-header-info">
           {view.loaded ? (
             <>
-              <strong>{view.meta.filename}</strong>
-              <span className="eodsch-muted">
-                {' '}
-                uploaded {new Date(view.meta.uploaded_at).toLocaleString()} by{' '}
-                {view.meta.uploaded_by || 'unknown'}
-                {view.meta.edited_at
-                  ? ` · edited ${new Date(view.meta.edited_at).toLocaleString()} by ${view.meta.edited_by || 'unknown'}`
-                  : ''}{' '}
-                · sha256 {view.meta.sha256.slice(0, 12)}…
-              </span>
+              <div className="eodw-file">
+                <FileText size={18} aria-hidden="true" />
+                <strong>{view.meta.filename}</strong>
+              </div>
+              <div className="eodw-meta">
+                <span>
+                  Uploaded {formatWhen(view.meta.uploaded_at)} by{' '}
+                  {view.meta.uploaded_by || 'unknown'}
+                </span>
+                {view.meta.edited_at ? (
+                  <span>
+                    Edited {formatWhen(view.meta.edited_at)} by {view.meta.edited_by || 'unknown'}
+                  </span>
+                ) : null}
+                <span title={view.meta.sha256}>
+                  sha256 <code>{view.meta.sha256.slice(0, 12)}…</code>
+                </span>
+              </div>
             </>
           ) : (
-            <span className="eodsch-muted">
+            <span className="eodw-muted">
               No workflow has been uploaded to this environment yet.
             </span>
           )}
         </div>
-        <div className="eodsch-actions">
+        <div className="eodw-header-actions">
           {files.length ? (
             <>
               <label className="eodsch-field-inline">
@@ -394,7 +444,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
             onClick={() => wf.reload()}
             aria-label="Reload the review"
           />
-          {hasPermission('EOD_SCHEDULER_UPLOAD') ? (
+          {canUpload ? (
             <>
               <input
                 ref={fileRef}
@@ -418,21 +468,28 @@ export function WorkflowPanel({ env, onRunStarted }) {
         </div>
       </div>
 
-      {view.loaded ? (
+      {!view.loaded ? (
+        <div className="eodsch-card eodw-empty">
+          <Upload size={28} aria-hidden="true" />
+          <strong>No workflow yet</strong>
+          <p className="eodw-muted">
+            {canUpload
+              ? 'Upload a Control-M XML file to review its jobs, approve it and run it.'
+              : 'Ask someone with upload permission to add a workflow to this environment.'}
+          </p>
+        </div>
+      ) : (
         <>
-          <div className="eodsch-stats">
-            {[
-              ['Workflows', view.summary.folders],
-              ['Jobs', view.summary.jobs],
-              ['Dependencies', view.summary.dependencies],
-              ['Timed jobs', view.summary.timed_jobs],
-              ['External conditions', view.summary.external_conditions],
-              ['Warnings', view.summary.warnings],
-              ['Errors', view.summary.errors],
-            ].map(([label, value]) => (
-              <div key={label} className="eodsch-stat" data-bad={label === 'Errors' && value > 0}>
-                <span className="eodsch-stat-value">{value ?? 0}</span>
-                <span className="eodsch-stat-label">{label}</span>
+          {/* ---------- summary ---------- */}
+          <div className="eodw-stats">
+            {stats.map(([label, value, tone]) => (
+              <div
+                key={label}
+                className="eodw-stat"
+                data-tone={tone && value > 0 ? tone : undefined}
+              >
+                <span className="eodw-stat-value">{value ?? 0}</span>
+                <span className="eodw-stat-label">{label}</span>
               </div>
             ))}
           </div>
@@ -440,19 +497,28 @@ export function WorkflowPanel({ env, onRunStarted }) {
           <Problems title="Problems to fix" tone="bad" messages={view.errors} open />
           <Problems title="Notes and warnings" tone="warn" messages={view.warnings} />
 
-          <div className={`eodsch-approval eodsch-approval-${state.state}`}>
-            <div className="eodsch-approval-text">
-              {state.state === 'approved' ? <CheckCircle2 size={18} /> : <ShieldAlert size={18} />}
+          {/* ---------- approval ---------- */}
+          <div className="eodw-approval" data-state={state.state}>
+            <div className="eodw-approval-main">
+              <span className="eodw-approval-icon">
+                {state.state === 'approved' ? (
+                  <CheckCircle2 size={22} />
+                ) : (
+                  <ShieldAlert size={22} />
+                )}
+              </span>
               <div>
                 <strong>{state.label}</strong>
-                <div className="eodsch-muted">
+                <p className="eodw-muted">
                   {state.state === 'approved'
-                    ? `Approved by ${view.meta.approved_by || 'unknown'} ${view.meta.approved_at ? `on ${new Date(view.meta.approved_at).toLocaleString()}` : ''}. Changing the file, a setting, a target server or a mapping cancels the approval.`
+                    ? `Approved by ${view.meta.approved_by || 'unknown'}${
+                        view.meta.approved_at ? ` on ${formatWhen(view.meta.approved_at)}` : ''
+                      }. Changing the file, a setting, a target server or a mapping cancels the approval.`
                     : 'Approval covers exactly the commands, target servers and settings shown below.'}
-                </div>
+                </p>
               </div>
             </div>
-            <div className="eodsch-actions">
+            <div className="eodw-approval-actions">
               {state.state === 'pending' && state.canApprove ? (
                 <>
                   <label className="eodsch-check">
@@ -476,9 +542,10 @@ export function WorkflowPanel({ env, onRunStarted }) {
             </div>
           </div>
 
-          <div className="eodsch-card">
-            <div className="eodsch-toolbar">
-              <div className="eodsch-actions">
+          {/* ---------- graph ---------- */}
+          <div className="eodsch-card eodw-graph">
+            <div className="eodw-graph-bar">
+              <div className="eodw-graph-controls">
                 {view.folders.length > 1 ? (
                   <label className="eodsch-field-inline">
                     Workflow
@@ -497,34 +564,8 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     </select>
                   </label>
                 ) : (
-                  <strong>{folder?.folder}</strong>
+                  <strong className="eodw-folder-name">{folder?.folder}</strong>
                 )}
-                {canEdit ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      leadingIcon={Plus}
-                      disabled={!editable}
-                      title={editHint}
-                      onClick={() => setFolderModal(true)}
-                    >
-                      Add workflow
-                    </Button>
-                    {folder ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        leadingIcon={Trash2}
-                        disabled={!editable}
-                        title={editHint}
-                        onClick={() => startDelete({ kind: 'folder', folder: folder.folder })}
-                      >
-                        Delete workflow
-                      </Button>
-                    ) : null}
-                  </>
-                ) : null}
                 <label className="eodsch-field-inline">
                   Colour by run
                   <select
@@ -550,33 +591,68 @@ export function WorkflowPanel({ env, onRunStarted }) {
                     Follow the live run
                   </Button>
                 ) : null}
+                {colourRunning ? <span className="eodw-live">Live</span> : null}
               </div>
-              <input
-                className="eodsch-search"
-                type="search"
-                placeholder="Filter jobs, commands, targets…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Filter jobs"
-              />
+              {canEdit ? (
+                <div className="eodw-graph-actions">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leadingIcon={Plus}
+                    disabled={!editable}
+                    title={editHint}
+                    onClick={() => setFolderModal(true)}
+                  >
+                    Add workflow
+                  </Button>
+                  {folder ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leadingIcon={Trash2}
+                      disabled={!editable}
+                      title={editHint}
+                      onClick={() => startDelete({ kind: 'folder', folder: folder.folder })}
+                    >
+                      Delete workflow
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-            {folder ? (
-              <DependencyGraph
-                graph={folder.graph}
-                states={states}
-                selected={selected}
-                onSelect={setSelected}
-              />
-            ) : null}
+            <div className="eodw-graph-body">
+              {folder ? (
+                <DependencyGraph
+                  graph={folder.graph}
+                  states={states}
+                  selected={selected}
+                  onSelect={setSelected}
+                />
+              ) : null}
+            </div>
           </div>
 
-          <div className="eodsch-split">
-            <div className="eodsch-card eodsch-table-wrap">
-              {canEdit && folder ? (
-                <div className="eodsch-toolbar">
-                  <span className="eodsch-muted">
-                    {folder.jobs.length} job(s) in {folder.folder}
+          {/* ---------- jobs + details ---------- */}
+          <div className="eodw-split">
+            <div className="eodsch-card eodw-jobs">
+              <div className="eodw-jobs-bar">
+                <div className="eodw-jobs-title">
+                  <strong>Jobs</strong>
+                  <span className="eodw-count">
+                    {query ? `${jobs.length} of ${folder?.jobs?.length ?? 0}` : jobs.length}
                   </span>
+                </div>
+                <label className="eodw-search">
+                  <Search size={14} aria-hidden="true" />
+                  <input
+                    type="search"
+                    placeholder="Filter jobs, commands, targets…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    aria-label="Filter jobs"
+                  />
+                </label>
+                {canEdit && folder ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -587,41 +663,52 @@ export function WorkflowPanel({ env, onRunStarted }) {
                   >
                     Add job
                   </Button>
-                </div>
-              ) : null}
-              <table className="eodsch-table">
-                <thead>
-                  <tr>
-                    <th>Job</th>
-                    <th>Schedule</th>
-                    <th>Waits for</th>
-                    <th>Target</th>
-                    <th>Command</th>
-                    {canEdit ? <th aria-label="Actions" /> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((j) => (
-                    <tr key={j.name} data-selected={j.name === selected}>
-                      <td>
-                        <button
-                          type="button"
-                          className="eodsch-link"
-                          onClick={() => setSelected(j.name)}
-                          aria-pressed={j.name === selected}
-                        >
-                          {j.name}
-                        </button>
-                      </td>
-                      <td>{j.schedule}</td>
-                      <td>{j.waits_for.length ? j.waits_for.length : '—'}</td>
-                      <td data-bad={!j.target?.ok}>{targetLabel(j.target)}</td>
-                      <td className="eodsch-cell-command" title={j.command}>
-                        {j.command || '—'}
-                      </td>
-                      {canEdit ? (
+                ) : null}
+              </div>
+              <div className="eodw-table-scroll">
+                <table className="eodsch-table eodw-table">
+                  <thead>
+                    <tr>
+                      <th>Job</th>
+                      <th>Schedule</th>
+                      <th className="eodw-num">Waits</th>
+                      <th>Target</th>
+                      <th>Command</th>
+                      {canEdit ? <th aria-label="Actions" /> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((j) => (
+                      <tr
+                        key={j.name}
+                        data-selected={j.name === selected}
+                        onClick={() => setSelected(j.name)}
+                      >
                         <td>
-                          <div className="eodsch-actions">
+                          <button
+                            type="button"
+                            className="eodsch-link eodw-job-name"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(j.name);
+                            }}
+                            aria-pressed={j.name === selected}
+                          >
+                            {j.name}
+                          </button>
+                        </td>
+                        <td className="eodw-nowrap">{j.schedule}</td>
+                        <td className="eodw-num">{j.waits_for?.length ? j.waits_for.length : '—'}</td>
+                        <td>
+                          <span className="eodw-target-chip" data-ok={Boolean(j.target?.ok)}>
+                            {targetLabel(j.target)}
+                          </span>
+                        </td>
+                        <td className="eodw-cmd" title={j.command}>
+                          {j.command || '—'}
+                        </td>
+                        {canEdit ? (
+                          <td className="eodw-row-actions">
                             <Button
                               size="sm"
                               variant="ghost"
@@ -629,7 +716,10 @@ export function WorkflowPanel({ env, onRunStarted }) {
                               disabled={!editable}
                               title={editHint ?? `Edit ${j.name}`}
                               aria-label={`Edit ${j.name}`}
-                              onClick={() => setJobModal({ mode: 'edit', job: j.name })}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setJobModal({ mode: 'edit', job: j.name });
+                              }}
                             />
                             <Button
                               size="sm"
@@ -638,26 +728,27 @@ export function WorkflowPanel({ env, onRunStarted }) {
                               disabled={!editable}
                               title={editHint ?? `Delete ${j.name}`}
                               aria-label={`Delete ${j.name}`}
-                              onClick={() =>
-                                startDelete({ kind: 'job', folder: folder.folder, job: j.name })
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startDelete({ kind: 'job', folder: folder.folder, job: j.name });
+                              }}
                             />
-                          </div>
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                    {!shown.length ? (
+                      <tr>
+                        <td colSpan={canEdit ? 6 : 5} className="eodw-muted eodw-none">
+                          No job matches.
                         </td>
-                      ) : null}
-                    </tr>
-                  ))}
-                  {!shown.length ? (
-                    <tr>
-                      <td colSpan={canEdit ? 6 : 5} className="eodsch-muted">
-                        No job matches.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
               {!showAll && jobs.length > ROW_LIMIT ? (
-                <div className="eodsch-more">
+                <div className="eodw-more">
                   Showing {ROW_LIMIT} of {jobs.length} jobs.{' '}
                   <button type="button" className="eodsch-link" onClick={() => setShowAll(true)}>
                     Show all
@@ -665,12 +756,14 @@ export function WorkflowPanel({ env, onRunStarted }) {
                 </div>
               ) : null}
             </div>
-            <div className="eodsch-card eodsch-side">
+
+            <aside className="eodsch-card eodw-details">
               <JobDetails job={job} />
-            </div>
+            </aside>
           </div>
         </>
-      ) : null}
+      )}
+
       <WorkflowFilesModal
         isOpen={filesOpen}
         onClose={() => setFilesOpen(false)}
