@@ -266,7 +266,7 @@ export function SchedulerTab() {
                   />
                 ) : null}
                 {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
-                {section === 'cockpit' ? <CockpitTab env={env} /> : null}
+                {section === 'cockpit' ? <CockpitTab key={env} env={env} /> : null}
                 {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
                 {section === 'targets' ? <TargetsPanel env={env} /> : null}
                 {section === 'settings' ? <SettingsPanel env={env} /> : null}

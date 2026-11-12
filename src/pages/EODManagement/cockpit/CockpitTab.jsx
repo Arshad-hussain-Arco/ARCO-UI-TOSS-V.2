@@ -88,7 +88,15 @@ export function CockpitTab({ env } = {}) {
     [env],
   );
 
-  const runs = useMemo(() => runsList.data || [], [runsList.data]);
+  const runs = useMemo(() => {
+    const list = runsList.data || [];
+    return list.filter((r) => {
+      if (!r) return false;
+      const rEnv = r.environment || r.partition;
+      return !rEnv || String(rEnv).trim().toUpperCase() === String(env).trim().toUpperCase();
+    });
+  }, [runsList.data, env]);
+
   const activeRunningRun = runs.find((r) => r.status === 'RUNNING' || r.status === 'Running');
   const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
   const currentRunId = isViewingCurrentWorkflow
@@ -119,6 +127,9 @@ export function CockpitTab({ env } = {}) {
   // Enrich definition jobs with rich validation/target info from wf.data.folders
   const enrichedDefinition = useMemo(() => {
     if (!def.data) return null;
+    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
     const wfJobsMap = new Map();
     for (const f of view?.folders || []) {
       for (const j of f.jobs || []) {
@@ -132,11 +143,14 @@ export function CockpitTab({ env } = {}) {
         return wj ? { ...dj, ...wj } : dj;
       }),
     };
-  }, [def.data, view]);
+  }, [def.data, view, env]);
 
   // Staged run representing the current/uploaded workflow ready for execution
   const stagedRun = useMemo(() => {
     if (!def.data && !view) return null;
+    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
     const jobsList = enrichedDefinition?.jobs || [];
     return {
       id: 'READY',
@@ -180,7 +194,17 @@ export function CockpitTab({ env } = {}) {
     };
   }, [def.data, view, enrichedDefinition, env]);
 
-  const run = isViewingCurrentWorkflow ? stagedRun : runDetail.data;
+  // Strict environment isolation for active run
+  const run = useMemo(() => {
+    if (isViewingCurrentWorkflow) return stagedRun;
+    const d = runDetail.data;
+    if (!d) return null;
+    const rEnv = d.environment || d.partition;
+    if (rEnv && String(rEnv).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
+    return d;
+  }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
 
   // Merge selected job properties from workflow definition + active run
   const selectedJobObj = useMemo(() => {
@@ -687,7 +711,7 @@ export function CockpitTab({ env } = {}) {
           jobName={selectedJobName}
           job={selectedJobObj}
           env={env}
-          runId={currentRunId}
+          runId={run?.isReadyState ? null : currentRunId}
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
         />

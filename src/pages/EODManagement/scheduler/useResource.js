@@ -31,6 +31,7 @@ export function useResource(loader, deps) {
   );
 
   useEffect(() => {
+    setState({ data: null, error: null, loading: true });
     load();
     return () => {
       sequence.current += 1;

@@ -254,13 +254,13 @@ export function CockpitFlow({
         {folders && folders.length > 1 && (
           <div className="cr-flow-folder-select-wrap">
             <label className="cr-field-inline">
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>Workflow:</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>Folder:</span>
               <select
                 className="cr-select sm"
                 value={selectedFolder}
                 onChange={(e) => setSelectedFolder(e.target.value)}
               >
-                <option value="ALL">All ({allJobs.length})</option>
+                <option value="ALL">All Folders ({allJobs.length})</option>
                 {folders.map((f) => (
                   <option key={f.folder} value={f.folder}>
                     {f.folder} ({f.jobs?.length || 0})
