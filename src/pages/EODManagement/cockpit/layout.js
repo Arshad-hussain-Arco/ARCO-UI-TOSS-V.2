@@ -22,9 +22,41 @@ export function computeLayout(jobs, opts = {}) {
   const step = nodeW + gapX;
 
   const byName = new Map(jobs.map((j) => [j.name, j]));
+
+  // Dynamically calculate topological DAG levels from predecessors to guarantee
+  // parallel branches render on the same level even if raw levels are sequential.
+  const hasPredecessors = jobs.some((j) => j.predecessors && j.predecessors.length > 0);
+  const computedLevels = new Map();
+  if (hasPredecessors) {
+    for (const j of jobs) {
+      if (!j.predecessors || j.predecessors.length === 0) {
+        computedLevels.set(j.name, 1);
+      }
+    }
+    let changed = true;
+    let iter = 0;
+    while (changed && iter < 100) {
+      changed = false;
+      iter += 1;
+      for (const j of jobs) {
+        if (j.predecessors && j.predecessors.length > 0) {
+          let maxP = 0;
+          for (const p of j.predecessors) {
+            maxP = Math.max(maxP, computedLevels.get(p) || 0);
+          }
+          const newL = maxP > 0 ? maxP + 1 : 1;
+          if (computedLevels.get(j.name) !== newL) {
+            computedLevels.set(j.name, newL);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+
   const rowsByLevel = new Map();
   for (const j of jobs) {
-    const lv = j.level || 1;
+    const lv = (hasPredecessors ? computedLevels.get(j.name) : null) || j.level || 1;
     if (!rowsByLevel.has(lv)) rowsByLevel.set(lv, []);
     rowsByLevel.get(lv).push(j.name);
   }
