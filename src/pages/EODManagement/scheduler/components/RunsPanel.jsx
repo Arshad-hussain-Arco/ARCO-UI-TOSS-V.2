@@ -8,13 +8,16 @@ import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerSer
 import { formatDuration, jobTone, runTone, secondsBetween } from '../schedulerModel';
 import { usePolling, useResource } from '../useResource';
 
-function Chip({ tone, children }) {
+export function Chip({ tone, children }) {
   return <span className={`eodsch-chip eodsch-tone-${tone}`}>{children}</span>;
 }
 
-function LogViewer({ env, runId, jobs, running }) {
+export function LogViewer({ env, runId, jobs = [], running }) {
   const [job, setJob] = useState('');
-  const log = useResource(() => svc.getRunLog(env, runId, job), [env, runId, job]);
+  const log = useResource(
+    () => svc.getRunLog(env, runId, job).catch(() => '(no log yet)'),
+    [env, runId, job]
+  );
   usePolling(() => log.reload(true), 4000, running);
   return (
     <div className="eodsch-card">
@@ -23,9 +26,9 @@ function LogViewer({ env, runId, jobs, running }) {
           Log
           <select value={job} onChange={(e) => setJob(e.target.value)}>
             <option value="">Workflow log</option>
-            {jobs.map((j) => (
-              <option key={j.job} value={j.job}>
-                {j.job}
+            {(jobs || []).map((j) => (
+              <option key={j.job || j.name} value={j.job || j.name}>
+                {j.job || j.name}
               </option>
             ))}
           </select>
@@ -49,10 +52,50 @@ function LogViewer({ env, runId, jobs, running }) {
   );
 }
 
-function RunDetail({ env, runId, onChanged }) {
+export function RunDetail({ env, runId, onChanged }) {
   const { hasPermission } = useAuth();
   const toast = useToast();
-  const detail = useResource(() => svc.getRun(env, runId), [env, runId]);
+  const detail = useResource(async () => {
+    try {
+      const res = await svc.getRun(env, runId);
+      if (res && res.run) return res;
+    } catch {
+      // try cockpit run fallback
+    }
+    try {
+      const cRes = await svc.getCockpitRun(env, runId);
+      if (cRes) {
+        return {
+          run: {
+            run_id: cRes.id || runId,
+            run_type: 'FORCED',
+            odate: cRes.started_at ? cRes.started_at.slice(0, 10).replace(/-/g, '') : '',
+            started: cRes.started_at,
+            ended: cRes.ended_at,
+            started_by: 'operator',
+            approved_by: 'system',
+            status: cRes.status,
+            message: '',
+          },
+          jobs: (cRes.jobs || []).map((j) => ({
+            job: j.name,
+            status: j.status,
+            attempts: j.attempt || 1,
+            exit_code: j.exit_code,
+            duration: j.duration_seconds,
+            started: j.started_at,
+            ended: j.ended_at,
+            reason: j.error_message || '',
+          })),
+          attempts: [],
+          conditions: [],
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return svc.getRun(env, runId);
+  }, [env, runId]);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const running = detail.data?.run?.status === 'RUNNING';

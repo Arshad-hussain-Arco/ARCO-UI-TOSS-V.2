@@ -300,6 +300,8 @@ const endpoints = {
     run: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/`,
     runLog: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/log/`,
     runCancel: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/cancel/`,
+    runPause: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/pause/`,
+    runResume: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/resume/`,
     runNow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/run-now/`,
     command: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/commands/${id}/`,
     workflowItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/`,
@@ -316,6 +318,12 @@ const endpoints = {
     targetSecret: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/secret/`,
     nodeMappings: (env) => `/eod-scheduler/${encodeURIComponent(env)}/node-mappings/`,
     readiness: (env) => `/eod-scheduler/${encodeURIComponent(env)}/ssh-readiness/`,
+    // Control Run Cockpit
+    cockpitRuns: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/`,
+    cockpitRun: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/run/${id ? `${encodeURIComponent(id)}/` : ''}`,
+    cockpitDefinition: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/definition/`,
+    cockpitJobAction: (env, runId, jobName, action) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobName)}/${encodeURIComponent(action)}/`,
   },
 };
 

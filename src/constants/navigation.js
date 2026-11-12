@@ -79,7 +79,7 @@ export const SIDEBAR_NAVIGATION = [
     label: 'EOD Management 2',
     icon: Sunset,
     to: ROUTES.EOD_MANAGEMENT_2,
-    permission: 'EOD_SCHEDULER_VIEW',
+    permissions: ['EOD_SCHEDULER_VIEW', 'EOD_CONTROL_VIEW'],
   },
   {
     id: 'consultants',

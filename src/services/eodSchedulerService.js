@@ -90,6 +90,8 @@ export const eodSchedulerService = {
       transformResponse: [(d) => d],
     }),
   cancelRun: (env, id) => send('post', E.runCancel(env, id)),
+  pauseRun: (env, id) => send('post', E.runPause(env, id)),
+  resumeRun: (env, id) => send('post', E.runResume(env, id)),
 
   // SSH target servers, secrets and NODEID mappings
   listTargets: (env) => get(E.targets(env)),
@@ -103,6 +105,13 @@ export const eodSchedulerService = {
   deleteMapping: (env, nodeid) =>
     httpClient.delete(E.nodeMappings(env), { params: { nodeid } }).then((r) => r.data),
   getReadiness: (env) => get(E.readiness(env)),
+
+  // Control Run Cockpit
+  getCockpitRuns: (env) => get(E.cockpitRuns(env)),
+  getCockpitRun: (env, id) => get(E.cockpitRun(env, id)),
+  getCockpitDefinition: (env) => get(E.cockpitDefinition(env)),
+  cockpitJobAction: (env, runId, jobName, action) =>
+    send('post', E.cockpitJobAction(env, runId, jobName, action), {}),
 };
 
 export default eodSchedulerService;

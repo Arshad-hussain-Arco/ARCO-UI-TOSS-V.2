@@ -1,5 +1,5 @@
 import { Component, useEffect, useMemo, useState } from 'react';
-import { Calendar, Network, PlayCircle, Plus, Server, Settings } from 'lucide-react';
+import { Calendar, Gauge, Plus, Server, Settings } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
@@ -8,18 +8,16 @@ import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
-import { RunsPanel } from './components/RunsPanel';
 import { SchedulePanel } from './components/SchedulePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TargetsPanel } from './components/TargetsPanel';
-import { WorkflowPanel } from './components/WorkflowPanel';
+import { CockpitTab } from '../cockpit/CockpitTab';
 import { SchedulesNewSection } from '../components/SchedulesNewSection';
 
 import './SchedulerTab.css';
 
 const SECTIONS = [
-  { key: 'workflow', label: 'Workflow', Icon: Network },
-  { key: 'runs', label: 'Runs', Icon: PlayCircle },
+  { key: 'cockpit', label: 'Control Run Cockpit', Icon: Gauge },
   { key: 'schedule', label: 'Schedule', Icon: Calendar },
   { key: 'schedules-new', label: 'Schedules (New)', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
@@ -80,8 +78,7 @@ export function SchedulerTab() {
   const envs = useResource(() => svc.listEnvironments(), []);
   usePolling(() => envs.reload(true), 15000); // who serves which environment changes without any click
   const [env, setEnv] = useState(remembered);
-  const [section, setSection] = useState('workflow');
-  const [focusRun, setFocusRun] = useState('');
+  const [section, setSection] = useState('cockpit');
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
   const canAdmin = hasPermission('EOD_SCHEDULER_SETTINGS');
@@ -97,7 +94,6 @@ export function SchedulerTab() {
   const choose = (code) => {
     setEnv(code);
     remember(code);
-    setFocusRun('');
   };
 
   const create = async () => {
@@ -236,10 +232,7 @@ export function SchedulerTab() {
             <>
               <TabBoundary key={`${env}-${section}`}>
                 <div className="eodsch-section">
-                  {section === 'workflow' ? (
-                    <WorkflowPanel env={env} onRunStarted={(id) => setFocusRun(id || '')} />
-                  ) : null}
-                  {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
+                  {section === 'cockpit' ? <CockpitTab env={env} /> : null}
                   {section === 'schedule' ? <SchedulePanel env={env} /> : null}
                   {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
                   {section === 'targets' ? <TargetsPanel env={env} /> : null}

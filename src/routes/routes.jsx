@@ -211,7 +211,7 @@ export const routes = [
               {
                 path: ROUTES.EOD_MANAGEMENT_2,
                 element: (
-                  <RequirePermission code="EOD_SCHEDULER_VIEW">
+                  <RequirePermission codes={['EOD_SCHEDULER_VIEW', 'EOD_CONTROL_VIEW']}>
                     <EODManagement2Page />
                   </RequirePermission>
                 ),
