@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
+import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload, User } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
@@ -860,15 +860,10 @@ export function CockpitTab({ env } = {}) {
         </div>
       </div>
 
-      {/* ── Run Context Strip ── */}
+      {/* ── Run Context Strip: Just Schedule Name and Triggered By ── */}
       {run ? (
         <div className="cr-run-context-strip">
           <div className="cr-rcs-left">
-            <span className="cr-scope-pill">{run.isReadyState ? 'NEW BATCH' : `RUN #${run.id}`}</span>
-            <span className={`cr-env-pill ${String(env).toLowerCase()}`}>{String(env).toUpperCase()}</span>
-            <span className={`cr-status-badge ${isPaused ? 'paused' : String(run.status).toLowerCase().replace(/\s+/g, '-')}`}>
-              {isPaused ? 'Paused' : run.status}
-            </span>
             <span
               className="cr-run-schedule-pill"
               style={{
@@ -898,44 +893,34 @@ export function CockpitTab({ env } = {}) {
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
             </span>
-            <span className="cr-rcs-started">
-              {run.isReadyState ? (
-                <>file: <strong>{run.file_name}</strong> · Ready to execute</>
-              ) : (
-                `started ${formatClockTime(run.started_at)}`
-              )}
-            </span>
-            <span className="cr-rcs-desc">
-              {activeView === 'overview' && (run.isReadyState ? 'Overview of the newly uploaded workflow ready for execution.' : 'High level status, metrics, and progress for this run.')}
-              {activeView === 'flow' && (run.isReadyState ? 'Execution dependency graph for the uploaded workflow.' : 'The jobs and dependencies of this run.')}
-              {activeView === 'timeline' && (run.isReadyState ? 'Batch timeline will display execution times once started.' : 'When each job of this run started and ended.')}
-              {activeView === 'history' && 'Past executions recorded for this environment.'}
-            </span>
-            {run.started_by && (
+
+            {(run.started_by || run.user || !run.isReadyState) && (
               <span
                 className="cr-started-by-pill"
                 style={{
                   height: '28px',
                   boxSizing: 'border-box',
-                  fontSize: '11.5px',
-                  padding: '0 9px',
+                  fontSize: '12px',
+                  padding: '0 10px',
                   borderRadius: '6px',
                   backgroundColor: '#f1f5f9',
                   color: '#475569',
                   border: '1px solid #cbd5e1',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '6px',
+                  letterSpacing: '0.01em',
                   lineHeight: 1,
                   whiteSpace: 'nowrap',
                 }}
-                title={`Triggered by: ${run.started_by}`}
+                title={`Triggered by: ${run.started_by || run.user || '—'}`}
               >
-                <span className="cr-pill-label" style={{ fontSize: '11px', opacity: 0.75, fontWeight: 500, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
-                  by
+                <User size={13} style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }} />
+                <span className="cr-pill-label" style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.75, fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                  Triggered by:
                 </span>
                 <span className="cr-pill-value" style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
-                  {run.started_by}
+                  {run.started_by || run.user || '—'}
                 </span>
               </span>
             )}
