@@ -528,8 +528,14 @@ export const eodService = {
       const name = primary.name || meta.name || '';
       const workflowFile = primary.workflow_file || primary.workflowFile || meta.workflowFile || '';
       const workflowFileId = primary.workflow_file_id || primary.workflowFileId || meta.workflowFileId || '';
-      const lastStatus = primary.last_status || primary.lastStatus || ((meta.lastCommandId || meta.lastRunId || meta.lastStatus === 'Running') ? (meta.lastStatus || meta.last_status) : null);
-      const lastRunAt = primary.last_run_at || primary.lastRunAt || ((meta.lastCommandId || meta.lastRunId || meta.lastStatus === 'Running') ? (meta.lastRunAt || meta.last_run_at) : null);
+      const apiStatus = primary.last_status || primary.lastStatus;
+      const apiRunAt = primary.last_run_at || primary.lastRunAt;
+      const lastStatus = (apiStatus !== undefined && apiStatus !== null)
+        ? apiStatus
+        : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastStatus || meta.last_status) : null);
+      const lastRunAt = (apiRunAt !== undefined && apiRunAt !== null)
+        ? apiRunAt
+        : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastRunAt || meta.last_run_at) : null);
 
       // Synchronize back to local storage if API returned metadata
       if (primary.run_scope || primary.target_job || primary.name || primary.workflow_file || lastStatus) {
@@ -585,8 +591,14 @@ export const eodService = {
       const name = item.name || meta.name || '';
       const workflowFile = item.workflow_file || item.workflowFile || meta.workflowFile || '';
       const workflowFileId = item.workflow_file_id || item.workflowFileId || meta.workflowFileId || '';
-      const lastStatus = item.last_status || item.lastStatus || ((meta.lastCommandId || meta.lastRunId || meta.lastStatus === 'Running') ? (meta.lastStatus || meta.last_status) : null);
-      const lastRunAt = item.last_run_at || item.lastRunAt || ((meta.lastCommandId || meta.lastRunId || meta.lastStatus === 'Running') ? (meta.lastRunAt || meta.last_run_at) : null);
+      const apiStatus = item.last_status || item.lastStatus;
+      const apiRunAt = item.last_run_at || item.lastRunAt;
+      const lastStatus = (apiStatus !== undefined && apiStatus !== null)
+        ? apiStatus
+        : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastStatus || meta.last_status) : null);
+      const lastRunAt = (apiRunAt !== undefined && apiRunAt !== null)
+        ? apiRunAt
+        : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastRunAt || meta.last_run_at) : null);
 
       // Synchronize back to local storage if API returned metadata
       if (item.run_scope || item.target_job || item.name || item.workflow_file || lastStatus) {

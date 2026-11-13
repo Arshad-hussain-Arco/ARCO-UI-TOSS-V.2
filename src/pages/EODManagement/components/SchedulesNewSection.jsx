@@ -401,13 +401,13 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
   const [runningIds, setRunningIds] = useState(new Set());
 
   /** Fetch schedule records with instant stale-while-revalidate */
-  const fetchScheduleData = useCallback(async (isSilent = false) => {
+  const fetchScheduleData = useCallback(async (isSilent = false, force = false) => {
     if (!isSilent) {
       setIsLoading(true);
     }
     setError(null);
     try {
-      const schedulesData = await eodService.getEodSchedules();
+      const schedulesData = await eodService.getEodSchedules({ force });
       setScheduleList(schedulesData || []);
     } catch (err) {
       console.error('Failed to fetch EOD schedules:', err);
@@ -432,7 +432,7 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
 
   useEffect(() => {
     const hasCached = cachedSchedules && cachedSchedules.length > 0;
-    fetchScheduleData(hasCached);
+    fetchScheduleData(hasCached, false);
     if (!initialEnvs || initialEnvs.length === 0) {
       fetchEnvironmentsIfNeeded();
     }
@@ -444,15 +444,17 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
     }
   }, [initialEnvironments]);
 
-  // Background poll to update schedule statuses smoothly without table flickering
+  // Background poll to update schedule statuses smoothly without table flickering.
+  // When a run is actively executing (hasRunning=true), poll every 2.5s bypassing cache
+  // so the status updates immediately when finished.
   useEffect(() => {
     const hasRunning =
       scheduleList.some((s) => s.lastStatus === 'Running' || s.lastStatus === 'RUNNING') ||
       runningIds.size > 0;
-    const intervalMs = hasRunning ? 5000 : 20000;
+    const intervalMs = hasRunning ? 2500 : 15000;
     const timer = setInterval(() => {
       eodService
-        .getEodSchedules()
+        .getEodSchedules({ force: hasRunning })
         .then((data) => {
           if (Array.isArray(data)) {
             setScheduleList(data);
@@ -616,15 +618,16 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
           lastRunAt: runStartTime,
         });
       }
+      eodService.invalidateSchedulesCache();
       toast.success(
         isJobScope
           ? `Run started in Control Run Cockpit for job ${sch.targetJob} (${envCode}).`
           : `Run started in Control Run Cockpit for ${scheduleName} (${envCode}).`
       );
-      // Refresh schedule records to get synchronized facts
+      // Refresh schedule records to get synchronized facts immediately
       setTimeout(() => {
-        fetchScheduleData();
-      }, 1500);
+        fetchScheduleData(true, true);
+      }, 1000);
     } catch (err) {
       console.error('Failed to trigger run in scheduler:', err);
       const msg =
