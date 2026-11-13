@@ -48,15 +48,19 @@ export function CockpitFlow({
   errors = [],
 }) {
   const rootRef = useRef(null);
+  const viewportRef = useRef(null);
   const [scale, setScale] = useState(0.18);
   const [offset, setOffset] = useState({ x: 120, y: 24 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [isAnimating, setIsAnimating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(() => initialFolder || 'ALL');
   const [traceChainActive, setTraceChainActive] = useState(false);
   const [followActive, setFollowActive] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const scrollHintTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (initialFolder) {
@@ -171,16 +175,25 @@ export function CockpitFlow({
     return new Set([selectedJob, ...up, ...down]);
   }, [traceChainActive, selectedJob, defIndex]);
 
-  // Fit view
+  // Fit view directly to canvas viewport
   const fit = useCallback(() => {
-    if (!L || !rootRef.current) return;
+    if (!L || !viewportRef.current) return;
     const box = {
-      w: rootRef.current.clientWidth || 800,
-      h: rootRef.current.clientHeight || 500,
+      w: viewportRef.current.clientWidth || 800,
+      h: viewportRef.current.clientHeight || 500,
     };
-    const t = fitTransform(L, box, { min: 0.1, max: 1.0 });
-    setScale(Math.max(0.12, Math.min(1.0, t.k)));
-    setOffset({ x: t.x, y: t.y });
+    const t = fitTransform(L, box, {
+      min: 0.35,
+      max: 1.0,
+      padLeft: 64, // Keep room for left Level Axis
+      padTop: 56, // Keep room for top floating toolbar
+      padRight: 36,
+      padBottom: 48, // Breathing room above bottom legend
+    });
+    setIsAnimating(true);
+    setScale(t.k);
+    setOffset({ x: Math.round(t.x), y: Math.round(t.y) });
+    setTimeout(() => setIsAnimating(false), 300);
   }, [L]);
 
   useEffect(() => {
@@ -190,16 +203,18 @@ export function CockpitFlow({
 
   // Camera center on a target node
   const centerOnNode = useCallback((jobName) => {
-    if (!L || !rootRef.current || !jobName) return;
+    if (!L || !viewportRef.current || !jobName) return;
     const node = L.nodes.get(jobName);
     if (!node) return;
-    const containerW = rootRef.current.clientWidth || 800;
-    const containerH = rootRef.current.clientHeight || 500;
+    const containerW = viewportRef.current.clientWidth || 800;
+    const containerH = viewportRef.current.clientHeight || 500;
     const targetScale = Math.max(0.35, Math.min(0.85, scale < 0.28 ? 0.45 : scale));
+    setIsAnimating(true);
     setScale(targetScale);
     const targetX = containerW / 2 - (node.x + node.w / 2) * targetScale;
     const targetY = containerH / 2 - (node.y + node.h / 2) * targetScale;
     setOffset({ x: Math.round(targetX), y: Math.round(targetY) });
+    setTimeout(() => setIsAnimating(false), 300);
   }, [L, scale]);
 
   // Compute focal job for Follow mode (running -> failed -> on-hold -> selected -> first)
@@ -225,32 +240,120 @@ export function CockpitFlow({
     }
   }, [followActive, focalJob?.name, focalJob?.status, centerOnNode]);
 
-  // Mouse wheel zoom
+  // Cursor-centric mouse wheel zoom with Ctrl/Meta requirement to preserve page scrolling
   const handleWheel = (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    const newScale = Math.max(0.08, Math.min(2.5, scale * factor));
-    setScale(newScale);
+    // Zoom if holding Ctrl (or Cmd on Mac, or trackpad pinch gesture which sets ctrlKey: true)
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (!viewportRef.current) return;
+      const rect = viewportRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Smooth damped exponential scaling: handles fast mouse wheel clicks & trackpad micro-ticks
+      const delta = Math.max(-100, Math.min(100, e.deltaY));
+      const factor = Math.exp(-delta * 0.0035);
+
+      const minScale = 0.22;
+      const maxScale = 2.5;
+      const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
+      if (Math.abs(newScale - scale) < 0.001) return;
+
+      // Anchor zoom directly at the mouse cursor
+      const graphX = (mouseX - offset.x) / scale;
+      const graphY = (mouseY - offset.y) / scale;
+
+      const newOffsetX = mouseX - graphX * newScale;
+      const newOffsetY = mouseY - graphY * newScale;
+
+      setScale(newScale);
+      setOffset({ x: Math.round(newOffsetX), y: Math.round(newOffsetY) });
+    } else {
+      // Normal wheel scrolling: do NOT preventDefault so user can scroll page up & down freely!
+      // Show subtle transient guidance pill
+      setShowScrollHint(true);
+      if (scrollHintTimeoutRef.current) clearTimeout(scrollHintTimeoutRef.current);
+      scrollHintTimeoutRef.current = setTimeout(() => setShowScrollHint(false), 1400);
+    }
   };
 
-  // Mouse pan handlers
+  // Center-centric zoom button handlers
+  const handleZoomBy = (direction) => {
+    if (!viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const factor = direction > 0 ? 1.2 : 0.833;
+    const minScale = 0.22;
+    const maxScale = 2.5;
+    const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
+    if (Math.abs(newScale - scale) < 0.001) return;
+
+    const graphX = (centerX - offset.x) / scale;
+    const graphY = (centerY - offset.y) / scale;
+
+    const newOffsetX = centerX - graphX * newScale;
+    const newOffsetY = centerY - graphY * newScale;
+
+    setIsAnimating(true);
+    setScale(newScale);
+    setOffset({ x: Math.round(newOffsetX), y: Math.round(newOffsetY) });
+    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  // Mouse pan initiation
   const handleMouseDown = (e) => {
-    if (e.target.closest('.cr-node') || e.target.closest('.cr-floating-toolbar') || e.target.closest('.cr-minimap') || e.target.closest('.cr-flow-status-banner') || e.target.closest('.cr-flow-selection-bar')) return;
+    if (e.button !== 0) return;
+    if (
+      e.target.closest('.cr-node') ||
+      e.target.closest('.cr-floating-toolbar') ||
+      e.target.closest('.cr-minimap') ||
+      e.target.closest('.cr-flow-status-banner') ||
+      e.target.closest('.cr-flow-selection-bar') ||
+      e.target.closest('.cr-flow-toolbar')
+    ) {
+      return;
+    }
     setIsPanning(true);
     setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
-  const handleMouseMove = (e) => {
+  // Global window listeners for smooth, bounded panning
+  useEffect(() => {
     if (!isPanning) return;
-    setOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y,
-    });
-  };
+    const onMove = (e) => {
+      const boxW = viewportRef.current?.clientWidth || 800;
+      const boxH = viewportRef.current?.clientHeight || 500;
+      const graphW = (L?.width || 800) * scale;
+      const graphH = (L?.height || 600) * scale;
 
-  const handleMouseUp = () => {
-    setIsPanning(false);
-  };
+      const rawX = e.clientX - panStart.x;
+      const rawY = e.clientY - panStart.y;
+
+      // Soft boundary clamp so graph never gets lost
+      const minX = -graphW + 120;
+      const maxX = boxW - 120;
+      const minY = -graphH + 80;
+      const maxY = boxH - 80;
+
+      const clampedX = Math.min(Math.max(rawX, minX), maxX);
+      const clampedY = Math.min(Math.max(rawY, minY), maxY);
+
+      setOffset({ x: Math.round(clampedX), y: Math.round(clampedY) });
+    };
+
+    const onUp = () => {
+      setIsPanning(false);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [isPanning, panStart, L, scale]);
 
   // Status counts for chips
   const doneCount = jobs.filter((j) => j.status === 'Done').length;
@@ -260,6 +363,25 @@ export function CockpitFlow({
 
   const isRunningBatch = run?.status === 'Running' || run?.status === 'RUNNING';
   const isRunActive = isRunningBatch || isPaused || run?.status === 'Paused' || run?.status === 'PAUSED';
+
+  const minimapVp = useMemo(() => {
+    const vw = viewportRef.current?.clientWidth || 800;
+    const vh = viewportRef.current?.clientHeight || 500;
+    const gw = Math.max(1, L?.width || 1200);
+    const gh = Math.max(1, L?.height || 800);
+
+    const vpW = Math.min(100, Math.max(12, ((vw / scale) / gw) * 100));
+    const vpH = Math.min(100, Math.max(12, ((vh / scale) / gh) * 100));
+    const vpX = Math.min(100 - vpW, Math.max(0, ((-offset.x / scale) / gw) * 100));
+    const vpY = Math.min(100 - vpH, Math.max(0, ((-offset.y / scale) / gh) * 100));
+
+    return {
+      left: `${vpX.toFixed(1)}%`,
+      top: `${vpY.toFixed(1)}%`,
+      width: `${vpW.toFixed(1)}%`,
+      height: `${vpH.toFixed(1)}%`,
+    };
+  }, [offset.x, offset.y, scale, L?.width, L?.height]);
 
   if (!jobs.length && !allJobs.length) {
     return (
@@ -383,36 +505,48 @@ export function CockpitFlow({
       {/* ── Main Canvas Area with Drag & Pan ── */}
       <div
         className={`cr-canvas-viewport ${isPanning ? 'is-panning' : ''}`}
+        ref={viewportRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
       >
         {/* ── Floating Zoom / Pan / Follow / Trace Toolbar (Inside Flow Grid) ── */}
         <div className="cr-floating-toolbar">
-          <button type="button" className="cr-tool-btn" title="Zoom out" onClick={() => setScale((s) => Math.max(0.08, s / 1.3))}>
+          <button type="button" className="cr-tool-btn" title="Zoom out" onClick={() => (typeof handleZoomBy === 'function' ? handleZoomBy(-1) : setScale((s) => Math.max(0.08, s / 1.3)))}>
             <CockpitIcon name="i-minus" className="sm" />
           </button>
           <span className="cr-zoom-text">{Math.round(scale * 100)}%</span>
-          <button type="button" className="cr-tool-btn" title="Zoom in" onClick={() => setScale((s) => Math.min(2.5, s * 1.3))}>
+          <button type="button" className="cr-tool-btn" title="Zoom in" onClick={() => (typeof handleZoomBy === 'function' ? handleZoomBy(1) : setScale((s) => Math.min(2.5, s * 1.3)))}>
             <CockpitIcon name="i-plus" className="sm" />
           </button>
-          <button type="button" className="cr-tool-btn" title="Fit the whole batch" onClick={fit}>
+          <button type="button" className="cr-tool-btn" title="Fit the whole batch (Fit to view)" onClick={fit}>
             <CockpitIcon name="i-fit" className="sm" />
           </button>
           <div className="cr-tool-divider" />
           <button
             type="button"
-            className={`cr-tool-btn-text ${traceChainActive ? 'is-active' : ''}`}
-            onClick={() => setTraceChainActive(!traceChainActive)}
+            className={`cr-tool-btn-text trace-btn ${traceChainActive ? 'is-active' : ''}`}
+            onClick={() => {
+              const next = !traceChainActive;
+              setTraceChainActive(next);
+              if (next && !selectedJob) {
+                const target = focalJob?.name || jobs[0]?.name;
+                if (target) onSelectJob(target);
+              }
+            }}
             title="Highlight upstream prerequisites and downstream dependents"
           >
             <span className="cr-dot-icon" /> Trace chain
           </button>
           <button
             type="button"
-            className={`cr-tool-btn-text ${followActive ? 'is-active' : ''}`}
-            onClick={() => setFollowActive(!followActive)}
+            className={`cr-tool-btn-text follow-btn ${followActive ? 'is-active' : ''}`}
+            onClick={() => {
+              const next = !followActive;
+              setFollowActive(next);
+              if (next && focalJob) {
+                centerOnNode(focalJob.name);
+              }
+            }}
             title="Follow active running job automatically"
           >
             <span className="cr-crosshair-icon" /> Follow
@@ -466,7 +600,10 @@ export function CockpitFlow({
           </div>
         )}
         {/* Left Level Axis Indicators */}
-        <div className="cr-level-axis" style={{ transform: `translateY(${offset.y}px)` }}>
+        <div
+          className={`cr-level-axis ${isAnimating ? 'is-animating' : ''}`}
+          style={{ transform: `translateY(${offset.y}px)` }}
+        >
           {L?.rows?.map((row) => {
             const count = row.names.length;
             const yPos = row.y * scale;
@@ -485,7 +622,7 @@ export function CockpitFlow({
 
         {/* Transform Layer for Graph */}
         <div
-          className="cr-graph-transform"
+          className={`cr-graph-transform ${isAnimating ? 'is-animating' : ''}`}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             transformOrigin: '0 0',
@@ -496,6 +633,11 @@ export function CockpitFlow({
           {/* Parallel row tint backgrounds */}
           {L?.rows?.map((row) => {
             if (row.names.length <= 1) return null;
+            const rowNodes = row.names.map((n) => L.nodes.get(n)).filter(Boolean);
+            if (!rowNodes.length) return null;
+            const minX = Math.min(...rowNodes.map((n) => n.x));
+            const maxX = Math.max(...rowNodes.map((n) => n.x + n.w));
+            const rowW = maxX - minX;
             return (
               <div
                 key={`tint-${row.level}`}
@@ -503,8 +645,9 @@ export function CockpitFlow({
                 style={{
                   top: `${row.y - 6}px`,
                   height: `${26 + 12}px`,
-                  left: 0,
-                  right: 0,
+                  left: `${minX - 10}px`,
+                  width: `${rowW + 20}px`,
+                  borderRadius: '6px',
                 }}
               />
             );
@@ -647,6 +790,32 @@ export function CockpitFlow({
         </div>
       )}
 
+      {/* ── Mini-Map (Bottom Right) ── */}
+      <div className="cr-minimap">
+        <svg viewBox={`0 0 ${L?.width || 1200} ${L?.height || 800}`} className="cr-minimap-svg">
+          {Array.from(L?.nodes?.values() || []).map((n) => (
+            <rect
+              key={n.name}
+              x={n.x}
+              y={n.y}
+              width={n.w}
+              height={n.h}
+              className="cr-minimap-node"
+            />
+          ))}
+        </svg>
+        <div
+          className="cr-minimap-viewport"
+          style={minimapVp}
+        />
+      </div>
+
+      {/* ── Scroll vs Zoom guidance hint ── */}
+      {showScrollHint && (
+        <div className="cr-scroll-hint">
+          Ctrl + Scroll to zoom · Drag to pan
+        </div>
+      )}
       {/* ── Bottom Legend Strip ── */}
       <footer className="cr-flow-legend">
         <span className="cr-fl-item"><i className="cr-badge-chip hold">HOLD</i> On hold</span>

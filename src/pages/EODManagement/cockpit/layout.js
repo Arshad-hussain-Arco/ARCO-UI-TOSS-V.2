@@ -4,12 +4,12 @@
  */
 
 export const GRAPH_CONFIG = {
-  nodeW: 140,
-  nodeH: 30,
-  gapX: 20,
+  nodeW: 126,
+  nodeH: 26,
+  gapX: 12,
   gapY: 34,
-  padX: 48,
-  padY: 36,
+  padX: 36,
+  padY: 30,
   minScale: 0.1,
   maxScale: 2.5,
   startScale: 0.5,
@@ -134,7 +134,57 @@ export function closure(startName, index, key) {
   return seen;
 }
 
-export function fitTransform(layout, box, { min = GRAPH_CONFIG.minScale, max = 1, margin = 24 } = {}) {
-  const k = Math.min(max, Math.max(min, Math.min((box.w - margin * 2) / layout.width, (box.h - margin * 2) / layout.height)));
-  return { k, x: (box.w - layout.width * k) / 2, y: Math.max(margin, (box.h - layout.height * k) / 2) };
+export function getLayoutBoundingBox(layout) {
+  if (!layout?.nodes || layout.nodes.size === 0) {
+    return { x: 0, y: 0, w: layout?.width || 800, h: layout?.height || 600 };
+  }
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const n of layout.nodes.values()) {
+    minX = Math.min(minX, n.x);
+    maxX = Math.max(maxX, n.x + n.w);
+    minY = Math.min(minY, n.y);
+    maxY = Math.max(maxY, n.y + n.h);
+  }
+  return {
+    x: minX,
+    y: minY,
+    w: Math.max(1, maxX - minX),
+    h: Math.max(1, maxY - minY),
+  };
+}
+
+export function fitTransform(
+  layout,
+  box,
+  {
+    min = 0.35,
+    max = 1.0,
+    padLeft = 64,
+    padTop = 56,
+    padRight = 36,
+    padBottom = 48,
+    margin = 24,
+  } = {}
+) {
+  if (!layout) return { k: 1, x: 0, y: 0 };
+  const bbox = getLayoutBoundingBox(layout);
+
+  const effPadLeft = padLeft ?? margin;
+  const effPadTop = padTop ?? margin;
+  const effPadRight = padRight ?? margin;
+  const effPadBottom = padBottom ?? margin;
+
+  const availW = Math.max(100, (box.w || 800) - effPadLeft - effPadRight);
+  const availH = Math.max(100, (box.h || 600) - effPadTop - effPadBottom);
+
+  const rawK = Math.min(availW / bbox.w, availH / bbox.h);
+  const k = Math.min(max, Math.max(min, rawK));
+
+  const x = effPadLeft + (availW - bbox.w * k) / 2 - bbox.x * k;
+  const y = effPadTop + (availH - bbox.h * k) / 2 - bbox.y * k;
+
+  return { k, x, y };
 }

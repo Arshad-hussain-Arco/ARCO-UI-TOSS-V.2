@@ -244,9 +244,92 @@ export function CockpitTab({ env } = {}) {
     return d;
   }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
 
-  // Merge selected job properties from workflow definition + active run
+  // Merged and enriched jobs with full predecessors/successors for cockpit operations
+  const allCockpitJobs = useMemo(() => {
+    const runJobsMap = new Map((run?.jobs || []).map((j) => [j.name, j]));
+    const predsMap = new Map();
+    const succsMap = new Map();
+
+    // 1. Dependencies from folders
+    for (const f of view?.folders || []) {
+      for (const e of f.dependencies || []) {
+        if (!e?.source || !e?.target) continue;
+        if (!predsMap.has(e.target)) predsMap.set(e.target, new Set());
+        predsMap.get(e.target).add(e.source);
+        if (!succsMap.has(e.source)) succsMap.set(e.source, new Set());
+        succsMap.get(e.source).add(e.target);
+      }
+    }
+
+    // 2. Base jobs list
+    let baseList = [];
+    if (run?.jobs?.length) {
+      baseList = run.jobs.map((j) => ({
+        ...j,
+        group: j.group || 'EOD-CORE',
+        predecessors: j.predecessors || [],
+        successors: j.successors || [],
+      }));
+    } else {
+      const defJobs = enrichedDefinition?.jobs || def.data?.jobs || [];
+      baseList = defJobs.map((dj) => {
+        const rj = runJobsMap.get(dj.name);
+        return {
+          ...dj,
+          group: dj.group || 'EOD-CORE',
+          status: rj?.status || 'Waiting',
+          started_at: rj?.started_at || null,
+          ended_at: rj?.ended_at || null,
+          exit_code: rj?.exit_code ?? null,
+          duration_seconds: rj?.duration_seconds,
+          predecessors: dj.predecessors || [],
+          successors: dj.successors || [],
+        };
+      });
+    }
+
+    // 3. Merge explicit predecessors & successors from jobs
+    for (const j of baseList) {
+      if (!predsMap.has(j.name)) predsMap.set(j.name, new Set());
+      for (const p of j.predecessors || []) predsMap.get(j.name).add(p);
+
+      if (!succsMap.has(j.name)) succsMap.set(j.name, new Set());
+      for (const s of j.successors || []) succsMap.get(j.name).add(s);
+    }
+
+    // 4. Bi-directional link
+    for (const [target, preds] of predsMap.entries()) {
+      for (const p of preds) {
+        if (!succsMap.has(p)) succsMap.set(p, new Set());
+        succsMap.get(p).add(target);
+      }
+    }
+    for (const [source, succs] of succsMap.entries()) {
+      for (const s of succs) {
+        if (!predsMap.has(s)) predsMap.set(s, new Set());
+        predsMap.get(s).add(source);
+      }
+    }
+
+    return baseList.map((j) => {
+      const rj = runJobsMap.get(j.name);
+      return {
+        ...j,
+        status: rj?.status || j.status || 'Waiting',
+        started_at: rj?.started_at || j.started_at,
+        ended_at: rj?.ended_at || j.ended_at,
+        exit_code: rj?.exit_code ?? j.exit_code,
+        duration_seconds: rj?.duration_seconds ?? j.duration_seconds,
+        predecessors: Array.from(predsMap.get(j.name) || []),
+        successors: Array.from(succsMap.get(j.name) || []),
+      };
+    });
+  }, [run?.jobs, enrichedDefinition?.jobs, def.data?.jobs, view?.folders]);
+
+  // Merge selected job properties from workflow definition + active run + enriched graph
   const selectedJobObj = useMemo(() => {
     if (!selectedJobName) return null;
+    const fromAll = allCockpitJobs.find((j) => j.name === selectedJobName);
     let wfJob = null;
     for (const f of view?.folders || []) {
       const found = f.jobs?.find((j) => j.name === selectedJobName);
@@ -257,8 +340,8 @@ export function CockpitTab({ env } = {}) {
     }
     const defJob = def.data?.jobs?.find((j) => j.name === selectedJobName);
     const runJob = run?.jobs?.find((j) => j.name === selectedJobName);
-    return wfJob || defJob || runJob ? { ...defJob, ...wfJob, ...runJob } : null;
-  }, [selectedJobName, view, def.data, run?.jobs]);
+    return { ...defJob, ...wfJob, ...runJob, ...fromAll };
+  }, [selectedJobName, view, def.data, run?.jobs, allCockpitJobs]);
 
   // Actions
   const guarded = async (fn, okMsg) => {
@@ -466,7 +549,13 @@ export function CockpitTab({ env } = {}) {
   };
 
   const handleJobAction = async (jobName, action, jobObj) => {
-    if (action === 'run') {
+    let targetRunId = currentRunId;
+    if (!targetRunId || targetRunId === 'current_workflow') {
+      const candidate = activeRunningRun || runs[0];
+      targetRunId = candidate?.id || candidate?.run_id;
+    }
+
+    if (action === 'run' || action === 'rerun') {
       if (state.state !== 'approved') {
         toast.error('Workflow must be approved before running jobs.');
         return;
@@ -487,13 +576,13 @@ export function CockpitTab({ env } = {}) {
       }
 
       // If a batch run is currently active, rerun predecessors and target in that run
-      if (isRunningBatch && currentRunId && currentRunId !== 'current_workflow') {
+      if (isRunningBatch && targetRunId) {
         try {
           for (const p of preds) {
-            await svc.cockpitJobAction(env, currentRunId, p, 'rerun').catch(() => {});
+            await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => {});
           }
-          await svc.cockpitJobAction(env, currentRunId, jobName, 'rerun');
-          toast.success(`Execution triggered for "${jobName}" and its dependencies.`);
+          await svc.cockpitJobAction(env, targetRunId, jobName, 'rerun');
+          toast.success(`Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`);
           await runDetail.reload(true);
         } catch (err) {
           toast.error(errorText(err));
@@ -506,11 +595,17 @@ export function CockpitTab({ env } = {}) {
       return;
     }
 
-    if (!currentRunId || currentRunId === 'current_workflow') return;
+    if (!targetRunId) {
+      toast.error('No batch run found to execute job action.');
+      return;
+    }
     try {
-      await svc.cockpitJobAction(env, currentRunId, jobName, action);
-      toast.success(`Action '${action}' applied to ${jobName}.`);
-      await runDetail.reload(true);
+      await svc.cockpitJobAction(env, targetRunId, jobName, action);
+      toast.success(`Action '${action}' applied to ${jobName} (Run #${targetRunId}).`);
+      if (selectedRunId === 'current_workflow') {
+        setSelectedRunId(targetRunId);
+      }
+      await Promise.all([runDetail.reload(true), runsList.reload(true)]);
     } catch (err) {
       toast.error(errorText(err));
     }
@@ -845,8 +940,13 @@ export function CockpitTab({ env } = {}) {
         <JobDetailDrawer
           jobName={selectedJobName}
           job={selectedJobObj}
+          allJobs={allCockpitJobs}
           env={env}
-          runId={run?.isReadyState ? null : currentRunId}
+          runId={
+            (currentRunId && currentRunId !== 'current_workflow')
+              ? currentRunId
+              : (activeRunningRun?.id || runs[0]?.id || null)
+          }
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
         />
