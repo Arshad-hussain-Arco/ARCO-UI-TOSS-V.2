@@ -104,7 +104,7 @@ export function CockpitOverview({
   const iw = W - P.l - P.r;
   const ih = H - P.t - P.b;
 
-  const buckets = tr.buckets && tr.buckets.length > 0 ? tr.buckets : [
+  const buckets = tr.buckets && tr.buckets.length > 0 ? tr.buckets : (run.isReadyState ? [] : [
     { from: 1, success: 18, failed: 0, running: 0 },
     { from: 2, success: 25, failed: 0, running: 0 },
     { from: 3, success: 28, failed: 0, running: 0 },
@@ -119,7 +119,7 @@ export function CockpitOverview({
     { from: 12, success: 35, failed: 0, running: 0 },
     { from: 13, success: 20, failed: 0, running: 0 },
     { from: 14, success: 2, failed: 0, running: 0 },
-  ];
+  ]);
 
   const totals = buckets.map((b) => (b.success || 0) + (b.failed || 0) + (b.running || 0));
   const maxInBuckets = Math.max(1, ...totals);
@@ -242,7 +242,13 @@ export function CockpitOverview({
             </div>
           </header>
           <div className="cr-trend-chart-body">
-            <svg viewBox={`0 0 ${W} ${H}`} className="cr-trend-svg" preserveAspectRatio="none">
+            {run.isReadyState ? (
+              <div style={{ height: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--cr-text-muted)', gap: '8px' }}>
+                <CockpitIcon name="i-waiting" className="md" />
+                <span style={{ fontSize: '13px' }}>Workflow ready to run. Start execution to display real-time progress trend.</span>
+              </div>
+            ) : (
+              <svg viewBox={`0 0 ${W} ${H}`} className="cr-trend-svg" preserveAspectRatio="none">
               {/* Y grid lines & labels */}
               {yTicks.map((val) => {
                 const y = P.t + ih - (val / topTick) * ih;
@@ -322,6 +328,7 @@ export function CockpitOverview({
                 </text>
               ))}
             </svg>
+            )}
           </div>
           <footer className="cr-trend-legend">
             <span className="cr-leg-item"><i className="cr-leg-dot done" /> Finished</span>
@@ -336,7 +343,7 @@ export function CockpitOverview({
             <div>
               <h2 className="cr-card-title">RUN STATUS</h2>
               <span className="cr-card-sub">
-                #{run.id} · {run.environment?.toUpperCase()}
+                {run.isReadyState ? 'NEW BATCH' : `#${run.id}`} · {run.environment?.toUpperCase()}
               </span>
             </div>
           </header>
@@ -354,7 +361,7 @@ export function CockpitOverview({
                   cx="65"
                   cy="65"
                   r={ringRadius}
-                  className={`cr-ring-progress ${isFinished ? 'done' : (run.status === 'Needs attention' ? 'hold' : 'running')}`}
+                  className={`cr-ring-progress ${isFinished ? 'done' : (run.status === 'Needs attention' ? 'hold' : (run.isReadyState ? 'waiting' : 'running'))}`}
                   strokeWidth={strokeWidth}
                   strokeDasharray={circ}
                   strokeDashoffset={strokeDashoffset}
@@ -363,13 +370,13 @@ export function CockpitOverview({
               </svg>
               <div className="cr-ring-center">
                 <span className="cr-ring-pct">{pct}%</span>
-                <span className="cr-ring-done-lbl">{isFinished ? 'DONE' : 'RUNNING'}</span>
+                <span className="cr-ring-done-lbl">{isFinished ? 'DONE' : (run.isReadyState ? 'READY' : 'RUNNING')}</span>
               </div>
             </div>
             <div className="cr-ring-status-col">
-              <div className={`cr-ring-status-badge ${isFinished ? 'ok' : run.status?.toLowerCase().replace(/\s+/g, '-')}`}>
-                <CockpitIcon name={isFinished ? 'i-done' : (run.status === 'Needs attention' ? 'i-hold' : 'i-running')} className="sm" />
-                {run.status === 'Needs attention' ? 'Needs attention' : (isFinished ? 'Done' : run.status)}
+              <div className={`cr-ring-status-badge ${run.isReadyState ? 'ready' : (isFinished ? 'ok' : run.status?.toLowerCase().replace(/\s+/g, '-'))}`}>
+                <CockpitIcon name={run.isReadyState ? 'i-branch' : (isFinished ? 'i-done' : (run.status === 'Needs attention' ? 'i-hold' : 'i-running'))} className="sm" />
+                {run.status === 'Needs attention' ? 'Needs attention' : (run.isReadyState ? 'Ready to run' : (isFinished ? 'Done' : run.status))}
               </div>
               <div className="cr-ring-counts-meta">
                 <b>{completed}</b>
@@ -385,23 +392,23 @@ export function CockpitOverview({
             </div>
             <div className="cr-rm-item">
               <span className="cr-rm-k">TOOK</span>
-              <span className="cr-rm-v">{run.took || '02:59'}</span>
+              <span className="cr-rm-v">{run.isReadyState ? '—' : (run.took || '02:59')}</span>
             </div>
             <div className="cr-rm-item">
               <span className="cr-rm-k">STARTED</span>
-              <span className="cr-rm-v">{run.started_at ? run.started_at.replace('T', ' ').replace('Z', '') : '–'}</span>
+              <span className="cr-rm-v">{run.started_at ? run.started_at.replace('T', ' ').replace('Z', '') : '—'}</span>
             </div>
             <div className="cr-rm-item">
               <span className="cr-rm-k">ENDED</span>
-              <span className="cr-rm-v">{run.ended_at ? run.ended_at.replace('T', ' ').replace('Z', '') : '–'}</span>
+              <span className="cr-rm-v">{run.ended_at ? run.ended_at.replace('T', ' ').replace('Z', '') : '—'}</span>
             </div>
             <div className="cr-rm-item cr-rm-full">
               <span className="cr-rm-k">FILE</span>
-              <span className="cr-rm-v mono">{run.file_name || 'murex_eod_full_20261027_1344.xml'}</span>
+              <span className="cr-rm-v mono">{run.file_name || '—'}</span>
             </div>
           </div>
           <div className="cr-card-footer-pills">
-            <span className="cr-pill-simulated">Simulated</span>
+            {run.options?.simulate_all && <span className="cr-pill-simulated">Simulated</span>}
           </div>
         </section>
 

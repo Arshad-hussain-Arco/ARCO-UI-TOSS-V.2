@@ -2,17 +2,33 @@ import React, { useState } from 'react';
 import { RunDetailModal } from './RunDetailModal';
 
 export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLoading = false }) {
-  const list = runs || [];
+  const list = (runs || []).filter((r) => {
+    if (!r) return false;
+    const rEnv = r.environment || r.partition;
+    return !rEnv || String(rEnv).trim().toUpperCase() === String(env).trim().toUpperCase();
+  });
   const [viewingRunId, setViewingRunId] = useState(null);
 
   return (
     <div className="cr-history-container">
-      <div className="cr-history-header">
-        <h2>Run Execution History</h2>
-        <span className="cr-history-sub">
-          Inspect past batch runs, execution durations, and metrics for environment{' '}
-          <strong>{String(env).toUpperCase()}</strong>.
-        </span>
+      <div className="cr-history-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h2>Run Execution History</h2>
+          <span className="cr-history-sub">
+            Inspect past batch runs, execution durations, and metrics for environment{' '}
+            <strong>{String(env).toUpperCase()}</strong>.
+          </span>
+        </div>
+        {currentRunId && currentRunId !== 'current_workflow' && (
+          <button
+            type="button"
+            className="cr-btn sm outline"
+            onClick={() => onSelectRun('current_workflow', env)}
+            title="Return to the active uploaded workflow in Cockpit"
+          >
+            ★ Switch to Current Uploaded Workflow
+          </button>
+        )}
       </div>
 
       <div className="cr-history-table-card">

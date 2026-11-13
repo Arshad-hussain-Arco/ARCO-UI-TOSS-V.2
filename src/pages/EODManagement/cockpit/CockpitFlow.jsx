@@ -37,13 +37,15 @@ export function CockpitFlow({
 
   // Combine definition graph topology, folder edges, and live run statuses
   const allJobs = useMemo(() => {
-    const defJobs = definition?.jobs || [];
+    // If viewing a particular executed/historical run, show that run's workflow!
+    const isParticularRun = run && !run.isReadyState && run.jobs && run.jobs.length > 0;
     const runJobMap = new Map((run?.jobs || []).map((j) => [j.name, j]));
 
-    // Extract edges from all folders (Control-M DAG graph)
+    // Extract edges from all folders (prefer run's own folders if available)
+    const activeFolders = (isParticularRun && run?.folders?.length ? run.folders : folders) || [];
     const predsMap = new Map();
     const succsMap = new Map();
-    for (const f of folders || []) {
+    for (const f of activeFolders) {
       for (const e of f?.graph?.edges || []) {
         if (!predsMap.has(e.target)) predsMap.set(e.target, new Set());
         predsMap.get(e.target).add(e.source);
@@ -53,7 +55,8 @@ export function CockpitFlow({
     }
 
     let rawList = [];
-    if (!defJobs.length && run?.jobs?.length) {
+    if (isParticularRun) {
+      // Flow displays the workflow of this particular run!
       rawList = run.jobs.map((j) => ({
         ...j,
         group: j.group || 'EOD-CORE',
@@ -61,6 +64,8 @@ export function CockpitFlow({
         successors: j.successors || [],
       }));
     } else {
+      // Flow displays the staged/uploaded workflow definition
+      const defJobs = definition?.jobs || [];
       rawList = defJobs.map((dj) => {
         const rj = runJobMap.get(dj.name);
         return {
@@ -249,13 +254,13 @@ export function CockpitFlow({
         {folders && folders.length > 1 && (
           <div className="cr-flow-folder-select-wrap">
             <label className="cr-field-inline">
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>Workflow:</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>Folder:</span>
               <select
                 className="cr-select sm"
                 value={selectedFolder}
                 onChange={(e) => setSelectedFolder(e.target.value)}
               >
-                <option value="ALL">All ({allJobs.length})</option>
+                <option value="ALL">All Folders ({allJobs.length})</option>
                 {folders.map((f) => (
                   <option key={f.folder} value={f.folder}>
                     {f.folder} ({f.jobs?.length || 0})

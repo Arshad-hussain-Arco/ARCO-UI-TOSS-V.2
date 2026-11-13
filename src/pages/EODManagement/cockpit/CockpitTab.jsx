@@ -88,12 +88,25 @@ export function CockpitTab({ env } = {}) {
     [env],
   );
 
-  const runs = useMemo(() => runsList.data || [], [runsList.data]);
-  const liveRun = (runs.find((r) => r.status === 'RUNNING' || r.status === 'Running') ?? runs[0])?.id ?? (runs[0]?.run_id ?? '');
-  const currentRunId = selectedRunId || liveRun || '';
+  const runs = useMemo(() => {
+    const list = runsList.data || [];
+    return list.filter((r) => {
+      if (!r) return false;
+      const rEnv = r.environment || r.partition;
+      return !rEnv || String(rEnv).trim().toUpperCase() === String(env).trim().toUpperCase();
+    });
+  }, [runsList.data, env]);
+
+  const activeRunningRun = runs.find((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
+  const currentRunId = isViewingCurrentWorkflow
+    ? 'current_workflow'
+    : (selectedRunId || (activeRunningRun?.id || activeRunningRun?.run_id || ''));
 
   const runDetail = useResource(
-    () => (env && currentRunId ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId)) : Promise.resolve(null)),
+    () => (env && currentRunId && currentRunId !== 'current_workflow'
+      ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
+      : Promise.resolve(null)),
     [env, currentRunId],
   );
 
@@ -101,7 +114,7 @@ export function CockpitTab({ env } = {}) {
   const isBackendPaused = runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
   const isRunActive = isRunningBatch || isPaused;
-  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && !runDetail.data);
+  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
   // Polling for live status
   usePolling(() => runsList.reload(true), 4000);
@@ -114,6 +127,9 @@ export function CockpitTab({ env } = {}) {
   // Enrich definition jobs with rich validation/target info from wf.data.folders
   const enrichedDefinition = useMemo(() => {
     if (!def.data) return null;
+    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
     const wfJobsMap = new Map();
     for (const f of view?.folders || []) {
       for (const j of f.jobs || []) {
@@ -127,7 +143,68 @@ export function CockpitTab({ env } = {}) {
         return wj ? { ...dj, ...wj } : dj;
       }),
     };
-  }, [def.data, view]);
+  }, [def.data, view, env]);
+
+  // Staged run representing the current/uploaded workflow ready for execution
+  const stagedRun = useMemo(() => {
+    if (!def.data && !view) return null;
+    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
+    const jobsList = enrichedDefinition?.jobs || [];
+    return {
+      id: 'READY',
+      file_name: view?.meta?.filename || 'batch_workflow.xml',
+      environment: env,
+      status: 'Ready',
+      isReadyState: true,
+      started_at: null,
+      ended_at: null,
+      took: '—',
+      counts: {
+        total: jobsList.length,
+        done: 0,
+        failed: 0,
+        running: 0,
+        on_hold: 0,
+        waiting: jobsList.length,
+        skipped: 0,
+        killed: 0,
+        queued: 0,
+      },
+      options: { simulate_all: false },
+      jobs: jobsList.map((j) => ({
+        name: j.name,
+        group: j.group || 'EOD-CORE',
+        level: j.level || 1,
+        status: 'Waiting',
+        action: 'run',
+        attempt: 0,
+        started_at: null,
+        ended_at: null,
+        exit_code: null,
+        error_message: '',
+        predecessors: j.predecessors || [],
+        successors: j.successors || [],
+        command: j.command,
+        target: j.target,
+        attempts: [],
+      })),
+      folders: view?.folders || [],
+    };
+  }, [def.data, view, enrichedDefinition, env]);
+
+  // Strict environment isolation for active run
+  const run = useMemo(() => {
+    if (isViewingCurrentWorkflow) return stagedRun;
+    const d = runDetail.data;
+    if (!d) return null;
+    const rEnv = d.environment || d.partition;
+    if (rEnv && String(rEnv).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+      return null;
+    }
+    return d;
+  }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
 
   // Merge selected job properties from workflow definition + active run
   const selectedJobObj = useMemo(() => {
@@ -141,9 +218,9 @@ export function CockpitTab({ env } = {}) {
       }
     }
     const defJob = def.data?.jobs?.find((j) => j.name === selectedJobName);
-    const runJob = runDetail.data?.jobs?.find((j) => j.name === selectedJobName);
+    const runJob = run?.jobs?.find((j) => j.name === selectedJobName);
     return wfJob || defJob || runJob ? { ...defJob, ...wfJob, ...runJob } : null;
-  }, [selectedJobName, view, def.data, runDetail.data]);
+  }, [selectedJobName, view, def.data, run?.jobs]);
 
   // Actions
   const guarded = async (fn, okMsg) => {
@@ -171,7 +248,8 @@ export function CockpitTab({ env } = {}) {
     if (done) {
       setReviewed(false);
       setSelectedJobName(null);
-      await Promise.all([wf.reload(true), def.reload(true)]);
+      setSelectedRunId('current_workflow');
+      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
     }
   };
 
@@ -271,8 +349,6 @@ export function CockpitTab({ env } = {}) {
     setSelectedRunId(runId);
   };
 
-  const run = runDetail.data;
-
   return (
     <div className="cr-cockpit">
       {/* ── Internal SVG Icon Sprites ── */}
@@ -293,7 +369,7 @@ export function CockpitTab({ env } = {}) {
                   <CockpitIcon name="i-hold" className="xs" /> Needs Approval
                 </span>
               )}
-              <strong className="cr-wf-filename">{view.meta.filename}</strong>
+              <strong className="cr-wf-filename">{view.meta?.filename}</strong>
               <span className="cr-wf-meta">
                 sha256 {view.meta.sha256.slice(0, 10)}… · uploaded {new Date(view.meta.uploaded_at).toLocaleDateString()} by {view.meta.uploaded_by || 'unknown'}
               </span>
@@ -500,6 +576,11 @@ export function CockpitTab({ env } = {}) {
       {run ? (
         <div className="cr-run-context-strip">
           <div className="cr-rcs-left">
+            <span className="cr-scope-pill">{run.isReadyState ? 'NEW BATCH' : `RUN #${run.id}`}</span>
+            <span className={`cr-env-pill ${String(env).toLowerCase()}`}>{String(env).toUpperCase()}</span>
+            <span className={`cr-status-badge ${isPaused ? 'paused' : String(run.status).toLowerCase().replace(/\s+/g, '-')}`}>
+              {isPaused ? 'Paused' : run.status}
+            </span>
             <span
               className="cr-run-schedule-pill"
               style={{
@@ -528,6 +609,19 @@ export function CockpitTab({ env } = {}) {
               <span className="cr-pill-value" style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
+            </span>
+            <span className="cr-rcs-started">
+              {run.isReadyState ? (
+                <>file: <strong>{run.file_name}</strong> · Ready to execute</>
+              ) : (
+                `started ${run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}`
+              )}
+            </span>
+            <span className="cr-rcs-desc">
+              {activeView === 'overview' && (run.isReadyState ? 'Overview of the newly uploaded workflow ready for execution.' : 'High level status, metrics, and progress for this run.')}
+              {activeView === 'flow' && (run.isReadyState ? 'Execution dependency graph for the uploaded workflow.' : 'The jobs and dependencies of this run.')}
+              {activeView === 'timeline' && (run.isReadyState ? 'Batch timeline will display execution times once started.' : 'When each job of this run started and ended.')}
+              {activeView === 'history' && 'Past executions recorded for this environment.'}
             </span>
             {run.started_by && (
               <span
@@ -567,6 +661,9 @@ export function CockpitTab({ env } = {}) {
                 value={currentRunId}
                 onChange={(e) => handleSelectRun(e.target.value)}
               >
+                <option value="current_workflow">
+                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'} {run.isReadyState ? '(Active)' : ''}
+                </option>
                 {runs.map((r) => {
                   const rid = r.id || r.run_id;
                   const rstat = r.status || 'Unknown';
@@ -574,7 +671,7 @@ export function CockpitTab({ env } = {}) {
                   return (
                     <option key={rid} value={rid}>
                       #{rid} · {rstat} · {rstart ? new Date(rstart).toLocaleTimeString([], { hour12: false }) : '—'}
-                      {String(currentRunId) === String(rid) ? ' (current)' : ''}
+                      {String(currentRunId) === String(rid) ? ' (viewing)' : ''}
                     </option>
                   );
                 })}
@@ -610,7 +707,7 @@ export function CockpitTab({ env } = {}) {
             isLoading={isOverviewLoading}
             run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
             definition={enrichedDefinition}
-            folders={view?.folders || []}
+            folders={run?.folders || view?.folders || []}
             onSelectJob={(name) => {
               setSelectedJobName(name);
               setIsDrawerOpen(true);
@@ -635,7 +732,7 @@ export function CockpitTab({ env } = {}) {
             onCancelRun={handleCancelRun}
             isPaused={isPaused}
             onTogglePause={handleTogglePause}
-            folders={view?.folders || []}
+            folders={run?.folders || view?.folders || []}
             initialGroupFilter={flowGroupFilter}
             onClearGroupFilter={() => setFlowGroupFilter(null)}
           />
@@ -673,7 +770,7 @@ export function CockpitTab({ env } = {}) {
           jobName={selectedJobName}
           job={selectedJobObj}
           env={env}
-          runId={currentRunId}
+          runId={run?.isReadyState ? null : currentRunId}
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
         />
