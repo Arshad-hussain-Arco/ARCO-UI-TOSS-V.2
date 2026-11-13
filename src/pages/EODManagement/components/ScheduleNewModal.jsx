@@ -559,120 +559,24 @@ export function ScheduleNewModal({
   const [errors, setErrors] = useState({});
   const [showCalendar, setShowCalendar] = useState(false);
 
+  const initializedSessionRef = useRef(null);
+  const fetchedEnvRef = useRef(null);
+
+  // Initialize form ONLY once when the modal is opened or when switching to a different schedule.
+  // Never re-initialize while the user is actively filling or selecting fields.
   useEffect(() => {
-    if (!isOpen) return;
-
-    // Resolve the exact environment partition code according to the active environment
-    const targetEnv = activeEnvCode || form.envId;
-    if (!targetEnv) return;
-
-    const envObj = environments.find(
-      (e) =>
-        e.id === targetEnv ||
-        String(e.id) === String(targetEnv) ||
-        (e.code && e.code.toUpperCase() === String(targetEnv).toUpperCase()) ||
-        (e.name && e.name.toUpperCase() === String(targetEnv).toUpperCase()) ||
-        (e.code && String(targetEnv).toUpperCase().includes(e.code.toUpperCase()))
-    );
-    const rawEnv = envObj?.code || envObj?.name || targetEnv;
-    const cleanToken = String(rawEnv).trim().split(/[\s—–-]+/)[0];
-    const envCode = toShortEnvName(cleanToken || rawEnv);
-
-    let isMounted = true;
-    setIsLoadingXml(true);
-
-    eodSchedulerService
-      .getWorkflow(envCode)
-      .then((wf) => {
-        if (!isMounted) return;
-        activeWfCacheRef.current = wf;
-
-        // XML files uploaded for this environment
-        const allFiles = wf?.workflows || [];
-        let displayFiles = allFiles;
-        if (displayFiles.length === 0 && wf?.meta?.id) {
-          displayFiles = [
-            {
-              id: wf.meta.id,
-              filename: wf.meta.filename,
-              active: true,
-              uploaded_at: wf.meta.uploaded_at,
-            },
-          ];
-        }
-        setAvailableXmlFiles(displayFiles);
-
-        // Auto-select active XML file if none currently selected or if selected XML file is not in list
-        let currentXml = displayFiles.find(
-          (f) =>
-            String(f.id) === String(form.xmlFileId || form.workflowFileId) ||
-            f.filename === (form.xmlFile || form.workflowFile)
-        );
-        if (!currentXml && displayFiles.length > 0) {
-          currentXml = displayFiles.find((f) => f.active || f.is_active) || displayFiles[0];
-        }
-
-        if (currentXml) {
-          setForm((prev) => ({
-            ...prev,
-            xmlFileId: String(currentXml.id),
-            xmlFile: currentXml.filename,
-            workflowFileId: String(currentXml.id),
-            workflowFile: currentXml.filename,
-          }));
-
-          // If currentXml is active and parsed in wf:
-          if (currentXml.active || String(currentXml.id) === String(wf?.meta?.id) || !wf?.meta?.id) {
-            setAvailableWorkflows(extractWorkflowsFromData(wf));
-            setWorkflowJobs(extractJobsFromWorkflow(wf));
-          } else {
-            // Load specific XML file details
-            setIsLoadingWorkflows(true);
-            eodSchedulerService
-              .getWorkflowItem(envCode, currentXml.id)
-              .then((itemWf) => {
-                if (isMounted) {
-                  setAvailableWorkflows(extractWorkflowsFromData(itemWf));
-                  setWorkflowJobs(extractJobsFromWorkflow(itemWf));
-                }
-              })
-              .catch(() => {
-                if (isMounted) {
-                  setAvailableWorkflows(extractWorkflowsFromData(wf));
-                  setWorkflowJobs(extractJobsFromWorkflow(wf));
-                }
-              })
-              .finally(() => {
-                if (isMounted) setIsLoadingWorkflows(false);
-              });
-          }
-        } else {
-          setAvailableWorkflows([]);
-          setWorkflowJobs([]);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load active XML workflows for environment:', err);
-        if (isMounted) {
-          setAvailableXmlFiles([]);
-          setAvailableWorkflows([]);
-          setWorkflowJobs([]);
-        }
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingXml(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, activeEnvCode, form.envId, environments]);
-
-  useEffect(() => {
-    if (isOpen) {
-      setShowCalendar(false);
+    if (!isOpen) {
+      initializedSessionRef.current = null;
+      return;
     }
-    if (isOpen && schedule) {
+    const currentSessionKey = schedule ? `${schedule.id || 'new'}-${schedule.lastModifiedOn || ''}` : 'new';
+    if (initializedSessionRef.current === currentSessionKey) {
+      return;
+    }
+    initializedSessionRef.current = currentSessionKey;
+
+    setShowCalendar(false);
+    if (schedule) {
       const initDate = schedule.selectedDate ? new Date(schedule.selectedDate) : new Date();
       let initRecurrence = schedule.recurrence || 'Daily';
       if (
@@ -721,7 +625,7 @@ export function ScheduleNewModal({
         isActive: schedule.isActive !== undefined ? schedule.isActive : true,
       });
       setErrors({});
-    } else if (isOpen && !schedule) {
+    } else {
       setForm({
         id: '',
         groupId: null,
@@ -748,7 +652,127 @@ export function ScheduleNewModal({
       });
       setErrors({});
     }
-  }, [isOpen, schedule, environments]);
+  }, [isOpen, schedule?.id, schedule?.lastModifiedOn]);
+
+  // Load XML files and workflows for environment once per modal session
+  useEffect(() => {
+    if (!isOpen) {
+      fetchedEnvRef.current = null;
+      return;
+    }
+
+    const targetEnv = activeEnvCode || form.envId;
+    if (!targetEnv) return;
+
+    const envObj = environments.find(
+      (e) =>
+        e.id === targetEnv ||
+        String(e.id) === String(targetEnv) ||
+        (e.code && e.code.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.name && e.name.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.code && String(targetEnv).toUpperCase().includes(e.code.toUpperCase()))
+    );
+    const rawEnv = envObj?.code || envObj?.name || targetEnv;
+    const cleanToken = String(rawEnv).trim().split(/[\s—–-]+/)[0];
+    const envCode = toShortEnvName(cleanToken || rawEnv);
+
+    if (fetchedEnvRef.current === envCode && availableXmlFiles.length > 0) {
+      return;
+    }
+    fetchedEnvRef.current = envCode;
+
+    let isMounted = true;
+    setIsLoadingXml(true);
+
+    eodSchedulerService
+      .getWorkflow(envCode)
+      .then((wf) => {
+        if (!isMounted) return;
+        activeWfCacheRef.current = wf;
+
+        // XML files uploaded for this environment
+        const allFiles = wf?.workflows || [];
+        let displayFiles = allFiles;
+        if (displayFiles.length === 0 && wf?.meta?.id) {
+          displayFiles = [
+            {
+              id: wf.meta.id,
+              filename: wf.meta.filename,
+              active: true,
+              uploaded_at: wf.meta.uploaded_at,
+            },
+          ];
+        }
+        setAvailableXmlFiles(displayFiles);
+
+        // Auto-select or preserve currently selected XML file
+        setForm((prev) => {
+          let currentXml = displayFiles.find(
+            (f) =>
+              String(f.id) === String(prev.xmlFileId || prev.workflowFileId) ||
+              f.filename === (prev.xmlFile || prev.workflowFile)
+          );
+          if (!currentXml && displayFiles.length > 0) {
+            currentXml = displayFiles.find((f) => f.active || f.is_active) || displayFiles[0];
+          }
+
+          if (currentXml) {
+            // If currentXml is active and parsed in wf:
+            if (currentXml.active || String(currentXml.id) === String(wf?.meta?.id) || !wf?.meta?.id) {
+              setAvailableWorkflows(extractWorkflowsFromData(wf));
+              setWorkflowJobs(extractJobsFromWorkflow(wf));
+            } else {
+              // Load specific XML file details
+              setIsLoadingWorkflows(true);
+              eodSchedulerService
+                .getWorkflowItem(envCode, currentXml.id)
+                .then((itemWf) => {
+                  if (isMounted) {
+                    setAvailableWorkflows(extractWorkflowsFromData(itemWf));
+                    setWorkflowJobs(extractJobsFromWorkflow(itemWf));
+                  }
+                })
+                .catch(() => {
+                  if (isMounted) {
+                    setAvailableWorkflows(extractWorkflowsFromData(wf));
+                    setWorkflowJobs(extractJobsFromWorkflow(wf));
+                  }
+                })
+                .finally(() => {
+                  if (isMounted) setIsLoadingWorkflows(false);
+                });
+            }
+
+            return {
+              ...prev,
+              xmlFileId: prev.xmlFileId || String(currentXml.id),
+              xmlFile: prev.xmlFile || currentXml.filename,
+              workflowFileId: prev.workflowFileId || String(currentXml.id),
+              workflowFile: prev.workflowFile || currentXml.filename,
+            };
+          } else {
+            setAvailableWorkflows([]);
+            setWorkflowJobs([]);
+            return prev;
+          }
+        });
+      })
+      .catch((err) => {
+        console.warn('Failed to load active XML workflows for environment:', err);
+        if (isMounted) {
+          setAvailableXmlFiles([]);
+          setAvailableWorkflows([]);
+          setWorkflowJobs([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingXml(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, activeEnvCode, form.envId]);
 
   const handleXmlFileChange = (fileId) => {
     const chosen = availableXmlFiles.find((f) => String(f.id) === String(fileId));
@@ -920,16 +944,18 @@ export function ScheduleNewModal({
   );
 
   const toggleDay = (dayFull) => {
-    const current = form.selectedDays || [];
-    let updated;
-    if (current.includes(dayFull)) {
-      if (current.length === 1) return;
-      updated = current.filter((d) => d !== dayFull);
-    } else {
-      updated = [...current, dayFull];
-    }
-    setForm({ ...form, selectedDays: updated });
-    if (errors.selectedDays) setErrors({ ...errors, selectedDays: null });
+    setForm((prev) => {
+      const current = prev.selectedDays || [];
+      let updated;
+      if (current.includes(dayFull)) {
+        if (current.length === 1) return prev;
+        updated = current.filter((d) => d !== dayFull);
+      } else {
+        updated = [...current, dayFull];
+      }
+      return { ...prev, selectedDays: updated };
+    });
+    if (errors.selectedDays) setErrors((prev) => ({ ...prev, selectedDays: null }));
   };
 
   const validate = () => {
@@ -1051,7 +1077,7 @@ export function ScheduleNewModal({
                 role="radio"
                 aria-checked={form.runScope === 'batch'}
                 className={`eod-segmented-btn ${form.runScope === 'batch' ? 'active' : ''}`}
-                onClick={() => setForm({ ...form, runScope: 'batch' })}
+                onClick={() => setForm((prev) => ({ ...prev, runScope: 'batch' }))}
               >
                 Entire Batch
               </button>
@@ -1060,7 +1086,7 @@ export function ScheduleNewModal({
                 role="radio"
                 aria-checked={form.runScope === 'job'}
                 className={`eod-segmented-btn ${form.runScope === 'job' ? 'active' : ''}`}
-                onClick={() => setForm({ ...form, runScope: 'job' })}
+                onClick={() => setForm((prev) => ({ ...prev, runScope: 'job' }))}
               >
                 Specific Job Run
               </button>
@@ -1201,8 +1227,8 @@ export function ScheduleNewModal({
                   value={form.targetJob}
                   availableJobs={scopedTargetJobs}
                   onChange={(val) => {
-                    setForm({ ...form, targetJob: val });
-                    if (errors.targetJob) setErrors({ ...errors, targetJob: null });
+                    setForm((prev) => ({ ...prev, targetJob: val }));
+                    if (errors.targetJob) setErrors((errs) => ({ ...errs, targetJob: null }));
                   }}
                   error={errors.targetJob}
                 />
@@ -1238,7 +1264,10 @@ export function ScheduleNewModal({
                 className="eod-modal-input"
                 style={{ width: 120 }}
                 value={form.maxParallel}
-                onChange={(e) => setForm({ ...form, maxParallel: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({ ...prev, maxParallel: val }));
+                }}
               />
               <label
                 style={{
@@ -1255,7 +1284,10 @@ export function ScheduleNewModal({
                   id="eod-modal-sim-check"
                   type="checkbox"
                   checked={form.simulateAll}
-                  onChange={(e) => setForm({ ...form, simulateAll: e.target.checked })}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setForm((prev) => ({ ...prev, simulateAll: checked }));
+                  }}
                 />
                 Simulate all jobs (Dry-run)
               </label>
@@ -1274,7 +1306,10 @@ export function ScheduleNewModal({
               className="eod-modal-input"
               placeholder={`${suggestedName} (suggested, or type your own)`}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm((prev) => ({ ...prev, name: val }));
+              }}
             />
           </div>
 
@@ -1288,7 +1323,7 @@ export function ScheduleNewModal({
               value={form.recurrence}
               options={recurrenceOptions}
               onChange={(val) => {
-                setForm({ ...form, recurrence: val });
+                setForm((prev) => ({ ...prev, recurrence: val }));
                 setErrors({});
               }}
               placeholder="Select recurrence..."
@@ -1307,8 +1342,8 @@ export function ScheduleNewModal({
                     type="button"
                     className="eod-preset-mini-btn"
                     onClick={() =>
-                      setForm({
-                        ...form,
+                      setForm((prev) => ({
+                        ...prev,
                         selectedDays: [
                           'Sunday',
                           'Monday',
@@ -1318,7 +1353,7 @@ export function ScheduleNewModal({
                           'Friday',
                           'Saturday',
                         ],
-                      })
+                      }))
                     }
                   >
                     All Days
@@ -1327,10 +1362,10 @@ export function ScheduleNewModal({
                     type="button"
                     className="eod-preset-mini-btn"
                     onClick={() =>
-                      setForm({
-                        ...form,
+                      setForm((prev) => ({
+                        ...prev,
                         selectedDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                      })
+                      }))
                     }
                   >
                     Mon – Fri
@@ -1339,10 +1374,10 @@ export function ScheduleNewModal({
                     type="button"
                     className="eod-preset-mini-btn"
                     onClick={() =>
-                      setForm({
-                        ...form,
+                      setForm((prev) => ({
+                        ...prev,
                         selectedDays: ['Sunday', 'Saturday'],
-                      })
+                      }))
                     }
                   >
                     Weekends
@@ -1394,8 +1429,9 @@ export function ScheduleNewModal({
                     type="checkbox"
                     checked={form.selectedDayOfMonth === 'L'}
                     onChange={(e) => {
-                      setForm({ ...form, selectedDayOfMonth: e.target.checked ? 'L' : 1 });
-                      if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                      const checked = e.target.checked;
+                      setForm((prev) => ({ ...prev, selectedDayOfMonth: checked ? 'L' : 1 }));
+                      if (errors.selectedDayOfMonth) setErrors((prev) => ({ ...prev, selectedDayOfMonth: null }));
                     }}
                   />
                   <span>Last Day of Month (L)</span>
@@ -1423,11 +1459,11 @@ export function ScheduleNewModal({
                   value={form.selectedDayOfMonth || 1}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
-                    setForm({
-                      ...form,
+                    setForm((prev) => ({
+                      ...prev,
                       selectedDayOfMonth: isNaN(val) ? 1 : Math.min(31, Math.max(1, val)),
-                    });
-                    if (errors.selectedDayOfMonth) setErrors({ ...errors, selectedDayOfMonth: null });
+                    }));
+                    if (errors.selectedDayOfMonth) setErrors((prev) => ({ ...prev, selectedDayOfMonth: null }));
                   }}
                 />
               )}
@@ -1491,8 +1527,9 @@ export function ScheduleNewModal({
                 className={`eod-modal-input ${errors.time ? 'error' : ''}`}
                 value={form.time}
                 onChange={(e) => {
-                  setForm({ ...form, time: e.target.value });
-                  if (errors.time) setErrors({ ...errors, time: null });
+                  const val = e.target.value;
+                  setForm((prev) => ({ ...prev, time: val }));
+                  if (errors.time) setErrors((prev) => ({ ...prev, time: null }));
                 }}
               />
               <button
@@ -1550,12 +1587,14 @@ export function ScheduleNewModal({
               <InteractiveCalendarPicker
                 selectedDate={form.selectedDate}
                 onSelectDate={(newDate) => {
-                  setForm({
-                    ...form,
+                  setForm((prev) => ({
+                    ...prev,
                     selectedDate: newDate,
+                    selectedMonth: newDate.getMonth() + 1,
+                    selectedDayOfMonth: newDate.getDate(),
                     recurrence: 'Specific Date & Time',
-                  });
-                  if (errors.selectedDate) setErrors({ ...errors, selectedDate: null });
+                  }));
+                  if (errors.selectedDate) setErrors((prev) => ({ ...prev, selectedDate: null }));
                 }}
               />
 

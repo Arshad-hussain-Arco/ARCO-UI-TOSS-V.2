@@ -446,8 +446,10 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
 
   // Background poll to update schedule statuses smoothly without table flickering.
   // When a run is actively executing (hasRunning=true), poll every 2.5s bypassing cache
-  // so the status updates immediately when finished.
+  // so the status updates immediately when finished. Paused when modal is open so it
+  // doesn't cause background re-renders while the user is filling details.
   useEffect(() => {
+    if (modalOpen) return;
     const hasRunning =
       scheduleList.some((s) => s.lastStatus === 'Running' || s.lastStatus === 'RUNNING') ||
       runningIds.size > 0;
@@ -465,7 +467,7 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
         });
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [scheduleList, runningIds]);
+  }, [scheduleList, runningIds, modalOpen]);
 
   // Restore draft and reopen modal if returning from Target Server mapping
   useEffect(() => {
@@ -526,6 +528,7 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
       maxParallel: 4,
       simulateAll: false,
       isActive: true,
+      lastModifiedOn: Date.now(),
     });
     setModalOpen(true);
   };
@@ -542,6 +545,7 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
           ? sch.name
           : '',
       selectedDate: sch.selectedDate || new Date(),
+      lastModifiedOn: sch.lastModifiedOn || Date.now(),
     });
     setModalOpen(true);
   };
@@ -678,7 +682,7 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
         await eodService.createEodSchedule(payload);
       }
       setModalOpen(false);
-      await fetchScheduleData();
+      await fetchScheduleData(true, true);
       toast.success(schData.id ? 'Schedule updated.' : 'Schedule added.');
     } catch (err) {
       console.error('Failed to save schedule:', err);
