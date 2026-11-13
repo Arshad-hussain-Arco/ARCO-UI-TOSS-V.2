@@ -860,7 +860,7 @@ export function CockpitTab({ env } = {}) {
         </div>
       </div>
 
-      {/* ── Run Context Strip: Just Schedule Name and Triggered By ── */}
+      {/* ── Run Context Strip: Schedule Name on Left, Triggered By on Right ── */}
       {run ? (
         <div className="cr-run-context-strip">
           <div className="cr-rcs-left">
@@ -889,11 +889,13 @@ export function CockpitTab({ env } = {}) {
               <span className="cr-pill-label" style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.75, fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
                 Schedule Name:
               </span>
-              <span className="cr-pill-value" style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+              <span className="cr-pill-value" style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1, fontWeight: 600 }}>
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
             </span>
+          </div>
 
+          <div className="cr-rcs-right">
             {(run.started_by || run.user || !run.isReadyState) && (
               <span
                 className="cr-started-by-pill"
