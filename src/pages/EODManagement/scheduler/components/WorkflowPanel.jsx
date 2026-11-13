@@ -287,6 +287,36 @@ export function WorkflowPanel({ env, onRunStarted }) {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
+
+    const cleanName = (file.name || '').trim();
+
+    // 1. Check if a file with the exact same name already exists in this environment
+    const duplicateByName = files.find(
+      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    if (duplicateByName) {
+      toast.error(`Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`);
+      return;
+    }
+
+    // 2. Check if identical content (SHA-256) already exists in this environment
+    try {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      const duplicateByHash = files.find(
+        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase()
+      );
+      if (duplicateByHash) {
+        toast.error(`An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`);
+        return;
+      }
+    } catch {
+      // Proceed if crypto digest unavailable
+    }
+
     const done = await guarded(() => svc.uploadWorkflow(env, file));
     if (done) {
       if (done.uploaded?.active) {
