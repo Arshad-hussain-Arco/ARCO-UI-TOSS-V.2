@@ -1,4 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
+import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
 import { CockpitFlow } from './CockpitFlow';
@@ -6,13 +8,20 @@ import { CockpitTimeline } from './CockpitTimeline';
 import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
 import { StartRunModal } from './StartRunModal';
+import { closure } from './layout';
+import { WorkflowFilesModal } from '../scheduler/components/WorkflowFilesModal';
+import { DeleteDialog } from '../scheduler/components/DeleteDialog';
+import { JobFormModal } from '../scheduler/components/JobFormModal';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
 import { approvalState, groupMessages } from '../scheduler/schedulerModel';
 
+import '../scheduler/components/WorkflowPanel.css';
 import './Cockpit.css';
+
+const formatWhen = (value) => (value ? new Date(value).toLocaleString() : '—');
 
 const SUB_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -25,17 +34,18 @@ function Problems({ title, tone, messages, open }) {
   const groups = useMemo(() => groupMessages(messages), [messages]);
   if (!groups.length) return null;
   return (
-    <details className={`eodsch-problems eodsch-problems-${tone}`} open={open} style={{ margin: '6px 16px' }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-        {title} ({messages.length})
+    <details className={`eodw-problems eodw-problems-${tone}`} open={open}>
+      <summary>
+        <span className="eodw-problems-title">{title}</span>
+        <span className="eodw-problems-count">{messages.length}</span>
       </summary>
-      <ul style={{ margin: '6px 0 0 16px', fontSize: '12px' }}>
+      <ul>
         {groups.map((g) => (
           <li key={g.text}>
             {g.count > 1 ? <strong>{g.count} jobs: </strong> : null}
             {g.text}
             {g.where.length ? (
-              <span className="eodsch-muted">
+              <span className="eodw-muted">
                 {' '}
                 — {g.where.join(', ')}
                 {g.count > g.where.length ? ', …' : ''}
@@ -61,7 +71,7 @@ export function CockpitTab({ env } = {}) {
   const [isStartRunOpen, setIsStartRunOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [flowGroupFilter, setFlowGroupFilter] = useState(null);
+  const [flowFolder, setFlowFolder] = useState(null);
 
   // Clear environment-specific state when switching environments so stale run IDs aren't retained
   useEffect(() => {
@@ -69,16 +79,21 @@ export function CockpitTab({ env } = {}) {
     setSelectedJobName(null);
   }, [env]);
 
-  const handleNavigateView = (view, group = null) => {
-    if (group) {
-      setFlowGroupFilter(group);
+  const handleNavigateView = (view, folder = null) => {
+    if (folder) {
+      setFlowFolder(folder);
     }
     setActiveView(view);
   };
 
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [jobModal, setJobModal] = useState(null);
+  const [del, setDel] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const [delError, setDelError] = useState('');
 
   const canUpload = hasPermission('EOD_SCHEDULER_UPLOAD');
+  const canEdit = hasPermission('EOD_SCHEDULER_SETTINGS');
 
   // Load real resources from backend
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
@@ -97,7 +112,15 @@ export function CockpitTab({ env } = {}) {
     });
   }, [runsList.data, env]);
 
-  const activeRunningRun = runs.find((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const activeRunningRun = runs.find((r) => {
+    const isRun = r.status === 'RUNNING' || r.status === 'Running';
+    if (!isRun) return false;
+    if (r.started_at || r.started) {
+      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
+      if (ageMs > 30 * 60 * 1000) return false;
+    }
+    return true;
+  });
   const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
   const currentRunId = isViewingCurrentWorkflow
     ? 'current_workflow'
@@ -123,6 +146,20 @@ export function CockpitTab({ env } = {}) {
 
   const view = wf.data;
   const state = approvalState(view, hasPermission);
+
+  const files = view?.workflows ?? [];
+  const running = (runsList.data ?? []).some((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const editHint = running ? 'A run is in progress in this environment' : undefined;
+
+  const stats = [
+    ['Workflows', view?.summary?.folders, ''],
+    ['Jobs', view?.summary?.jobs, ''],
+    ['Dependencies', view?.summary?.dependencies, ''],
+    ['Timed jobs', view?.summary?.timed_jobs, ''],
+    ['External conditions', view?.summary?.external_conditions, ''],
+    ['Warnings', view?.summary?.warnings, 'warn'],
+    ['Errors', view?.summary?.errors, 'bad'],
+  ];
 
   // Enrich definition jobs with rich validation/target info from wf.data.folders
   const enrichedDefinition = useMemo(() => {
@@ -175,7 +212,8 @@ export function CockpitTab({ env } = {}) {
       options: { simulate_all: false },
       jobs: jobsList.map((j) => ({
         name: j.name,
-        group: j.group || 'EOD-CORE',
+        group: j.group || j.folder || 'EOD-CORE',
+        folder: j.folder || j.group || 'EOD-CORE',
         level: j.level || 1,
         status: 'Waiting',
         action: 'run',
@@ -206,9 +244,92 @@ export function CockpitTab({ env } = {}) {
     return d;
   }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
 
-  // Merge selected job properties from workflow definition + active run
+  // Merged and enriched jobs with full predecessors/successors for cockpit operations
+  const allCockpitJobs = useMemo(() => {
+    const runJobsMap = new Map((run?.jobs || []).map((j) => [j.name, j]));
+    const predsMap = new Map();
+    const succsMap = new Map();
+
+    // 1. Dependencies from folders
+    for (const f of view?.folders || []) {
+      for (const e of f.dependencies || []) {
+        if (!e?.source || !e?.target) continue;
+        if (!predsMap.has(e.target)) predsMap.set(e.target, new Set());
+        predsMap.get(e.target).add(e.source);
+        if (!succsMap.has(e.source)) succsMap.set(e.source, new Set());
+        succsMap.get(e.source).add(e.target);
+      }
+    }
+
+    // 2. Base jobs list
+    let baseList = [];
+    if (run?.jobs?.length) {
+      baseList = run.jobs.map((j) => ({
+        ...j,
+        group: j.group || 'EOD-CORE',
+        predecessors: j.predecessors || [],
+        successors: j.successors || [],
+      }));
+    } else {
+      const defJobs = enrichedDefinition?.jobs || def.data?.jobs || [];
+      baseList = defJobs.map((dj) => {
+        const rj = runJobsMap.get(dj.name);
+        return {
+          ...dj,
+          group: dj.group || 'EOD-CORE',
+          status: rj?.status || 'Waiting',
+          started_at: rj?.started_at || null,
+          ended_at: rj?.ended_at || null,
+          exit_code: rj?.exit_code ?? null,
+          duration_seconds: rj?.duration_seconds,
+          predecessors: dj.predecessors || [],
+          successors: dj.successors || [],
+        };
+      });
+    }
+
+    // 3. Merge explicit predecessors & successors from jobs
+    for (const j of baseList) {
+      if (!predsMap.has(j.name)) predsMap.set(j.name, new Set());
+      for (const p of j.predecessors || []) predsMap.get(j.name).add(p);
+
+      if (!succsMap.has(j.name)) succsMap.set(j.name, new Set());
+      for (const s of j.successors || []) succsMap.get(j.name).add(s);
+    }
+
+    // 4. Bi-directional link
+    for (const [target, preds] of predsMap.entries()) {
+      for (const p of preds) {
+        if (!succsMap.has(p)) succsMap.set(p, new Set());
+        succsMap.get(p).add(target);
+      }
+    }
+    for (const [source, succs] of succsMap.entries()) {
+      for (const s of succs) {
+        if (!predsMap.has(s)) predsMap.set(s, new Set());
+        predsMap.get(s).add(source);
+      }
+    }
+
+    return baseList.map((j) => {
+      const rj = runJobsMap.get(j.name);
+      return {
+        ...j,
+        status: rj?.status || j.status || 'Waiting',
+        started_at: rj?.started_at || j.started_at,
+        ended_at: rj?.ended_at || j.ended_at,
+        exit_code: rj?.exit_code ?? j.exit_code,
+        duration_seconds: rj?.duration_seconds ?? j.duration_seconds,
+        predecessors: Array.from(predsMap.get(j.name) || []),
+        successors: Array.from(succsMap.get(j.name) || []),
+      };
+    });
+  }, [run?.jobs, enrichedDefinition?.jobs, def.data?.jobs, view?.folders]);
+
+  // Merge selected job properties from workflow definition + active run + enriched graph
   const selectedJobObj = useMemo(() => {
     if (!selectedJobName) return null;
+    const fromAll = allCockpitJobs.find((j) => j.name === selectedJobName);
     let wfJob = null;
     for (const f of view?.folders || []) {
       const found = f.jobs?.find((j) => j.name === selectedJobName);
@@ -219,8 +340,8 @@ export function CockpitTab({ env } = {}) {
     }
     const defJob = def.data?.jobs?.find((j) => j.name === selectedJobName);
     const runJob = run?.jobs?.find((j) => j.name === selectedJobName);
-    return wfJob || defJob || runJob ? { ...defJob, ...wfJob, ...runJob } : null;
-  }, [selectedJobName, view, def.data, run?.jobs]);
+    return { ...defJob, ...wfJob, ...runJob, ...fromAll };
+  }, [selectedJobName, view, def.data, run?.jobs, allCockpitJobs]);
 
   // Actions
   const guarded = async (fn, okMsg) => {
@@ -241,15 +362,110 @@ export function CockpitTab({ env } = {}) {
     const file = ev.target.files?.[0];
     ev.target.value = '';
     if (!file) return;
+
+    const cleanName = (file.name || '').trim();
+
+    // 1. Check if a file with the exact same name already exists in this environment
+    const duplicateByName = files.find(
+      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    if (duplicateByName) {
+      toast.error(`Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`);
+      return;
+    }
+
+    // 2. Check if identical content (SHA-256) already exists in this environment
+    try {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      const duplicateByHash = files.find(
+        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase()
+      );
+      if (duplicateByHash) {
+        toast.error(`An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`);
+        return;
+      }
+    } catch {
+      // Proceed if crypto digest unavailable
+    }
+
+    const done = await guarded(() => svc.uploadWorkflow(env, file));
+    if (done) {
+      if (done.uploaded?.active) {
+        toast.success(`${file.name} uploaded and active. Review it before approving.`);
+        setReviewed(false);
+        setSelectedJobName(null);
+        setSelectedRunId('current_workflow');
+      } else {
+        toast.success(`${file.name} stored. Choose it in "Workflow file" to review and run it.`);
+      }
+      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+    }
+  };
+
+  const activate = async (file) => {
     const done = await guarded(
-      () => svc.uploadWorkflow(env, file),
-      `${file.name} uploaded. Review it before approving.`,
+      () => svc.activateWorkflow(env, file.id),
+      `${file.filename} is now the active workflow. Review it before approving.`,
     );
     if (done) {
-      setReviewed(false);
       setSelectedJobName(null);
       setSelectedRunId('current_workflow');
       await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+    }
+  };
+
+  const suggestions = useMemo(() => {
+    const all = (view?.folders ?? []).flatMap((f) => f.jobs || []);
+    return {
+      nodeids: [...new Set(all.map((j) => j.nodeid).filter(Boolean))].sort(),
+      conditions: [
+        ...new Set(all.flatMap((j) => [...(j.waits_for ?? []), ...(j.produces ?? [])])),
+      ].sort(),
+    };
+  }, [view]);
+
+  const saveJob = async (payload) => {
+    const folderName = jobModal?.folder || view?.folders?.[0]?.folder || 'EOD-CORE';
+    const workflowId = view?.meta?.id;
+    if (jobModal?.mode === 'edit') {
+      await svc.updateJob(env, workflowId, folderName, jobModal.job, payload);
+      toast.success(`Job ${jobModal.job} saved.`);
+    } else {
+      await svc.addJob(env, workflowId, folderName, payload);
+      toast.success(`Job ${payload.name} added.`);
+    }
+    setJobModal(null);
+    await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+  };
+
+  const confirmDelete = async () => {
+    if (!del) return;
+    setDelBusy(true);
+    setDelError('');
+    const confirm = Boolean(del.info) || del.kind === 'folder';
+    try {
+      if (del.kind === 'file') {
+        await svc.deleteWorkflow(env, del.file.id);
+        toast.success(`${del.file.filename} deleted.`);
+      } else if (del.kind === 'folder') {
+        await svc.deleteFolder(env, view?.meta?.id, del.folder, { confirm, baseSha256: view?.meta?.sha256 });
+        toast.success(`Workflow ${del.folder} deleted.`);
+      } else if (del.kind === 'job') {
+        await svc.deleteJob(env, view?.meta?.id, del.folder, del.job, { confirm, baseSha256: view?.meta?.sha256 });
+        toast.success(`Job ${del.job} deleted. Review and approve the workflow again.`);
+      }
+      setDel(null);
+      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+    } catch (err) {
+      const data = err?.response?.data;
+      if (data?.needs_confirm) setDel({ ...del, info: data });
+      else setDelError(errorText(err));
+    } finally {
+      setDelBusy(false);
     }
   };
 
@@ -332,12 +548,64 @@ export function CockpitTab({ env } = {}) {
     }
   };
 
-  const handleJobAction = async (jobName, action) => {
-    if (!currentRunId) return;
+  const handleJobAction = async (jobName, action, jobObj) => {
+    let targetRunId = currentRunId;
+    if (!targetRunId || targetRunId === 'current_workflow') {
+      const candidate = activeRunningRun || runs[0];
+      targetRunId = candidate?.id || candidate?.run_id;
+    }
+
+    if (action === 'run' || action === 'rerun') {
+      if (state.state !== 'approved') {
+        toast.error('Workflow must be approved before running jobs.');
+        return;
+      }
+
+      // Check dependency predecessors
+      const allJobs = enrichedDefinition?.jobs || run?.jobs || [];
+      const jobMap = new Map(allJobs.map((j) => [j.name, j]));
+      const predsSet = closure(jobName, jobMap, 'predecessors');
+      const preds = Array.from(predsSet);
+
+      if (preds.length === 0) {
+        toast.info(`Job "${jobName}" has no dependencies. Running directly.`);
+      } else {
+        toast.info(
+          `Job "${jobName}" depends on ${preds.length} predecessor(s): ${preds.join(', ')}. Executing predecessors first...`,
+        );
+      }
+
+      // If a batch run is currently active, rerun predecessors and target in that run
+      if (isRunningBatch && targetRunId) {
+        try {
+          for (const p of preds) {
+            await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => {});
+          }
+          await svc.cockpitJobAction(env, targetRunId, jobName, 'rerun');
+          toast.success(`Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`);
+          await runDetail.reload(true);
+        } catch (err) {
+          toast.error(errorText(err));
+        }
+        return;
+      }
+
+      // If no run is currently active, start execution for the batch
+      await handleStartRun();
+      return;
+    }
+
+    if (!targetRunId) {
+      toast.error('No batch run found to execute job action.');
+      return;
+    }
     try {
-      await svc.cockpitJobAction(env, currentRunId, jobName, action);
-      toast.success(`Action '${action}' applied to ${jobName}.`);
-      await runDetail.reload(true);
+      await svc.cockpitJobAction(env, targetRunId, jobName, action);
+      toast.success(`Action '${action}' applied to ${jobName} (Run #${targetRunId}).`);
+      if (selectedRunId === 'current_workflow') {
+        setSelectedRunId(targetRunId);
+      }
+      await Promise.all([runDetail.reload(true), runsList.reload(true)]);
     } catch (err) {
       toast.error(errorText(err));
     }
@@ -352,136 +620,120 @@ export function CockpitTab({ env } = {}) {
       {/* ── Internal SVG Icon Sprites ── */}
       <IconSprite />
 
-      {/* ── Workflow & Ingestion Management Strip ── */}
-      <div className="cr-workflow-strip">
-        <div className="cr-wf-info">
-          {view?.loaded ? (
-            <>
-              <span className="cr-wf-badge">ACTIVE BATCH</span>
-              {state.state === 'approved' ? (
-                <span className="cr-approval-badge approved">
-                  <CockpitIcon name="i-done" className="xs" /> Approved
-                </span>
-              ) : (
-                <span className="cr-approval-badge pending">
-                  <CockpitIcon name="i-hold" className="xs" /> Needs Approval
-                </span>
-              )}
-              <strong className="cr-wf-filename">{view.meta?.filename}</strong>
-              <span className="cr-wf-meta">
-                sha256 {view.meta.sha256.slice(0, 10)}… · uploaded {new Date(view.meta.uploaded_at).toLocaleDateString()} by {view.meta.uploaded_by || 'unknown'}
-              </span>
-              <div className="cr-wf-counts">
-                <span className="cr-wf-count-chip">{view.summary?.jobs ?? 0} jobs</span>
-                <span className="cr-wf-count-chip">{view.summary?.dependencies ?? 0} dependencies</span>
-                {view.summary?.errors > 0 && (
-                  <span className="cr-wf-count-chip bad">{view.summary.errors} errors</span>
-                )}
-                {view.summary?.warnings > 0 && (
-                  <span className="cr-wf-count-chip warn">{view.summary.warnings} warnings</span>
+      {/* ── Unified File Header Card (Upload XML Section on Top) ── */}
+      {view?.loaded && (
+        <div className="cr-unified-file-card">
+          <div className="cr-ufc-left">
+            <div className="cr-ufc-icon-box">
+              <FileText size={20} className="cr-ufc-icon" />
+            </div>
+            <div className="cr-ufc-info">
+              <div className="cr-ufc-title-row">
+                <strong className="cr-ufc-filename">{view.meta?.filename || 'batch_workflow.xml'}</strong>
+                {state.state === 'approved' ? (
+                  <span className="cr-ufc-badge approved">
+                    <CheckCircle2 size={13} /> Approved
+                  </span>
+                ) : (
+                  <span className="cr-ufc-badge pending">
+                    <ShieldAlert size={13} /> Needs Approval
+                  </span>
                 )}
               </div>
-            </>
-          ) : (
-            <>
-              <span className="cr-approval-badge empty">No Workflow</span>
-              <span className="cr-wf-empty-text">
-                No workflow definition uploaded to {String(env).toUpperCase()} yet. Upload a Control-M XML file to begin.
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="cr-wf-actions">
-          {view?.loaded && (
-            <button
-              type="button"
-              className={`cr-btn sm ${showDiagnostics ? 'primary' : 'outline'}`}
-              onClick={() => setShowDiagnostics(!showDiagnostics)}
-              title="Toggle batch validation metrics and issues"
-            >
-              Diagnostics & Review
-              {view.summary?.errors > 0 ? ` (${view.summary.errors} errors)` : ''}
-            </button>
-          )}
-          {canUpload && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xml,text/xml,application/xml"
-                hidden
-                onChange={handleUpload}
-                aria-label="Upload Control-M XML"
-              />
-              <button
-                type="button"
-                className="cr-btn outline sm"
-                disabled={busy}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <CockpitIcon name="i-branch" className="xs" /> Upload XML
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            className="cr-btn outline sm"
-            onClick={() => {
-              wf.reload(true);
-              def.reload(true);
-              runsList.reload(true);
-              runDetail.reload(true);
-            }}
-            title="Refresh batch and runs"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* ── Validation Diagnostics & Review Panel ── */}
-      {view?.loaded && (showDiagnostics || (view.errors && view.errors.length > 0)) && (
-        <div className="cr-review-panel">
-          <div className="cr-review-stats-grid">
-            {[
-              ['Workflows', view.summary?.folders],
-              ['Jobs', view.summary?.jobs],
-              ['Dependencies', view.summary?.dependencies],
-              ['Timed jobs', view.summary?.timed_jobs],
-              ['External conditions', view.summary?.external_conditions],
-              ['Warnings', view.summary?.warnings],
-              ['Errors', view.summary?.errors],
-            ].map(([label, value]) => (
-              <div key={label} className={`cr-review-stat ${label === 'Errors' && value > 0 ? 'bad' : ''}`}>
-                <span className="cr-review-stat-val">{value ?? 0}</span>
-                <span className="cr-review-stat-lbl">{label}</span>
+              <div className="cr-ufc-meta">
+                <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
+                <span className="cr-ufc-sep">|</span>
+                <span>{formatWhen(view.meta?.uploaded_at)}</span>
+                <span className="cr-ufc-sep">|</span>
+                <span>SHA-256: <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code></span>
               </div>
-            ))}
+            </div>
           </div>
 
-          <div className="cr-review-problems-group">
-            <Problems title="Problems to fix" tone="bad" messages={view.errors} open />
-            <Problems title="Notes and warnings" tone="warn" messages={view.warnings} />
+          <div className="cr-ufc-right">
+            {files.length > 0 && (
+              <label className="cr-ufc-select-label">
+                <span className="cr-ufc-select-title">Workflow File</span>
+                <select
+                  value={files.find((f) => f.active)?.id ?? ''}
+                  disabled={busy || !canEdit || running}
+                  title={editHint}
+                  onChange={(e) => {
+                    const file = files.find((f) => String(f.id) === e.target.value);
+                    if (file && !file.active) activate(file);
+                  }}
+                  className="cr-ufc-dropdown"
+                >
+                  {files.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.filename} {f.active ? '(Active)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              leadingIcon={FileText}
+              onClick={() => setFilesOpen(true)}
+            >
+              Files ({files.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={RefreshCw}
+              onClick={() => {
+                wf.reload(true);
+                def.reload(true);
+                runsList.reload(true);
+                runDetail.reload(true);
+              }}
+              aria-label="Reload"
+            />
+            {canUpload && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xml,text/xml,application/xml"
+                  hidden
+                  onChange={handleUpload}
+                  aria-label="Upload XML file"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leadingIcon={Upload}
+                  isLoading={busy}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload XML
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── 4-Eyes Approval Banner ── */}
+      {/* Manual approval banner when pending review */}
       {view?.loaded && state.state === 'pending' && (
-        <div className="cr-approval-banner is-pending">
-          <div className="cr-ab-text">
-            <CockpitIcon name="i-hold" className="sm" />
+        <div className="eodw-approval" data-state="pending" style={{ margin: '0 16px 10px' }}>
+          <div className="eodw-approval-main">
+            <span className="eodw-approval-icon">
+              <ShieldAlert size={20} />
+            </span>
             <div>
-              <strong>Batch Review & Approval Required</strong>
-              <span className="cr-ab-sub">
-                Approval covers the commands, targets and schedule in {view.meta.filename}.
-              </span>
+              <strong>Needs Approval</strong>
+              <p className="eodw-muted" style={{ margin: 0, fontSize: '12px' }}>
+                Approval covers the commands, target servers and schedule in {view.meta?.filename}.
+              </p>
             </div>
           </div>
           {state.canApprove ? (
-            <div className="cr-ab-actions">
-              <label className="cr-ab-check">
+            <div className="eodw-approval-actions">
+              <label className="eodsch-check">
                 <input
                   type="checkbox"
                   checked={reviewed}
@@ -489,14 +741,9 @@ export function CockpitTab({ env } = {}) {
                 />
                 I reviewed the commands, targets and schedule
               </label>
-              <button
-                type="button"
-                className="cr-btn primary sm"
-                disabled={!reviewed || busy}
-                onClick={handleApprove}
-              >
-                Approve Batch
-              </button>
+              <Button size="sm" disabled={!reviewed} isLoading={busy} onClick={handleApprove}>
+                Approve
+              </Button>
             </div>
           ) : (
             <span className="eodsch-muted">Ask an authorized user to approve this workflow.</span>
@@ -504,17 +751,7 @@ export function CockpitTab({ env } = {}) {
         </div>
       )}
 
-      {view?.loaded && state.state === 'approved' && (
-        <div className="cr-approval-banner is-approved">
-          <CockpitIcon name="i-done" className="xs" />
-          <span>
-            Batch approved by {view.meta.approved_by || 'system'}{' '}
-            {view.meta.approved_at ? `on ${new Date(view.meta.approved_at).toLocaleString()}` : ''}. Changing XML, targets or settings revokes approval.
-          </span>
-        </div>
-      )}
-
-      {/* ── Subtabs Navigation Bar ── */}
+      {/* ── Headings Section: Subtabs & Action Controls (Below Upload XML Section) ── */}
       <div className="cr-subtabs-bar">
         <div className="cr-subtabs-list" role="tablist">
           {SUB_TABS.map((tab) => (
@@ -531,72 +768,11 @@ export function CockpitTab({ env } = {}) {
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {isRunActive && (
-            <>
-              <button
-                type="button"
-                className={`cr-btn sm ${isPaused ? 'primary' : 'outline'}`}
-                disabled={busy}
-                onClick={handleTogglePause}
-                title={isPaused ? "Resume batch execution" : "Pause batch execution"}
-              >
-                <CockpitIcon name={isPaused ? "i-play" : "i-hold"} className="xs" />
-                {isPaused ? 'Resume' : 'Pause'}
-              </button>
-
-              <button
-                type="button"
-                className="cr-btn outline sm cr-btn-danger"
-                disabled={busy}
-                onClick={handleCancelRun}
-                title="Cancel run"
-              >
-                Cancel Run
-              </button>
-            </>
-          )}
-
-          {state.state === 'approved' && state.canRun && (
-            <button
-              type="button"
-              className="cr-btn primary sm cr-start-new-run-btn"
-              disabled={busy}
-              onClick={() => setIsStartRunOpen(true)}
-            >
-              Start a new run
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Run Context Strip ── */}
-      {run ? (
-        <div className="cr-run-context-strip">
-          <div className="cr-rcs-left">
-            <span className="cr-scope-pill">{run.isReadyState ? 'NEW BATCH' : `RUN #${run.id}`}</span>
-            <span className={`cr-env-pill ${String(env).toLowerCase()}`}>{String(env).toUpperCase()}</span>
-            <span className={`cr-status-badge ${isPaused ? 'paused' : String(run.status).toLowerCase().replace(/\s+/g, '-')}`}>
-              {isPaused ? 'Paused' : run.status}
-            </span>
-            <span className="cr-rcs-started">
-              {run.isReadyState ? (
-                <>file: <strong>{run.file_name}</strong> · Ready to execute</>
-              ) : (
-                `started ${run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}`
-              )}
-            </span>
-            <span className="cr-rcs-desc">
-              {activeView === 'overview' && (run.isReadyState ? 'Overview of the newly uploaded workflow ready for execution.' : 'High level status, metrics, and progress for this run.')}
-              {activeView === 'flow' && (run.isReadyState ? 'Execution dependency graph for the uploaded workflow.' : 'The jobs and dependencies of this run.')}
-              {activeView === 'timeline' && (run.isReadyState ? 'Batch timeline will display execution times once started.' : 'When each job of this run started and ended.')}
-              {activeView === 'history' && 'Past executions recorded for this environment.'}
-            </span>
-          </div>
-
-          <div className="cr-rcs-right">
-            <label className="cr-run-switch-label">
-              <span>RUN</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* RUN dropdown list (moved to the left of the action buttons) */}
+          {run && (
+            <label className="cr-run-switch-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>RUN</span>
               <select
                 className="cr-select sm cr-run-switch-select"
                 value={currentRunId}
@@ -618,22 +794,69 @@ export function CockpitTab({ env } = {}) {
                 })}
               </select>
             </label>
+          )}
+
+          {/* Action buttons (placed in the top right corner, aligned together) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isRunActive && (
+              <>
+                <button
+                  type="button"
+                  className={`cr-btn sm ${isPaused ? 'primary' : 'outline'}`}
+                  disabled={busy}
+                  onClick={handleTogglePause}
+                  title={isPaused ? "Resume batch execution" : "Pause batch execution"}
+                >
+                  <CockpitIcon name={isPaused ? "i-play" : "i-hold"} className="xs" />
+                  <span>{isPaused ? 'Resume' : 'Pause'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="cr-btn outline sm cr-btn-danger"
+                  disabled={busy}
+                  onClick={handleCancelRun}
+                  title="Cancel batch run"
+                >
+                  Cancel Run
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              className="cr-btn primary sm cr-btn-run-all"
+              disabled={busy || isRunningBatch || state.state !== 'approved' || !state.canRun}
+              onClick={() => handleStartRun()}
+              title={
+                state.state !== 'approved'
+                  ? 'Workflow must be approved before running'
+                  : !state.canRun
+                  ? 'You do not have permission to execute batch runs'
+                  : isRunningBatch
+                  ? 'A batch run is currently in progress'
+                  : 'Execute batch workflow now'
+              }
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#059669',
+                borderColor: '#059669',
+                color: '#ffffff',
+                fontWeight: 600,
+                borderRadius: '6px',
+                padding: '5px 12px',
+                cursor: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 'not-allowed' : 'pointer',
+                opacity: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 0.6 : 1,
+              }}
+            >
+              <Play size={13} fill="currentColor" />
+              <span>Run All Now</span>
+            </button>
           </div>
         </div>
-      ) : runsList.loading ? (
-        <div className="cr-run-context-strip" style={{ justifyContent: 'flex-start', color: 'var(--cr-text-muted)' }}>
-          <span style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <span className="cr-spinner" style={{ width: '13px', height: '13px', borderWidth: '2px' }} />
-            Loading runs for {String(env).toUpperCase()}...
-          </span>
-        </div>
-      ) : (
-        <div className="cr-run-context-strip" style={{ justifyContent: 'flex-start', color: 'var(--cr-text-muted)' }}>
-          <span style={{ fontSize: '12px' }}>
-            No runs recorded for {String(env).toUpperCase()} yet. Click &ldquo;Start a new run&rdquo; above once approved.
-          </span>
-        </div>
-      )}
+      </div>
 
       {/* ── Active View Body ── */}
       <main className="cr-main-pane">
@@ -654,8 +877,12 @@ export function CockpitTab({ env } = {}) {
               setIsDrawerOpen(true);
             }}
             onNavigateView={handleNavigateView}
-            onStartRun={() => setIsStartRunOpen(true)}
+            onStartRun={() => handleStartRun()}
             onCancelRun={handleCancelRun}
+            onJobAction={handleJobAction}
+            onAddJob={() => setJobModal({ mode: 'add', job: null, folder: view?.folders?.[0]?.folder || 'EOD-CORE' })}
+            onEditJob={(j) => setJobModal({ mode: 'edit', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
+            onDeleteJob={(j) => setDel({ kind: 'job', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
             canRun={state.state === 'approved' && state.canRun}
           />
         )}
@@ -674,8 +901,11 @@ export function CockpitTab({ env } = {}) {
             isPaused={isPaused}
             onTogglePause={handleTogglePause}
             folders={run?.folders || view?.folders || []}
-            initialGroupFilter={flowGroupFilter}
-            onClearGroupFilter={() => setFlowGroupFilter(null)}
+            initialFolder={flowFolder}
+            onClearFolderFilter={() => setFlowFolder(null)}
+            stats={stats}
+            warnings={view?.warnings}
+            errors={view?.errors}
           />
         )}
 
@@ -710,8 +940,13 @@ export function CockpitTab({ env } = {}) {
         <JobDetailDrawer
           jobName={selectedJobName}
           job={selectedJobObj}
+          allJobs={allCockpitJobs}
           env={env}
-          runId={run?.isReadyState ? null : currentRunId}
+          runId={
+            (currentRunId && currentRunId !== 'current_workflow')
+              ? currentRunId
+              : (activeRunningRun?.id || runs[0]?.id || null)
+          }
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
         />
@@ -723,6 +958,45 @@ export function CockpitTab({ env } = {}) {
         onClose={() => setIsStartRunOpen(false)}
         onStart={handleStartRun}
         currentEnv={env}
+      />
+
+      {/* ── Add / Edit Job Modal ── */}
+      {jobModal && (
+        <JobFormModal
+          isOpen={Boolean(jobModal)}
+          onClose={() => setJobModal(null)}
+          env={env}
+          workflowId={view?.meta?.id}
+          baseSha256={view?.meta?.sha256}
+          folder={jobModal.folder || view?.folders?.[0]?.folder || 'EOD-CORE'}
+          job={jobModal.job}
+          mode={jobModal.mode}
+          nodeids={suggestions.nodeids}
+          conditions={suggestions.conditions}
+          onSave={saveJob}
+        />
+      )}
+
+      {/* ── Workflow Files Modal & Deletion Dialog ── */}
+      <WorkflowFilesModal
+        isOpen={filesOpen}
+        onClose={() => setFilesOpen(false)}
+        files={files}
+        canManage={canEdit}
+        canRun={state.canRun}
+        busy={busy}
+        onActivate={activate}
+        onDelete={(file) => {
+          setFilesOpen(false);
+          setDel({ kind: 'file', file });
+        }}
+      />
+      <DeleteDialog
+        state={del}
+        busy={delBusy}
+        error={delError}
+        onClose={() => !delBusy && setDel(null)}
+        onConfirm={confirmDelete}
       />
     </div>
   );

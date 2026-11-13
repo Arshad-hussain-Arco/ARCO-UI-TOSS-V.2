@@ -1,7 +1,35 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { CockpitIcon } from './IconSprite';
 import { computeLayout, fitTransform, closure } from './layout';
-import { getGroupColor } from './cockpitData';
+import { groupMessages } from '../scheduler/schedulerModel';
+
+function Problems({ title, tone, messages, open }) {
+  const groups = useMemo(() => groupMessages(messages), [messages]);
+  if (!groups.length) return null;
+  return (
+    <details className={`eodw-problems eodw-problems-${tone}`} open={open}>
+      <summary>
+        <span className="eodw-problems-title">{title}</span>
+        <span className="eodw-problems-count">{messages.length}</span>
+      </summary>
+      <ul>
+        {groups.map((g) => (
+          <li key={g.text}>
+            {g.count > 1 ? <strong>{g.count} jobs: </strong> : null}
+            {g.text}
+            {g.where.length ? (
+              <span className="eodw-muted">
+                {' '}
+                — {g.where.join(', ')}
+                {g.count > g.where.length ? ', …' : ''}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 export function CockpitFlow({
   definition,
@@ -13,36 +41,40 @@ export function CockpitFlow({
   onTogglePause,
   onOpenDrawer,
   folders = [],
-  initialGroupFilter = null,
-  onClearGroupFilter,
+  initialFolder = null,
+  onClearFolderFilter,
+  stats = [],
+  warnings = [],
+  errors = [],
 }) {
   const rootRef = useRef(null);
+  const viewportRef = useRef(null);
   const [scale, setScale] = useState(0.18);
   const [offset, setOffset] = useState({ x: 120, y: 24 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [isAnimating, setIsAnimating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
-  const [activeGroupFilter, setActiveGroupFilter] = useState(initialGroupFilter || null);
-  const [selectedFolder, setSelectedFolder] = useState('ALL');
+  const [selectedFolder, setSelectedFolder] = useState(() => initialFolder || 'ALL');
   const [traceChainActive, setTraceChainActive] = useState(false);
   const [followActive, setFollowActive] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const scrollHintTimeoutRef = useRef(null);
 
   useEffect(() => {
-    if (initialGroupFilter) {
-      setActiveGroupFilter(initialGroupFilter);
-      if (onClearGroupFilter) onClearGroupFilter();
+    if (initialFolder) {
+      setSelectedFolder(initialFolder);
+      if (onClearFolderFilter) onClearFolderFilter();
     }
-  }, [initialGroupFilter, onClearGroupFilter]);
+  }, [initialFolder, onClearFolderFilter]);
 
   // Combine definition graph topology, folder edges, and live run statuses
   const allJobs = useMemo(() => {
-    // If viewing a particular executed/historical run, show that run's workflow!
-    const isParticularRun = run && !run.isReadyState && run.jobs && run.jobs.length > 0;
     const runJobMap = new Map((run?.jobs || []).map((j) => [j.name, j]));
 
-    // Extract edges from all folders (prefer run's own folders if available)
-    const activeFolders = (isParticularRun && run?.folders?.length ? run.folders : folders) || [];
+    // Extract edges from all folders
+    const activeFolders = (folders && folders.length > 0 ? folders : run?.folders) || [];
     const predsMap = new Map();
     const succsMap = new Map();
     for (const f of activeFolders) {
@@ -54,31 +86,26 @@ export function CockpitFlow({
       }
     }
 
-    let rawList = [];
-    if (isParticularRun) {
-      // Flow displays the workflow of this particular run!
-      rawList = run.jobs.map((j) => ({
-        ...j,
-        group: j.group || 'EOD-CORE',
-        predecessors: j.predecessors || [],
-        successors: j.successors || [],
-      }));
-    } else {
-      // Flow displays the staged/uploaded workflow definition
-      const defJobs = definition?.jobs || [];
-      rawList = defJobs.map((dj) => {
-        const rj = runJobMap.get(dj.name);
-        return {
-          ...dj,
-          status: rj?.status || (run ? 'Waiting' : 'Idle'),
-          started_at: rj?.started_at || null,
-          ended_at: rj?.ended_at || null,
-          exit_code: rj?.exit_code ?? null,
-          duration_seconds: rj?.duration_seconds,
-          attempts: rj?.attempts || [],
-        };
-      });
-    }
+    // Base jobs: always display the full workflow definition with run statuses overlaid.
+    // If run has extra jobs not in definition (e.g. dynamic/past runs), include them as well.
+    const defJobs = definition?.jobs || [];
+    const defJobNames = new Set(defJobs.map((j) => j.name));
+    const extraRunJobs = (run?.jobs || []).filter((rj) => !defJobNames.has(rj.name));
+    const baseList = [...defJobs, ...extraRunJobs];
+    const effectiveBase = baseList.length > 0 ? baseList : (run?.jobs || []);
+
+    const rawList = effectiveBase.map((dj) => {
+      const rj = runJobMap.get(dj.name);
+      return {
+        ...dj,
+        status: rj?.status || (run ? 'Waiting' : 'Idle'),
+        started_at: rj?.started_at || dj.started_at || null,
+        ended_at: rj?.ended_at || dj.ended_at || null,
+        exit_code: rj?.exit_code ?? dj.exit_code ?? null,
+        duration_seconds: rj?.duration_seconds ?? dj.duration_seconds,
+        attempts: rj?.attempts || dj.attempts || [],
+      };
+    });
 
     // Merge in existing job predecessors & successors
     for (const j of rawList) {
@@ -110,13 +137,33 @@ export function CockpitFlow({
     }));
   }, [definition, run, folders]);
 
-  // Filter by folder if selected
+  const folderOptions = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    for (const f of folders || []) {
+      const fName = f.folder || f.name;
+      if (fName && !seen.has(fName)) {
+        seen.add(fName);
+        list.push(fName);
+      }
+    }
+    for (const j of allJobs) {
+      const jf = j.folder || j.group;
+      if (jf && !seen.has(jf)) {
+        seen.add(jf);
+        list.push(jf);
+      }
+    }
+    return list;
+  }, [folders, allJobs]);
+
+  // Filter jobs based on selected folder (default 'ALL' shows all jobs unified)
   const jobs = useMemo(() => {
-    if (selectedFolder === 'ALL') return allJobs;
-    return allJobs.filter((j) => (j.folder || j.group) === selectedFolder);
+    if (!selectedFolder || selectedFolder === 'ALL') return allJobs;
+    const filtered = allJobs.filter((j) => (j.folder || j.group) === selectedFolder);
+    return filtered.length > 0 ? filtered : allJobs;
   }, [allJobs, selectedFolder]);
 
-  // Group definitions & layout
   const defIndex = useMemo(() => new Map(jobs.map((j) => [j.name, j])), [jobs]);
   const L = useMemo(() => (jobs.length ? computeLayout(jobs) : null), [jobs]);
 
@@ -128,16 +175,25 @@ export function CockpitFlow({
     return new Set([selectedJob, ...up, ...down]);
   }, [traceChainActive, selectedJob, defIndex]);
 
-  // Fit view
+  // Fit view directly to canvas viewport
   const fit = useCallback(() => {
-    if (!L || !rootRef.current) return;
+    if (!L || !viewportRef.current) return;
     const box = {
-      w: rootRef.current.clientWidth || 800,
-      h: rootRef.current.clientHeight || 500,
+      w: viewportRef.current.clientWidth || 800,
+      h: viewportRef.current.clientHeight || 500,
     };
-    const t = fitTransform(L, box, { min: 0.1, max: 1.0 });
-    setScale(Math.max(0.12, Math.min(1.0, t.k)));
-    setOffset({ x: t.x, y: t.y });
+    const t = fitTransform(L, box, {
+      min: 0.35,
+      max: 1.0,
+      padLeft: 64, // Keep room for left Level Axis
+      padTop: 56, // Keep room for top floating toolbar
+      padRight: 36,
+      padBottom: 48, // Breathing room above bottom legend
+    });
+    setIsAnimating(true);
+    setScale(t.k);
+    setOffset({ x: Math.round(t.x), y: Math.round(t.y) });
+    setTimeout(() => setIsAnimating(false), 300);
   }, [L]);
 
   useEffect(() => {
@@ -147,16 +203,18 @@ export function CockpitFlow({
 
   // Camera center on a target node
   const centerOnNode = useCallback((jobName) => {
-    if (!L || !rootRef.current || !jobName) return;
+    if (!L || !viewportRef.current || !jobName) return;
     const node = L.nodes.get(jobName);
     if (!node) return;
-    const containerW = rootRef.current.clientWidth || 800;
-    const containerH = rootRef.current.clientHeight || 500;
+    const containerW = viewportRef.current.clientWidth || 800;
+    const containerH = viewportRef.current.clientHeight || 500;
     const targetScale = Math.max(0.35, Math.min(0.85, scale < 0.28 ? 0.45 : scale));
+    setIsAnimating(true);
     setScale(targetScale);
     const targetX = containerW / 2 - (node.x + node.w / 2) * targetScale;
     const targetY = containerH / 2 - (node.y + node.h / 2) * targetScale;
     setOffset({ x: Math.round(targetX), y: Math.round(targetY) });
+    setTimeout(() => setIsAnimating(false), 300);
   }, [L, scale]);
 
   // Compute focal job for Follow mode (running -> failed -> on-hold -> selected -> first)
@@ -182,44 +240,150 @@ export function CockpitFlow({
     }
   }, [followActive, focalJob?.name, focalJob?.status, centerOnNode]);
 
-  // Mouse wheel zoom
+  // Cursor-centric mouse wheel zoom with Ctrl/Meta requirement to preserve page scrolling
   const handleWheel = (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    const newScale = Math.max(0.08, Math.min(2.5, scale * factor));
-    setScale(newScale);
+    // Zoom if holding Ctrl (or Cmd on Mac, or trackpad pinch gesture which sets ctrlKey: true)
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (!viewportRef.current) return;
+      const rect = viewportRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Smooth damped exponential scaling: handles fast mouse wheel clicks & trackpad micro-ticks
+      const delta = Math.max(-100, Math.min(100, e.deltaY));
+      const factor = Math.exp(-delta * 0.0035);
+
+      const minScale = 0.22;
+      const maxScale = 2.5;
+      const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
+      if (Math.abs(newScale - scale) < 0.001) return;
+
+      // Anchor zoom directly at the mouse cursor
+      const graphX = (mouseX - offset.x) / scale;
+      const graphY = (mouseY - offset.y) / scale;
+
+      const newOffsetX = mouseX - graphX * newScale;
+      const newOffsetY = mouseY - graphY * newScale;
+
+      setScale(newScale);
+      setOffset({ x: Math.round(newOffsetX), y: Math.round(newOffsetY) });
+    } else {
+      // Normal wheel scrolling: do NOT preventDefault so user can scroll page up & down freely!
+      // Show subtle transient guidance pill
+      setShowScrollHint(true);
+      if (scrollHintTimeoutRef.current) clearTimeout(scrollHintTimeoutRef.current);
+      scrollHintTimeoutRef.current = setTimeout(() => setShowScrollHint(false), 1400);
+    }
   };
 
-  // Mouse pan handlers
+  // Center-centric zoom button handlers
+  const handleZoomBy = (direction) => {
+    if (!viewportRef.current) return;
+    const rect = viewportRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const factor = direction > 0 ? 1.2 : 0.833;
+    const minScale = 0.22;
+    const maxScale = 2.5;
+    const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
+    if (Math.abs(newScale - scale) < 0.001) return;
+
+    const graphX = (centerX - offset.x) / scale;
+    const graphY = (centerY - offset.y) / scale;
+
+    const newOffsetX = centerX - graphX * newScale;
+    const newOffsetY = centerY - graphY * newScale;
+
+    setIsAnimating(true);
+    setScale(newScale);
+    setOffset({ x: Math.round(newOffsetX), y: Math.round(newOffsetY) });
+    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  // Mouse pan initiation
   const handleMouseDown = (e) => {
-    if (e.target.closest('.cr-node') || e.target.closest('.cr-floating-toolbar') || e.target.closest('.cr-minimap') || e.target.closest('.cr-flow-status-banner') || e.target.closest('.cr-flow-selection-bar')) return;
+    if (e.button !== 0) return;
+    if (
+      e.target.closest('.cr-node') ||
+      e.target.closest('.cr-floating-toolbar') ||
+      e.target.closest('.cr-minimap') ||
+      e.target.closest('.cr-flow-status-banner') ||
+      e.target.closest('.cr-flow-selection-bar') ||
+      e.target.closest('.cr-flow-toolbar')
+    ) {
+      return;
+    }
     setIsPanning(true);
     setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
-  const handleMouseMove = (e) => {
+  // Global window listeners for smooth, bounded panning
+  useEffect(() => {
     if (!isPanning) return;
-    setOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y,
-    });
-  };
+    const onMove = (e) => {
+      const boxW = viewportRef.current?.clientWidth || 800;
+      const boxH = viewportRef.current?.clientHeight || 500;
+      const graphW = (L?.width || 800) * scale;
+      const graphH = (L?.height || 600) * scale;
 
-  const handleMouseUp = () => {
-    setIsPanning(false);
-  };
+      const rawX = e.clientX - panStart.x;
+      const rawY = e.clientY - panStart.y;
+
+      // Soft boundary clamp so graph never gets lost
+      const minX = -graphW + 120;
+      const maxX = boxW - 120;
+      const minY = -graphH + 80;
+      const maxY = boxH - 80;
+
+      const clampedX = Math.min(Math.max(rawX, minX), maxX);
+      const clampedY = Math.min(Math.max(rawY, minY), maxY);
+
+      setOffset({ x: Math.round(clampedX), y: Math.round(clampedY) });
+    };
+
+    const onUp = () => {
+      setIsPanning(false);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [isPanning, panStart, L, scale]);
 
   // Status counts for chips
   const doneCount = jobs.filter((j) => j.status === 'Done').length;
   const holdCount = jobs.filter((j) => j.status === 'On hold' || j.status === 'ON HOLD').length;
   const runningCount = jobs.filter((j) => j.status === 'Running' || j.status === 'RUNNING').length;
   const failedCount = jobs.filter((j) => j.status === 'Failed' || j.status === 'FAILED').length;
-  const groupsList = Array.from(new Set(jobs.map((j) => j.group || 'EOD-CORE')));
 
   const isRunningBatch = run?.status === 'Running' || run?.status === 'RUNNING';
   const isRunActive = isRunningBatch || isPaused || run?.status === 'Paused' || run?.status === 'PAUSED';
 
-  if (!jobs.length) {
+  const minimapVp = useMemo(() => {
+    const vw = viewportRef.current?.clientWidth || 800;
+    const vh = viewportRef.current?.clientHeight || 500;
+    const gw = Math.max(1, L?.width || 1200);
+    const gh = Math.max(1, L?.height || 800);
+
+    const vpW = Math.min(100, Math.max(12, ((vw / scale) / gw) * 100));
+    const vpH = Math.min(100, Math.max(12, ((vh / scale) / gh) * 100));
+    const vpX = Math.min(100 - vpW, Math.max(0, ((-offset.x / scale) / gw) * 100));
+    const vpY = Math.min(100 - vpH, Math.max(0, ((-offset.y / scale) / gh) * 100));
+
+    return {
+      left: `${vpX.toFixed(1)}%`,
+      top: `${vpY.toFixed(1)}%`,
+      width: `${vpW.toFixed(1)}%`,
+      height: `${vpH.toFixed(1)}%`,
+    };
+  }, [offset.x, offset.y, scale, L?.width, L?.height]);
+
+  if (!jobs.length && !allJobs.length) {
     return (
       <div className="cr-flow-container" ref={rootRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: 'var(--cr-text-muted)', maxWidth: '440px', padding: '40px 16px' }}>
@@ -237,6 +401,31 @@ export function CockpitFlow({
 
   return (
     <div className="cr-flow-container" ref={rootRef}>
+      {/* ── Summary Definition KPI Cards (Workflows, Jobs, Dependencies, etc. moved into Flow as requested) ── */}
+      {stats && stats.length > 0 && (
+        <div className="cr-flow-stats-header">
+          <div className="eodw-stats">
+            {stats.map(([label, value, tone]) => (
+              <div
+                key={label}
+                className="eodw-stat"
+                data-tone={tone && value > 0 ? tone : undefined}
+              >
+                <span className="eodw-stat-value">{value ?? 0}</span>
+                <span className="eodw-stat-label">{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {errors && errors.length > 0 && (
+            <Problems title="Problems to fix" tone="bad" messages={errors} open />
+          )}
+          {warnings && warnings.length > 0 && (
+            <Problems title="Notes and warnings" tone="warn" messages={warnings} />
+          )}
+        </div>
+      )}
+
       {/* ── Flow Filters & Actions Bar ── */}
       <div className="cr-flow-toolbar">
         <div className="cr-flow-search-box">
@@ -251,21 +440,24 @@ export function CockpitFlow({
           <kbd>/</kbd>
         </div>
 
-        {folders && folders.length > 1 && (
+        {folderOptions.length > 0 && (
           <div className="cr-flow-folder-select-wrap">
             <label className="cr-field-inline">
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>Folder:</span>
               <select
                 className="cr-select sm"
-                value={selectedFolder}
+                value={selectedFolder || 'ALL'}
                 onChange={(e) => setSelectedFolder(e.target.value)}
               >
                 <option value="ALL">All Folders ({allJobs.length})</option>
-                {folders.map((f) => (
-                  <option key={f.folder} value={f.folder}>
-                    {f.folder} ({f.jobs?.length || 0})
-                  </option>
-                ))}
+                {folderOptions.map((fName) => {
+                  const fJobs = allJobs.filter((j) => (j.folder || j.group) === fName).length;
+                  return (
+                    <option key={fName} value={fName}>
+                      {fName} ({fJobs})
+                    </option>
+                  );
+                })}
               </select>
             </label>
           </div>
@@ -307,112 +499,111 @@ export function CockpitFlow({
           >
             <CockpitIcon name="i-done" className="xs" /> Done <b>{doneCount}</b>
           </button>
-
-          <div className="cr-group-dropdown-wrap">
-            <button
-              type="button"
-              className={`cr-fchip ${activeGroupFilter ? 'is-active' : ''}`}
-              onClick={() => setActiveGroupFilter(null)}
-              title={activeGroupFilter ? `Filtered by ${activeGroupFilter}. Click to clear filter.` : 'Filter by group'}
-            >
-              {activeGroupFilter ? (
-                <>Group: <b>{activeGroupFilter}</b> &times;</>
-              ) : (
-                <>Groups <b>{groupsList.length}</b> <CockpitIcon name="i-chevron" className="xs" /></>
-              )}
-            </button>
-          </div>
         </div>
       </div>
-
-      {/* ── Floating Zoom / Pan / Follow / Trace Toolbar ── */}
-      <div className="cr-floating-toolbar">
-        <button type="button" className="cr-tool-btn" title="Zoom out" onClick={() => setScale((s) => Math.max(0.08, s / 1.3))}>
-          <CockpitIcon name="i-minus" className="sm" />
-        </button>
-        <span className="cr-zoom-text">{Math.round(scale * 100)}%</span>
-        <button type="button" className="cr-tool-btn" title="Zoom in" onClick={() => setScale((s) => Math.min(2.5, s * 1.3))}>
-          <CockpitIcon name="i-plus" className="sm" />
-        </button>
-        <button type="button" className="cr-tool-btn" title="Fit the whole batch" onClick={fit}>
-          <CockpitIcon name="i-fit" className="sm" />
-        </button>
-        <div className="cr-tool-divider" />
-        <button
-          type="button"
-          className={`cr-tool-btn-text ${traceChainActive ? 'is-active' : ''}`}
-          onClick={() => setTraceChainActive(!traceChainActive)}
-          title="Highlight upstream prerequisites and downstream dependents"
-        >
-          <span className="cr-dot-icon" /> Trace chain
-        </button>
-        <button
-          type="button"
-          className={`cr-tool-btn-text ${followActive ? 'is-active' : ''}`}
-          onClick={() => setFollowActive(!followActive)}
-          title="Follow active running job automatically"
-        >
-          <span className="cr-crosshair-icon" /> Follow
-        </button>
-      </div>
-
-      {/* ── Status Banners for Follow & Trace Chain ── */}
-      {followActive && focalJob && (
-        <div className="cr-flow-status-banner following">
-          <CockpitIcon name={focalJob.status === 'Running' ? 'i-running' : 'i-target'} className="xs" />
-          <span>
-            Following: <strong>{focalJob.name}</strong> ({focalJob.status})
-          </span>
-          <button
-            type="button"
-            className="cr-flow-banner-btn"
-            onClick={() => centerOnNode(focalJob.name)}
-            title="Snap to followed job"
-          >
-            Snap
-          </button>
-          <button
-            type="button"
-            className="cr-flow-banner-btn close"
-            onClick={() => setFollowActive(false)}
-            title="Stop following"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {traceChainActive && (
-        <div className="cr-flow-status-banner trace">
-          <CockpitIcon name="i-branch" className="xs" />
-          {selectedJob ? (
-            <span>
-              Trace chain for <strong>{selectedJob}</strong>: {chainSet ? chainSet.size : 1} connected jobs
-            </span>
-          ) : (
-            <span>Trace Chain Active: Click any job to inspect its upstream & downstream dependencies</span>
-          )}
-          <button
-            type="button"
-            className="cr-flow-banner-btn close"
-            onClick={() => setTraceChainActive(false)}
-            title="Exit trace chain"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* ── Main Canvas Area with Drag & Pan ── */}
       <div
         className={`cr-canvas-viewport ${isPanning ? 'is-panning' : ''}`}
+        ref={viewportRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
       >
+        {/* ── Floating Zoom / Pan / Follow / Trace Toolbar (Inside Flow Grid) ── */}
+        <div className="cr-floating-toolbar">
+          <button type="button" className="cr-tool-btn" title="Zoom out" onClick={() => (typeof handleZoomBy === 'function' ? handleZoomBy(-1) : setScale((s) => Math.max(0.08, s / 1.3)))}>
+            <CockpitIcon name="i-minus" className="sm" />
+          </button>
+          <span className="cr-zoom-text">{Math.round(scale * 100)}%</span>
+          <button type="button" className="cr-tool-btn" title="Zoom in" onClick={() => (typeof handleZoomBy === 'function' ? handleZoomBy(1) : setScale((s) => Math.min(2.5, s * 1.3)))}>
+            <CockpitIcon name="i-plus" className="sm" />
+          </button>
+          <button type="button" className="cr-tool-btn" title="Fit the whole batch (Fit to view)" onClick={fit}>
+            <CockpitIcon name="i-fit" className="sm" />
+          </button>
+          <div className="cr-tool-divider" />
+          <button
+            type="button"
+            className={`cr-tool-btn-text trace-btn ${traceChainActive ? 'is-active' : ''}`}
+            onClick={() => {
+              const next = !traceChainActive;
+              setTraceChainActive(next);
+              if (next && !selectedJob) {
+                const target = focalJob?.name || jobs[0]?.name;
+                if (target) onSelectJob(target);
+              }
+            }}
+            title="Highlight upstream prerequisites and downstream dependents"
+          >
+            <span className="cr-dot-icon" /> Trace chain
+          </button>
+          <button
+            type="button"
+            className={`cr-tool-btn-text follow-btn ${followActive ? 'is-active' : ''}`}
+            onClick={() => {
+              const next = !followActive;
+              setFollowActive(next);
+              if (next && focalJob) {
+                centerOnNode(focalJob.name);
+              }
+            }}
+            title="Follow active running job automatically"
+          >
+            <span className="cr-crosshair-icon" /> Follow
+          </button>
+        </div>
+
+        {/* ── Status Banners for Follow & Trace Chain (Inside Flow Grid) ── */}
+        {followActive && focalJob && (
+          <div className="cr-flow-status-banner following">
+            <CockpitIcon name={focalJob.status === 'Running' ? 'i-running' : 'i-target'} className="xs" />
+            <span>
+              Following: <strong>{focalJob.name}</strong> ({focalJob.status})
+            </span>
+            <button
+              type="button"
+              className="cr-flow-banner-btn"
+              onClick={() => centerOnNode(focalJob.name)}
+              title="Snap to followed job"
+            >
+              Snap
+            </button>
+            <button
+              type="button"
+              className="cr-flow-banner-btn close"
+              onClick={() => setFollowActive(false)}
+              title="Stop following"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {traceChainActive && (
+          <div className="cr-flow-status-banner trace">
+            <CockpitIcon name="i-branch" className="xs" />
+            {selectedJob ? (
+              <span>
+                Trace chain for <strong>{selectedJob}</strong>: {chainSet ? chainSet.size : 1} connected jobs
+              </span>
+            ) : (
+              <span>Trace Chain Active: Click any job to inspect its upstream & downstream dependencies</span>
+            )}
+            <button
+              type="button"
+              className="cr-flow-banner-btn close"
+              onClick={() => setTraceChainActive(false)}
+              title="Exit trace chain"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {/* Left Level Axis Indicators */}
-        <div className="cr-level-axis" style={{ transform: `translateY(${offset.y}px)` }}>
+        <div
+          className={`cr-level-axis ${isAnimating ? 'is-animating' : ''}`}
+          style={{ transform: `translateY(${offset.y}px)` }}
+        >
           {L?.rows?.map((row) => {
             const count = row.names.length;
             const yPos = row.y * scale;
@@ -431,7 +622,7 @@ export function CockpitFlow({
 
         {/* Transform Layer for Graph */}
         <div
-          className="cr-graph-transform"
+          className={`cr-graph-transform ${isAnimating ? 'is-animating' : ''}`}
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             transformOrigin: '0 0',
@@ -442,6 +633,11 @@ export function CockpitFlow({
           {/* Parallel row tint backgrounds */}
           {L?.rows?.map((row) => {
             if (row.names.length <= 1) return null;
+            const rowNodes = row.names.map((n) => L.nodes.get(n)).filter(Boolean);
+            if (!rowNodes.length) return null;
+            const minX = Math.min(...rowNodes.map((n) => n.x));
+            const maxX = Math.max(...rowNodes.map((n) => n.x + n.w));
+            const rowW = maxX - minX;
             return (
               <div
                 key={`tint-${row.level}`}
@@ -449,8 +645,9 @@ export function CockpitFlow({
                 style={{
                   top: `${row.y - 6}px`,
                   height: `${26 + 12}px`,
-                  left: 0,
-                  right: 0,
+                  left: `${minX - 10}px`,
+                  width: `${rowW + 20}px`,
+                  borderRadius: '6px',
                 }}
               />
             );
@@ -477,12 +674,11 @@ export function CockpitFlow({
 
           {/* Job Nodes */}
           {Array.from(L?.nodes?.values() || []).map((n) => {
-            const job = defIndex.get(n.name) || { name: n.name, status: 'Idle', group: 'EOD-CORE' };
+            const job = defIndex.get(n.name) || { name: n.name, status: 'Idle', folder: selectedFolder };
             const status = job.status || 'Idle';
             const matchesSearch = !searchQuery || n.name.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesStatus = !statusFilter || status === statusFilter;
-            const matchesGroup = !activeGroupFilter || job.group === activeGroupFilter;
-            const isMatch = matchesSearch && matchesStatus && matchesGroup;
+            const isMatch = matchesSearch && matchesStatus;
             const isSelected = selectedJob === n.name;
             const isInChain = chainSet && chainSet.has(n.name);
             const isDim = chainSet ? !isInChain : (!isMatch);
@@ -497,7 +693,6 @@ export function CockpitFlow({
                   top: `${n.y}px`,
                   width: `${n.w}px`,
                   height: `${n.h}px`,
-                  borderLeftColor: getGroupColor(job.group),
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -508,7 +703,7 @@ export function CockpitFlow({
                   onSelectJob(n.name);
                   if (onOpenDrawer) onOpenDrawer(n.name);
                 }}
-                title={`${n.name}\nLevel ${n.level} · Group: ${job.group}\nStatus: ${status}\nPredecessors: ${job.predecessors?.length || 0} · Successors: ${job.successors?.length || 0}\n(Double-click for details & logs)`}
+                title={`${n.name}\nLevel ${n.level} · Folder: ${job.folder || job.group || selectedFolder}\nStatus: ${status}\nPredecessors: ${job.predecessors?.length || 0} · Successors: ${job.successors?.length || 0}\n(Double-click for details & logs)`}
               >
                 <CockpitIcon
                   name={
@@ -524,6 +719,31 @@ export function CockpitFlow({
             );
           })}
         </div>
+
+        {/* ── Mini-Map (Bottom Right Inside Flow Grid) ── */}
+        <div className="cr-minimap">
+          <svg viewBox={`0 0 ${L?.width || 1200} ${L?.height || 800}`} className="cr-minimap-svg">
+            {Array.from(L?.nodes?.values() || []).map((n) => (
+              <rect
+                key={n.name}
+                x={n.x}
+                y={n.y}
+                width={n.w}
+                height={n.h}
+                className="cr-minimap-node"
+              />
+            ))}
+          </svg>
+          <div
+            className="cr-minimap-viewport"
+            style={{
+              top: `${Math.max(0, -offset.y / (L?.height || 1) * 70)}%`,
+              left: `${Math.max(0, -offset.x / (L?.width || 1) * 70)}%`,
+              width: '45%',
+              height: '40%',
+            }}
+          />
+        </div>
       </div>
 
       {/* ── Floating Node Selection Card ── */}
@@ -531,12 +751,11 @@ export function CockpitFlow({
         <div className="cr-flow-selection-bar">
           <div className="cr-fsb-info">
             <span
-              className="cr-fsb-dot"
-              style={{ backgroundColor: getGroupColor(selectedJobData?.group) }}
+              className={`cr-fsb-dot st-${(selectedJobData?.status || 'idle').toLowerCase().replace(/\s+/g, '-')}`}
             />
             <strong>{selectedJob}</strong>
             <span className="cr-fsb-meta">
-              Level L{selectedJobData?.level || 1} · {selectedJobData?.predecessors?.length || 0} upstream, {selectedJobData?.successors?.length || 0} downstream
+              Folder: {selectedJobData?.folder || selectedJobData?.group || selectedFolder} · Level L{selectedJobData?.level || 1} · {selectedJobData?.predecessors?.length || 0} upstream, {selectedJobData?.successors?.length || 0} downstream
             </span>
           </div>
           <div className="cr-fsb-actions">
@@ -587,15 +806,16 @@ export function CockpitFlow({
         </svg>
         <div
           className="cr-minimap-viewport"
-          style={{
-            top: `${Math.max(0, -offset.y / (L?.height || 1) * 70)}%`,
-            left: `${Math.max(0, -offset.x / (L?.width || 1) * 70)}%`,
-            width: '45%',
-            height: '40%',
-          }}
+          style={minimapVp}
         />
       </div>
 
+      {/* ── Scroll vs Zoom guidance hint ── */}
+      {showScrollHint && (
+        <div className="cr-scroll-hint">
+          Ctrl + Scroll to zoom · Drag to pan
+        </div>
+      )}
       {/* ── Bottom Legend Strip ── */}
       <footer className="cr-flow-legend">
         <span className="cr-fl-item"><i className="cr-badge-chip hold">HOLD</i> On hold</span>
@@ -603,7 +823,6 @@ export function CockpitFlow({
         <span className="cr-fl-item"><i className="cr-badge-chip done">✓</i> Done straight away</span>
         <span className="cr-fl-item"><span className="cr-tint-sample" /> Tinted row = jobs that can run together (×N)</span>
         <span className="cr-fl-item">Plain row = one job at a time</span>
-        <span className="cr-fl-item">Colour strip = group</span>
         <span className="cr-fl-item mute">Rows = dependency steps, not time</span>
       </footer>
     </div>
