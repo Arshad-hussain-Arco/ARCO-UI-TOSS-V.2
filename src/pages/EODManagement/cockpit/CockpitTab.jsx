@@ -8,6 +8,7 @@ import { CockpitTimeline } from './CockpitTimeline';
 import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
 import { StartRunModal } from './StartRunModal';
+import { RunWorkflowsModal } from './RunWorkflowsModal';
 import { closure } from './layout';
 import { WorkflowFilesModal } from '../scheduler/components/WorkflowFilesModal';
 import { DeleteDialog } from '../scheduler/components/DeleteDialog';
@@ -69,6 +70,7 @@ export function CockpitTab({ env } = {}) {
   const [isRunPaused, setIsRunPaused] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState('');
   const [isStartRunOpen, setIsStartRunOpen] = useState(false);
+  const [isRunPickerOpen, setIsRunPickerOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flowFolder, setFlowFolder] = useState(null);
@@ -486,6 +488,8 @@ export function CockpitTab({ env } = {}) {
     try {
       const { command_id: id } = await svc.runNow(env, {
         allow_overlap: options.allow_overlap ?? false,
+        // only these workflows (folders) of the active XML; without it the whole XML runs
+        ...(options.folders?.length ? { folders: options.folders } : {}),
       });
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
@@ -614,6 +618,18 @@ export function CockpitTab({ env } = {}) {
   const handleSelectRun = (runId) => {
     setSelectedRunId(runId);
   };
+
+  // The newest run of this environment, offered by the Timeline when the current workflow has not run yet
+  const latestRunInfo = useMemo(() => {
+    const r = runs[0];
+    if (!r) return null;
+    const started = r.started_at || r.started;
+    return {
+      id: r.id || r.run_id,
+      status: r.status || '',
+      when: started ? new Date(started).toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' }) : '',
+    };
+  }, [runs]);
 
   return (
     <div className="cr-cockpit">
@@ -825,6 +841,24 @@ export function CockpitTab({ env } = {}) {
 
             <button
               type="button"
+              className="cr-btn outline sm"
+              disabled={busy || state.state !== 'approved' || !state.canRun || !(view?.folders || []).length}
+              onClick={() => setIsRunPickerOpen(true)}
+              title={
+                state.state !== 'approved'
+                  ? 'Workflow must be approved before running'
+                  : !state.canRun
+                    ? 'You do not have permission to execute batch runs'
+                    : 'Run only the workflows you choose from the active XML'
+              }
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+            >
+              <Play size={13} />
+              <span>Run Workflow…</span>
+            </button>
+
+            <button
+              type="button"
               className="cr-btn primary sm cr-btn-run-all"
               disabled={busy || isRunningBatch || state.state !== 'approved' || !state.canRun}
               onClick={() => handleStartRun()}
@@ -904,7 +938,6 @@ export function CockpitTab({ env } = {}) {
             initialFolder={flowFolder}
             onClearFolderFilter={() => setFlowFolder(null)}
             stats={stats}
-            warnings={view?.warnings}
             errors={view?.errors}
           />
         )}
@@ -918,6 +951,8 @@ export function CockpitTab({ env } = {}) {
               setSelectedJobName(name);
               setIsDrawerOpen(true);
             }}
+            latestRun={latestRunInfo}
+            onOpenRun={handleSelectRun}
           />
         )}
 
@@ -958,6 +993,15 @@ export function CockpitTab({ env } = {}) {
         onClose={() => setIsStartRunOpen(false)}
         onStart={handleStartRun}
         currentEnv={env}
+      />
+
+      {/* ── Run Workflow: choose which workflows of the active XML to run ── */}
+      <RunWorkflowsModal
+        isOpen={isRunPickerOpen}
+        onClose={() => setIsRunPickerOpen(false)}
+        onRun={handleStartRun}
+        filename={view?.meta?.filename}
+        workflows={(view?.folders || []).map((f) => ({ name: f.folder, jobs: (f.jobs || []).length }))}
       />
 
       {/* ── Add / Edit Job Modal ── */}

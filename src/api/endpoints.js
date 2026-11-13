@@ -323,6 +323,13 @@ const endpoints = {
     cockpitRuns: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/`,
     cockpitRun: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/run/${id ? `${encodeURIComponent(id)}/` : ''}`,
     cockpitDefinition: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/definition/`,
+    xmlTree: (env) => `/eod-scheduler/${encodeURIComponent(env)}/xml-tree/`,
+    jobClosure: (env) => `/eod-scheduler/${encodeURIComponent(env)}/job-closure/`,
+    schedules: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/`,
+    schedulePreview: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/preview/`,
+    scheduleItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/`,
+    scheduleRunNow: (env, id) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/run-now/`,
     cockpitJobAction: (env, runId, jobName, action) =>
       `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobName)}/${encodeURIComponent(action)}/`,
   },

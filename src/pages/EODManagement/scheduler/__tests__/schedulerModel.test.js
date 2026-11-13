@@ -324,3 +324,64 @@ test('the engine notice says what is wrong, and stays quiet when all is well', a
     'bad',
   );
 });
+
+import { mergeFolderGraphs, graphFromJobs, cockpitNodeStates } from '../schedulerModel.js';
+
+test('mergeFolderGraphs: every job once, every edge once, conditions connect workflows', () => {
+  const folders = [
+    {
+      folder: 'A',
+      jobs: [
+        { name: 'A1', produces: ['a-ok'] },
+        { name: 'A2', waits_for: ['a-ok'] },
+      ],
+      graph: { edges: [{ id: 'A1->A2', source: 'A1', target: 'A2' }] },
+    },
+    { folder: 'B', jobs: [{ name: 'B1', waits_for: ['a-ok'] }], graph: { edges: [] } },
+  ];
+  const g = mergeFolderGraphs(folders);
+  assert.deepEqual(
+    g.nodes.map((n) => n.id),
+    ['A1', 'A2', 'B1'],
+  );
+  assert.equal(g.nodes.find((n) => n.id === 'B1').folder, 'B');
+  const ids = g.edges.map((e) => e.id);
+  assert.deepEqual(ids, ['A1->A2', 'cond:A1>A2:a-ok', 'cond:A1>B1:a-ok']);
+  assert.deepEqual(mergeFolderGraphs([]), { nodes: [], edges: [] });
+});
+
+test('graphFromJobs builds edges from predecessors and ignores unknown ones', () => {
+  const g = graphFromJobs([
+    { name: 'X', folder: 'F' },
+    { name: 'Y', predecessors: ['X', 'GHOST'] },
+  ]);
+  assert.deepEqual(
+    g.nodes.map((n) => n.id),
+    ['X', 'Y'],
+  );
+  assert.deepEqual(
+    g.edges.map((e) => `${e.source}>${e.target}`),
+    ['X>Y'],
+  );
+});
+
+test('cockpitNodeStates maps the cockpit statuses to graph tones', () => {
+  const s = cockpitNodeStates([
+    { name: 'a', status: 'Done' },
+    { name: 'b', status: 'Running' },
+    { name: 'c', status: 'Failed' },
+    { name: 'd', status: 'On hold' },
+    { name: 'e', status: 'Waiting' },
+    { name: 'f', status: 'Skipped' },
+    { name: 'g', status: 'Idle' },
+  ]);
+  assert.deepEqual(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.tone])), {
+    a: 'good',
+    b: 'run',
+    c: 'bad',
+    d: 'wait',
+    e: 'wait',
+    f: 'off',
+  });
+  assert.equal(s.g, undefined, 'an idle job has no colour');
+});

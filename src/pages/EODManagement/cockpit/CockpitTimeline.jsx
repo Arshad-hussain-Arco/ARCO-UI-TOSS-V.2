@@ -2,8 +2,16 @@ import React, { useState, useRef, useMemo } from 'react';
 import { CockpitIcon } from './IconSprite';
 import { runBars, criticalChain, tickStep, clock, dur, wall } from './timelineUtils';
 import { getGroupColor } from './cockpitData';
+import './CockpitTimeline.css';
 
-export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
+export function CockpitTimeline({
+  run,
+  definition,
+  onSelectJob,
+  selectedJob,
+  latestRun = null,
+  onOpenRun = null,
+}) {
   const [zoom, setZoom] = useState(1.0);
   const [order, setOrder] = useState('start');
   const [showCriticalOnly, setShowCriticalOnly] = useState(true);
@@ -12,31 +20,15 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
 
   const defIndex = useMemo(
     () => new Map((definition?.jobs || []).map((j) => [j.name, j])),
-    [definition]
+    [definition],
   );
 
   const rawBars = useMemo(() => runBars(run?.jobs || []), [run]);
   const chain = useMemo(() => criticalChain(defIndex, run?.jobs || []), [defIndex, run]);
   const inChain = useMemo(() => new Set(chain.names), [chain]);
 
-  if (!rawBars.length) {
-    return (
-      <div className="cr-timeline-empty">
-        <CockpitIcon name="i-waiting" className="xl" />
-        <h2>No times to show yet</h2>
-        <p>Start a run to see when each job started and ended, and the critical chain that decided how long the run took.</p>
-      </div>
-    );
-  }
-
-  const t0 = Math.min(...rawBars.map((b) => b.start));
-  const tEnd = Math.max(...rawBars.map((b) => b.end), t0 + 1000);
-  const total = Math.max(tEnd - t0, 1000);
-  const notStarted = (run?.jobs?.length || rawBars.length) - rawBars.length;
-
-  const frac = (t) => Math.max(0, Math.min(1, (t - t0) / total));
-
-  // Slowest jobs (top 6)
+  // Slowest jobs (top 6) and the row order. These hooks must stay ABOVE the early return below: if they came after it, the number of hooks
+  // would change the moment the first job of a run starts and React would crash the tab.
   const slowestJobs = useMemo(() => {
     return [...rawBars]
       .sort((a, b) => b.end - b.start - (a.end - a.start))
@@ -48,13 +40,49 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
       }));
   }, [rawBars]);
 
-  // Order sorting
   const sortedBars = useMemo(() => {
     if (order === 'longest') {
       return [...rawBars].sort((a, b) => b.end - b.start - (a.end - a.start));
     }
     return rawBars;
   }, [rawBars, order]);
+
+  if (!rawBars.length) {
+    const isReady = !run || run.isReadyState;
+    return (
+      <div className="cr-timeline-empty">
+        <span className="cr-tl-empty-icon">
+          <CockpitIcon name="i-waiting" className="xl" />
+        </span>
+        <h2>{isReady ? 'This workflow has not run yet' : 'No job has started yet'}</h2>
+        <p>
+          {isReady
+            ? 'Start a run to see when each job started and ended, and the critical chain that decided how long the run took.'
+            : 'Times appear here as soon as the first job of this run starts.'}
+        </p>
+        {latestRun && onOpenRun ? (
+          <button
+            type="button"
+            className="cr-btn outline sm"
+            onClick={() => onOpenRun(latestRun.id)}
+          >
+            <CockpitIcon name="i-play" className="xs" /> View the latest run
+            <span className="cr-tl-empty-sub">
+              {latestRun.status}
+              {latestRun.when ? ` · ${latestRun.when}` : ''}
+            </span>
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  const t0 = Math.min(...rawBars.map((b) => b.start));
+  const tEnd = Math.max(...rawBars.map((b) => b.end), t0 + 1000);
+  const total = Math.max(tEnd - t0, 1000);
+  const notStarted = (run?.jobs?.length || rawBars.length) - rawBars.length;
+
+  const frac = (t) => Math.max(0, Math.min(1, (t - t0) / total));
 
   // Track ticks
   const step = tickStep(total, 8);
@@ -139,7 +167,10 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
             </button>
           </div>
 
-          <span className="cr-tl-info" title="Bars show real start and end times. Glowing bars form the critical chain.">
+          <span
+            className="cr-tl-info"
+            title="Bars show real start and end times. Glowing bars form the critical chain."
+          >
             <CockpitIcon name="i-info" className="sm" />
           </span>
         </div>
@@ -170,11 +201,7 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
           <div className="cr-tl-axis-label">JOB ({rawBars.length})</div>
           <div className="cr-tl-axis-track" style={{ minWidth: `${trackWidthPx}px` }}>
             {ticks.map((t) => (
-              <span
-                key={t}
-                className="cr-tl-tick"
-                style={{ left: `${frac(t0 + t) * 100}%` }}
-              >
+              <span key={t} className="cr-tl-tick" style={{ left: `${frac(t0 + t) * 100}%` }}>
                 {clock(t)}
               </span>
             ))}
@@ -204,10 +231,15 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
                 <div className="cr-tl-row-label">
                   <CockpitIcon
                     name={
-                      b.status === 'Done' ? 'i-done' :
-                      b.status === 'Running' ? 'i-running' :
-                      b.status === 'On hold' ? 'i-hold' :
-                      b.status === 'Failed' ? 'i-failed' : 'i-waiting'
+                      b.status === 'Done'
+                        ? 'i-done'
+                        : b.status === 'Running'
+                          ? 'i-running'
+                          : b.status === 'On hold'
+                            ? 'i-hold'
+                            : b.status === 'Failed'
+                              ? 'i-failed'
+                              : 'i-waiting'
                     }
                     className="xs"
                   />
@@ -254,7 +286,9 @@ export function CockpitTimeline({ run, definition, onSelectJob, selectedJob }) {
         {hoveredJob && (
           <div className="cr-tl-hover-card">
             <b>{hoveredJob.name}</b>
-            <div className="cr-tl-hc-meta">{hoveredJob.status} · {dur(hoveredJob.end - hoveredJob.start)}</div>
+            <div className="cr-tl-hc-meta">
+              {hoveredJob.status} · {dur(hoveredJob.end - hoveredJob.start)}
+            </div>
             <div className="cr-tl-hc-sub">
               started {wall(hoveredJob.start)}, ended {wall(hoveredJob.end)}
             </div>

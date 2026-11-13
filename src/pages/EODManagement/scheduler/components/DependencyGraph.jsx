@@ -6,6 +6,7 @@ import {
   MiniMap,
   MarkerType,
   useReactFlow,
+  useNodesInitialized,
   ReactFlowProvider,
 } from '@xyflow/react';
 import { layout as dagreLayout, graphlib } from '@dagrejs/dagre';
@@ -23,6 +24,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { JobNode } from './JobNode';
+import { WorkflowGroupNode } from './WorkflowGroupNode';
 import { edgeStyle, formatDuration, secondsBetween } from '../schedulerModel';
 import { buildExecutionPlan } from './jobExecutionEngine';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
@@ -35,7 +37,13 @@ const NODE_HEIGHT = 80;
 
 const nodeTypes = {
   jobNode: JobNode,
+  workflowGroup: WorkflowGroupNode,
 };
+
+// Box drawn around each workflow in the "All workflows" graph
+const GROUP_PAD = 28;
+const GROUP_HEAD = 64;
+const GROUP_COLORS = ['#0284c7', '#7c3aed', '#059669', '#d97706', '#db2777', '#0d9488'];
 
 const TONE_COLORS = {
   good: '#16a34a',
@@ -92,6 +100,10 @@ function DependencyGraphCanvas({
   folder,
   onRunRecorded,
   onViewLogs,
+  allowExecute = true, // false: no per-job play button (the Cockpit shows real runs only, never simulated ones)
+  dimmed = null, // Set of job ids to fade (a search or a status filter outside the graph)
+  followId = null, // job id the view should keep centred on (Follow)
+  onOpenDetails = null, // called with the job id on double click
 }) {
   const reactFlowInstance = useReactFlow();
   const [direction, setDirection] = useState('TB'); // 'TB' or 'LR'
@@ -325,60 +337,60 @@ function DependencyGraphCanvas({
         });
       }
 
-        // Persist run and job logs to backend so they appear in Runs / Logs tab
-        const runEndedAt = new Date().toISOString();
-        const overallStatus = failedJob ? 'FAILED' : 'SUCCESS';
-        const executedJobsList = Array.from(executedJobsMap.values());
+      // Persist run and job logs to backend so they appear in Runs / Logs tab
+      const runEndedAt = new Date().toISOString();
+      const overallStatus = failedJob ? 'FAILED' : 'SUCCESS';
+      const executedJobsList = Array.from(executedJobsMap.values());
 
-        const targetNode = graph?.nodes?.find((n) => n.id === targetJobId);
-        const targetJobMeta = jobsByName.get(targetJobId);
-        const resolvedFolder =
-          targetJobMeta?.folder ||
-          targetNode?.data?.job?.folder ||
-          folder ||
-          (isAllWorkflows ? 'ALL_WORKFLOWS' : 'DEFAULT');
+      const targetNode = graph?.nodes?.find((n) => n.id === targetJobId);
+      const targetJobMeta = jobsByName.get(targetJobId);
+      const resolvedFolder =
+        targetJobMeta?.folder ||
+        targetNode?.data?.job?.folder ||
+        folder ||
+        (isAllWorkflows ? 'ALL_WORKFLOWS' : 'DEFAULT');
 
-        let recordedRunId = null;
-        if (env && executedJobsList.length > 0) {
-          try {
-            const res = await svc.recordExecution(env, {
-              folder: resolvedFolder,
-              target_job: targetJobId,
-              status: overallStatus,
-              started: runStartedAt,
-              ended: runEndedAt,
-              jobs: executedJobsList,
-              all_jobs: (graph?.nodes || []).map((n) => n.id),
-            });
-            if (res?.run_id) {
-              recordedRunId = res.run_id;
-              onRunRecorded?.(res.run_id);
-            }
-          } catch (err) {
-            console.error('Failed to record execution to backend:', err);
+      let recordedRunId = null;
+      if (env && executedJobsList.length > 0) {
+        try {
+          const res = await svc.recordExecution(env, {
+            folder: resolvedFolder,
+            target_job: targetJobId,
+            status: overallStatus,
+            started: runStartedAt,
+            ended: runEndedAt,
+            jobs: executedJobsList,
+            all_jobs: (graph?.nodes || []).map((n) => n.id),
+          });
+          if (res?.run_id) {
+            recordedRunId = res.run_id;
+            onRunRecorded?.(res.run_id);
           }
+        } catch (err) {
+          console.error('Failed to record execution to backend:', err);
         }
+      }
 
-        setExecutingPlan((prev) => ({
-          ...prev,
-          isRunning: false,
-          isCompleted: !failedJob && !execAbortRef.current,
-          activeJobs: [],
-          recordedRunId,
-          targetJobId,
-        }));
-      },
-        [
-          predsMap,
-          effectiveStates,
-          executingPlan?.isRunning,
-          jobsByName,
-          graph?.nodes,
-          folder,
-          isAllWorkflows,
-          env,
-          onRunRecorded,
-        ],
+      setExecutingPlan((prev) => ({
+        ...prev,
+        isRunning: false,
+        isCompleted: !failedJob && !execAbortRef.current,
+        activeJobs: [],
+        recordedRunId,
+        targetJobId,
+      }));
+    },
+    [
+      predsMap,
+      effectiveStates,
+      executingPlan?.isRunning,
+      jobsByName,
+      graph?.nodes,
+      folder,
+      isAllWorkflows,
+      env,
+      onRunRecorded,
+    ],
   );
 
   // Set of nodes in the trace chain if tracing is active
@@ -397,7 +409,7 @@ function DependencyGraphCanvas({
     g.setGraph({
       rankdir: direction,
       ranksep: direction === 'LR' ? 95 : 85,
-      nodesep: isAllWorkflows ? 60 : (direction === 'LR' ? 50 : 60),
+      nodesep: isAllWorkflows ? 110 : direction === 'LR' ? 50 : 60,
       marginx: 35,
       marginy: 35,
     });
@@ -446,7 +458,7 @@ function DependencyGraphCanvas({
       }
 
       const isHot = chainSet ? chainSet.has(n.id) : selected === n.id;
-      const isDim = chainSet ? !isHot : false;
+      const isDim = chainSet ? !isHot : Boolean(dimmed && dimmed.has(n.id));
 
       return {
         id: n.id,
@@ -462,7 +474,7 @@ function DependencyGraphCanvas({
           isHot,
           isDim,
           isAllWorkflows,
-          onExecuteJob: handleExecuteJob,
+          onExecuteJob: allowExecute ? handleExecuteJob : undefined,
         },
       };
     });
@@ -477,7 +489,54 @@ function DependencyGraphCanvas({
     direction,
     isAllWorkflows,
     handleExecuteJob,
+    allowExecute,
+    dimmed,
   ]);
+
+  // One labelled box per workflow behind its jobs (only when several workflows are shown together)
+  const groupNodes = useMemo(() => {
+    if (!isAllWorkflows || !graph?.nodes?.length) return [];
+    const byFolder = new Map();
+    for (const n of graph.nodes) {
+      const name = jobsByName.get(n.id)?.folder || n.folder;
+      const pos = layoutPositions.get(n.id);
+      if (!name || !pos) continue;
+      const g = byFolder.get(name) || {
+        minX: Infinity,
+        minY: Infinity,
+        maxX: -Infinity,
+        maxY: -Infinity,
+        ids: [],
+      };
+      g.minX = Math.min(g.minX, pos.x);
+      g.minY = Math.min(g.minY, pos.y);
+      g.maxX = Math.max(g.maxX, pos.x);
+      g.maxY = Math.max(g.maxY, pos.y);
+      g.ids.push(n.id);
+      byFolder.set(name, g);
+    }
+    if (byFolder.size < 2) return [];
+    return [...byFolder.entries()].map(([name, g], i) => ({
+      id: `group:${name}`,
+      type: 'workflowGroup',
+      position: { x: g.minX - GROUP_PAD, y: g.minY - GROUP_PAD - GROUP_HEAD },
+      draggable: false,
+      selectable: false,
+      focusable: false,
+      style: {
+        width: g.maxX - g.minX + NODE_WIDTH + GROUP_PAD * 2,
+        height: g.maxY - g.minY + NODE_HEIGHT + GROUP_PAD * 2 + GROUP_HEAD,
+        pointerEvents: 'none',
+      },
+      data: {
+        title: name,
+        total: g.ids.length,
+        done: g.ids.filter((id) => effectiveStates?.[id]?.tone === 'good').length,
+        color: GROUP_COLORS[i % GROUP_COLORS.length],
+      },
+    }));
+  }, [isAllWorkflows, graph, layoutPositions, jobsByName, effectiveStates]);
+  const allNodes = useMemo(() => [...groupNodes, ...nodes], [groupNodes, nodes]);
 
   // 3. STABLE EDGES: Form edges with Bezier routing and on-failure badges
   const edges = useMemo(() => {
@@ -541,19 +600,40 @@ function DependencyGraphCanvas({
 
   // Fit view ONLY when graph signature or direction changes
   const graphSignature = `${graph?.nodes?.length || 0}-${graph?.edges?.length || 0}-${direction}`;
+  // ... and once every node has been measured (the workflow boxes only get their size after the first paint)
+  const nodesInitialized = useNodesInitialized();
   useEffect(() => {
     const timer = setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.15, duration: 250 });
     }, 60);
     return () => clearTimeout(timer);
-  }, [graphSignature, reactFlowInstance]);
+  }, [graphSignature, nodesInitialized, reactFlowInstance]);
 
   // Node click handler
   const handleNodeClick = useCallback(
     (_, node) => {
+      if (node.type === 'workflowGroup') return;
       onSelect?.(node.id);
     },
     [onSelect],
+  );
+
+  // Follow: keep the view centred on one job (for example the one that is running)
+  useEffect(() => {
+    if (!followId) return;
+    const pos = layoutPositions.get(followId);
+    if (!pos) return;
+    reactFlowInstance.setCenter(pos.x + NODE_WIDTH / 2, pos.y + NODE_HEIGHT / 2, {
+      zoom: 1.0,
+      duration: 400,
+    });
+  }, [followId, layoutPositions, reactFlowInstance]);
+
+  const handleNodeDoubleClick = useCallback(
+    (_, node) => {
+      onOpenDetails?.(node.id);
+    },
+    [onOpenDetails],
   );
 
   // Search handler
@@ -587,6 +667,7 @@ function DependencyGraphCanvas({
 
   const nodeColor = useCallback(
     (n) => {
+      if (n.type === 'workflowGroup') return 'transparent';
       const stateTone = effectiveStates?.[n.id]?.tone || 'idle';
       return TONE_COLORS[stateTone] || '#cbd5e1';
     },
@@ -647,7 +728,11 @@ function DependencyGraphCanvas({
             type="button"
             className="rf-btn-toggle"
             onClick={toggleEdgeType}
-            title={edgeType === 'bezier' ? 'Switch to orthogonal stepped lines' : 'Switch to smooth curves'}
+            title={
+              edgeType === 'bezier'
+                ? 'Switch to orthogonal stepped lines'
+                : 'Switch to smooth curves'
+            }
           >
             <Spline size={12} />
             <span>{edgeType === 'bezier' ? 'Curves' : 'Steps'}</span>
@@ -773,9 +858,10 @@ function DependencyGraphCanvas({
 
       {/* ── React Flow Core Canvas ── */}
       <ReactFlow
-        nodes={nodes}
+        nodes={allNodes}
         edges={edges}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={onOpenDetails ? handleNodeDoubleClick : undefined}
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.06}

@@ -146,7 +146,11 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   outline: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.2s ease;
   user-select: none;
 }
 
@@ -175,23 +179,39 @@
 /* Node tone accents */
 .rf-tone-good {
   border-left: 4px solid var(--c-success, #16a34a);
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+  background: linear-gradient(
+    135deg,
+    rgba(22, 163, 74, 0.04) 0%,
+    var(--surface-primary, #ffffff) 60%
+  );
 }
 
 .rf-tone-run {
   border-left: 4px solid var(--c-info, #0284c7);
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, var(--surface-primary, #ffffff) 60%);
+  background: linear-gradient(
+    135deg,
+    rgba(2, 132, 199, 0.05) 0%,
+    var(--surface-primary, #ffffff) 60%
+  );
   animation: rf-pulse-border 2s infinite ease-in-out;
 }
 
 .rf-tone-bad {
   border-left: 4px solid var(--c-danger, #ef4444);
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.04) 0%,
+    var(--surface-primary, #ffffff) 60%
+  );
 }
 
 .rf-tone-wait {
   border-left: 4px solid var(--c-warning, #f59e0b);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, var(--surface-primary, #ffffff) 60%);
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.04) 0%,
+    var(--surface-primary, #ffffff) 60%
+  );
 }
 
 .rf-tone-off {
@@ -489,7 +509,9 @@
   background: var(--border-primary, #94a3b8) !important;
   border: 2px solid var(--surface-primary, #ffffff) !important;
   border-radius: 50% !important;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .rf-job-node:hover .rf-handle {
@@ -532,7 +554,10 @@
 
 /* Edge Hover / Touch */
 .react-flow__edge-path {
-  transition: stroke-width 0.2s ease, stroke 0.2s ease, opacity 0.2s ease;
+  transition:
+    stroke-width 0.2s ease,
+    stroke 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .react-flow__edge.is-connected .react-flow__edge-path,
@@ -562,3 +587,35 @@
   gap: 8px;
 }
 
+/* Labelled box around one workflow ("All workflows" view). Translucent so the dependency lines behind the jobs stay visible. */
+.rf-workflow-group {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--wg-color, #0284c7);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--wg-color, #0284c7) 5%, transparent);
+  pointer-events: none;
+}
+.rf-wg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 0;
+}
+.rf-wg-name {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--wg-color, #0284c7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rf-wg-count {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  white-space: nowrap;
+}

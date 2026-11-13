@@ -19,6 +19,7 @@ import {
   approvalState,
   filterJobs,
   groupMessages,
+  mergeFolderGraphs,
   nodeStates,
   targetLabel,
 } from '../schedulerModel';
@@ -194,61 +195,7 @@ export function WorkflowPanel({ env, onRunStarted }) {
     if (!isAll && folder?.graph) {
       return folder.graph;
     }
-
-    const nodes = [];
-    const nodeIds = new Set();
-    const edges = [];
-    const edgeIds = new Set();
-    const conditionProducers = new Map();
-
-    for (const f of view.folders) {
-      for (const j of f.jobs || []) {
-        if (!nodeIds.has(j.name)) {
-          nodeIds.add(j.name);
-          nodes.push({ id: j.name, name: j.description || j.name, enabled: true, folder: f.folder });
-        }
-        for (const oc of j.produces || []) {
-          if (!conditionProducers.has(oc)) conditionProducers.set(oc, []);
-          conditionProducers.get(oc).push({ source: j.name, branch: 'SUCCESS' });
-        }
-      }
-
-      for (const e of f.graph?.edges || []) {
-        const eid = e.id || `${e.source}->${e.target}:${e.label || ''}`;
-        if (!edgeIds.has(eid)) {
-          edgeIds.add(eid);
-          edges.push(e);
-        }
-      }
-    }
-
-    // Connect cross-folder conditions between jobs
-    for (const f of view.folders) {
-      for (const j of f.jobs || []) {
-        for (const ic of j.waits_for || []) {
-          const producers = conditionProducers.get(ic) || [];
-          for (const prod of producers) {
-            if (prod.source !== j.name) {
-              const eid = `cond:${prod.source}>${j.name}:${ic}`;
-              if (!edgeIds.has(eid)) {
-                edgeIds.add(eid);
-                edges.push({
-                  id: eid,
-                  source: prod.source,
-                  target: j.name,
-                  kind: 'CONDITION',
-                  branch: prod.branch,
-                  label: ic,
-                  description: `${j.name} waits for condition ${ic} from ${prod.source}`,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return { nodes, edges };
+    return mergeFolderGraphs(view.folders);
   }, [view, isAll, folder]);
 
   // editing: needs the settings permission and no run in progress (the server enforces both)

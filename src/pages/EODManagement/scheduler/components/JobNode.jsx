@@ -102,7 +102,8 @@ function JobNodeComponent({ data, selected }) {
             </span>
           ) : null}
 
-          {/* Independent Play Button */}
+          {/* Independent Play Button (only where simulated execution is offered) */}
+          {onExecuteJob ? (
           <button
             type="button"
             className={`rf-play-btn ${isRunning ? 'is-running' : ''}`}
@@ -124,6 +125,7 @@ function JobNodeComponent({ data, selected }) {
               <Play size={11} fill="currentColor" />
             )}
           </button>
+          ) : null}
         </div>
       </div>
 
