@@ -122,6 +122,41 @@ export function nodeStates(runDetail) {
   return out;
 }
 
+export const parseIsoDate = (iso) => {
+  if (iso === null || iso === undefined || iso === '') return null;
+  if (iso instanceof Date) return Number.isNaN(+iso) ? null : iso;
+  if (typeof iso === 'number') {
+    const d = new Date(iso);
+    return Number.isNaN(+d) ? null : d;
+  }
+  let str = String(iso).trim().replace(' ', 'T');
+  if (!str) return null;
+  if (!str.endsWith('Z') && !/[+-]\d{2}(:\d{2})?$/.test(str)) {
+    str = `${str}+03:00`;
+  }
+  const t = Date.parse(str);
+  return Number.isNaN(t) ? null : new Date(t);
+};
+
+export const formatClockTime = (iso, fallback = '—') => {
+  const d = parseIsoDate(iso);
+  return d ? d.toLocaleTimeString([], { hour12: false }) : fallback;
+};
+
+export const formatFullDateTime = (iso, fallback = '—') => {
+  const d = parseIsoDate(iso);
+  if (!d) return fallback;
+  return d.toLocaleString([], {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).replace(',', '');
+};
+
 export function formatDuration(seconds) {
   if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return '—';
   const s = Math.max(0, Math.round(Number(seconds)));
@@ -135,12 +170,12 @@ export function formatDuration(seconds) {
       : `${r}s`;
 }
 
-/** Seconds between two backend timestamps ("YYYY-MM-DD HH:MM:SS.mmm", local time); null when either is missing. */
+/** Seconds between two backend timestamps; null when either is missing. */
 export function secondsBetween(start, end) {
   if (!start || !end) return null;
-  const a = Date.parse(String(start).replace(' ', 'T'));
-  const b = Date.parse(String(end).replace(' ', 'T'));
-  return Number.isNaN(a) || Number.isNaN(b) ? null : (b - a) / 1000;
+  const d1 = parseIsoDate(start);
+  const d2 = parseIsoDate(end);
+  return !d1 || !d2 ? null : (d2.getTime() - d1.getTime()) / 1000;
 }
 
 /**

@@ -1,10 +1,12 @@
+import { parseIsoDate } from '../scheduler/schedulerModel.js';
+
 /**
  * Timeline utilities for Gantt chart, critical chain calculation, and time ticks.
  */
 
 const ms = (iso) => {
-  const t = Date.parse(iso);
-  return Number.isNaN(t) ? null : t;
+  const d = parseIsoDate(iso);
+  return d ? d.getTime() : null;
 };
 
 export function runBars(runJobs, now = Date.now()) {
@@ -98,7 +100,8 @@ export const dur = (msVal) => {
 
 export const wall = (t) => {
   try {
-    return new Date(t).toLocaleTimeString([], { hour12: false });
+    const d = parseIsoDate(t);
+    return d ? d.toLocaleTimeString([], { hour12: false }) : '';
   } catch {
     return '';
   }

@@ -10,7 +10,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
-import { approvalState, groupMessages } from '../scheduler/schedulerModel';
+import { approvalState, groupMessages, formatClockTime } from '../scheduler/schedulerModel';
 
 import './Cockpit.css';
 
@@ -614,7 +614,7 @@ export function CockpitTab({ env } = {}) {
               {run.isReadyState ? (
                 <>file: <strong>{run.file_name}</strong> · Ready to execute</>
               ) : (
-                `started ${run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}`
+                `started ${formatClockTime(run.started_at)}`
               )}
             </span>
             <span className="cr-rcs-desc">
@@ -670,7 +670,7 @@ export function CockpitTab({ env } = {}) {
                   const rstart = r.started_at || r.started;
                   return (
                     <option key={rid} value={rid}>
-                      #{rid} · {rstat} · {rstart ? new Date(rstart).toLocaleTimeString([], { hour12: false }) : '—'}
+                      #{rid} · {rstat} · {formatClockTime(rstart)}
                       {String(currentRunId) === String(rid) ? ' (viewing)' : ''}
                     </option>
                   );

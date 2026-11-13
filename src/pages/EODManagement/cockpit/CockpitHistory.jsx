@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { RunDetailModal } from './RunDetailModal';
+import { formatFullDateTime } from '../scheduler/schedulerModel';
 
 export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLoading = false }) {
   const list = (runs || []).filter((r) => {
@@ -89,10 +90,10 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLo
                       </span>
                     </td>
                     <td className="mono">
-                      {started ? new Date(started).toLocaleString() : '—'}
+                      {formatFullDateTime(started)}
                     </td>
                     <td className="mono">
-                      {ended ? new Date(ended).toLocaleString() : (status === 'RUNNING' || status === 'Running' ? 'In progress' : '—')}
+                      {formatFullDateTime(ended, (status === 'RUNNING' || status === 'Running' ? 'In progress' : '—'))}
                     </td>
                     <td className="mono">{total}</td>
                     <td style={{ textAlign: 'right' }}>

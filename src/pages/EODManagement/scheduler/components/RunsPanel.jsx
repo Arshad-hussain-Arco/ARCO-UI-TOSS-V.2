@@ -5,7 +5,7 @@ import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { formatDuration, jobTone, runTone, secondsBetween } from '../schedulerModel';
+import { formatDuration, jobTone, runTone, secondsBetween, formatFullDateTime } from '../schedulerModel';
 import { usePolling, useResource } from '../useResource';
 
 import './RunsPanel.css';
@@ -34,8 +34,8 @@ const statusGroup = (status) => {
   return 'other';
 };
 
-/** "2026-11-12 16:22:31.865" -> "2026-11-12 16:22:31" */
-const shortTime = (value) => (value ? String(value).replace(/\.\d+$/, '') : '—');
+/** Format backend timestamp in user's local timezone */
+const shortTime = (value) => formatFullDateTime(value);
 
 export function Chip({ tone, children }) {
   return <span className={`eodsch-chip eodsch-tone-${tone}`}>{children}</span>;

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { CockpitIcon } from './IconSprite';
 import { tiles, trend, distribution, upcoming, runningRows, failureRows, niceTicks, groupRows } from './rundashUtils';
 import { getGroupColor } from './cockpitData';
+import { formatFullDateTime } from '../scheduler/schedulerModel';
 
 export function CockpitOverview({
   run,
@@ -396,11 +397,11 @@ export function CockpitOverview({
             </div>
             <div className="cr-rm-item">
               <span className="cr-rm-k">STARTED</span>
-              <span className="cr-rm-v">{run.started_at ? run.started_at.replace('T', ' ').replace('Z', '') : '—'}</span>
+              <span className="cr-rm-v">{formatFullDateTime(run.started_at)}</span>
             </div>
             <div className="cr-rm-item">
               <span className="cr-rm-k">ENDED</span>
-              <span className="cr-rm-v">{run.ended_at ? run.ended_at.replace('T', ' ').replace('Z', '') : '—'}</span>
+              <span className="cr-rm-v">{formatFullDateTime(run.ended_at)}</span>
             </div>
             <div className="cr-rm-item cr-rm-full">
               <span className="cr-rm-k">FILE</span>
