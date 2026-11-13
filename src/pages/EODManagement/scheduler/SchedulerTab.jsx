@@ -21,14 +21,13 @@ import './SchedulerTab.css';
 // commented out of this list, so it could never render. Restore the import,
 // the entry below and the render line if it is needed again.
 const SECTIONS = [
-  { key: 'workflow', label: 'Workflow', Icon: Network },
-  { key: 'runs', label: 'Runs', Icon: PlayCircle },
   { key: 'cockpit', label: 'Control Run Cockpit', Icon: Gauge },
-  { key: 'schedules-new', label: 'Schedules (New)', Icon: Calendar },
+  { key: 'schedule', label: 'Schedule', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 const STORAGE_KEY = 'toss.eodScheduler.environment';
+const SECTION_STORAGE_KEY = 'toss.eodScheduler.section';
 
 const remembered = () => {
   try {
@@ -43,6 +42,20 @@ const remember = (code) => {
   } catch {
     /* storage can be blocked: the choice simply is not remembered */
   }
+};
+
+const rememberedSection = () => {
+  try {
+    const s = window.localStorage.getItem(SECTION_STORAGE_KEY);
+    return SECTIONS.some((sec) => sec.key === s) ? s : 'cockpit';
+  } catch {
+    return 'cockpit';
+  }
+};
+const rememberSection = (sec) => {
+  try {
+    window.localStorage.setItem(SECTION_STORAGE_KEY, sec);
+  } catch {}
 };
 
 class TabBoundary extends Component {
@@ -87,7 +100,11 @@ export function SchedulerTab() {
   const envs = useResource(() => svc.listEnvironments(), []);
   usePolling(() => envs.reload(true), 15000); // who serves which environment changes without any click
   const [env, setEnv] = useState(remembered);
-  const [section, setSection] = useState('workflow');
+  const [section, setSectionState] = useState(rememberedSection);
+  const setSection = (sec) => {
+    setSectionState(sec);
+    rememberSection(sec);
+  };
   const [focusRun, setFocusRun] = useState('');
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -267,8 +284,10 @@ export function SchedulerTab() {
                 ) : null}
                 {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
                 {section === 'cockpit' ? <CockpitTab key={env} env={env} /> : null}
-                {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
-                {section === 'targets' ? <TargetsPanel env={env} /> : null}
+                {section === 'schedule' ? <SchedulesNewSection selectedEnv={env} /> : null}
+                {section === 'targets' ? (
+                  <TargetsPanel env={env} onReturnToSchedule={() => setSection('schedule')} />
+                ) : null}
                 {section === 'settings' ? <SettingsPanel env={env} /> : null}
               </div>
             </TabBoundary>

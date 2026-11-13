@@ -1,3 +1,5 @@
+import { parseIsoDate } from '../scheduler/schedulerModel.js';
+
 /**
  * Logic for KPI tiles, distribution ring, and job status trend calculations.
  */
@@ -67,16 +69,16 @@ export function distribution(c = {}) {
 }
 
 export function trend(jobs = [], run = {}, now = Date.now(), max = 18) {
-  const start = Date.parse(run?.started_at);
+  const start = parseIsoDate(run?.started_at)?.getTime();
   if (!Number.isFinite(start)) {
     return { stepSeconds: 10, buckets: [] };
   }
-  const jobEnds = jobs.filter((j) => j.ended_at).map((j) => Date.parse(j.ended_at));
+  const jobEnds = jobs.filter((j) => j.ended_at).map((j) => parseIsoDate(j.ended_at)?.getTime()).filter(Number.isFinite);
   const maxJobEnd = jobEnds.length ? Math.max(...jobEnds) : start + 60000;
 
   let end;
   if (run?.ended_at) {
-    end = Date.parse(run.ended_at);
+    end = parseIsoDate(run.ended_at)?.getTime();
   } else if (run?.took && typeof run.took === 'string') {
     const match = run.took.match(/(\d+):(\d+)/);
     if (match) {
@@ -102,7 +104,7 @@ export function trend(jobs = [], run = {}, now = Date.now(), max = 18) {
     running: 0,
   }));
   const at = (iso) => {
-    const t = Date.parse(iso);
+    const t = parseIsoDate(iso)?.getTime();
     if (!Number.isFinite(t)) return 0;
     const idx = Math.floor((t - start) / (stepSeconds * 1000));
     return Math.min(n - 1, Math.max(0, idx));

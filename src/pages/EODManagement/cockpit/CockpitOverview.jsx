@@ -18,6 +18,7 @@ import {
 import { CockpitIcon } from './IconSprite';
 import { trend, niceTicks, groupRows } from './rundashUtils';
 import { getGroupColor } from './cockpitData';
+import { formatClockTime, formatFullDateTime } from '../scheduler/schedulerModel';
 
 export function formatJobTarget(target, nodeid) {
   if (!target) return nodeid || 'arco@192.168.0.120:22';
@@ -423,11 +424,11 @@ export function CockpitOverview({
               </div>
               <div className="cr-rs-row">
                 <span className="cr-rs-key">Started</span>
-                <span className="cr-rs-val">{run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}</span>
+                <span className="cr-rs-val">{formatClockTime(run.started_at)}</span>
               </div>
               <div className="cr-rs-row">
                 <span className="cr-rs-key">Ended</span>
-                <span className="cr-rs-val">{run.ended_at ? new Date(run.ended_at).toLocaleTimeString([], { hour12: false }) : '—'}</span>
+                <span className="cr-rs-val">{formatClockTime(run.ended_at)}</span>
               </div>
               <div className="cr-rs-row">
                 <span className="cr-rs-key">Duration</span>

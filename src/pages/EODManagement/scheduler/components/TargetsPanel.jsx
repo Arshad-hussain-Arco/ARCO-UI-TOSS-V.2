@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Check, KeyRound, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowRight, Check, KeyRound, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { isFingerprint } from '../schedulerModel';
+import { hasPendingScheduleReturn, isFingerprint } from '../schedulerModel';
 import { useResource } from '../useResource';
 
 const EMPTY = {
@@ -60,7 +60,7 @@ function bodyOf(f) {
 const OTHER_NODEID = '__other__'; // dropdown choice that reveals a text box for a NODEID the workflow does not use (yet)
 
 /** SSH target servers of one environment, their write-only secrets, and the NODEID mappings that decide which server runs which job. */
-export function TargetsPanel({ env }) {
+export function TargetsPanel({ env, onReturnToSchedule }) {
   const { hasPermission } = useAuth();
   const toast = useToast();
   const canWrite = hasPermission('EOD_SCHEDULER_TARGETS');
@@ -138,6 +138,29 @@ export function TargetsPanel({ env }) {
 
   return (
     <div className="eodsch-stack">
+      {hasPendingScheduleReturn() && (
+        <div className="eodsch-mapping-banner">
+          <div className="eodsch-mapping-banner-left">
+            <Check size={18} color="#16a34a" />
+            <div>
+              <div className="eodsch-mapping-banner-title">Workflow XML Uploaded for {env}</div>
+              <div className="eodsch-mapping-banner-desc">
+                Map your NODEID(s) to target servers below. When mapped, you will be taken back to complete the schedule.
+              </div>
+            </div>
+          </div>
+          {onReturnToSchedule && (
+            <Button
+              size="sm"
+              trailingIcon={ArrowRight}
+              onClick={onReturnToSchedule}
+            >
+              Back to Schedule &amp; Fill Details
+            </Button>
+          )}
+        </div>
+      )}
+
       {!secretsOk ? (
         <div className="eodsch-error" role="alert">
           No secret key is configured on the server (EOD_SCHEDULER_SECRET_KEY), so passwords and
@@ -356,7 +379,15 @@ export function TargetsPanel({ env }) {
                 run(
                   () => svc.setMapping(env, chosenNodeid, map.target),
                   'Mapping saved. If a workflow was approved, review and approve again.',
-                  () => setMap({ nodeid: '', custom: '', target: '' }),
+                  () => {
+                    setMap({ nodeid: '', custom: '', target: '' });
+                    if (hasPendingScheduleReturn() && onReturnToSchedule) {
+                      toast.success('Mapping saved! Returning to schedule to fill details…');
+                      setTimeout(() => {
+                        onReturnToSchedule();
+                      }, 500);
+                    }
+                  },
                 )
               }
             >

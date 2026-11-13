@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { CockpitIcon } from './IconSprite';
 import { getGroupColor } from './cockpitData';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { targetLabel } from '../scheduler/schedulerModel';
+import { targetLabel, formatFullDateTime } from '../scheduler/schedulerModel';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Button } from '@components/ui/Button/Button';
 import { useToast } from '@hooks/useToast';
@@ -361,14 +361,14 @@ export function JobDetailDrawer({
                   <div className="cr-drawer-prop-row">
                     <span className="cr-dp-k">Started At</span>
                     <span className="cr-dp-v mono">
-                      {job?.started_at ? job.started_at.replace('T', ' ').replace('Z', '') : '–'}
+                      {formatFullDateTime(job?.started_at, '–')}
                     </span>
                   </div>
 
                   <div className="cr-drawer-prop-row">
                     <span className="cr-dp-k">Ended At</span>
                     <span className="cr-dp-v mono">
-                      {job?.ended_at ? job.ended_at.replace('T', ' ').replace('Z', '') : '–'}
+                      {formatFullDateTime(job?.ended_at, '–')}
                     </span>
                   </div>
 

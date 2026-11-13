@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CockpitIcon } from './IconSprite';
 
 export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
+  const [runName, setRunName] = useState('EOD Batch Run');
   const [simulateAll, setSimulateAll] = useState(false);
   const [allowOverlap, setAllowOverlap] = useState(false);
   const [maxParallel, setMaxParallel] = useState(30);
@@ -11,6 +12,7 @@ export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onStart({
+      name: runName.trim() || 'EOD Batch Run',
       simulate_all: simulateAll,
       allow_overlap: allowOverlap,
       max_parallel: Number(maxParallel),
@@ -35,6 +37,17 @@ export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
               <span className="cr-env-pill active">{String(currentEnv).toUpperCase()}</span>
               <span className="cr-form-hint">Run will execute on the current active environment.</span>
             </div>
+          </div>
+
+          <div className="cr-form-field">
+            <label className="cr-form-label">Run / Schedule Name</label>
+            <input
+              type="text"
+              className="cr-input"
+              value={runName}
+              placeholder="EOD Batch Run"
+              onChange={(e) => setRunName(e.target.value)}
+            />
           </div>
 
           <div className="cr-form-field">

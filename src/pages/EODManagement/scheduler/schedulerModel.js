@@ -230,6 +230,42 @@ export function cockpitNodeStates(jobs) {
   }
   return out;
 }
+export const parseIsoDate = (iso) => {
+  if (iso === null || iso === undefined || iso === '') return null;
+  if (iso instanceof Date) return Number.isNaN(+iso) ? null : iso;
+  if (typeof iso === 'number') {
+    const d = new Date(iso);
+    return Number.isNaN(+d) ? null : d;
+  }
+  let str = String(iso).trim().replace(' ', 'T');
+  if (!str) return null;
+  if (!str.endsWith('Z') && !/[+-]\d{2}(:\d{2})?$/.test(str)) {
+    str = `${str}+03:00`;
+  }
+  const t = Date.parse(str);
+  return Number.isNaN(t) ? null : new Date(t);
+};
+
+export const formatClockTime = (iso, fallback = '—') => {
+  const d = parseIsoDate(iso);
+  return d ? d.toLocaleTimeString([], { hour12: false }) : fallback;
+};
+
+export const formatFullDateTime = (iso, fallback = '—') => {
+  const d = parseIsoDate(iso);
+  if (!d) return fallback;
+  return d
+    .toLocaleString([], {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    .replace(',', '');
+};
 
 export function formatDuration(seconds) {
   if (seconds === null || seconds === undefined || Number.isNaN(Number(seconds))) return '—';
@@ -244,12 +280,12 @@ export function formatDuration(seconds) {
       : `${r}s`;
 }
 
-/** Seconds between two backend timestamps ("YYYY-MM-DD HH:MM:SS.mmm", local time); null when either is missing. */
+/** Seconds between two backend timestamps; null when either is missing. */
 export function secondsBetween(start, end) {
   if (!start || !end) return null;
-  const a = Date.parse(String(start).replace(' ', 'T'));
-  const b = Date.parse(String(end).replace(' ', 'T'));
-  return Number.isNaN(a) || Number.isNaN(b) ? null : (b - a) / 1000;
+  const d1 = parseIsoDate(start);
+  const d2 = parseIsoDate(end);
+  return !d1 || !d2 ? null : (d2.getTime() - d1.getTime()) / 1000;
 }
 
 /**
@@ -388,4 +424,61 @@ export function engineNotice(environment) {
     };
   }
   return null;
+}
+
+const DRAFT_KEY = 'toss.scheduleDraft';
+const RETURN_FLAG_KEY = 'toss.scheduleReturnAfterMapping';
+
+export function saveScheduleDraft(draft, envCode) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ draft, envCode, timestamp: Date.now() }),
+      );
+      window.sessionStorage.setItem(RETURN_FLAG_KEY, 'true');
+    }
+  } catch (e) {
+    console.warn('Failed to save schedule draft', e);
+  }
+}
+
+export function getScheduleDraft() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function clearScheduleDraft() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(DRAFT_KEY);
+      window.sessionStorage.removeItem(RETURN_FLAG_KEY);
+    }
+  } catch {}
+}
+
+export function hasPendingScheduleReturn() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem(RETURN_FLAG_KEY) === 'true';
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+export function clearPendingScheduleReturn() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(RETURN_FLAG_KEY);
+    }
+  } catch {}
 }

@@ -43,6 +43,7 @@ export const eodSchedulerService = {
     ).data;
   },
   // several workflow files per environment: one is active (the one that runs)
+  getWorkflowItem: (env, id) => get(E.workflowItem(env, id)),
   activateWorkflow: (env, id) => send('post', E.workflowActivate(env, id)),
   deleteWorkflow: (env, id) => send('delete', E.workflowItem(env, id)),
 

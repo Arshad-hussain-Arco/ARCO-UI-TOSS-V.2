@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload } from 'lucide-react';
+import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload, User } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
@@ -17,7 +17,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
-import { approvalState, groupMessages } from '../scheduler/schedulerModel';
+import { approvalState, groupMessages, formatClockTime } from '../scheduler/schedulerModel';
 
 import '../scheduler/components/WorkflowPanel.css';
 import './Cockpit.css';
@@ -99,7 +99,10 @@ export function CockpitTab({ env } = {}) {
 
   // Load real resources from backend
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
-  const def = useResource(() => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)), [env]);
+  const def = useResource(
+    () => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)),
+    [env],
+  );
   const runsList = useResource(
     () => (env ? svc.getCockpitRuns(env).catch(() => svc.listRuns(env)) : Promise.resolve([])),
     [env],
@@ -123,23 +126,29 @@ export function CockpitTab({ env } = {}) {
     }
     return true;
   });
-  const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
+  const isViewingCurrentWorkflow =
+    selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
   const currentRunId = isViewingCurrentWorkflow
     ? 'current_workflow'
-    : (selectedRunId || (activeRunningRun?.id || activeRunningRun?.run_id || ''));
+    : selectedRunId || activeRunningRun?.id || activeRunningRun?.run_id || '';
 
   const runDetail = useResource(
-    () => (env && currentRunId && currentRunId !== 'current_workflow'
-      ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
-      : Promise.resolve(null)),
+    () =>
+      env && currentRunId && currentRunId !== 'current_workflow'
+        ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
+        : Promise.resolve(null),
     [env, currentRunId],
   );
 
-  const isRunningBatch = runDetail.data?.status === 'Running' || runDetail.data?.status === 'RUNNING';
-  const isBackendPaused = runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
+  const isRunningBatch =
+    runDetail.data?.status === 'Running' || runDetail.data?.status === 'RUNNING';
+  const isBackendPaused =
+    runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
   const isRunActive = isRunningBatch || isPaused;
-  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
+  const isOverviewLoading =
+    runsList.loading ||
+    (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
   // Polling for live status
   usePolling(() => runsList.reload(true), 4000);
@@ -150,7 +159,9 @@ export function CockpitTab({ env } = {}) {
   const state = approvalState(view, hasPermission);
 
   const files = view?.workflows ?? [];
-  const running = (runsList.data ?? []).some((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const running = (runsList.data ?? []).some(
+    (r) => r.status === 'RUNNING' || r.status === 'Running',
+  );
   const editHint = running ? 'A run is in progress in this environment' : undefined;
 
   const stats = [
@@ -166,7 +177,10 @@ export function CockpitTab({ env } = {}) {
   // Enrich definition jobs with rich validation/target info from wf.data.folders
   const enrichedDefinition = useMemo(() => {
     if (!def.data) return null;
-    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+    if (
+      view?.partition &&
+      String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()
+    ) {
       return null;
     }
     const wfJobsMap = new Map();
@@ -187,7 +201,10 @@ export function CockpitTab({ env } = {}) {
   // Staged run representing the current/uploaded workflow ready for execution
   const stagedRun = useMemo(() => {
     if (!def.data && !view) return null;
-    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+    if (
+      view?.partition &&
+      String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()
+    ) {
       return null;
     }
     const jobsList = enrichedDefinition?.jobs || [];
@@ -369,10 +386,12 @@ export function CockpitTab({ env } = {}) {
 
     // 1. Check if a file with the exact same name already exists in this environment
     const duplicateByName = files.find(
-      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase()
+      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase(),
     );
     if (duplicateByName) {
-      toast.error(`Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`);
+      toast.error(
+        `Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`,
+      );
       return;
     }
 
@@ -384,10 +403,12 @@ export function CockpitTab({ env } = {}) {
       const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
       const duplicateByHash = files.find(
-        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase()
+        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase(),
       );
       if (duplicateByHash) {
-        toast.error(`An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`);
+        toast.error(
+          `An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`,
+        );
         return;
       }
     } catch {
@@ -454,10 +475,16 @@ export function CockpitTab({ env } = {}) {
         await svc.deleteWorkflow(env, del.file.id);
         toast.success(`${del.file.filename} deleted.`);
       } else if (del.kind === 'folder') {
-        await svc.deleteFolder(env, view?.meta?.id, del.folder, { confirm, baseSha256: view?.meta?.sha256 });
+        await svc.deleteFolder(env, view?.meta?.id, del.folder, {
+          confirm,
+          baseSha256: view?.meta?.sha256,
+        });
         toast.success(`Workflow ${del.folder} deleted.`);
       } else if (del.kind === 'job') {
-        await svc.deleteJob(env, view?.meta?.id, del.folder, del.job, { confirm, baseSha256: view?.meta?.sha256 });
+        await svc.deleteJob(env, view?.meta?.id, del.folder, del.job, {
+          confirm,
+          baseSha256: view?.meta?.sha256,
+        });
         toast.success(`Job ${del.job} deleted. Review and approve the workflow again.`);
       }
       setDel(null);
@@ -490,6 +517,8 @@ export function CockpitTab({ env } = {}) {
         allow_overlap: options.allow_overlap ?? false,
         // only these workflows (folders) of the active XML; without it the whole XML runs
         ...(options.folders?.length ? { folders: options.folders } : {}),
+        name: options.name || 'EOD Batch Run',
+        schedule_name: options.name || 'EOD Batch Run',
       });
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
@@ -586,7 +615,9 @@ export function CockpitTab({ env } = {}) {
             await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => {});
           }
           await svc.cockpitJobAction(env, targetRunId, jobName, 'rerun');
-          toast.success(`Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`);
+          toast.success(
+            `Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`,
+          );
           await runDetail.reload(true);
         } catch (err) {
           toast.error(errorText(err));
@@ -627,7 +658,13 @@ export function CockpitTab({ env } = {}) {
     return {
       id: r.id || r.run_id,
       status: r.status || '',
-      when: started ? new Date(started).toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' }) : '',
+      when: started
+        ? new Date(started).toLocaleString([], {
+            hour12: false,
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })
+        : '',
     };
   }, [runs]);
 
@@ -645,7 +682,9 @@ export function CockpitTab({ env } = {}) {
             </div>
             <div className="cr-ufc-info">
               <div className="cr-ufc-title-row">
-                <strong className="cr-ufc-filename">{view.meta?.filename || 'batch_workflow.xml'}</strong>
+                <strong className="cr-ufc-filename">
+                  {view.meta?.filename || 'batch_workflow.xml'}
+                </strong>
                 {state.state === 'approved' ? (
                   <span className="cr-ufc-badge approved">
                     <CheckCircle2 size={13} /> Approved
@@ -661,7 +700,10 @@ export function CockpitTab({ env } = {}) {
                 <span className="cr-ufc-sep">|</span>
                 <span>{formatWhen(view.meta?.uploaded_at)}</span>
                 <span className="cr-ufc-sep">|</span>
-                <span>SHA-256: <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code></span>
+                <span>
+                  SHA-256:{' '}
+                  <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                </span>
               </div>
             </div>
           </div>
@@ -787,15 +829,21 @@ export function CockpitTab({ env } = {}) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* RUN dropdown list (moved to the left of the action buttons) */}
           {run && (
-            <label className="cr-run-switch-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>RUN</span>
+            <label
+              className="cr-run-switch-label"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>
+                RUN
+              </span>
               <select
                 className="cr-select sm cr-run-switch-select"
                 value={currentRunId}
                 onChange={(e) => handleSelectRun(e.target.value)}
               >
                 <option value="current_workflow">
-                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'} {run.isReadyState ? '(Active)' : ''}
+                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'}{' '}
+                  {run.isReadyState ? '(Active)' : ''}
                 </option>
                 {runs.map((r) => {
                   const rid = r.id || r.run_id;
@@ -803,7 +851,7 @@ export function CockpitTab({ env } = {}) {
                   const rstart = r.started_at || r.started;
                   return (
                     <option key={rid} value={rid}>
-                      #{rid} · {rstat} · {rstart ? new Date(rstart).toLocaleTimeString([], { hour12: false }) : '—'}
+                      #{rid} · {rstat} · {formatClockTime(rstart)}
                       {String(currentRunId) === String(rid) ? ' (viewing)' : ''}
                     </option>
                   );
@@ -821,9 +869,9 @@ export function CockpitTab({ env } = {}) {
                   className={`cr-btn sm ${isPaused ? 'primary' : 'outline'}`}
                   disabled={busy}
                   onClick={handleTogglePause}
-                  title={isPaused ? "Resume batch execution" : "Pause batch execution"}
+                  title={isPaused ? 'Resume batch execution' : 'Pause batch execution'}
                 >
-                  <CockpitIcon name={isPaused ? "i-play" : "i-hold"} className="xs" />
+                  <CockpitIcon name={isPaused ? 'i-play' : 'i-hold'} className="xs" />
                   <span>{isPaused ? 'Resume' : 'Pause'}</span>
                 </button>
 
@@ -842,7 +890,9 @@ export function CockpitTab({ env } = {}) {
             <button
               type="button"
               className="cr-btn outline sm"
-              disabled={busy || state.state !== 'approved' || !state.canRun || !(view?.folders || []).length}
+              disabled={
+                busy || state.state !== 'approved' || !state.canRun || !(view?.folders || []).length
+              }
               onClick={() => setIsRunPickerOpen(true)}
               title={
                 state.state !== 'approved'
@@ -866,10 +916,10 @@ export function CockpitTab({ env } = {}) {
                 state.state !== 'approved'
                   ? 'Workflow must be approved before running'
                   : !state.canRun
-                  ? 'You do not have permission to execute batch runs'
-                  : isRunningBatch
-                  ? 'A batch run is currently in progress'
-                  : 'Execute batch workflow now'
+                    ? 'You do not have permission to execute batch runs'
+                    : isRunningBatch
+                      ? 'A batch run is currently in progress'
+                      : 'Execute batch workflow now'
               }
               style={{
                 display: 'inline-flex',
@@ -881,8 +931,12 @@ export function CockpitTab({ env } = {}) {
                 fontWeight: 600,
                 borderRadius: '6px',
                 padding: '5px 12px',
-                cursor: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 'not-allowed' : 'pointer',
-                opacity: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 0.6 : 1,
+                cursor:
+                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity:
+                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun ? 0.6 : 1,
               }}
             >
               <Play size={13} fill="currentColor" />
@@ -891,6 +945,123 @@ export function CockpitTab({ env } = {}) {
           </div>
         </div>
       </div>
+
+      {/* ── Run Context Strip: Schedule Name on Left, Triggered By on Right ── */}
+      {run ? (
+        <div className="cr-run-context-strip">
+          <div className="cr-rcs-left">
+            <span
+              className="cr-run-schedule-pill"
+              style={{
+                height: '28px',
+                boxSizing: 'border-box',
+                fontWeight: 600,
+                fontSize: '12px',
+                padding: '0 10px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(0, 90, 54, 0.08)',
+                color: 'var(--c-primary, #005a36)',
+                border: '1px solid rgba(0, 90, 54, 0.25)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                letterSpacing: '0.01em',
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+              }}
+              title={`Schedule Name: ${run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}`}
+            >
+              <CockpitIcon
+                name="i-branch"
+                className="xs"
+                style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+              />
+              <span
+                className="cr-pill-label"
+                style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  opacity: 0.75,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                Schedule Name:
+              </span>
+              <span
+                className="cr-pill-value"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                  fontWeight: 600,
+                }}
+              >
+                {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
+              </span>
+            </span>
+          </div>
+
+          <div className="cr-rcs-right">
+            {(run.started_by || run.user || !run.isReadyState) && (
+              <span
+                className="cr-started-by-pill"
+                style={{
+                  height: '28px',
+                  boxSizing: 'border-box',
+                  fontSize: '12px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: '1px solid #cbd5e1',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  letterSpacing: '0.01em',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                title={`Triggered by: ${run.started_by || run.user || '—'}`}
+              >
+                <User
+                  size={13}
+                  style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+                />
+                <span
+                  className="cr-pill-label"
+                  style={{
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    opacity: 0.75,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  Triggered by:
+                </span>
+                <span
+                  className="cr-pill-value"
+                  style={{
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  {run.started_by || run.user || '—'}
+                </span>
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Active View Body ── */}
       <main className="cr-main-pane">
@@ -914,9 +1085,27 @@ export function CockpitTab({ env } = {}) {
             onStartRun={() => handleStartRun()}
             onCancelRun={handleCancelRun}
             onJobAction={handleJobAction}
-            onAddJob={() => setJobModal({ mode: 'add', job: null, folder: view?.folders?.[0]?.folder || 'EOD-CORE' })}
-            onEditJob={(j) => setJobModal({ mode: 'edit', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
-            onDeleteJob={(j) => setDel({ kind: 'job', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
+            onAddJob={() =>
+              setJobModal({
+                mode: 'add',
+                job: null,
+                folder: view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
+            onEditJob={(j) =>
+              setJobModal({
+                mode: 'edit',
+                job: j.name,
+                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
+            onDeleteJob={(j) =>
+              setDel({
+                kind: 'job',
+                job: j.name,
+                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
             canRun={state.state === 'approved' && state.canRun}
           />
         )}
@@ -978,9 +1167,9 @@ export function CockpitTab({ env } = {}) {
           allJobs={allCockpitJobs}
           env={env}
           runId={
-            (currentRunId && currentRunId !== 'current_workflow')
+            currentRunId && currentRunId !== 'current_workflow'
               ? currentRunId
-              : (activeRunningRun?.id || runs[0]?.id || null)
+              : activeRunningRun?.id || runs[0]?.id || null
           }
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
@@ -1001,7 +1190,10 @@ export function CockpitTab({ env } = {}) {
         onClose={() => setIsRunPickerOpen(false)}
         onRun={handleStartRun}
         filename={view?.meta?.filename}
-        workflows={(view?.folders || []).map((f) => ({ name: f.folder, jobs: (f.jobs || []).length }))}
+        workflows={(view?.folders || []).map((f) => ({
+          name: f.folder,
+          jobs: (f.jobs || []).length,
+        }))}
       />
 
       {/* ── Add / Edit Job Modal ── */}
