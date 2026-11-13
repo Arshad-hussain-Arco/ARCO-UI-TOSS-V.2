@@ -6,6 +6,7 @@ import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
+import { eodService } from '@services/eodService';
 import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
 import { RunsPanel } from './components/RunsPanel';
@@ -27,6 +28,7 @@ const SECTIONS = [
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 const STORAGE_KEY = 'toss.eodScheduler.environment';
+const SECTION_STORAGE_KEY = 'toss.eodScheduler.section';
 
 const remembered = () => {
   try {
@@ -41,6 +43,20 @@ const remember = (code) => {
   } catch {
     /* storage can be blocked: the choice simply is not remembered */
   }
+};
+
+const rememberedSection = () => {
+  try {
+    const s = window.localStorage.getItem(SECTION_STORAGE_KEY);
+    return SECTIONS.some((sec) => sec.key === s) ? s : 'cockpit';
+  } catch {
+    return 'cockpit';
+  }
+};
+const rememberSection = (sec) => {
+  try {
+    window.localStorage.setItem(SECTION_STORAGE_KEY, sec);
+  } catch {}
 };
 
 class TabBoundary extends Component {
@@ -85,7 +101,11 @@ export function SchedulerTab() {
   const envs = useResource(() => svc.listEnvironments(), []);
   usePolling(() => envs.reload(true), 15000); // who serves which environment changes without any click
   const [env, setEnv] = useState(remembered);
-  const [section, setSection] = useState('cockpit');
+  const [section, setSectionState] = useState(rememberedSection);
+  const setSection = (sec) => {
+    setSectionState(sec);
+    rememberSection(sec);
+  };
   const [focusRun, setFocusRun] = useState('');
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -93,6 +113,14 @@ export function SchedulerTab() {
 
   const list = useMemo(() => envs.data ?? [], [envs.data]);
   const current = list.find((e) => e.code === env) ?? null;
+
+  // Preload schedules in the background so switching to the Schedule tab is instantaneous
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      eodService.getEodSchedules().catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!envs.data) return;
@@ -268,6 +296,7 @@ export function SchedulerTab() {
                 {section === 'schedule' ? (
                   <SchedulesNewSection
                     selectedEnv={env}
+                    initialEnvironments={list}
                     onNavigateSection={(sec) => setSection(sec)}
                     onSelectEnv={(code) => choose(code)}
                   />

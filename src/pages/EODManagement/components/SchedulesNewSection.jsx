@@ -361,16 +361,21 @@ function isScheduleOnDay(sch, dayIndex) {
   return false;
 }
 
-export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEnv }) {
+export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEnv, initialEnvironments }) {
   const { hasPermission, user } = useAuth();
   const toast = useToast();
   const canCreate = hasPermission('EOD_SCHEDULE_CREATE');
   const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
   const canDelete = hasPermission('EOD_SCHEDULE_DELETE');
 
-  const [scheduleList, setScheduleList] = useState([]);
-  const [environments, setEnvironments] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedSchedules = eodService.getCachedEodSchedules?.() || null;
+  const initialEnvs = (initialEnvironments && initialEnvironments.length > 0)
+    ? initialEnvironments
+    : (eodService.getCachedEnvironments?.() || []);
+
+  const [scheduleList, setScheduleList] = useState(() => cachedSchedules || []);
+  const [environments, setEnvironments] = useState(() => initialEnvs);
+  const [isLoading, setIsLoading] = useState(() => !cachedSchedules || cachedSchedules.length === 0);
   const [error, setError] = useState(null);
 
   // Live second ticker for live countdowns
@@ -395,9 +400,11 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
   const [isSaving, setIsSaving] = useState(false);
   const [runningIds, setRunningIds] = useState(new Set());
 
-  /** Fetch schedule records only on page load */
-  const fetchScheduleData = useCallback(async () => {
-    setIsLoading(true);
+  /** Fetch schedule records with instant stale-while-revalidate */
+  const fetchScheduleData = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const schedulesData = await eodService.getEodSchedules();
@@ -424,9 +431,18 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
   }, [environments]);
 
   useEffect(() => {
-    fetchScheduleData();
-    fetchEnvironmentsIfNeeded();
-  }, [fetchScheduleData, fetchEnvironmentsIfNeeded]);
+    const hasCached = cachedSchedules && cachedSchedules.length > 0;
+    fetchScheduleData(hasCached);
+    if (!initialEnvs || initialEnvs.length === 0) {
+      fetchEnvironmentsIfNeeded();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialEnvironments && initialEnvironments.length > 0) {
+      setEnvironments(initialEnvironments);
+    }
+  }, [initialEnvironments]);
 
   // Background poll to update schedule statuses smoothly without table flickering
   useEffect(() => {

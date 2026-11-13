@@ -68,9 +68,10 @@ export function SchedulesSection() {
   const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
   const canDelete = hasPermission('EOD_SCHEDULE_DELETE');
 
-  const [scheduleList, setScheduleList] = useState([]);
-  const [environments, setEnvironments] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedSchedules = eodService.getCachedEodSchedules?.() || null;
+  const [scheduleList, setScheduleList] = useState(() => cachedSchedules || []);
+  const [environments, setEnvironments] = useState(() => eodService.getCachedEnvironments?.() || []);
+  const [isLoading, setIsLoading] = useState(() => !cachedSchedules || cachedSchedules.length === 0);
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -78,9 +79,11 @@ export function SchedulesSection() {
   const [deleteConfirmSchedule, setDeleteConfirmSchedule] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  /** Fetch schedule records only on page load */
-  const fetchScheduleData = useCallback(async () => {
-    setIsLoading(true);
+  /** Fetch schedule records with instant stale-while-revalidate */
+  const fetchScheduleData = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const schedulesData = await eodService.getEodSchedules();
@@ -94,7 +97,8 @@ export function SchedulesSection() {
   }, []);
 
   useEffect(() => {
-    fetchScheduleData();
+    const hasCached = cachedSchedules && cachedSchedules.length > 0;
+    fetchScheduleData(hasCached);
   }, [fetchScheduleData]);
 
   /** Lazily load environments only when opening Add/Edit modal (uses lightweight API without SFTP overhead) */
