@@ -437,8 +437,6 @@ export function CockpitOverview({
             </div>
           </div>
         </section>
-          </div>
-        </section>
 
         {/* Panel 3: Application Status */}
         <section className="cr-card cr-app-status-card">

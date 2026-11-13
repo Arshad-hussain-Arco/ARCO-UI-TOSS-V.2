@@ -376,7 +376,6 @@ export function JobDetailDrawer({
                     <span className="cr-dp-k">Exit Code</span>
                     <span className="cr-dp-v mono">{job?.exit_code ?? '–'}</span>
                   </div>
-                  </div>
                 </div>
               </div>
             ) : (
