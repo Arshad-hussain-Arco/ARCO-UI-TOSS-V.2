@@ -192,6 +192,8 @@ export function CockpitTab({ env } = {}) {
     try {
       const { command_id: id } = await svc.runNow(env, {
         allow_overlap: options.allow_overlap ?? false,
+        name: options.name || 'EOD Batch Run',
+        schedule_name: options.name || 'EOD Batch Run',
       });
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
@@ -498,19 +500,63 @@ export function CockpitTab({ env } = {}) {
       {run ? (
         <div className="cr-run-context-strip">
           <div className="cr-rcs-left">
-            <span className="cr-scope-pill">RUN #{run.id}</span>
-            <span className={`cr-env-pill ${String(env).toLowerCase()}`}>{String(env).toUpperCase()}</span>
-            <span className={`cr-status-badge ${isPaused ? 'paused' : String(run.status).toLowerCase().replace(/\s+/g, '-')}`}>
-              {isPaused ? 'Paused' : run.status}
+            <span
+              className="cr-run-schedule-pill"
+              style={{
+                height: '28px',
+                boxSizing: 'border-box',
+                fontWeight: 600,
+                fontSize: '12px',
+                padding: '0 10px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(0, 90, 54, 0.08)',
+                color: 'var(--c-primary, #005a36)',
+                border: '1px solid rgba(0, 90, 54, 0.25)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                letterSpacing: '0.01em',
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+              }}
+              title={`Schedule Name: ${run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}`}
+            >
+              <CockpitIcon name="i-branch" className="xs" style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }} />
+              <span className="cr-pill-label" style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.75, fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                Schedule Name:
+              </span>
+              <span className="cr-pill-value" style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
+              </span>
             </span>
-            <span className="cr-rcs-started">
-              started {run.started_at ? new Date(run.started_at).toLocaleTimeString([], { hour12: false }) : '—'}
-            </span>
-            <span className="cr-rcs-desc">
-              {activeView === 'overview' && 'High level status, metrics, and progress for this run.'}
-              {activeView === 'flow' && 'The jobs of the batch file and how they depend on each other, coloured by this run.'}
-              {activeView === 'timeline' && 'When each job of this run started and ended.'}
-            </span>
+            {run.started_by && (
+              <span
+                className="cr-started-by-pill"
+                style={{
+                  height: '28px',
+                  boxSizing: 'border-box',
+                  fontSize: '11.5px',
+                  padding: '0 9px',
+                  borderRadius: '6px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: '1px solid #cbd5e1',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                title={`Triggered by: ${run.started_by}`}
+              >
+                <span className="cr-pill-label" style={{ fontSize: '11px', opacity: 0.75, fontWeight: 500, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                  by
+                </span>
+                <span className="cr-pill-value" style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                  {run.started_by}
+                </span>
+              </span>
+            )}
           </div>
 
           <div className="cr-rcs-right">

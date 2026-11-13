@@ -136,7 +136,13 @@ export function RunDetail({ env, runId, onChanged }) {
       <div className="eodsch-card">
         <div className="eodsch-toolbar">
           <div>
-            <strong>{run.run_id}</strong> <Chip tone={runTone(run.status)}>{run.status}</Chip>
+            <strong>{run.run_id}</strong>
+            {run.name && (
+              <span style={{ fontWeight: 600, color: 'var(--c-primary, #005a36)', marginLeft: '8px', marginRight: '8px' }}>
+                · {run.name}
+              </span>
+            )}
+            <Chip tone={runTone(run.status)}>{run.status}</Chip>
             <div className="eodsch-muted">
               {run.run_type} · business date {run.odate} · started {run.started} ·{' '}
               {run.started_by ? `started by ${run.started_by} · ` : ''}

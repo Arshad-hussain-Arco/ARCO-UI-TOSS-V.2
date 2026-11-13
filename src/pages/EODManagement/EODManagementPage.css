@@ -4183,8 +4183,19 @@
   letter-spacing: .06em;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid;
+  border: 1px solid var(--border-secondary, #cbd5e1);
+  color: var(--text-secondary, #334155);
+  background: var(--surface-secondary, #f8fafc);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Dark mode: high-contrast neutral slate matching Last Result */
+[data-theme='dark'] .env-pill {
+  color: var(--text-secondary, #d1d5db) !important;
+  border-color: var(--border-secondary, #4b5563) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
 /* Frequency Column */

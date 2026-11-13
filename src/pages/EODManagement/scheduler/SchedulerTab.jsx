@@ -8,7 +8,6 @@ import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
-import { SchedulePanel } from './components/SchedulePanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TargetsPanel } from './components/TargetsPanel';
 import { CockpitTab } from '../cockpit/CockpitTab';
@@ -19,7 +18,6 @@ import './SchedulerTab.css';
 const SECTIONS = [
   { key: 'cockpit', label: 'Control Run Cockpit', Icon: Gauge },
   { key: 'schedule', label: 'Schedule', Icon: Calendar },
-  { key: 'schedules-new', label: 'Schedules (New)', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
@@ -233,9 +231,19 @@ export function SchedulerTab() {
               <TabBoundary key={`${env}-${section}`}>
                 <div className="eodsch-section">
                   {section === 'cockpit' ? <CockpitTab env={env} /> : null}
-                  {section === 'schedule' ? <SchedulePanel env={env} /> : null}
-                  {section === 'schedules-new' ? <SchedulesNewSection selectedEnv={env} /> : null}
-                  {section === 'targets' ? <TargetsPanel env={env} /> : null}
+                  {section === 'schedule' ? (
+                    <SchedulesNewSection
+                      selectedEnv={env}
+                      onNavigateSection={(sec) => setSection(sec)}
+                      onSelectEnv={(code) => choose(code)}
+                    />
+                  ) : null}
+                  {section === 'targets' ? (
+                    <TargetsPanel
+                      env={env}
+                      onReturnToSchedule={() => setSection('schedule')}
+                    />
+                  ) : null}
                   {section === 'settings' ? <SettingsPanel env={env} /> : null}
                 </div>
               </TabBoundary>

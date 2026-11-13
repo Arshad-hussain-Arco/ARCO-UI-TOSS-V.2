@@ -335,7 +335,9 @@ export function CockpitOverview({
           <header className="cr-card-header">
             <div>
               <h2 className="cr-card-title">RUN STATUS</h2>
-              <span className="cr-card-sub">#{run.id} - {run.environment?.toUpperCase()}</span>
+              <span className="cr-card-sub">
+                #{run.id} · {run.environment?.toUpperCase()}
+              </span>
             </div>
           </header>
           <div className="cr-ring-section">

@@ -13,11 +13,17 @@ import {
   Search,
   X,
   Target,
+  FileCode,
+  Folder,
+  FolderTree,
+  Loader2,
 } from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { useToast } from '@hooks/useToast';
 import { formToCronList } from '@utils/cronUtils';
 import { toShortEnvName } from '@services/eodService';
 import { eodSchedulerService } from '@services/eodSchedulerService';
+import { saveScheduleDraft, clearScheduleDraft } from '../scheduler/schedulerModel';
 
 const DAYS_OF_WEEK = [
   { label: 'Sun', full: 'Sunday', idx: 0 },
@@ -29,8 +35,6 @@ const DAYS_OF_WEEK = [
   { label: 'Sat', full: 'Saturday', idx: 6 },
 ];
 
-
-
 const DEFAULT_JOBS = [
   { name: 'mx_eod_init', level: 1, group: 'Init', description: 'Initialize environment' },
   { name: 'mx_market_data_load', level: 2, group: 'Market', description: 'Load curves and fixing rates' },
@@ -41,7 +45,36 @@ const DEFAULT_JOBS = [
   { name: 'mx_report_archive', level: 7, group: 'Archive', description: 'Consolidate and archive output reports' },
 ];
 
-const TIME_PRESETS = ['08:00', '12:00', '18:00', '20:00', '22:00', '23:00'];
+function extractWorkflowsFromData(wfData) {
+  if (!wfData?.folders || !Array.isArray(wfData.folders)) return [];
+  return wfData.folders
+    .filter((f) => Boolean(f?.folder))
+    .map((f) => ({
+      name: f.folder,
+      jobsCount: (f.jobs || []).length,
+    }));
+}
+
+function extractJobsFromWorkflow(wfData) {
+  if (!wfData?.folders) return [];
+  const allJobs = [];
+  const seen = new Set();
+  wfData.folders.forEach((f) => {
+    (f.jobs || []).forEach((j) => {
+      if (j?.name && !seen.has(j.name)) {
+        seen.add(j.name);
+        allJobs.push({
+          name: j.name,
+          level: j.level || 1,
+          group: f.folder || 'Workflow',
+          folder: f.folder || 'Workflow',
+          description: j.command ? `Command: ${j.command.slice(0, 40)}` : 'Workflow job',
+        });
+      }
+    });
+  });
+  return allJobs;
+}
 
 /**
  * Interactive Calendar Date Picker (Matching Image 1 Reference)
@@ -445,8 +478,43 @@ function TargetJobPicker({ id = 'eod-modal-target-job-select', value, onChange, 
 /**
  * Main ScheduleNewModal Component
  */
-export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSave }) {
+export function ScheduleNewModal({
+  isOpen,
+  schedule,
+  environments,
+  selectedEnv,
+  onClose,
+  onSave,
+  onNavigateToTargets,
+}) {
+  const toast = useToast();
   const initialDate = schedule?.selectedDate ? new Date(schedule.selectedDate) : new Date();
+
+  const activeEnvCode =
+    selectedEnv ||
+    schedule?.environmentCode ||
+    schedule?.environmentName ||
+    null;
+
+  const filteredEnvironments = useMemo(() => {
+    if (activeEnvCode && environments.length > 0) {
+      const match = environments.find(
+        (e) =>
+          (e.code && e.code.toUpperCase() === activeEnvCode.toUpperCase()) ||
+          (e.name && e.name.toUpperCase() === activeEnvCode.toUpperCase()) ||
+          String(e.id) === String(activeEnvCode)
+      );
+      if (match) return [match];
+    }
+    return environments;
+  }, [environments, activeEnvCode]);
+
+  const defaultEnvId =
+    filteredEnvironments[0]?.id ??
+    filteredEnvironments[0]?.code ??
+    activeEnvCode ??
+    environments[0]?.id ??
+    '';
 
   const [form, setForm] = useState({
     id: schedule?.id || '',
@@ -454,7 +522,12 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
     name: schedule?.name || '',
     runScope: schedule?.runScope || (schedule?.targetJob ? 'job' : 'batch'),
     targetJob: schedule?.targetJob || '',
-    envId: schedule?.envId || environments[0]?.id || '',
+    xmlFileId: schedule?.xmlFileId || (schedule?.workflowFileId ? String(schedule.workflowFileId) : ''),
+    xmlFile: schedule?.xmlFile || schedule?.workflowFile || schedule?.uploadedFileName || '',
+    workflow: schedule?.workflow || schedule?.folder || 'ALL',
+    workflowFileId: schedule?.workflowFileId ? String(schedule.workflowFileId) : '',
+    workflowFile: schedule?.workflowFile || schedule?.uploadedFileName || '',
+    envId: schedule?.envId || defaultEnvId,
     maxParallel: schedule?.maxParallel !== undefined ? schedule.maxParallel : 4,
     simulateAll: !!schedule?.simulateAll,
     selectedDate: schedule?.selectedDate ? new Date(schedule.selectedDate) : new Date(),
@@ -475,56 +548,125 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
     isActive: schedule?.isActive !== undefined ? schedule.isActive : true,
   });
 
+  const [availableXmlFiles, setAvailableXmlFiles] = useState([]);
+  const [availableWorkflows, setAvailableWorkflows] = useState([]);
+  const [workflowJobs, setWorkflowJobs] = useState([]);
+  const [isLoadingXml, setIsLoadingXml] = useState(false);
+  const [isLoadingWorkflows, setIsLoadingWorkflows] = useState(false);
+  const activeWfCacheRef = useRef(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [showCalendar, setShowCalendar] = useState(false);
-  const [workflowJobs, setWorkflowJobs] = useState([]);
 
   useEffect(() => {
-    if (!isOpen || !form.envId) return;
-    const envObj =
-      environments.find(
-        (e) =>
-          e.id === form.envId ||
-          String(e.id) === String(form.envId) ||
-          e.code === form.envId ||
-          e.name === form.envId
-      ) || environments[0];
-    const rawEnv = envObj?.code || envObj?.name || form.envId;
-    const envCode = toShortEnvName(rawEnv);
+    if (!isOpen) return;
+
+    // Resolve the exact environment partition code according to the active environment
+    const targetEnv = activeEnvCode || form.envId;
+    if (!targetEnv) return;
+
+    const envObj = environments.find(
+      (e) =>
+        e.id === targetEnv ||
+        String(e.id) === String(targetEnv) ||
+        (e.code && e.code.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.name && e.name.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.code && String(targetEnv).toUpperCase().includes(e.code.toUpperCase()))
+    );
+    const rawEnv = envObj?.code || envObj?.name || targetEnv;
+    const cleanToken = String(rawEnv).trim().split(/[\s—–-]+/)[0];
+    const envCode = toShortEnvName(cleanToken || rawEnv);
 
     let isMounted = true;
+    setIsLoadingXml(true);
+
     eodSchedulerService
       .getWorkflow(envCode)
       .then((wf) => {
-        if (!isMounted || !wf?.folders) return;
-        const allJobs = [];
-        const seen = new Set();
-        wf.folders.forEach((f) => {
-          (f.jobs || []).forEach((j) => {
-            if (j?.name && !seen.has(j.name)) {
-              seen.add(j.name);
-              allJobs.push({
-                name: j.name,
-                level: j.level || 1,
-                group: f.folder || 'Workflow',
-                description: j.command ? `Command: ${j.command.slice(0, 40)}` : 'Workflow job',
+        if (!isMounted) return;
+        activeWfCacheRef.current = wf;
+
+        // XML files uploaded for this environment
+        const allFiles = wf?.workflows || [];
+        let displayFiles = allFiles;
+        if (displayFiles.length === 0 && wf?.meta?.id) {
+          displayFiles = [
+            {
+              id: wf.meta.id,
+              filename: wf.meta.filename,
+              active: true,
+              uploaded_at: wf.meta.uploaded_at,
+            },
+          ];
+        }
+        setAvailableXmlFiles(displayFiles);
+
+        // Auto-select active XML file if none currently selected or if selected XML file is not in list
+        let currentXml = displayFiles.find(
+          (f) =>
+            String(f.id) === String(form.xmlFileId || form.workflowFileId) ||
+            f.filename === (form.xmlFile || form.workflowFile)
+        );
+        if (!currentXml && displayFiles.length > 0) {
+          currentXml = displayFiles.find((f) => f.active || f.is_active) || displayFiles[0];
+        }
+
+        if (currentXml) {
+          setForm((prev) => ({
+            ...prev,
+            xmlFileId: String(currentXml.id),
+            xmlFile: currentXml.filename,
+            workflowFileId: String(currentXml.id),
+            workflowFile: currentXml.filename,
+          }));
+
+          // If currentXml is active and parsed in wf:
+          if (currentXml.active || String(currentXml.id) === String(wf?.meta?.id) || !wf?.meta?.id) {
+            setAvailableWorkflows(extractWorkflowsFromData(wf));
+            setWorkflowJobs(extractJobsFromWorkflow(wf));
+          } else {
+            // Load specific XML file details
+            setIsLoadingWorkflows(true);
+            eodSchedulerService
+              .getWorkflowItem(envCode, currentXml.id)
+              .then((itemWf) => {
+                if (isMounted) {
+                  setAvailableWorkflows(extractWorkflowsFromData(itemWf));
+                  setWorkflowJobs(extractJobsFromWorkflow(itemWf));
+                }
+              })
+              .catch(() => {
+                if (isMounted) {
+                  setAvailableWorkflows(extractWorkflowsFromData(wf));
+                  setWorkflowJobs(extractJobsFromWorkflow(wf));
+                }
+              })
+              .finally(() => {
+                if (isMounted) setIsLoadingWorkflows(false);
               });
-            }
-          });
-        });
-        if (allJobs.length > 0) {
-          setWorkflowJobs(allJobs);
+          }
+        } else {
+          setAvailableWorkflows([]);
+          setWorkflowJobs([]);
         }
       })
-      .catch(() => {
-        // Fall back to defaults silently if workflow not yet uploaded or offline
+      .catch((err) => {
+        console.warn('Failed to load active XML workflows for environment:', err);
+        if (isMounted) {
+          setAvailableXmlFiles([]);
+          setAvailableWorkflows([]);
+          setWorkflowJobs([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingXml(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [isOpen, form.envId, environments]);
+  }, [isOpen, activeEnvCode, form.envId, environments]);
 
   useEffect(() => {
     if (isOpen) {
@@ -540,13 +682,25 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
       ) {
         initRecurrence = 'Specific Date & Time';
       }
+      const matchedEnvId =
+        filteredEnvironments.find(
+          (e) =>
+            String(e.id) === String(schedule.envId) ||
+            (e.code && e.code.toUpperCase() === String(schedule.envId).toUpperCase())
+        )?.id || filteredEnvironments[0]?.id || schedule.envId || defaultEnvId;
+
       setForm({
         id: schedule.id || '',
         groupId: schedule.scheduleGroupId || null,
         name: schedule.name || '',
         runScope: schedule.runScope || (schedule.targetJob ? 'job' : 'batch'),
         targetJob: schedule.targetJob || '',
-        envId: schedule.envId || environments[0]?.id || '',
+        xmlFileId: schedule.xmlFileId || (schedule.workflowFileId ? String(schedule.workflowFileId) : ''),
+        xmlFile: schedule.xmlFile || schedule.workflowFile || schedule.uploadedFileName || '',
+        workflow: schedule.workflow || schedule.folder || 'ALL',
+        workflowFileId: schedule.workflowFileId ? String(schedule.workflowFileId) : '',
+        workflowFile: schedule.workflowFile || schedule.uploadedFileName || '',
+        envId: matchedEnvId,
         maxParallel: schedule.maxParallel !== undefined ? schedule.maxParallel : 4,
         simulateAll: !!schedule.simulateAll,
         selectedDate: schedule.selectedDate ? new Date(schedule.selectedDate) : new Date(),
@@ -574,7 +728,12 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
         name: '',
         runScope: 'batch',
         targetJob: '',
-        envId: environments[0]?.id ?? environments[0]?.code ?? '',
+        xmlFileId: '',
+        xmlFile: '',
+        workflow: 'ALL',
+        workflowFileId: '',
+        workflowFile: '',
+        envId: defaultEnvId,
         maxParallel: 4,
         simulateAll: false,
         selectedDate: new Date(),
@@ -591,6 +750,70 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
     }
   }, [isOpen, schedule, environments]);
 
+  const handleXmlFileChange = (fileId) => {
+    const chosen = availableXmlFiles.find((f) => String(f.id) === String(fileId));
+    setForm((prev) => ({
+      ...prev,
+      xmlFileId: String(fileId),
+      xmlFile: chosen?.filename || '',
+      workflowFileId: String(fileId),
+      workflowFile: chosen?.filename || '',
+      workflow: 'ALL',
+      targetJob: '',
+    }));
+    if (errors.xmlFile) setErrors((prev) => ({ ...prev, xmlFile: null }));
+    if (errors.workflow) setErrors((prev) => ({ ...prev, workflow: null }));
+    if (errors.targetJob) setErrors((prev) => ({ ...prev, targetJob: null }));
+
+    if (!chosen) {
+      setAvailableWorkflows([]);
+      setWorkflowJobs([]);
+      return;
+    }
+
+    const targetEnv = activeEnvCode || form.envId;
+    const envObj = environments.find(
+      (e) =>
+        e.id === targetEnv ||
+        String(e.id) === String(targetEnv) ||
+        (e.code && e.code.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.name && e.name.toUpperCase() === String(targetEnv).toUpperCase()) ||
+        (e.code && String(targetEnv).toUpperCase().includes(e.code.toUpperCase()))
+    );
+    const rawEnv = envObj?.code || envObj?.name || targetEnv;
+    const cleanToken = String(rawEnv).trim().split(/[\s—–-]+/)[0];
+    const envCode = toShortEnvName(cleanToken || rawEnv);
+
+    if (chosen.active || String(chosen.id) === String(activeWfCacheRef.current?.meta?.id)) {
+      setAvailableWorkflows(extractWorkflowsFromData(activeWfCacheRef.current));
+      setWorkflowJobs(extractJobsFromWorkflow(activeWfCacheRef.current));
+    } else {
+      setIsLoadingWorkflows(true);
+      eodSchedulerService
+        .getWorkflowItem(envCode, chosen.id)
+        .then((data) => {
+          setAvailableWorkflows(extractWorkflowsFromData(data));
+          setWorkflowJobs(extractJobsFromWorkflow(data));
+        })
+        .catch((err) => {
+          console.warn('Could not load workflows and jobs for file:', err);
+          setAvailableWorkflows([]);
+          setWorkflowJobs([]);
+        })
+        .finally(() => setIsLoadingWorkflows(false));
+    }
+  };
+
+  const handleWorkflowChange = (workflowName) => {
+    setForm((prev) => ({
+      ...prev,
+      workflow: workflowName,
+      targetJob: '',
+    }));
+    if (errors.workflow) setErrors((prev) => ({ ...prev, workflow: null }));
+    if (errors.targetJob) setErrors((prev) => ({ ...prev, targetJob: null }));
+  };
+
   const isEdit = Boolean(form.id);
 
   // Auto-suggested name generator without repeating time, recurrence or environment
@@ -598,21 +821,76 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
     if (form.runScope === 'job' && form.targetJob) {
       return `Target: ${form.targetJob}`;
     }
+    if (form.workflow && form.workflow !== 'ALL') {
+      return `${form.workflow} Batch`;
+    }
     return 'EOD Batch Run';
-  }, [form.runScope, form.targetJob]);
+  }, [form.runScope, form.targetJob, form.workflow]);
 
-  // Options for Environment Custom Dropdown (matching standard input size)
-  const envOptions = useMemo(() => {
-    return environments.map((env) => {
-      const display = toShortEnvName(env.code || env.name);
-      return {
-        value: env.id ?? env.code ?? env.name,
-        label: display,
-        icon: <Server size={12} />,
-        color: env.color || '#005a36',
-      };
+  // Display label for the fixed active environment
+  const currentEnvDisplay = useMemo(() => {
+    const match =
+      filteredEnvironments.find(
+        (e) =>
+          e.id === form.envId ||
+          String(e.id) === String(form.envId) ||
+          (e.code && e.code.toUpperCase() === String(form.envId).toUpperCase()) ||
+          (e.name && e.name.toUpperCase() === String(form.envId).toUpperCase())
+      ) || filteredEnvironments[0];
+    if (match) {
+      return toShortEnvName(match.code || match.name);
+    }
+    return activeEnvCode ? toShortEnvName(activeEnvCode) : 'DEV';
+  }, [filteredEnvironments, form.envId, activeEnvCode]);
+
+  // Options for XML Files Dropdown (uploaded batch files)
+  const xmlFileOptions = useMemo(() => {
+    return (availableXmlFiles || []).map((wf) => ({
+      value: String(wf.id),
+      label: wf.filename || `Batch File ${wf.id}`,
+      subtext: wf.active
+        ? 'Active batch · Currently loaded'
+        : wf.uploaded_at
+        ? `Uploaded ${new Date(wf.uploaded_at).toLocaleDateString()}`
+        : 'Uploaded XML file',
+      icon: <FileCode size={12} />,
+      color: wf.active ? '#15803d' : '#64748b',
+    }));
+  }, [availableXmlFiles]);
+
+  // Options for Workflows Dropdown (present in selected XML file)
+  const workflowOptions = useMemo(() => {
+    const totalJobs = workflowJobs.length;
+    const list = [
+      {
+        value: 'ALL',
+        label: `All Workflows (${totalJobs})`,
+        subtext: 'Run all workflows present in this XML file',
+        icon: <FolderTree size={12} />,
+        color: '#005a36',
+      },
+    ];
+    (availableWorkflows || []).forEach((w) => {
+      list.push({
+        value: w.name,
+        label: `${w.name} (${w.jobsCount})`,
+        subtext: `${w.jobsCount} job${w.jobsCount === 1 ? '' : 's'} in this workflow`,
+        icon: <Folder size={12} />,
+        color: '#0284c7',
+      });
     });
-  }, [environments]);
+    return list;
+  }, [availableWorkflows, workflowJobs]);
+
+  // Jobs scoped to the selected workflow
+  const scopedTargetJobs = useMemo(() => {
+    if (!form.workflow || form.workflow === 'ALL') return workflowJobs;
+    return workflowJobs.filter(
+      (j) =>
+        (j.group && j.group.toUpperCase() === form.workflow.toUpperCase()) ||
+        (j.folder && j.folder.toUpperCase() === form.workflow.toUpperCase())
+    );
+  }, [workflowJobs, form.workflow]);
 
   // Options for Recurrence Custom Dropdown (clean, matching standard 12px input style)
   const recurrenceOptions = useMemo(
@@ -657,6 +935,9 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
   const validate = () => {
     const errs = {};
     if (!form.envId) errs.envId = 'Environment is required';
+    if (availableXmlFiles.length > 0 && !form.xmlFileId) {
+      errs.xmlFile = 'Please select an XML file';
+    }
     if (form.runScope === 'job' && !form.targetJob) {
       errs.targetJob = 'Please select a target job';
     }
@@ -691,18 +972,25 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
       const cleanTargetJob = isJobScope ? (form.targetJob || '').trim() : '';
       const finalName =
         (form.name || '').trim() ||
-        (isJobScope && cleanTargetJob ? `Target: ${cleanTargetJob}` : 'EOD Batch Run');
+        (isJobScope && cleanTargetJob ? `Target: ${cleanTargetJob}` : form.workflow && form.workflow !== 'ALL' ? `${form.workflow} Batch` : 'EOD Batch Run');
 
       await onSave({
         ...form,
         runScope: isJobScope ? 'job' : 'batch',
         targetJob: cleanTargetJob,
+        xmlFile: form.xmlFile,
+        xmlFileId: form.xmlFileId,
+        workflow: form.workflow,
+        folder: form.workflow,
+        workflowFile: form.xmlFile || form.workflowFile,
+        workflowFileId: form.xmlFileId || form.workflowFileId,
         name: finalName,
         selectedDate: form.selectedDate,
         dayOfWeek: (form.selectedDays || []).join(', '),
         cronExpression: cronExpressions[0],
         cronExpressions,
       });
+      clearScheduleDraft();
     } finally {
       setIsSaving(false);
     }
@@ -779,46 +1067,164 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
             </div>
           </div>
 
-          {/* 1.1 Target Job Dropdown (if Specific Job Run selected) */}
+          {/* 2. ENVIRONMENT (Fixed to current active environment) */}
+          <div className="eod-modal-field">
+            <label className="eod-modal-label">
+              ENVIRONMENT <span className="req">*</span>
+            </label>
+            <div
+              className="eod-custom-dropdown-trigger eod-env-fixed"
+              style={{
+                cursor: 'default',
+                backgroundColor: 'var(--bg-muted, #f8fafc)',
+                borderColor: 'var(--border-secondary, #e2e8f0)',
+                color: 'var(--text-primary, #0f172a)',
+                userSelect: 'none',
+              }}
+              title={`Environment: ${currentEnvDisplay}`}
+            >
+              <span className="eod-custom-dropdown-trigger-content">
+                <span className="eod-custom-dropdown-trigger-icon">
+                  <Server size={12} />
+                </span>
+                <span className="eod-custom-dropdown-trigger-label" style={{ fontWeight: 500 }}>
+                  {currentEnvDisplay}
+                </span>
+              </span>
+            </div>
+            {errors.envId && <span className="eod-field-error">{errors.envId}</span>}
+          </div>
+
+          {/* 3. XML FILE Dropdown (Select uploaded XML file) */}
+          <div className="eod-modal-field">
+            <label className="eod-modal-label" htmlFor="eod-modal-xml-file-select">
+              XML FILE <span className="req">*</span>
+            </label>
+            {isLoadingXml ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '9px 12px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border-secondary, #e2e8f0)',
+                  fontSize: 12,
+                  color: 'var(--text-muted, #64748b)',
+                }}
+              >
+                <Loader2 size={13} className="spin-animation" />
+                <span>Loading XML files…</span>
+              </div>
+            ) : xmlFileOptions.length > 0 ? (
+              <CustomDropdown
+                id="eod-modal-xml-file-select"
+                value={form.xmlFileId}
+                options={xmlFileOptions}
+                onChange={handleXmlFileChange}
+                placeholder="Select uploaded XML file..."
+                error={errors.xmlFile}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: 6,
+                  border: '1px dashed var(--border-secondary, #cbd5e1)',
+                  background: 'var(--surface-secondary, #f8fafc)',
+                  fontSize: 12,
+                  color: 'var(--text-muted, #64748b)',
+                }}
+              >
+                No uploaded XML files found for this environment
+              </div>
+            )}
+            {errors.xmlFile && <span className="eod-field-error">{errors.xmlFile}</span>}
+          </div>
+
+          {/* 4. WORKFLOW Dropdown (Workflows present in that selected XML file) */}
+          <div className="eod-modal-field">
+            <label className="eod-modal-label" htmlFor="eod-modal-workflow-select">
+              WORKFLOW <span className="req">*</span>
+            </label>
+            {isLoadingWorkflows ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '9px 12px',
+                  borderRadius: 6,
+                  border: '1px solid var(--border-secondary, #e2e8f0)',
+                  fontSize: 12,
+                  color: 'var(--text-muted, #64748b)',
+                }}
+              >
+                <Loader2 size={13} className="spin-animation" />
+                <span>Loading workflows in XML file…</span>
+              </div>
+            ) : workflowOptions.length > 0 ? (
+              <CustomDropdown
+                id="eod-modal-workflow-select"
+                value={form.workflow}
+                options={workflowOptions}
+                onChange={handleWorkflowChange}
+                placeholder="Select workflow..."
+                error={errors.workflow}
+              />
+            ) : (
+              <div
+                style={{
+                  padding: '9px 12px',
+                  borderRadius: 6,
+                  border: '1px dashed var(--border-secondary, #cbd5e1)',
+                  background: 'var(--surface-secondary, #f8fafc)',
+                  fontSize: 12,
+                  color: 'var(--text-muted, #64748b)',
+                }}
+              >
+                {form.xmlFileId ? 'No workflows found in this XML file' : 'Select an XML file first'}
+              </div>
+            )}
+            {errors.workflow && <span className="eod-field-error">{errors.workflow}</span>}
+          </div>
+
+          {/* 5. TARGET JOB Dropdown (Shown for Specific Job Run when user selects the file) */}
           {form.runScope === 'job' && (
             <div className="eod-modal-field">
               <label className="eod-modal-label" htmlFor="eod-modal-target-job-select">
                 TARGET JOB <span className="req">*</span>
               </label>
-              <TargetJobPicker
-                id="eod-modal-target-job-select"
-                value={form.targetJob}
-                availableJobs={workflowJobs}
-                onChange={(val) => {
-                  setForm({ ...form, targetJob: val });
-                  if (errors.targetJob) setErrors({ ...errors, targetJob: null });
-                }}
-                error={errors.targetJob}
-              />
+              {form.xmlFileId ? (
+                <TargetJobPicker
+                  id="eod-modal-target-job-select"
+                  value={form.targetJob}
+                  availableJobs={scopedTargetJobs}
+                  onChange={(val) => {
+                    setForm({ ...form, targetJob: val });
+                    if (errors.targetJob) setErrors({ ...errors, targetJob: null });
+                  }}
+                  error={errors.targetJob}
+                />
+              ) : (
+                <div
+                  style={{
+                    padding: '9px 12px',
+                    borderRadius: 6,
+                    border: '1px dashed var(--border-secondary, #cbd5e1)',
+                    background: 'var(--surface-secondary, #f8fafc)',
+                    fontSize: 12,
+                    color: 'var(--text-muted, #64748b)',
+                  }}
+                >
+                  Select an XML file above to load target jobs
+                </div>
+              )}
               {errors.targetJob && <span className="eod-field-error">{errors.targetJob}</span>}
             </div>
           )}
 
-          {/* 2. ENVIRONMENT Custom Dropdown (matching Image 1) */}
-          <div className="eod-modal-field">
-            <label className="eod-modal-label" htmlFor="eod-modal-env-select">
-              ENVIRONMENT <span className="req">*</span>
-            </label>
-            <CustomDropdown
-              id="eod-modal-env-select"
-              value={form.envId}
-              options={envOptions}
-              onChange={(val) => {
-                setForm({ ...form, envId: val });
-                if (errors.envId) setErrors({ ...errors, envId: null });
-              }}
-              placeholder="Select environment..."
-              error={errors.envId}
-            />
-            {errors.envId && <span className="eod-field-error">{errors.envId}</span>}
-          </div>
-
-          {/* 3. MAX AT ONCE (PARALLELISM) + Simulate dry-run */}
+          {/* 5. MAX AT ONCE (PARALLELISM) + Simulate dry-run */}
           <div className="eod-modal-field">
             <label className="eod-modal-label" htmlFor="eod-modal-par-input">
               MAX AT ONCE (PARALLELISM)
@@ -857,9 +1263,7 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
             {errors.maxParallel && <span className="eod-field-error">{errors.maxParallel}</span>}
           </div>
 
-          <div className="eod-modal-divider" />
-
-          {/* 4. SCHEDULE NAME */}
+          {/* SCHEDULE NAME */}
           <div className="eod-modal-field">
             <label className="eod-modal-label" htmlFor="eod-modal-name-input">
               SCHEDULE NAME
@@ -1100,20 +1504,6 @@ export function ScheduleNewModal({ isOpen, schedule, environments, onClose, onSa
               >
                 <CalendarIcon size={15} />
               </button>
-            </div>
-
-            {/* Quick Time Presets */}
-            <div className="eod-cal-time-presets">
-              {TIME_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`eod-time-preset-btn ${form.time === preset ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, time: preset })}
-                >
-                  {preset}
-                </button>
-              ))}
             </div>
 
             {/* Selected Date & Time Live Summary */}

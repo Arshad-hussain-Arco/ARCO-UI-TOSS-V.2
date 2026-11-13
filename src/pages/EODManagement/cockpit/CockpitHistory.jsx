@@ -31,6 +31,7 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLo
             <thead>
               <tr>
                 <th>RUN ID</th>
+                <th>SCHEDULE / JOB</th>
                 <th>ENVIRONMENT</th>
                 <th>STATUS</th>
                 <th>STARTED AT</th>
@@ -48,12 +49,18 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLo
                 const ended = r.ended_at || r.ended;
                 const total = r.counts?.total ?? r.total_jobs ?? '—';
                 const runEnv = r.environment || env;
+                const runName = r.name || (r.target_job ? `Target: ${r.target_job}` : 'EOD Batch Run');
 
                 return (
                   <tr key={runId} className={isCurrent ? 'is-active-row' : ''}>
                     <td>
                       <span className="cr-hist-run-id">#{runId}</span>
                       {isCurrent && <span className="cr-curr-pill">Active</span>}
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: 'var(--c-primary, #005a36)', fontSize: '13px' }}>
+                        {runName}
+                      </span>
                     </td>
                     <td>
                       <span className={`cr-env-pill ${String(runEnv).toLowerCase()}`}>

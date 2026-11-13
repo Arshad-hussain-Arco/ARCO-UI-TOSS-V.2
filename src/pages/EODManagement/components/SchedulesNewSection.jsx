@@ -17,8 +17,14 @@ import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
 import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
-import { eodService, toShortEnvName } from '@services/eodService';
+import { eodService, toShortEnvName, saveScheduleMeta } from '@services/eodService';
 import { eodSchedulerService } from '@services/eodSchedulerService';
+import {
+  hasPendingScheduleReturn,
+  getScheduleDraft,
+  clearPendingScheduleReturn,
+  clearScheduleDraft,
+} from '../scheduler/schedulerModel';
 import { ScheduleNewModal } from './ScheduleNewModal';
 import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
@@ -56,19 +62,32 @@ function span(ms) {
   return `${d} day${d === 1 ? '' : 's'}`;
 }
 
+const parseIsoDate = (iso) => {
+  if (!iso) return null;
+  if (iso instanceof Date) return isNaN(+iso) ? null : iso;
+  let str = String(iso).trim().replace(' ', 'T');
+  if (!str) return null;
+  // If no timezone offset is present (does not end with Z and has no +HH:MM / -HH:MM),
+  // append Riyadh offset (+03:00) where the backend scheduler runs.
+  if (!str.endsWith('Z') && !/[+-]\d{2}(:\d{2})?$/.test(str)) {
+    str = `${str}+03:00`;
+  }
+  const t = Date.parse(str);
+  return isNaN(t) ? null : new Date(t);
+};
+
 const agoText = (iso) => {
-  if (!iso) return 'Never';
-  const target = typeof iso === 'string' ? Date.parse(iso) : iso.getTime();
-  const ms = Date.now() - target;
+  const d = parseIsoDate(iso);
+  if (!d) return 'Never';
+  const ms = Date.now() - d.getTime();
+  if (ms < 0 && Math.abs(ms) < 60000) return 'Just now';
   return ms < 60000 ? 'Just now' : `${span(ms)} ago`;
 };
 
 function fmtDateTime(iso) {
-  if (!iso) return '–';
-  const d = typeof iso === 'string' ? new Date(iso) : iso;
-  return Number.isNaN(+d)
-    ? '–'
-    : d.toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' });
+  const d = parseIsoDate(iso);
+  if (!d) return '–';
+  return d.toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function formatNextStart(sch, nextRun, isSwitchOn) {
@@ -342,8 +361,8 @@ function isScheduleOnDay(sch, dayIndex) {
   return false;
 }
 
-export function SchedulesNewSection({ selectedEnv }) {
-  const { hasPermission } = useAuth();
+export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEnv }) {
+  const { hasPermission, user } = useAuth();
   const toast = useToast();
   const canCreate = hasPermission('EOD_SCHEDULE_CREATE');
   const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
@@ -409,6 +428,51 @@ export function SchedulesNewSection({ selectedEnv }) {
     fetchEnvironmentsIfNeeded();
   }, [fetchScheduleData, fetchEnvironmentsIfNeeded]);
 
+  // Background poll to update schedule statuses smoothly without table flickering
+  useEffect(() => {
+    const hasRunning =
+      scheduleList.some((s) => s.lastStatus === 'Running' || s.lastStatus === 'RUNNING') ||
+      runningIds.size > 0;
+    const intervalMs = hasRunning ? 5000 : 20000;
+    const timer = setInterval(() => {
+      eodService
+        .getEodSchedules()
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setScheduleList(data);
+          }
+        })
+        .catch((err) => {
+          console.debug('Background schedule poll error:', err);
+        });
+    }, intervalMs);
+    return () => clearInterval(timer);
+  }, [scheduleList, runningIds]);
+
+  // Restore draft and reopen modal if returning from Target Server mapping
+  useEffect(() => {
+    if (hasPendingScheduleReturn()) {
+      fetchEnvironmentsIfNeeded().then(() => {
+        const saved = getScheduleDraft();
+        if (saved && saved.draft) {
+          setEditingSchedule(saved.draft);
+          setModalOpen(true);
+          clearPendingScheduleReturn();
+        }
+      });
+    }
+  }, [fetchEnvironmentsIfNeeded]);
+
+  const handleNavigateToTargets = (envCode, draft) => {
+    setModalOpen(false);
+    if (onSelectEnv && envCode) {
+      onSelectEnv(envCode);
+    }
+    if (onNavigateSection) {
+      onNavigateSection('targets');
+    }
+  };
+
   const getEnv = useCallback(
     (envId) =>
       environments.find(
@@ -423,15 +487,16 @@ export function SchedulesNewSection({ selectedEnv }) {
 
   const handleOpenAdd = async (initialDate = new Date()) => {
     const envs = await fetchEnvironmentsIfNeeded();
-    let defaultEnvId = envs[0]?.id ?? envs[0]?.code ?? '';
+    let defaultEnvId = selectedEnv || (envs[0]?.id ?? envs[0]?.code ?? '');
     if (selectedEnv && envs.length > 0) {
       const match = envs.find(
         (e) =>
           (e.code && e.code.toUpperCase() === selectedEnv.toUpperCase()) ||
           (e.name && e.name.toUpperCase() === selectedEnv.toUpperCase()) ||
-          String(e.id) === String(selectedEnv)
+          String(e.id) === String(selectedEnv) ||
+          (e.code && selectedEnv.toUpperCase().includes(e.code.toUpperCase()))
       );
-      if (match) defaultEnvId = match.id;
+      if (match) defaultEnvId = match.id ?? match.code ?? selectedEnv;
     }
     setEditingSchedule({
       id: '',
@@ -494,9 +559,56 @@ export function SchedulesNewSection({ selectedEnv }) {
     const envCode = toShortEnvName(rawEnv);
 
     setRunningIds((prev) => new Set(prev).add(sch.id));
+    if (onSelectEnv && envCode) {
+      onSelectEnv(envCode);
+    }
+    // Optimistically update last result in UI
+    const runStartTime = new Date().toISOString();
+    setScheduleList((prev) =>
+      prev.map((s) =>
+        String(s.id) === String(sch.id) ||
+        (s.scheduleGroupId && sch.scheduleGroupId && String(s.scheduleGroupId) === String(sch.scheduleGroupId))
+          ? { ...s, lastStatus: 'Running', lastRunAt: runStartTime }
+          : s
+      )
+    );
+
     try {
-      await eodSchedulerService.runNow(envCode, { allow_overlap: false });
-      toast.success(`Run started in Scheduler for ${scheduleName} (${envCode}).`);
+      const isJobScope = sch.runScope === 'job' && sch.targetJob;
+      const foldersPayload = sch.workflow && sch.workflow !== 'ALL' ? [sch.workflow] : undefined;
+      const activeUser = user?.username || user?.name || sch.lastModifiedBy || 'prazy';
+      const runPayload = {
+        allow_overlap: false,
+        name: scheduleName,
+        schedule_name: scheduleName,
+        user: activeUser,
+        started_by: activeUser,
+        schedule_id: sch.id,
+        schedule_group_id: sch.scheduleGroupId,
+      };
+      if (foldersPayload) {
+        runPayload.folders = foldersPayload;
+      }
+      if (isJobScope) {
+        runPayload.target_job = String(sch.targetJob).trim();
+      }
+      const answer = await eodSchedulerService.runNow(envCode, runPayload);
+      if (sch.id) {
+        saveScheduleMeta(sch.id, sch.scheduleGroupId, {
+          lastCommandId: answer?.command_id,
+          lastStatus: 'Running',
+          lastRunAt: runStartTime,
+        });
+      }
+      toast.success(
+        isJobScope
+          ? `Run started in Control Run Cockpit for job ${sch.targetJob} (${envCode}).`
+          : `Run started in Control Run Cockpit for ${scheduleName} (${envCode}).`
+      );
+      // Refresh schedule records to get synchronized facts
+      setTimeout(() => {
+        fetchScheduleData();
+      }, 1500);
     } catch (err) {
       console.error('Failed to trigger run in scheduler:', err);
       const msg =
@@ -538,6 +650,7 @@ export function SchedulesNewSection({ selectedEnv }) {
       const payload = {
         ...schData,
         dateGroup: formattedDate,
+        last_modified_by: user?.username || user?.name || 'prazy',
       };
 
       if (schData.id) {
@@ -1006,11 +1119,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                               <span className="route">
                                 <span
                                   className="env-pill"
-                                  style={{
-                                    color: envColor,
-                                    borderColor: envColor,
-                                    background: `${envColor}18`,
-                                  }}
+                                  title={`Environment: ${envBadge}`}
                                 >
                                   {envBadge}
                                 </span>
@@ -1056,7 +1165,9 @@ export function SchedulesNewSection({ selectedEnv }) {
                               title={sch.lastRunAt ? `Last run: ${fmtDateTime(sch.lastRunAt)}` : ''}
                             >
                               <span className="sc-fact-text">
-                                {sch.lastStatus
+                                {sch.lastStatus === 'Running' || sch.lastStatus === 'RUNNING'
+                                  ? 'Running'
+                                  : sch.lastStatus
                                   ? `${sch.lastStatus}${sch.lastRunAt ? ` · ${agoText(sch.lastRunAt)}` : ''}`
                                   : 'Never started'}
                               </span>
@@ -1124,8 +1235,13 @@ export function SchedulesNewSection({ selectedEnv }) {
           isOpen={modalOpen}
           schedule={editingSchedule}
           environments={environments}
-          onClose={() => setModalOpen(false)}
+          selectedEnv={selectedEnv}
+          onClose={() => {
+            setModalOpen(false);
+            clearScheduleDraft();
+          }}
           onSave={handleSaveSchedule}
+          onNavigateToTargets={handleNavigateToTargets}
         />
       )}
 

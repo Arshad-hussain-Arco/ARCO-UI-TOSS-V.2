@@ -411,6 +411,84 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ── Schedule Name & Triggered By Pills in Context Strip ── */
+.cr-run-schedule-pill,
+.cr-started-by-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cr-run-schedule-pill {
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  background-color: rgba(0, 90, 54, 0.08);
+  color: var(--c-primary, #005a36);
+  border: 1px solid rgba(0, 90, 54, 0.25);
+  letter-spacing: 0.01em;
+}
+
+.cr-run-schedule-pill .cr-pill-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  opacity: 0.75;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.cr-run-schedule-pill .cr-pill-value {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.cr-started-by-pill {
+  padding: 0 9px;
+  font-size: 11.5px;
+  gap: 4px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.cr-started-by-pill .cr-pill-label {
+  font-size: 11px;
+  opacity: 0.75;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.cr-started-by-pill .cr-pill-value {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+[data-theme='dark'] .cr-run-schedule-pill {
+  background-color: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+[data-theme='dark'] .cr-started-by-pill {
+  background-color: rgba(148, 163, 184, 0.12);
+  border-color: #334155;
+  color: #cbd5e1;
+}
 .cr-scope-pill {
   padding: 2px 7px;
   background-color: var(--cr-st-done-bg);

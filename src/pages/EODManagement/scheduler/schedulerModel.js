@@ -280,3 +280,60 @@ export function engineNotice(environment) {
   }
   return null;
 }
+
+const DRAFT_KEY = 'toss.scheduleDraft';
+const RETURN_FLAG_KEY = 'toss.scheduleReturnAfterMapping';
+
+export function saveScheduleDraft(draft, envCode) {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({ draft, envCode, timestamp: Date.now() })
+      );
+      window.sessionStorage.setItem(RETURN_FLAG_KEY, 'true');
+    }
+  } catch (e) {
+    console.warn('Failed to save schedule draft', e);
+  }
+}
+
+export function getScheduleDraft() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function clearScheduleDraft() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(DRAFT_KEY);
+      window.sessionStorage.removeItem(RETURN_FLAG_KEY);
+    }
+  } catch {}
+}
+
+export function hasPendingScheduleReturn() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      return window.sessionStorage.getItem(RETURN_FLAG_KEY) === 'true';
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+export function clearPendingScheduleReturn() {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(RETURN_FLAG_KEY);
+    }
+  } catch {}
+}
