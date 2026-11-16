@@ -153,8 +153,12 @@ export function CockpitTab({ env } = {}) {
     runsList.loading ||
     (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
-  // Polling for live status
-  usePolling(() => runsList.reload(true), 4000);
+  // Polling for live status. The runs list refreshes every 4s while any run is live; when nothing is running it only needs to notice a
+  // scheduled run starting, so every 20s is enough (actions taken here reload it at once anyway).
+  const anyRunLive = runs.some((r) =>
+    ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+  );
+  usePolling(() => runsList.reload(true), anyRunLive || isRunActive ? 4000 : 20000);
   usePolling(() => runDetail.reload(true), 2500, isRunActive);
   usePolling(() => wf.reload(true), 10000, !busy);
 
