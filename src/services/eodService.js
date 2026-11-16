@@ -54,6 +54,8 @@ export function saveScheduleMeta(id, groupId, meta) {
       runScope: meta?.runScope || (meta?.targetJob ? 'job' : 'batch'),
       targetJob: meta?.targetJob || '',
       name: meta?.name || '',
+      workflow: meta?.workflow || meta?.folder || 'ALL',
+      folder: meta?.workflow || meta?.folder || 'ALL',
       ...(meta?.workflowFile ? { workflowFile: meta.workflowFile } : {}),
       ...(meta?.workflowFileId ? { workflowFileId: meta.workflowFileId } : {}),
       ...(meta?.lastStatus ? { lastStatus: meta.lastStatus } : {}),
@@ -526,6 +528,8 @@ export const eodService = {
         (primary.target_job || meta.targetJob ? 'job' : 'batch');
       const targetJob = primary.target_job || primary.targetJob || meta.targetJob || '';
       const name = primary.name || meta.name || '';
+      const workflow = primary.workflow || primary.folder || meta.workflow || meta.folder || 'ALL';
+      const folder = workflow;
       const workflowFile = primary.workflow_file || primary.workflowFile || meta.workflowFile || '';
       const workflowFileId = primary.workflow_file_id || primary.workflowFileId || meta.workflowFileId || '';
       const apiStatus = primary.last_status || primary.lastStatus;
@@ -538,11 +542,13 @@ export const eodService = {
         : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastRunAt || meta.last_run_at) : null);
 
       // Synchronize back to local storage if API returned metadata
-      if (primary.run_scope || primary.target_job || primary.name || primary.workflow_file || lastStatus) {
+      if (primary.run_scope || primary.target_job || primary.name || primary.workflow_file || primary.workflow || lastStatus) {
         saveScheduleMeta(primary.id, groupId, {
           runScope,
           targetJob,
           name,
+          workflow,
+          folder,
           workflowFile,
           workflowFileId,
           lastStatus: lastStatus || undefined,
@@ -569,8 +575,12 @@ export const eodService = {
         runScope,
         targetJob,
         name,
+        workflow,
+        folder,
         workflowFile,
         workflowFileId,
+        xmlFile: workflowFile,
+        xmlFileId: workflowFileId,
         lastStatus,
         lastRunAt,
         isActive: true,
@@ -589,6 +599,8 @@ export const eodService = {
         (item.target_job || meta.targetJob ? 'job' : 'batch');
       const targetJob = item.target_job || item.targetJob || meta.targetJob || '';
       const name = item.name || meta.name || '';
+      const workflow = item.workflow || item.folder || meta.workflow || meta.folder || 'ALL';
+      const folder = workflow;
       const workflowFile = item.workflow_file || item.workflowFile || meta.workflowFile || '';
       const workflowFileId = item.workflow_file_id || item.workflowFileId || meta.workflowFileId || '';
       const apiStatus = item.last_status || item.lastStatus;
@@ -601,11 +613,13 @@ export const eodService = {
         : ((meta.lastCommandId || meta.lastRunId) ? (meta.lastRunAt || meta.last_run_at) : null);
 
       // Synchronize back to local storage if API returned metadata
-      if (item.run_scope || item.target_job || item.name || item.workflow_file || lastStatus) {
+      if (item.run_scope || item.target_job || item.name || item.workflow_file || item.workflow || lastStatus) {
         saveScheduleMeta(item.id, null, {
           runScope,
           targetJob,
           name,
+          workflow,
+          folder,
           workflowFile,
           workflowFileId,
           lastStatus: lastStatus || undefined,
@@ -632,8 +646,12 @@ export const eodService = {
         runScope,
         targetJob,
         name,
+        workflow,
+        folder,
         workflowFile,
         workflowFileId,
+        xmlFile: workflowFile,
+        xmlFileId: workflowFileId,
         lastStatus,
         lastRunAt,
         isActive: true,
@@ -664,8 +682,10 @@ export const eodService = {
     const runScope = payload.runScope || (payload.targetJob ? 'job' : 'batch');
     const targetJob = payload.targetJob || '';
     const name = payload.name || '';
-    const workflowFile = payload.workflowFile || payload.workflow_file || '';
-    const workflowFileId = payload.workflowFileId || payload.workflow_file_id || '';
+    const workflow = payload.workflow || payload.folder || 'ALL';
+    const folder = workflow;
+    const workflowFile = payload.workflowFile || payload.workflow_file || payload.xmlFile || '';
+    const workflowFileId = payload.workflowFileId || payload.workflow_file_id || payload.xmlFileId || '';
 
     const lastModifiedBy = payload.last_modified_by || payload.lastModifiedBy || payload.user || payload.username || 'prazy';
 
@@ -677,6 +697,8 @@ export const eodService = {
         run_scope: runScope,
         target_job: targetJob,
         name,
+        workflow,
+        folder,
         workflow_file: workflowFile,
         workflow_file_id: workflowFileId,
         last_modified_by: lastModifiedBy,
@@ -689,6 +711,8 @@ export const eodService = {
         run_scope: runScope,
         target_job: targetJob,
         name,
+        workflow,
+        folder,
         workflow_file: workflowFile,
         workflow_file_id: workflowFileId,
         last_modified_by: lastModifiedBy,
@@ -702,6 +726,8 @@ export const eodService = {
         runScope,
         targetJob,
         name,
+        workflow,
+        folder,
         workflowFile,
         workflowFileId,
       });
@@ -723,11 +749,13 @@ export const eodService = {
     const runScope = payload.runScope || (payload.targetJob ? 'job' : 'batch');
     const targetJob = payload.targetJob || '';
     const name = payload.name || '';
-    const workflowFile = payload.workflowFile || payload.workflow_file || '';
-    const workflowFileId = payload.workflowFileId || payload.workflow_file_id || '';
+    const workflow = payload.workflow || payload.folder || 'ALL';
+    const folder = workflow;
+    const workflowFile = payload.workflowFile || payload.workflow_file || payload.xmlFile || '';
+    const workflowFileId = payload.workflowFileId || payload.workflow_file_id || payload.xmlFileId || '';
     const lastModifiedBy = payload.last_modified_by || payload.lastModifiedBy || payload.user || payload.username || 'prazy';
 
-    saveScheduleMeta(id, groupId, { runScope, targetJob, name, workflowFile, workflowFileId });
+    saveScheduleMeta(id, groupId, { runScope, targetJob, name, workflow, folder, workflowFile, workflowFileId });
 
     if (groupId || cronExpressions.length > 1) {
       if (groupId) {
@@ -737,6 +765,8 @@ export const eodService = {
           run_scope: runScope,
           target_job: targetJob,
           name,
+          workflow,
+          folder,
           workflow_file: workflowFile,
           workflow_file_id: workflowFileId,
           last_modified_by: lastModifiedBy,
@@ -751,6 +781,8 @@ export const eodService = {
         run_scope: runScope,
         target_job: targetJob,
         name,
+        workflow,
+        folder,
         workflow_file: workflowFile,
         workflow_file_id: workflowFileId,
         last_modified_by: lastModifiedBy,
@@ -761,6 +793,8 @@ export const eodService = {
           runScope,
           targetJob,
           name,
+          workflow,
+          folder,
           workflowFile,
           workflowFileId,
         });
@@ -775,6 +809,8 @@ export const eodService = {
       run_scope: runScope,
       target_job: targetJob,
       name,
+      workflow,
+      folder,
       workflow_file: workflowFile,
       workflow_file_id: workflowFileId,
       last_modified_by: lastModifiedBy,
