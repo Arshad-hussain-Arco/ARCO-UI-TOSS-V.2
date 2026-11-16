@@ -539,7 +539,11 @@ export function RunsPanel({ env, focusRun }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const anyRunning = (runs.data ?? []).some((r) => r.status === 'RUNNING');
-  usePolling(() => runs.reload(true), 5000, true);
+  // fast while a run is live; every 20s otherwise (only a scheduled run starting needs noticing then)
+  const anyRunLive = (runs.data ?? []).some((r) =>
+    ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+  );
+  usePolling(() => runs.reload(true), anyRunLive ? 5000 : 20000, true);
 
   useEffect(() => {
     if (focusRun) setSelected(focusRun);

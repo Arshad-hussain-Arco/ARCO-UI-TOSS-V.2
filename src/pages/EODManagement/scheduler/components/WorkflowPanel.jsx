@@ -168,7 +168,11 @@ export function WorkflowPanel({ env, onRunStarted }) {
   );
   // the graph is a live view: new runs appear in the list, and the coloured run refreshes while it is running
   const colourRunning = detail.data?.run?.status === 'RUNNING';
-  usePolling(() => runs.reload(true), 3000);
+  // fast while a run is live; when nothing runs, only a scheduled run starting needs noticing (actions here reload at once anyway)
+  const anyRunLive = (runs.data ?? []).some((r) =>
+    ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+  );
+  usePolling(() => runs.reload(true), anyRunLive ? 3000 : 20000);
   usePolling(() => wf.reload(true), 10000, !busy); // uploads, approvals and settings changes made by someone else
   usePolling(() => detail.reload(true), 2000, colourRunning);
 
