@@ -597,8 +597,11 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
 
     try {
       const isJobScope = sch.runScope === 'job' && sch.targetJob;
-      const foldersPayload = sch.workflow && sch.workflow !== 'ALL' ? [sch.workflow] : undefined;
+      const targetWf = sch.workflow || sch.folder || 'ALL';
+      const foldersPayload = targetWf && targetWf !== 'ALL' ? [targetWf] : undefined;
       const activeUser = user?.username || user?.name || sch.lastModifiedBy || 'prazy';
+      const wfFileId = sch.workflowFileId || sch.xmlFileId;
+      const wfFile = sch.workflowFile || sch.xmlFile;
       const runPayload = {
         allow_overlap: false,
         name: scheduleName,
@@ -607,6 +610,10 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
         started_by: activeUser,
         schedule_id: sch.id,
         schedule_group_id: sch.scheduleGroupId,
+        workflow: targetWf,
+        folder: targetWf,
+        ...(wfFileId ? { workflow_file_id: wfFileId, xml_file_id: wfFileId } : {}),
+        ...(wfFile ? { workflow_file: wfFile, xml_file: wfFile } : {}),
       };
       if (foldersPayload) {
         runPayload.folders = foldersPayload;
@@ -681,6 +688,29 @@ export function SchedulesNewSection({ selectedEnv, onNavigateSection, onSelectEn
       } else {
         await eodService.createEodSchedule(payload);
       }
+
+      // If a specific XML file was chosen, keep environment workflow active in sync
+      const chosenXmlId = schData.xmlFileId || schData.workflowFileId;
+      if (chosenXmlId && schData.envId) {
+        try {
+          const envs = await fetchEnvironmentsIfNeeded();
+          const matched = envs.find(
+            (e) =>
+              String(e.id) === String(schData.envId) ||
+              (e.code && e.code.toUpperCase() === String(schData.envId).toUpperCase()) ||
+              (e.name && e.name.toUpperCase() === String(schData.envId).toUpperCase())
+          );
+          const raw = matched?.code || matched?.name || schData.envId;
+          const cleanToken = String(raw).trim().split(/[\s—–-]+/)[0];
+          const envCode = toShortEnvName(cleanToken || raw);
+          if (envCode) {
+            await eodSchedulerService.activateWorkflow(envCode, chosenXmlId);
+          }
+        } catch (actErr) {
+          console.warn('Could not activate selected workflow for environment:', actErr);
+        }
+      }
+
       setModalOpen(false);
       await fetchScheduleData(true, true);
       toast.success(schData.id ? 'Schedule updated.' : 'Schedule added.');
