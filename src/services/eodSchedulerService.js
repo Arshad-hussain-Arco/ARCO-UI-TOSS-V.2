@@ -74,7 +74,20 @@ export const eodSchedulerService = {
   approve: (env, digest) => send('post', E.approve(env), { digest }),
   setScheduler: (env, enabled) => send('post', E.scheduler(env), { enabled }),
   runNow: (env, body) => send('post', E.runNow(env), body),
+  recordExecution: (env, body) => send('post', E.recordExecution(env), body),
   getCommand: (env, id) => get(E.command(env, id)),
+
+  // UI schedules: workflow or job level, any recurrence
+  getXmlTree: (env) => get(E.xmlTree(env)),
+  getJobClosure: (env, { workflow, folder, job }) =>
+    get(E.jobClosure(env), { params: { workflow, folder, job } }),
+  listSchedules: (env) => get(E.schedules(env)),
+  createSchedule: (env, body) => send('post', E.schedules(env), body),
+  updateSchedule: (env, id, body) => send('patch', E.scheduleItem(env, id), body),
+  deleteSchedule: (env, id) => send('delete', E.scheduleItem(env, id)),
+  previewRecurrence: (env, recurrence, count = 5) =>
+    send('post', E.schedulePreview(env), { recurrence, count }),
+  runScheduleNow: (env, id) => send('post', E.scheduleRunNow(env, id)),
 
   // settings and schedule
   getSettings: (env) => get(E.settings(env)),

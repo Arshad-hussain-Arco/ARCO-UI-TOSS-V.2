@@ -1,0 +1,233 @@
+.schf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .schf-row {
+    grid-template-columns: 1fr;
+  }
+}
+.schf-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.schf-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-secondary, #d0d5dd);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.schf-pill.on {
+  background: var(--c-primary, #005a36);
+  border-color: var(--c-primary, #005a36);
+  color: #fff;
+}
+.schf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface-secondary, #f2f4f7);
+  border: 1px solid var(--border-secondary, #d0d5dd);
+  font-size: 12px;
+}
+.schf-chip button {
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
+.schf-add {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.schf-add .eod-modal-input {
+  width: 110px;
+}
+.schf-muted {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.schf-note {
+  margin-top: 6px;
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-secondary, #f2f4f7);
+  border-left: 3px solid var(--c-primary, #005a36);
+}
+.schf-warn,
+.schf-error {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+.schf-warn {
+  background: #fff7e0;
+  color: #7a5200;
+}
+.schf-error {
+  background: #fdecea;
+  color: #a32117;
+  margin-bottom: 8px;
+}
+.schf-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-secondary, #d0d5dd);
+}
+.schf-preview-title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12px;
+}
+.schf-preview ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.schf-inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.sc-warn-line {
+  font-size: 11px;
+  color: #7a5200;
+}
+
+/* Run controls in a schedule row: Pause / Resume / Stop are square icon buttons like Edit and Delete */
+.sched-actions .btn.sm.btn-ctl {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex: 0 0 28px;
+}
+.sched-actions .btn.sm.btn-ctl:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sched-actions .btn.sm.btn-ctl-pause:hover {
+  border-color: #d97706;
+  color: #b45309;
+  background: #fffbeb;
+}
+.sched-actions .btn.sm.btn-ctl-resume {
+  border-color: var(--c-primary, #005a36);
+  background: var(--c-primary, #005a36);
+  color: #fff;
+}
+.sched-actions .btn.sm.btn-ctl-resume:hover {
+  filter: brightness(1.12);
+}
+.sched-actions .btn.sm.btn-ctl-stop:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* Schedules list: six columns (On, Name, Frequency, Next start, Last result, Actions). The environment is the tab's own, so it is not repeated per row. */
+.sc-grid.sc-slim .sc-cols,
+.sc-grid.sc-slim .sc-card {
+  grid-template-columns:
+    46px minmax(240px, 2.6fr) minmax(150px, 1.3fr) minmax(150px, 1.2fr) minmax(130px, 1.1fr)
+    140px;
+  min-width: 780px;
+}
+
+/* Environment shown as a fixed field (it comes from the tab, not from a choice) */
+.schf-static-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-secondary, #d0d5dd);
+  border-radius: 8px;
+  background: var(--surface-secondary, #f8fafc);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+.schf-static-field svg {
+  color: var(--c-primary, #005a36);
+}
+/* One time field with the "Add time" button next to it */
+.schf-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.schf-add-row .eod-modal-input {
+  flex: 0 0 160px;
+  width: 160px;
+}
+.schf-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+.schf-next {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+/* Scope switch: icon and label on one line, whatever the app's global rule for icons is (some reset them to display: block) */
+.eod-segmented-btn.schf-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.eod-segmented-btn.schf-seg svg {
+  display: inline-block;
+  flex: none;
+}
+
+/* Quarterly: the four quarters and the month inside each one, as a row of buttons */
+.schf-quarters {
+  display: flex;
+  gap: 8px;
+}
+.eod-quarter-btn small {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+.schf-quarters .eod-quarter-btn,
+.schf-quarters .eod-quarter-pos-btn {
+  font-family: inherit;
+}
+
+/* "Schedule is on": the on / off switch with its words beside it */
+.schf-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+.schf-switch-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
+}

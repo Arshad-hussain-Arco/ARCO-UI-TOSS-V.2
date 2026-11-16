@@ -122,6 +122,114 @@ export function nodeStates(runDetail) {
   return out;
 }
 
+/**
+ * One graph for several workflows (folders): every job once, every edge once, and a condition edge from the job that produces a condition to
+ * each job in ANOTHER workflow that waits for it. Used by the Workflow tab ("All workflows") and the Control Run Cockpit.
+ */
+export function mergeFolderGraphs(folders) {
+  const nodes = [];
+  const nodeIds = new Set();
+  const edges = [];
+  const edgeIds = new Set();
+  const conditionProducers = new Map();
+  for (const f of folders || []) {
+    for (const j of f.jobs || []) {
+      if (!nodeIds.has(j.name)) {
+        nodeIds.add(j.name);
+        nodes.push({ id: j.name, name: j.description || j.name, enabled: true, folder: f.folder });
+      }
+      for (const oc of j.produces || []) {
+        if (!conditionProducers.has(oc)) conditionProducers.set(oc, []);
+        conditionProducers.get(oc).push({ source: j.name, branch: 'SUCCESS' });
+      }
+    }
+    for (const e of f.graph?.edges || []) {
+      const eid = e.id || `${e.source}->${e.target}:${e.label || ''}`;
+      if (!edgeIds.has(eid)) {
+        edgeIds.add(eid);
+        edges.push(e);
+      }
+    }
+  }
+  for (const f of folders || []) {
+    for (const j of f.jobs || []) {
+      for (const ic of j.waits_for || []) {
+        for (const prod of conditionProducers.get(ic) || []) {
+          if (prod.source === j.name) continue;
+          const eid = `cond:${prod.source}>${j.name}:${ic}`;
+          if (edgeIds.has(eid)) continue;
+          edgeIds.add(eid);
+          edges.push({
+            id: eid,
+            source: prod.source,
+            target: j.name,
+            kind: 'CONDITION',
+            branch: prod.branch,
+            label: ic,
+            description: `${j.name} waits for condition ${ic} from ${prod.source}`,
+          });
+        }
+      }
+    }
+  }
+  return { nodes, edges };
+}
+
+/** A graph from jobs that only know their predecessors (no workflow review at hand, for example an old run). */
+export function graphFromJobs(jobs) {
+  const names = new Set((jobs || []).map((j) => j.name));
+  const nodes = (jobs || []).map((j) => ({
+    id: j.name,
+    name: j.name,
+    enabled: true,
+    folder: j.folder || j.group,
+  }));
+  const edges = [];
+  for (const j of jobs || []) {
+    for (const p of j.predecessors || []) {
+      if (names.has(p))
+        edges.push({
+          id: `${p}->${j.name}`,
+          source: p,
+          target: j.name,
+          kind: 'DEPENDENCY',
+          branch: 'SUCCESS',
+        });
+    }
+  }
+  return { nodes, edges };
+}
+
+/** Node colours of the graph for the Cockpit's job statuses (Done, Running, Failed, On hold ...): {jobName: {label, tone}}. */
+export function cockpitNodeStates(jobs) {
+  const toneOf = (status) => {
+    switch (String(status || '').toLowerCase()) {
+      case 'done':
+      case 'success':
+        return { label: 'Success', tone: 'good' };
+      case 'running':
+        return { label: 'Running', tone: 'run' };
+      case 'failed':
+      case 'killed':
+        return { label: 'Failed', tone: 'bad' };
+      case 'on hold':
+        return { label: 'On hold', tone: 'wait' };
+      case 'waiting':
+      case 'queued':
+        return { label: 'Pending', tone: 'wait' };
+      case 'skipped':
+        return { label: 'Skipped', tone: 'off' };
+      default:
+        return null;
+    }
+  };
+  const out = {};
+  for (const j of jobs || []) {
+    const s = toneOf(j.status);
+    if (s) out[j.name] = s;
+  }
+  return out;
+}
 export const parseIsoDate = (iso) => {
   if (iso === null || iso === undefined || iso === '') return null;
   if (iso instanceof Date) return Number.isNaN(+iso) ? null : iso;
@@ -146,15 +254,17 @@ export const formatClockTime = (iso, fallback = '—') => {
 export const formatFullDateTime = (iso, fallback = '—') => {
   const d = parseIsoDate(iso);
   if (!d) return fallback;
-  return d.toLocaleString([], {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).replace(',', '');
+  return d
+    .toLocaleString([], {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    .replace(',', '');
 };
 
 export function formatDuration(seconds) {
@@ -324,7 +434,7 @@ export function saveScheduleDraft(draft, envCode) {
     if (typeof window !== 'undefined' && window.sessionStorage) {
       window.sessionStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ draft, envCode, timestamp: Date.now() })
+        JSON.stringify({ draft, envCode, timestamp: Date.now() }),
       );
       window.sessionStorage.setItem(RETURN_FLAG_KEY, 'true');
     }

@@ -3251,17 +3251,24 @@
 .eod-day-nav-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 14px 2px;
-  margin-bottom: 8px;
-  scrollbar-width: thin;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  scrollbar-width: none;
+}
+
+.eod-day-nav-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .eod-day-nav-btn {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: 34px;
   padding: 6px 14px;
   border-radius: 20px;
   border: 1px solid var(--border-secondary, #e5e7eb);

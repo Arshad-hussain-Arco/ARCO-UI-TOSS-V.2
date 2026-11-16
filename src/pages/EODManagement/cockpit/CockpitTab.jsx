@@ -8,6 +8,8 @@ import { CockpitTimeline } from './CockpitTimeline';
 import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
 import { StartRunModal } from './StartRunModal';
+import { RunWorkflowsModal } from './RunWorkflowsModal';
+import { PlayJobModal } from './PlayJobModal';
 import { closure } from './layout';
 import { WorkflowFilesModal } from '../scheduler/components/WorkflowFilesModal';
 import { DeleteDialog } from '../scheduler/components/DeleteDialog';
@@ -69,6 +71,9 @@ export function CockpitTab({ env } = {}) {
   const [isRunPaused, setIsRunPaused] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState('');
   const [isStartRunOpen, setIsStartRunOpen] = useState(false);
+  const [isRunPickerOpen, setIsRunPickerOpen] = useState(false);
+  const [playJob, setPlayJob] = useState(null); // the job waiting for confirmation: { name, folder }
+  const [playingJob, setPlayingJob] = useState(''); // the job whose chain is being started (blocks a second click)
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flowFolder, setFlowFolder] = useState(null);
@@ -97,7 +102,10 @@ export function CockpitTab({ env } = {}) {
 
   // Load real resources from backend
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
-  const def = useResource(() => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)), [env]);
+  const def = useResource(
+    () => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)),
+    [env],
+  );
   const runsList = useResource(
     () => (env ? svc.getCockpitRuns(env).catch(() => svc.listRuns(env)) : Promise.resolve([])),
     [env],
@@ -121,23 +129,29 @@ export function CockpitTab({ env } = {}) {
     }
     return true;
   });
-  const isViewingCurrentWorkflow = selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
+  const isViewingCurrentWorkflow =
+    selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
   const currentRunId = isViewingCurrentWorkflow
     ? 'current_workflow'
-    : (selectedRunId || (activeRunningRun?.id || activeRunningRun?.run_id || ''));
+    : selectedRunId || activeRunningRun?.id || activeRunningRun?.run_id || '';
 
   const runDetail = useResource(
-    () => (env && currentRunId && currentRunId !== 'current_workflow'
-      ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
-      : Promise.resolve(null)),
+    () =>
+      env && currentRunId && currentRunId !== 'current_workflow'
+        ? svc.getCockpitRun(env, currentRunId).catch(() => svc.getRun(env, currentRunId))
+        : Promise.resolve(null),
     [env, currentRunId],
   );
 
-  const isRunningBatch = runDetail.data?.status === 'Running' || runDetail.data?.status === 'RUNNING';
-  const isBackendPaused = runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
+  const isRunningBatch =
+    runDetail.data?.status === 'Running' || runDetail.data?.status === 'RUNNING';
+  const isBackendPaused =
+    runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
   const isRunActive = isRunningBatch || isPaused;
-  const isOverviewLoading = runsList.loading || (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
+  const isOverviewLoading =
+    runsList.loading ||
+    (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
   // Polling for live status
   usePolling(() => runsList.reload(true), 4000);
@@ -148,7 +162,9 @@ export function CockpitTab({ env } = {}) {
   const state = approvalState(view, hasPermission);
 
   const files = view?.workflows ?? [];
-  const running = (runsList.data ?? []).some((r) => r.status === 'RUNNING' || r.status === 'Running');
+  const running = (runsList.data ?? []).some(
+    (r) => r.status === 'RUNNING' || r.status === 'Running',
+  );
   const editHint = running ? 'A run is in progress in this environment' : undefined;
 
   const stats = [
@@ -164,7 +180,10 @@ export function CockpitTab({ env } = {}) {
   // Enrich definition jobs with rich validation/target info from wf.data.folders
   const enrichedDefinition = useMemo(() => {
     if (!def.data) return null;
-    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+    if (
+      view?.partition &&
+      String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()
+    ) {
       return null;
     }
     const wfJobsMap = new Map();
@@ -185,7 +204,10 @@ export function CockpitTab({ env } = {}) {
   // Staged run representing the current/uploaded workflow ready for execution
   const stagedRun = useMemo(() => {
     if (!def.data && !view) return null;
-    if (view?.partition && String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()) {
+    if (
+      view?.partition &&
+      String(view.partition).trim().toUpperCase() !== String(env).trim().toUpperCase()
+    ) {
       return null;
     }
     const jobsList = enrichedDefinition?.jobs || [];
@@ -367,10 +389,12 @@ export function CockpitTab({ env } = {}) {
 
     // 1. Check if a file with the exact same name already exists in this environment
     const duplicateByName = files.find(
-      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase()
+      (f) => (f.filename || '').trim().toLowerCase() === cleanName.toLowerCase(),
     );
     if (duplicateByName) {
-      toast.error(`Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`);
+      toast.error(
+        `Workflow file "${cleanName}" already exists in this environment. Redundant file uploads are not accepted.`,
+      );
       return;
     }
 
@@ -382,10 +406,12 @@ export function CockpitTab({ env } = {}) {
       const fileHash = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 
       const duplicateByHash = files.find(
-        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase()
+        (f) => (f.sha256 || '').trim().toLowerCase() === fileHash.toLowerCase(),
       );
       if (duplicateByHash) {
-        toast.error(`An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`);
+        toast.error(
+          `An identical workflow already exists as "${duplicateByHash.filename}". Duplicate files are not accepted.`,
+        );
         return;
       }
     } catch {
@@ -452,10 +478,16 @@ export function CockpitTab({ env } = {}) {
         await svc.deleteWorkflow(env, del.file.id);
         toast.success(`${del.file.filename} deleted.`);
       } else if (del.kind === 'folder') {
-        await svc.deleteFolder(env, view?.meta?.id, del.folder, { confirm, baseSha256: view?.meta?.sha256 });
+        await svc.deleteFolder(env, view?.meta?.id, del.folder, {
+          confirm,
+          baseSha256: view?.meta?.sha256,
+        });
         toast.success(`Workflow ${del.folder} deleted.`);
       } else if (del.kind === 'job') {
-        await svc.deleteJob(env, view?.meta?.id, del.folder, del.job, { confirm, baseSha256: view?.meta?.sha256 });
+        await svc.deleteJob(env, view?.meta?.id, del.folder, del.job, {
+          confirm,
+          baseSha256: view?.meta?.sha256,
+        });
         toast.success(`Job ${del.job} deleted. Review and approve the workflow again.`);
       }
       setDel(null);
@@ -481,14 +513,12 @@ export function CockpitTab({ env } = {}) {
     }
   };
 
-  const handleStartRun = async (options = {}) => {
+  // Ask the engine to start a run and follow it: the same path for "Run All Now", "Run Workflow" and the Play button of a job.
+  // `okText` is the message shown when the engine accepted it (text, or a function of the engine's answer).
+  const submitRun = async (body, okText) => {
     setBusy(true);
     try {
-      const { command_id: id } = await svc.runNow(env, {
-        allow_overlap: options.allow_overlap ?? false,
-        name: options.name || 'EOD Batch Run',
-        schedule_name: options.name || 'EOD Batch Run',
-      });
+      const { command_id: id } = await svc.runNow(env, body);
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
         await new Promise((r) => setTimeout(r, 1000));
@@ -496,7 +526,7 @@ export function CockpitTab({ env } = {}) {
         if (!['PENDING', 'CLAIMED'].includes(answer.status)) break;
       }
       if (answer?.status === 'DONE') {
-        toast.success('The engine accepted and started the batch run.');
+        toast.success(typeof okText === 'function' ? okText(answer) : okText);
         await runsList.reload(true);
         const newRunId = answer.result?.runs?.[0]?.run_id;
         if (newRunId) {
@@ -504,7 +534,9 @@ export function CockpitTab({ env } = {}) {
         }
         await runDetail.reload(true);
         setActiveView('flow');
-      } else if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
+        return true;
+      }
+      if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
         toast.error(answer.result?.message || `The engine answered ${answer.status}.`);
       } else {
         toast.error(
@@ -516,6 +548,64 @@ export function CockpitTab({ env } = {}) {
     } finally {
       setBusy(false);
     }
+    return false;
+  };
+
+  const handleStartRun = (options = {}) =>
+    submitRun(
+      {
+        allow_overlap: options.allow_overlap ?? false,
+        // only these workflows (folders) of the active XML; without it the whole XML runs
+        ...(options.folders?.length ? { folders: options.folders } : {}),
+        name: options.name || 'EOD Batch Run',
+        schedule_name: options.name || 'EOD Batch Run',
+      },
+      'The engine accepted and started the batch run.',
+    );
+
+  // The run being viewed (a real one, not the staged workflow) is the one whose finished jobs Play may reuse; the engine checks it is from today.
+  const reuseRunId =
+    !isViewingCurrentWorkflow && currentRunId && run && !run.isReadyState
+      ? String(currentRunId)
+      : '';
+  const succeededNames = new Set(
+    (run?.jobs || []).filter((j) => j.status === 'Done').map((j) => j.name),
+  );
+  const playBlockedReason =
+    state.state !== 'approved'
+      ? 'The workflow must be approved before anything runs'
+      : !state.canRun
+        ? 'You do not have permission to run jobs'
+        : isRunningBatch
+          ? 'A run is in progress. Wait for it to finish or stop it first.'
+          : '';
+
+  // Play on one job: the engine runs it with the prerequisite jobs it needs (its own dependency rules), and nothing else.
+  const requestPlay = (name) => {
+    const j = (enrichedDefinition?.jobs || []).find((x) => x.name === name);
+    setPlayJob({ name, folder: j?.folder || j?.group || '' });
+  };
+  const confirmPlay = async () => {
+    if (!playJob || playingJob) return;
+    setPlayingJob(playJob.name);
+    const ok = await submitRun(
+      {
+        folders: [playJob.folder],
+        job: playJob.name,
+        name: `Job: ${playJob.name}`,
+        allow_overlap: false,
+        ...(reuseRunId ? { reuse_run: reuseRunId } : {}),
+      },
+      (answer) => {
+        const r = answer.result?.runs?.[0];
+        const reused = r?.reused?.length
+          ? ` (${r.reused.join(', ')} already succeeded, not run again)`
+          : '';
+        return `Started ${playJob.name}: ${(r?.order || [playJob.name]).join(' → ')}${reused}`;
+      },
+    );
+    setPlayingJob('');
+    if (ok) setPlayJob(null);
   };
 
   const handleCancelRun = async () => {
@@ -584,7 +674,9 @@ export function CockpitTab({ env } = {}) {
             await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => {});
           }
           await svc.cockpitJobAction(env, targetRunId, jobName, 'rerun');
-          toast.success(`Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`);
+          toast.success(
+            `Execution triggered for "${jobName}" and its dependencies (Run #${targetRunId}).`,
+          );
           await runDetail.reload(true);
         } catch (err) {
           toast.error(errorText(err));
@@ -617,6 +709,24 @@ export function CockpitTab({ env } = {}) {
     setSelectedRunId(runId);
   };
 
+  // The newest run of this environment, offered by the Timeline when the current workflow has not run yet
+  const latestRunInfo = useMemo(() => {
+    const r = runs[0];
+    if (!r) return null;
+    const started = r.started_at || r.started;
+    return {
+      id: r.id || r.run_id,
+      status: r.status || '',
+      when: started
+        ? new Date(started).toLocaleString([], {
+            hour12: false,
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })
+        : '',
+    };
+  }, [runs]);
+
   return (
     <div className="cr-cockpit">
       {/* ── Internal SVG Icon Sprites ── */}
@@ -631,7 +741,9 @@ export function CockpitTab({ env } = {}) {
             </div>
             <div className="cr-ufc-info">
               <div className="cr-ufc-title-row">
-                <strong className="cr-ufc-filename">{view.meta?.filename || 'batch_workflow.xml'}</strong>
+                <strong className="cr-ufc-filename">
+                  {view.meta?.filename || 'batch_workflow.xml'}
+                </strong>
                 {state.state === 'approved' ? (
                   <span className="cr-ufc-badge approved">
                     <CheckCircle2 size={13} /> Approved
@@ -647,7 +759,10 @@ export function CockpitTab({ env } = {}) {
                 <span className="cr-ufc-sep">|</span>
                 <span>{formatWhen(view.meta?.uploaded_at)}</span>
                 <span className="cr-ufc-sep">|</span>
-                <span>SHA-256: <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code></span>
+                <span>
+                  SHA-256:{' '}
+                  <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                </span>
               </div>
             </div>
           </div>
@@ -773,15 +888,21 @@ export function CockpitTab({ env } = {}) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* RUN dropdown list (moved to the left of the action buttons) */}
           {run && (
-            <label className="cr-run-switch-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>RUN</span>
+            <label
+              className="cr-run-switch-label"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>
+                RUN
+              </span>
               <select
                 className="cr-select sm cr-run-switch-select"
                 value={currentRunId}
                 onChange={(e) => handleSelectRun(e.target.value)}
               >
                 <option value="current_workflow">
-                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'} {run.isReadyState ? '(Active)' : ''}
+                  ★ Current Workflow · {view?.meta?.filename || 'batch.xml'}{' '}
+                  {run.isReadyState ? '(Active)' : ''}
                 </option>
                 {runs.map((r) => {
                   const rid = r.id || r.run_id;
@@ -807,9 +928,9 @@ export function CockpitTab({ env } = {}) {
                   className={`cr-btn sm ${isPaused ? 'primary' : 'outline'}`}
                   disabled={busy}
                   onClick={handleTogglePause}
-                  title={isPaused ? "Resume batch execution" : "Pause batch execution"}
+                  title={isPaused ? 'Resume batch execution' : 'Pause batch execution'}
                 >
-                  <CockpitIcon name={isPaused ? "i-play" : "i-hold"} className="xs" />
+                  <CockpitIcon name={isPaused ? 'i-play' : 'i-hold'} className="xs" />
                   <span>{isPaused ? 'Resume' : 'Pause'}</span>
                 </button>
 
@@ -827,6 +948,26 @@ export function CockpitTab({ env } = {}) {
 
             <button
               type="button"
+              className="cr-btn outline sm"
+              disabled={
+                busy || state.state !== 'approved' || !state.canRun || !(view?.folders || []).length
+              }
+              onClick={() => setIsRunPickerOpen(true)}
+              title={
+                state.state !== 'approved'
+                  ? 'Workflow must be approved before running'
+                  : !state.canRun
+                    ? 'You do not have permission to execute batch runs'
+                    : 'Run only the workflows you choose from the active XML'
+              }
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+            >
+              <Play size={13} />
+              <span>Run Workflow…</span>
+            </button>
+
+            <button
+              type="button"
               className="cr-btn primary sm cr-btn-run-all"
               disabled={busy || isRunningBatch || state.state !== 'approved' || !state.canRun}
               onClick={() => handleStartRun()}
@@ -834,10 +975,10 @@ export function CockpitTab({ env } = {}) {
                 state.state !== 'approved'
                   ? 'Workflow must be approved before running'
                   : !state.canRun
-                  ? 'You do not have permission to execute batch runs'
-                  : isRunningBatch
-                  ? 'A batch run is currently in progress'
-                  : 'Execute batch workflow now'
+                    ? 'You do not have permission to execute batch runs'
+                    : isRunningBatch
+                      ? 'A batch run is currently in progress'
+                      : 'Execute batch workflow now'
               }
               style={{
                 display: 'inline-flex',
@@ -849,8 +990,12 @@ export function CockpitTab({ env } = {}) {
                 fontWeight: 600,
                 borderRadius: '6px',
                 padding: '5px 12px',
-                cursor: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 'not-allowed' : 'pointer',
-                opacity: (busy || isRunningBatch || state.state !== 'approved' || !state.canRun) ? 0.6 : 1,
+                cursor:
+                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity:
+                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun ? 0.6 : 1,
               }}
             >
               <Play size={13} fill="currentColor" />
@@ -885,11 +1030,35 @@ export function CockpitTab({ env } = {}) {
               }}
               title={`Schedule Name: ${run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}`}
             >
-              <CockpitIcon name="i-branch" className="xs" style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }} />
-              <span className="cr-pill-label" style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.75, fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+              <CockpitIcon
+                name="i-branch"
+                className="xs"
+                style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+              />
+              <span
+                className="cr-pill-label"
+                style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  opacity: 0.75,
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                }}
+              >
                 Schedule Name:
               </span>
-              <span className="cr-pill-value" style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1, fontWeight: 600 }}>
+              <span
+                className="cr-pill-value"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                  fontWeight: 600,
+                }}
+              >
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
             </span>
@@ -917,11 +1086,34 @@ export function CockpitTab({ env } = {}) {
                 }}
                 title={`Triggered by: ${run.started_by || run.user || '—'}`}
               >
-                <User size={13} style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }} />
-                <span className="cr-pill-label" style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.75, fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                <User
+                  size={13}
+                  style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+                />
+                <span
+                  className="cr-pill-label"
+                  style={{
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    opacity: 0.75,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
                   Triggered by:
                 </span>
-                <span className="cr-pill-value" style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>
+                <span
+                  className="cr-pill-value"
+                  style={{
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
                   {run.started_by || run.user || '—'}
                 </span>
               </span>
@@ -952,9 +1144,27 @@ export function CockpitTab({ env } = {}) {
             onStartRun={() => handleStartRun()}
             onCancelRun={handleCancelRun}
             onJobAction={handleJobAction}
-            onAddJob={() => setJobModal({ mode: 'add', job: null, folder: view?.folders?.[0]?.folder || 'EOD-CORE' })}
-            onEditJob={(j) => setJobModal({ mode: 'edit', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
-            onDeleteJob={(j) => setDel({ kind: 'job', job: j.name, folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE' })}
+            onAddJob={() =>
+              setJobModal({
+                mode: 'add',
+                job: null,
+                folder: view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
+            onEditJob={(j) =>
+              setJobModal({
+                mode: 'edit',
+                job: j.name,
+                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
+            onDeleteJob={(j) =>
+              setDel({
+                kind: 'job',
+                job: j.name,
+                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+              })
+            }
             canRun={state.state === 'approved' && state.canRun}
           />
         )}
@@ -976,8 +1186,10 @@ export function CockpitTab({ env } = {}) {
             initialFolder={flowFolder}
             onClearFolderFilter={() => setFlowFolder(null)}
             stats={stats}
-            warnings={view?.warnings}
             errors={view?.errors}
+            onPlayJob={requestPlay}
+            playBusyId={playingJob}
+            playBlockedReason={playBlockedReason}
           />
         )}
 
@@ -990,6 +1202,8 @@ export function CockpitTab({ env } = {}) {
               setSelectedJobName(name);
               setIsDrawerOpen(true);
             }}
+            latestRun={latestRunInfo}
+            onOpenRun={handleSelectRun}
           />
         )}
 
@@ -1015,9 +1229,9 @@ export function CockpitTab({ env } = {}) {
           allJobs={allCockpitJobs}
           env={env}
           runId={
-            (currentRunId && currentRunId !== 'current_workflow')
+            currentRunId && currentRunId !== 'current_workflow'
               ? currentRunId
-              : (activeRunningRun?.id || runs[0]?.id || null)
+              : activeRunningRun?.id || runs[0]?.id || null
           }
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
@@ -1030,6 +1244,31 @@ export function CockpitTab({ env } = {}) {
         onClose={() => setIsStartRunOpen(false)}
         onStart={handleStartRun}
         currentEnv={env}
+      />
+
+      {/* ── Run Workflow: choose which workflows of the active XML to run ── */}
+      <RunWorkflowsModal
+        isOpen={isRunPickerOpen}
+        onClose={() => setIsRunPickerOpen(false)}
+        onRun={handleStartRun}
+        filename={view?.meta?.filename}
+        workflows={(view?.folders || []).map((f) => ({
+          name: f.folder,
+          jobs: (f.jobs || []).length,
+        }))}
+      />
+
+      {/* ── Play on a job: confirm which jobs the engine will run ── */}
+      <PlayJobModal
+        isOpen={Boolean(playJob)}
+        env={env}
+        job={playJob}
+        workflowId={view?.meta?.id}
+        reuseRun={reuseRunId}
+        succeeded={succeededNames}
+        busy={Boolean(playingJob)}
+        onConfirm={confirmPlay}
+        onClose={() => !playingJob && setPlayJob(null)}
       />
 
       {/* ── Add / Edit Job Modal ── */}

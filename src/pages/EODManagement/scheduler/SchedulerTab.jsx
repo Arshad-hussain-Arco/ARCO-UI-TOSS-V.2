@@ -6,7 +6,6 @@ import { Toggle } from '@components/ui/Toggle/Toggle';
 import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { eodService } from '@services/eodService';
 import { engineNotice, isEnvironmentCode } from './schedulerModel';
 import { usePolling, useResource } from './useResource';
 import { RunsPanel } from './components/RunsPanel';
@@ -113,14 +112,6 @@ export function SchedulerTab() {
 
   const list = useMemo(() => envs.data ?? [], [envs.data]);
   const current = list.find((e) => e.code === env) ?? null;
-
-  // Preload schedules in the background so switching to the Schedule tab is instantaneous
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      eodService.getEodSchedules().catch(() => {});
-    }, 250);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (!envs.data) return;
@@ -293,19 +284,9 @@ export function SchedulerTab() {
                 ) : null}
                 {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
                 {section === 'cockpit' ? <CockpitTab key={env} env={env} /> : null}
-                {section === 'schedule' ? (
-                  <SchedulesNewSection
-                    selectedEnv={env}
-                    initialEnvironments={list}
-                    onNavigateSection={(sec) => setSection(sec)}
-                    onSelectEnv={(code) => choose(code)}
-                  />
-                ) : null}
+                {section === 'schedule' ? <SchedulesNewSection selectedEnv={env} /> : null}
                 {section === 'targets' ? (
-                  <TargetsPanel
-                    env={env}
-                    onReturnToSchedule={() => setSection('schedule')}
-                  />
+                  <TargetsPanel env={env} onReturnToSchedule={() => setSection('schedule')} />
                 ) : null}
                 {section === 'settings' ? <SettingsPanel env={env} /> : null}
               </div>
