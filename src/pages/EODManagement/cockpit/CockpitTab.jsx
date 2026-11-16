@@ -9,6 +9,7 @@ import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
 import { StartRunModal } from './StartRunModal';
 import { RunWorkflowsModal } from './RunWorkflowsModal';
+import { PlayJobModal } from './PlayJobModal';
 import { closure } from './layout';
 import { WorkflowFilesModal } from '../scheduler/components/WorkflowFilesModal';
 import { DeleteDialog } from '../scheduler/components/DeleteDialog';
@@ -71,6 +72,8 @@ export function CockpitTab({ env } = {}) {
   const [selectedRunId, setSelectedRunId] = useState('');
   const [isStartRunOpen, setIsStartRunOpen] = useState(false);
   const [isRunPickerOpen, setIsRunPickerOpen] = useState(false);
+  const [playJob, setPlayJob] = useState(null); // the job waiting for confirmation: { name, folder }
+  const [playingJob, setPlayingJob] = useState(''); // the job whose chain is being started (blocks a second click)
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flowFolder, setFlowFolder] = useState(null);
@@ -510,16 +513,12 @@ export function CockpitTab({ env } = {}) {
     }
   };
 
-  const handleStartRun = async (options = {}) => {
+  // Ask the engine to start a run and follow it: the same path for "Run All Now", "Run Workflow" and the Play button of a job.
+  // `okText` is the message shown when the engine accepted it (text, or a function of the engine's answer).
+  const submitRun = async (body, okText) => {
     setBusy(true);
     try {
-      const { command_id: id } = await svc.runNow(env, {
-        allow_overlap: options.allow_overlap ?? false,
-        // only these workflows (folders) of the active XML; without it the whole XML runs
-        ...(options.folders?.length ? { folders: options.folders } : {}),
-        name: options.name || 'EOD Batch Run',
-        schedule_name: options.name || 'EOD Batch Run',
-      });
+      const { command_id: id } = await svc.runNow(env, body);
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
         await new Promise((r) => setTimeout(r, 1000));
@@ -527,7 +526,7 @@ export function CockpitTab({ env } = {}) {
         if (!['PENDING', 'CLAIMED'].includes(answer.status)) break;
       }
       if (answer?.status === 'DONE') {
-        toast.success('The engine accepted and started the batch run.');
+        toast.success(typeof okText === 'function' ? okText(answer) : okText);
         await runsList.reload(true);
         const newRunId = answer.result?.runs?.[0]?.run_id;
         if (newRunId) {
@@ -535,7 +534,9 @@ export function CockpitTab({ env } = {}) {
         }
         await runDetail.reload(true);
         setActiveView('flow');
-      } else if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
+        return true;
+      }
+      if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
         toast.error(answer.result?.message || `The engine answered ${answer.status}.`);
       } else {
         toast.error(
@@ -547,6 +548,64 @@ export function CockpitTab({ env } = {}) {
     } finally {
       setBusy(false);
     }
+    return false;
+  };
+
+  const handleStartRun = (options = {}) =>
+    submitRun(
+      {
+        allow_overlap: options.allow_overlap ?? false,
+        // only these workflows (folders) of the active XML; without it the whole XML runs
+        ...(options.folders?.length ? { folders: options.folders } : {}),
+        name: options.name || 'EOD Batch Run',
+        schedule_name: options.name || 'EOD Batch Run',
+      },
+      'The engine accepted and started the batch run.',
+    );
+
+  // The run being viewed (a real one, not the staged workflow) is the one whose finished jobs Play may reuse; the engine checks it is from today.
+  const reuseRunId =
+    !isViewingCurrentWorkflow && currentRunId && run && !run.isReadyState
+      ? String(currentRunId)
+      : '';
+  const succeededNames = new Set(
+    (run?.jobs || []).filter((j) => j.status === 'Done').map((j) => j.name),
+  );
+  const playBlockedReason =
+    state.state !== 'approved'
+      ? 'The workflow must be approved before anything runs'
+      : !state.canRun
+        ? 'You do not have permission to run jobs'
+        : isRunningBatch
+          ? 'A run is in progress. Wait for it to finish or stop it first.'
+          : '';
+
+  // Play on one job: the engine runs it with the prerequisite jobs it needs (its own dependency rules), and nothing else.
+  const requestPlay = (name) => {
+    const j = (enrichedDefinition?.jobs || []).find((x) => x.name === name);
+    setPlayJob({ name, folder: j?.folder || j?.group || '' });
+  };
+  const confirmPlay = async () => {
+    if (!playJob || playingJob) return;
+    setPlayingJob(playJob.name);
+    const ok = await submitRun(
+      {
+        folders: [playJob.folder],
+        job: playJob.name,
+        name: `Job: ${playJob.name}`,
+        allow_overlap: false,
+        ...(reuseRunId ? { reuse_run: reuseRunId } : {}),
+      },
+      (answer) => {
+        const r = answer.result?.runs?.[0];
+        const reused = r?.reused?.length
+          ? ` (${r.reused.join(', ')} already succeeded, not run again)`
+          : '';
+        return `Started ${playJob.name}: ${(r?.order || [playJob.name]).join(' → ')}${reused}`;
+      },
+    );
+    setPlayingJob('');
+    if (ok) setPlayJob(null);
   };
 
   const handleCancelRun = async () => {
@@ -1128,6 +1187,9 @@ export function CockpitTab({ env } = {}) {
             onClearFolderFilter={() => setFlowFolder(null)}
             stats={stats}
             errors={view?.errors}
+            onPlayJob={requestPlay}
+            playBusyId={playingJob}
+            playBlockedReason={playBlockedReason}
           />
         )}
 
@@ -1194,6 +1256,19 @@ export function CockpitTab({ env } = {}) {
           name: f.folder,
           jobs: (f.jobs || []).length,
         }))}
+      />
+
+      {/* ── Play on a job: confirm which jobs the engine will run ── */}
+      <PlayJobModal
+        isOpen={Boolean(playJob)}
+        env={env}
+        job={playJob}
+        workflowId={view?.meta?.id}
+        reuseRun={reuseRunId}
+        succeeded={succeededNames}
+        busy={Boolean(playingJob)}
+        onConfirm={confirmPlay}
+        onClose={() => !playingJob && setPlayJob(null)}
       />
 
       {/* ── Add / Edit Job Modal ── */}

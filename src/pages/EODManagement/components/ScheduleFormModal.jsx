@@ -1,27 +1,76 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Layers, Target, X } from 'lucide-react';
+import {
+  Calendar as CalendarIcon,
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  FileCode,
+  FolderTree,
+  Layers,
+  Repeat,
+  Server,
+  Target,
+  X,
+} from 'lucide-react';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import {
   KINDS,
-  WEEKDAYS,
+  QUARTERS,
+  QUARTER_POSITIONS,
   defaultForm,
   formToSpec,
+  quarterMonthNames,
   sortedTimes,
   specToForm,
   validateForm,
 } from '../scheduler/scheduleSpec';
+import { CustomDropdown, InteractiveCalendarPicker, TargetJobPicker } from './ScheduleFormParts';
 import './ScheduleForm.css';
+
+const DAYS = [
+  { index: 0, full: 'Sunday', short: 'Sun' },
+  { index: 1, full: 'Monday', short: 'Mon' },
+  { index: 2, full: 'Tuesday', short: 'Tue' },
+  { index: 3, full: 'Wednesday', short: 'Wed' },
+  { index: 4, full: 'Thursday', short: 'Thu' },
+  { index: 5, full: 'Friday', short: 'Fri' },
+  { index: 6, full: 'Saturday', short: 'Sat' },
+];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const KIND_ICON = {
+  once: CalendarIcon,
+  daily: Repeat,
+  weekly: CalendarDays,
+  monthly: CalendarRange,
+  quarterly: CalendarRange,
+  yearly: CalendarIcon,
+  'every-days': Clock,
+  'every-hours': Clock,
+  'every-minutes': Clock,
+};
 
 const fmt = (iso) =>
   new Date(iso).toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' });
+const toIsoDay = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fromIsoDay = (s) => (s ? new Date(`${s}T12:00:00`) : null);
+const longDay = (s) =>
+  s
+    ? fromIsoDay(s).toLocaleDateString(undefined, {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : 'Select date...';
 
 /** "A → B + C → D": jobs in one step have no dependency on each other. */
 const orderText = (waves) => waves.map((w) => w.join(' + ')).join(' → ');
 
 /**
- * Create or edit a schedule: environment (fixed by the tab) → XML file → workflow → (job), then the recurrence.
- * The server validates, computes the run times shown in the preview and the prerequisites of a job.
+ * Create or edit a schedule: run scope, XML file, workflow and (for a single job) the job, then when it repeats.
+ * The server validates, computes the run times shown in the summary and works out a job's prerequisites.
  */
 export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
   const isEdit = Boolean(schedule?.id);
@@ -34,7 +83,8 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
   const [name, setName] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [rec, setRec] = useState(() => defaultForm());
-  const [newTime, setNewTime] = useState('12:00');
+  const [newTime, setNewTime] = useState(''); // the time typed in the field, not yet added to the list
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [closure, setClosure] = useState(null);
   const [preview, setPreview] = useState(null);
   const [saveError, setSaveError] = useState('');
@@ -47,6 +97,8 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
     setTree(null);
     setLoadError('');
     setSaveError('');
+    setCalendarOpen(false);
+    setNewTime('');
     svc
       .getXmlTree(env)
       .then((data) => {
@@ -73,8 +125,50 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
 
   const files = useMemo(() => tree?.workflows || [], [tree]);
   const xml = files.find((w) => String(w.id) === String(workflowId));
-  const folders = xml?.folders || [];
-  const jobs = folders.find((f) => f.name === folder)?.jobs || [];
+  const folders = useMemo(() => xml?.folders || [], [xml]);
+  const jobs = useMemo(() => folders.find((f) => f.name === folder)?.jobs || [], [folders, folder]);
+
+  const xmlOptions = useMemo(
+    () =>
+      files.map((w) => ({
+        value: String(w.id),
+        label: w.filename,
+        subtext: `${w.active ? 'Active · ' : ''}${w.folders.length} workflow${w.folders.length === 1 ? '' : 's'}`,
+        icon: <FileCode size={12} />,
+        color: w.active ? '#16a34a' : '#64748b',
+      })),
+    [files],
+  );
+  const workflowOptions = useMemo(
+    () =>
+      folders.map((f) => ({
+        value: f.name,
+        label: f.name,
+        subtext: `${f.jobs.length} jobs`,
+        icon: <FolderTree size={12} />,
+        color: '#2563eb',
+      })),
+    [folders],
+  );
+  const jobChoices = useMemo(
+    () =>
+      jobs.map((j) => ({
+        name: j.name,
+        group: folder,
+        description: j.predecessors.length
+          ? `after ${j.predecessors.join(', ')}`
+          : 'no prerequisites',
+      })),
+    [jobs, folder],
+  );
+  const kindOptions = useMemo(
+    () =>
+      KINDS.map((k) => {
+        const Icon = KIND_ICON[k.id] || Repeat;
+        return { value: k.id, label: k.label, icon: <Icon size={12} />, color: '#005a36' };
+      }),
+    [],
+  );
 
   // The prerequisites a job schedule will run first (authoritative: the engine's own dependency graph).
   useEffect(() => {
@@ -90,8 +184,13 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
     };
   }, [isOpen, env, scope, job, workflowId, folder]);
 
-  const errors = validateForm(rec);
-  const spec = useMemo(() => formToSpec(rec), [rec]);
+  // A time that is typed but not yet added counts when no time has been added at all, so Save works without an extra click
+  const effectiveRec = useMemo(
+    () => ({ ...rec, times: rec.times.length ? rec.times : newTime ? [newTime] : [] }),
+    [rec, newTime],
+  );
+  const errors = validateForm(effectiveRec);
+  const spec = useMemo(() => formToSpec(effectiveRec), [effectiveRec]);
   const specKey = JSON.stringify(spec);
   const specOk = Object.keys(errors).length === 0;
 
@@ -115,15 +214,17 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
   }, [isOpen, env, specKey, specOk]);
 
   const set = (patch) => setRec((r) => ({ ...r, ...patch }));
+  // Built from the latest state, so two quick clicks never overwrite each other
   const toggleIn = (key, value) =>
-    set({
-      [key]: rec[key].includes(value) ? rec[key].filter((v) => v !== value) : [...rec[key], value],
-    });
+    setRec((r) => ({
+      ...r,
+      [key]: r[key].includes(value) ? r[key].filter((v) => v !== value) : [...r[key], value],
+    }));
   const addTime = () => {
-    const next = sortedTimes([...rec.times, newTime]);
-    set({ times: next });
+    if (!newTime) return;
+    set({ times: sortedTimes([...rec.times, newTime]) });
+    setNewTime('');
   };
-
   const pickXml = (id) => {
     setWorkflowId(id);
     const f = files.find((w) => String(w.id) === id)?.folders || [];
@@ -159,9 +260,16 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
     }
   };
 
-  const needsStart = ['once', 'yearly', 'every-hours', 'every-minutes'].includes(rec.kind);
-  const monthly = ['monthly', 'quarterly', 'yearly'].includes(rec.kind);
   const everyKind = ['every-days', 'every-hours', 'every-minutes'].includes(rec.kind);
+  const intervalKind = ['every-hours', 'every-minutes'].includes(rec.kind);
+  const monthDay = ['monthly', 'quarterly', 'yearly'].includes(rec.kind);
+  const dateKind = ['once', 'yearly'].includes(rec.kind); // the date is picked from the calendar
+  const suggested =
+    scope === 'job' && job
+      ? `Job: ${job}`
+      : folder
+        ? `Workflow: ${folder}`
+        : 'e.g. Nightly payments';
 
   return (
     <AdminModal
@@ -170,65 +278,20 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
       title={isEdit ? 'Edit Schedule' : 'Add New Schedule'}
       size="md"
     >
-      <form onSubmit={save} className="eod-schedule-modal-form schf">
+      <form onSubmit={save} className="eod-schedule-modal-form">
         {loadError ? <div className="schf-error">{loadError}</div> : null}
         {!tree && !loadError ? (
           <p className="schf-muted">Loading the environment’s XML files…</p>
         ) : null}
         {tree && files.length === 0 ? (
           <div className="schf-error">
-            No XML has been uploaded to {env} yet. Upload one in the Workflow tab first.
+            No XML has been uploaded to {env} yet. Upload one in the Control Run Cockpit first.
           </div>
         ) : null}
 
         {files.length > 0 && (
           <div className="eod-modal-field-group">
-            <div className="schf-row">
-              <label className="eod-modal-field">
-                <span className="eod-modal-label">ENVIRONMENT</span>
-                <input className="eod-modal-input" value={env} disabled readOnly />
-              </label>
-              <label className="eod-modal-field">
-                <span className="eod-modal-label">XML FILE</span>
-                <select
-                  className="eod-modal-input"
-                  value={workflowId}
-                  onChange={(e) => pickXml(e.target.value)}
-                >
-                  {files.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.filename}
-                      {w.active ? ' (active)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {xml && !xml.active ? (
-              <div className="schf-warn">
-                This XML is not the active one. A schedule only runs while its XML is the active
-                workflow.
-              </div>
-            ) : null}
-
-            <label className="eod-modal-field">
-              <span className="eod-modal-label">WORKFLOW</span>
-              <select
-                className="eod-modal-input"
-                value={folder}
-                onChange={(e) => {
-                  setFolder(e.target.value);
-                  setJob('');
-                }}
-              >
-                {folders.map((f) => (
-                  <option key={f.name} value={f.name}>
-                    {f.name} ({f.jobs.length} jobs)
-                  </option>
-                ))}
-              </select>
-            </label>
-
+            {/* Run scope */}
             <div className="eod-modal-field">
               <span className="eod-modal-label">RUN SCOPE</span>
               <div className="eod-segmented-control" role="radiogroup" aria-label="Run scope">
@@ -236,7 +299,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                   type="button"
                   role="radio"
                   aria-checked={scope === 'workflow'}
-                  className={`eod-segmented-btn ${scope === 'workflow' ? 'active' : ''}`}
+                  className={`eod-segmented-btn schf-seg ${scope === 'workflow' ? 'active' : ''}`}
                   onClick={() => setScope('workflow')}
                 >
                   <Layers size={11} /> Entire workflow
@@ -245,7 +308,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                   type="button"
                   role="radio"
                   aria-checked={scope === 'job'}
-                  className={`eod-segmented-btn ${scope === 'job' ? 'active' : ''}`}
+                  className={`eod-segmented-btn schf-seg ${scope === 'job' ? 'active' : ''}`}
                   onClick={() => setScope('job')}
                 >
                   <Target size={11} /> Single job
@@ -253,25 +316,64 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
               </div>
             </div>
 
+            {/* Environment (fixed by the tab) */}
+            <div className="eod-modal-field">
+              <span className="eod-modal-label">
+                ENVIRONMENT <span className="req">*</span>
+              </span>
+              <div className="schf-static-field">
+                <Server size={14} />
+                <span>{String(env).toUpperCase()}</span>
+              </div>
+            </div>
+
+            {/* XML file and workflow */}
+            <div className="eod-modal-field">
+              <label className="eod-modal-label" htmlFor="schf-xml">
+                XML FILE <span className="req">*</span>
+              </label>
+              <CustomDropdown
+                id="schf-xml"
+                value={workflowId}
+                options={xmlOptions}
+                onChange={pickXml}
+                placeholder="Select XML file..."
+              />
+              {xml && !xml.active ? (
+                <div className="schf-warn" style={{ marginTop: 6 }}>
+                  This XML is not the active one. A schedule only runs while its XML is the active
+                  workflow.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="eod-modal-field">
+              <label className="eod-modal-label" htmlFor="schf-workflow">
+                WORKFLOW <span className="req">*</span>
+              </label>
+              <CustomDropdown
+                id="schf-workflow"
+                value={folder}
+                options={workflowOptions}
+                onChange={(v) => {
+                  setFolder(v);
+                  setJob('');
+                }}
+                placeholder="Select workflow..."
+              />
+            </div>
+
             {scope === 'job' && (
               <div className="eod-modal-field">
                 <label className="eod-modal-label" htmlFor="schf-job">
-                  JOB <span className="req">*</span>
+                  TARGET JOB <span className="req">*</span>
                 </label>
-                <select
+                <TargetJobPicker
                   id="schf-job"
-                  className="eod-modal-input"
                   value={job}
-                  onChange={(e) => setJob(e.target.value)}
-                >
-                  <option value="">Select a job…</option>
-                  {jobs.map((j) => (
-                    <option key={j.name} value={j.name}>
-                      {j.name}
-                      {j.predecessors.length ? ` (after ${j.predecessors.join(', ')})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setJob}
+                  availableJobs={jobChoices}
+                />
                 {closure?.error ? <span className="eod-field-error">{closure.error}</span> : null}
                 {closure && !closure.error ? (
                   <div className="schf-note">
@@ -289,47 +391,47 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
               </div>
             )}
 
-            <label className="eod-modal-field">
-              <span className="eod-modal-label">NAME (optional)</span>
+            <div className="eod-modal-field">
+              <label className="eod-modal-label" htmlFor="schf-name">
+                SCHEDULE NAME
+              </label>
               <input
+                id="schf-name"
                 className="eod-modal-input"
                 value={name}
                 maxLength={255}
-                placeholder={scope === 'job' && job ? `Job: ${job}` : 'e.g. Nightly payments'}
+                placeholder={`${suggested} (suggested, or type your own)`}
                 onChange={(e) => setName(e.target.value)}
               />
-            </label>
+            </div>
 
+            {/* When it repeats */}
             <div className="eod-modal-field">
               <label className="eod-modal-label" htmlFor="schf-kind">
-                REPEATS
+                RECURRENCE <span className="req">*</span>
               </label>
-              <select
+              <CustomDropdown
                 id="schf-kind"
-                className="eod-modal-input"
                 value={rec.kind}
-                onChange={(e) => set({ kind: e.target.value })}
-              >
-                {KINDS.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.label}
-                  </option>
-                ))}
-              </select>
+                options={kindOptions}
+                onChange={(v) => set({ kind: v })}
+                placeholder="Select recurrence..."
+              />
             </div>
 
             {everyKind && (
-              <label className="eod-modal-field">
-                <span className="eod-modal-label">
+              <div className="eod-modal-field">
+                <label className="eod-modal-label" htmlFor="schf-every">
                   EVERY (
                   {rec.kind === 'every-days'
                     ? 'days'
                     : rec.kind === 'every-hours'
                       ? 'hours'
                       : 'minutes'}
-                  )
-                </span>
+                  ) <span className="req">*</span>
+                </label>
                 <input
+                  id="schf-every"
                   className={`eod-modal-input ${errors.every ? 'error' : ''}`}
                   type="number"
                   min={1}
@@ -337,26 +439,56 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                   onChange={(e) => set({ every: e.target.value })}
                 />
                 {errors.every ? <span className="eod-field-error">{errors.every}</span> : null}
-              </label>
+              </div>
             )}
 
             {rec.kind === 'weekly' && (
               <div className="eod-modal-field">
-                <span className="eod-modal-label">
-                  DAYS OF WEEK <span className="req">*</span>
-                </span>
-                <div className="schf-pills">
-                  {WEEKDAYS.map((d, i) => (
+                <div className="eod-field-header-row">
+                  <span className="eod-modal-label">
+                    DAYS OF WEEK <span className="req">*</span>
+                  </span>
+                  <div className="eod-day-quick-presets">
                     <button
                       type="button"
-                      key={d}
-                      className={`schf-pill ${rec.daysOfWeek.includes(i) ? 'on' : ''}`}
-                      aria-pressed={rec.daysOfWeek.includes(i)}
-                      onClick={() => toggleIn('daysOfWeek', i)}
+                      className="eod-preset-mini-btn"
+                      onClick={() => set({ daysOfWeek: [0, 1, 2, 3, 4, 5, 6] })}
                     >
-                      {d}
+                      All Days
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      className="eod-preset-mini-btn"
+                      onClick={() => set({ daysOfWeek: [1, 2, 3, 4, 5] })}
+                    >
+                      Mon – Fri
+                    </button>
+                    <button
+                      type="button"
+                      className="eod-preset-mini-btn"
+                      onClick={() => set({ daysOfWeek: [0, 6] })}
+                    >
+                      Weekends
+                    </button>
+                  </div>
+                </div>
+                <div className="eod-modal-days-grid">
+                  {DAYS.map((d) => {
+                    const on = rec.daysOfWeek.includes(d.index);
+                    return (
+                      <button
+                        key={d.index}
+                        type="button"
+                        className={`eod-day-pill-btn ${on ? 'selected' : ''}`}
+                        onClick={() => toggleIn('daysOfWeek', d.index)}
+                        title={`Click to ${on ? 'deselect' : 'select'} ${d.full}`}
+                        aria-pressed={on}
+                      >
+                        <span className="day-name-full">{d.full}</span>
+                        <span className="day-name-short">{d.short}</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 {errors.daysOfWeek ? (
                   <span className="eod-field-error">{errors.daysOfWeek}</span>
@@ -364,45 +496,109 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
               </div>
             )}
 
-            {monthly && (
-              <label className="eod-modal-field">
-                <span className="eod-modal-label">DAY OF MONTH</span>
-                <select
-                  className="eod-modal-input"
-                  value={rec.dayOfMonth}
-                  onChange={(e) => set({ dayOfMonth: e.target.value })}
-                >
-                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                  <option value="L">Last day of the month</option>
-                </select>
+            {rec.kind === 'quarterly' && (
+              <>
+                <div className="eod-modal-field">
+                  <span className="eod-modal-label">
+                    QUARTER(S) <span className="req">*</span>
+                  </span>
+                  <div className="schf-quarters">
+                    {QUARTERS.map((q) => {
+                      const on = rec.quarters.includes(q.id);
+                      return (
+                        <button
+                          key={q.id}
+                          type="button"
+                          className={`eod-quarter-btn ${on ? 'selected' : ''}`}
+                          aria-pressed={on}
+                          onClick={() => toggleIn('quarters', q.id)}
+                        >
+                          <span>{q.label}</span>
+                          <small>{q.span}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.quarters ? (
+                    <span className="eod-field-error">{errors.quarters}</span>
+                  ) : null}
+                </div>
+                <div className="eod-modal-field">
+                  <span className="eod-modal-label">
+                    RUN IN <span className="req">*</span>
+                  </span>
+                  <div className="schf-quarters">
+                    {QUARTER_POSITIONS.map((pos) => (
+                      <button
+                        key={pos.id}
+                        type="button"
+                        className={`eod-quarter-pos-btn ${rec.quarterMonth === pos.id ? 'selected' : ''}`}
+                        aria-pressed={rec.quarterMonth === pos.id}
+                        onClick={() => set({ quarterMonth: pos.id })}
+                      >
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+                  {rec.quarters.length ? (
+                    <span className="schf-muted">
+                      Runs in {quarterMonthNames(rec.quarters, rec.quarterMonth).join(', ')}
+                    </span>
+                  ) : null}
+                </div>
+              </>
+            )}
+
+            {monthDay && (
+              <div className="eod-modal-field">
+                <div className="eod-field-header-row">
+                  <label className="eod-modal-label" htmlFor="schf-dom">
+                    DAY OF MONTH <span className="req">*</span>
+                  </label>
+                  <label className="schf-inline">
+                    <input
+                      type="checkbox"
+                      checked={rec.dayOfMonth === 'L'}
+                      onChange={(e) => set({ dayOfMonth: e.target.checked ? 'L' : '1' })}
+                    />
+                    <span>Last Day of Month (L)</span>
+                  </label>
+                </div>
+                {rec.dayOfMonth === 'L' ? (
+                  <input
+                    type="text"
+                    className="eod-modal-input"
+                    value="Last Day of Month (L)"
+                    disabled
+                    readOnly
+                  />
+                ) : (
+                  <input
+                    id="schf-dom"
+                    type="number"
+                    min={1}
+                    max={31}
+                    className="eod-modal-input"
+                    value={Number(rec.dayOfMonth) || 1}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      set({
+                        dayOfMonth: String(Number.isNaN(v) ? 1 : Math.min(31, Math.max(1, v))),
+                      });
+                    }}
+                  />
+                )}
                 <span className="schf-muted">
                   A day the month does not have (for example 31 in April) runs on its last day.
                 </span>
-              </label>
+              </div>
             )}
 
             {rec.kind === 'monthly' && (
               <div className="eod-modal-field">
                 <span className="eod-modal-label">ONLY IN THESE MONTHS (none = every month)</span>
                 <div className="schf-pills">
-                  {[
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec',
-                  ].map((m, i) => (
+                  {MONTHS.map((m, i) => (
                     <button
                       type="button"
                       key={m}
@@ -417,20 +613,48 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
               </div>
             )}
 
+            {dateKind && (
+              <div className="eod-modal-field">
+                <label className="eod-modal-label" htmlFor="schf-date">
+                  {rec.kind === 'once' ? 'SCHEDULE DATE' : 'STARTS ON'}{' '}
+                  <span className="req">*</span>
+                </label>
+                <div className="eod-modal-input-with-icon">
+                  <input
+                    id="schf-date"
+                    type="text"
+                    readOnly
+                    className={`eod-modal-input ${errors.startDate ? 'error' : ''}`}
+                    value={longDay(rec.startDate)}
+                    onClick={() => setCalendarOpen(true)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <button
+                    type="button"
+                    className="eod-input-icon-btn"
+                    onClick={() => setCalendarOpen(true)}
+                    aria-label="Pick date from calendar"
+                  >
+                    <CalendarIcon size={15} />
+                  </button>
+                </div>
+                {errors.startDate ? (
+                  <span className="eod-field-error">{errors.startDate}</span>
+                ) : null}
+              </div>
+            )}
+
+            {/* Time of day: one or several */}
             <div className="eod-modal-field">
               <span className="eod-modal-label">
-                {rec.kind === 'every-hours' || rec.kind === 'every-minutes'
-                  ? 'FIRST TIME OF THE CYCLE'
-                  : 'TIMES OF DAY'}{' '}
+                {intervalKind ? 'FIRST TIME OF THE CYCLE' : 'SCHEDULE TIME'}{' '}
                 <span className="req">*</span>
               </span>
-              <div className="schf-pills">
+              <div className="schf-pills" style={{ marginBottom: 6 }}>
                 {rec.times.map((t) => (
                   <span key={t} className="schf-chip">
                     {t}
-                    {rec.times.length > 1 &&
-                    rec.kind !== 'every-hours' &&
-                    rec.kind !== 'every-minutes' ? (
+                    {rec.times.length > 1 && !intervalKind ? (
                       <button
                         type="button"
                         aria-label={`Remove ${t}`}
@@ -441,51 +665,69 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                     ) : null}
                   </span>
                 ))}
-                {rec.kind !== 'every-hours' && rec.kind !== 'every-minutes' ? (
-                  <span className="schf-add">
-                    <input
-                      type="time"
-                      className="eod-modal-input"
-                      value={newTime}
-                      onChange={(e) => setNewTime(e.target.value)}
-                      aria-label="Time to add"
-                    />
-                    <button type="button" className="eod-preset-mini-btn" onClick={addTime}>
-                      Add time
-                    </button>
-                  </span>
-                ) : (
-                  <span className="schf-add">
-                    <input
-                      type="time"
-                      className="eod-modal-input"
-                      value={rec.times[0] || '00:00'}
-                      onChange={(e) => e.target.value && set({ times: [e.target.value] })}
-                      aria-label="First time"
-                    />
-                  </span>
-                )}
               </div>
-              {errors.times ? <span className="eod-field-error">{errors.times}</span> : null}
+              {intervalKind ? (
+                <div className="schf-add-row">
+                  <input
+                    type="time"
+                    className="eod-modal-input"
+                    value={rec.times[0] || ''}
+                    aria-label="First time"
+                    onChange={(e) => set({ times: e.target.value ? [e.target.value] : [] })}
+                  />
+                </div>
+              ) : (
+                <div className="schf-add-row">
+                  <input
+                    type="time"
+                    className="eod-modal-input"
+                    value={newTime}
+                    aria-label="Time to add"
+                    onChange={(e) => setNewTime(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTime();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="eod-preset-mini-btn schf-add-btn"
+                    onClick={addTime}
+                    title="Add this time to the schedule"
+                  >
+                    <Clock size={12} /> Add time
+                  </button>
+                </div>
+              )}
+              <span className="schf-muted">
+                {errors.times
+                  ? intervalKind
+                    ? 'Pick the time the cycle starts from.'
+                    : 'Pick a time, then click Add time (add more than one to run several times a day).'
+                  : intervalKind
+                    ? 'The cycle counts from this time on the start date.'
+                    : 'Add more than one time to run several times a day.'}
+              </span>
             </div>
 
-            <div className="schf-row">
-              <label className="eod-modal-field">
-                <span className="eod-modal-label">
-                  {rec.kind === 'once' ? 'DATE' : needsStart ? 'STARTS ON' : 'STARTS ON (optional)'}
-                  {needsStart ? <span className="req"> *</span> : null}
-                </span>
-                <input
-                  className={`eod-modal-input ${errors.startDate ? 'error' : ''}`}
-                  type="date"
-                  value={rec.startDate}
-                  onChange={(e) => set({ startDate: e.target.value })}
-                />
-                {errors.startDate ? (
-                  <span className="eod-field-error">{errors.startDate}</span>
-                ) : null}
-              </label>
-              {rec.kind !== 'once' && (
+            {!dateKind && rec.kind !== 'once' && (
+              <div className="schf-row">
+                <label className="eod-modal-field">
+                  <span className="eod-modal-label">
+                    STARTS ON {intervalKind ? <span className="req">*</span> : '(optional)'}
+                  </span>
+                  <input
+                    className={`eod-modal-input ${errors.startDate ? 'error' : ''}`}
+                    type="date"
+                    value={rec.startDate}
+                    onChange={(e) => set({ startDate: e.target.value })}
+                  />
+                  {errors.startDate ? (
+                    <span className="eod-field-error">{errors.startDate}</span>
+                  ) : null}
+                </label>
                 <label className="eod-modal-field">
                   <span className="eod-modal-label">ENDS ON (optional)</span>
                   <input
@@ -498,39 +740,54 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                     <span className="eod-field-error">{errors.endDate}</span>
                   ) : null}
                 </label>
-              )}
-            </div>
-
-            <div className="schf-preview" aria-live="polite">
-              <div className="schf-preview-title">
-                <Calendar size={12} /> {preview?.summary || 'Next runs'}
               </div>
-              {!specOk ? (
-                <span className="schf-muted">Complete the fields above to see the next runs.</span>
-              ) : null}
-              {specOk && !preview ? <span className="schf-muted">Calculating…</span> : null}
-              {preview?.error ? <span className="eod-field-error">{preview.error}</span> : null}
-              {preview?.next?.length === 0 ? (
-                <span className="schf-muted">No future runs.</span>
-              ) : null}
-              {preview?.next?.length ? (
-                <ul>
-                  {preview.next.map((n) => (
-                    <li key={n}>{fmt(n)}</li>
-                  ))}
-                </ul>
-              ) : null}
-              <span className="schf-muted">Times use the environment’s time zone setting.</span>
-            </div>
+            )}
 
-            <label className="schf-inline">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-              />{' '}
-              Schedule is on
-            </label>
+            {/* What will happen, from the server */}
+            <div className="eod-cal-selected-summary" aria-live="polite">
+              <Clock size={12} />
+              <span>
+                {!specOk
+                  ? 'Complete the fields above to see when it runs.'
+                  : preview?.error
+                    ? preview.error
+                    : preview?.summary
+                      ? `${preview.summary}${preview.next?.length ? ` · next run ${fmt(preview.next[0])}` : ' · no future runs'}`
+                      : 'Calculating…'}
+              </span>
+            </div>
+            {preview?.next?.length > 1 ? (
+              <ul className="schf-next">
+                {preview.next.slice(1).map((n) => (
+                  <li key={n}>{fmt(n)}</li>
+                ))}
+              </ul>
+            ) : null}
+            <span className="schf-muted">Times use the environment’s time zone setting.</span>
+
+            {/* The same on / off switch as the schedule list */}
+            <div className="schf-switch-row">
+              <label
+                className="switch"
+                htmlFor="schf-enabled"
+                title={enabled ? 'On: click to turn off' : 'Off: click to turn on'}
+              >
+                <input
+                  id="schf-enabled"
+                  type="checkbox"
+                  role="switch"
+                  checked={enabled}
+                  onChange={(e) => setEnabled(e.target.checked)}
+                  aria-label="Schedule is on"
+                />
+                <span />
+              </label>
+              <span className="schf-switch-text">
+                {enabled
+                  ? 'Schedule is on'
+                  : 'Schedule is off: it will not run until you turn it on'}
+              </span>
+            </div>
           </div>
         )}
 
@@ -539,6 +796,50 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
             {saveError}
           </div>
         ) : null}
+
+        {/* Floating calendar: opens in front of the form */}
+        {calendarOpen && (
+          <div className="eod-cal-modal-backdrop" role="presentation">
+            <button
+              type="button"
+              className="eod-cal-backdrop-dismiss"
+              onClick={() => setCalendarOpen(false)}
+              aria-label="Dismiss calendar"
+              tabIndex={-1}
+            />
+            <div
+              className="eod-cal-floating-card"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Calendar Date Picker"
+            >
+              <div className="eod-cal-floating-header">
+                <span className="eod-cal-floating-title">Choose Date</span>
+                <button
+                  type="button"
+                  className="eod-cal-floating-close-btn"
+                  onClick={() => setCalendarOpen(false)}
+                  aria-label="Close calendar"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+              <InteractiveCalendarPicker
+                selectedDate={fromIsoDay(rec.startDate) || new Date()}
+                onSelectDate={(d) => set({ startDate: toIsoDay(d) })}
+              />
+              <div className="eod-cal-floating-actions">
+                <button
+                  type="button"
+                  className="eod-cal-floating-done-btn"
+                  onClick={() => setCalendarOpen(false)}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="eod-modal-footer">
           <button
@@ -549,8 +850,14 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
           >
             Cancel
           </button>
-          <button type="submit" className="eod-modal-btn primary-green" disabled={!canSave}>
-            <Calendar size={13} /> {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Schedule'}
+          <button
+            type="submit"
+            className="eod-modal-btn primary-green"
+            disabled={!canSave}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <CalendarIcon size={13} />{' '}
+            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Schedule'}
           </button>
         </div>
       </form>

@@ -385,3 +385,22 @@ test('cockpitNodeStates maps the cockpit statuses to graph tones', () => {
   });
   assert.equal(s.g, undefined, 'an idle job has no colour');
 });
+
+test('node labels use the words of the Play feature: Pending, Running, Success, Failed, Skipped', () => {
+  const s = cockpitNodeStates([
+    { name: 'a', status: 'Waiting' },
+    { name: 'b', status: 'Queued' },
+    { name: 'c', status: 'Running' },
+    { name: 'd', status: 'Done' },
+    { name: 'e', status: 'Failed' },
+    { name: 'f', status: 'Skipped' },
+  ]);
+  assert.deepEqual(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.label])), {
+    a: 'Pending',
+    b: 'Pending',
+    c: 'Running',
+    d: 'Success',
+    e: 'Failed',
+    f: 'Skipped',
+  });
+});

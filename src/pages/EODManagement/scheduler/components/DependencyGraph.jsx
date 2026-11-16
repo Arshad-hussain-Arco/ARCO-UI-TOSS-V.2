@@ -104,6 +104,9 @@ function DependencyGraphCanvas({
   dimmed = null, // Set of job ids to fade (a search or a status filter outside the graph)
   followId = null, // job id the view should keep centred on (Follow)
   onOpenDetails = null, // called with the job id on double click
+  onPlayJob = null, // the Cockpit's real Play button: called with the job id (the engine runs the job with its prerequisites)
+  playBusyId = '', // the job whose chain is being started right now
+  playBlockedReason = '', // why Play is off at the moment (shown on the button), or ''
 }) {
   const reactFlowInstance = useReactFlow();
   const [direction, setDirection] = useState('TB'); // 'TB' or 'LR'
@@ -474,7 +477,13 @@ function DependencyGraphCanvas({
           isHot,
           isDim,
           isAllWorkflows,
-          onExecuteJob: allowExecute ? handleExecuteJob : undefined,
+          onExecuteJob: onPlayJob || (allowExecute ? handleExecuteJob : undefined),
+          playBusy: Boolean(onPlayJob) && playBusyId === n.id,
+          playDisabled: Boolean(onPlayJob) && Boolean(playBlockedReason || playBusyId),
+          playTitle: onPlayJob
+            ? playBlockedReason ||
+              `Run ${n.id} with the prerequisite jobs it needs. Nothing else runs.`
+            : '',
         },
       };
     });
@@ -491,6 +500,9 @@ function DependencyGraphCanvas({
     handleExecuteJob,
     allowExecute,
     dimmed,
+    onPlayJob,
+    playBusyId,
+    playBlockedReason,
   ]);
 
   // One labelled box per workflow behind its jobs (only when several workflows are shown together)

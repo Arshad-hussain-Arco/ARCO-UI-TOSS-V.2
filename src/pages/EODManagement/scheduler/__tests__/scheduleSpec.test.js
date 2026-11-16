@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  quarterMonthNames,
   defaultForm,
   formToSpec,
   specToForm,
@@ -55,15 +56,24 @@ test('a stored recurrence round-trips through the form', () => {
     'every-minutes',
     'once',
   ]) {
-    const form = { ...defaultForm(TODAY), kind, every: 2, daysOfWeek: [0, 6], dayOfMonth: 'L' };
+    const form = {
+      ...defaultForm(TODAY),
+      kind,
+      times: ['22:00'],
+      every: 2,
+      daysOfWeek: [0, 6],
+      dayOfMonth: 'L',
+    };
     const spec = formToSpec(form);
     assert.deepEqual(formToSpec(specToForm(spec, TODAY)), spec, kind);
   }
 });
 
 test('quick validation', () => {
-  const f = defaultForm(TODAY);
+  const f = { ...defaultForm(TODAY), times: ['22:00'] };
   assert.deepEqual(validateForm(f, TODAY), {});
+  assert.deepEqual(defaultForm(TODAY).times, [], 'a new schedule has no time pre-chosen');
+  assert.ok(validateForm(defaultForm(TODAY), TODAY).times, 'and needs one before it can be saved');
   assert.ok(validateForm({ ...f, times: [] }, TODAY).times);
   assert.ok(validateForm({ ...f, kind: 'weekly', daysOfWeek: [] }, TODAY).daysOfWeek);
   assert.ok(validateForm({ ...f, kind: 'every-hours', every: 0 }, TODAY).every);
@@ -79,4 +89,26 @@ test('day tabs: daily and interval every day, weekly its days, once its date', (
     runsOnWeekday({ recurrence: { frequency: 'once', start_date: '2026-03-01' } }, 0),
     true,
   );
+});
+
+test('quarterly carries the chosen quarters and the month of each quarter', () => {
+  const f = {
+    ...defaultForm(TODAY),
+    kind: 'quarterly',
+    quarters: [3, 1],
+    quarterMonth: 'last',
+    dayOfMonth: 'L',
+  };
+  const spec = formToSpec(f);
+  assert.deepEqual(
+    [spec.frequency, spec.quarters, spec.quarter_month, spec.day_of_month],
+    ['quarterly', [1, 3], 'last', 'L'],
+  );
+  const back = specToForm(spec, TODAY);
+  assert.deepEqual([back.kind, back.quarters, back.quarterMonth], ['quarterly', [1, 3], 'last']);
+  assert.deepEqual(formToSpec(back), spec);
+  assert.ok(validateForm({ ...f, quarters: [] }, TODAY).quarters, 'at least one quarter');
+  assert.deepEqual(quarterMonthNames([1, 2, 3, 4], 'first'), ['Jan', 'Apr', 'Jul', 'Oct']);
+  assert.deepEqual(quarterMonthNames([1, 3], 'last'), ['Mar', 'Sep']);
+  assert.deepEqual(quarterMonthNames([2, 4], 'mid'), ['May', 'Nov']);
 });

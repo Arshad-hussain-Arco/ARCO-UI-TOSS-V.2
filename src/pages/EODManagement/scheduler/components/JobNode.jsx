@@ -43,13 +43,16 @@ function JobNodeComponent({ data, selected }) {
     isDim = false,
     isAllWorkflows = false,
     onExecuteJob,
+    playDisabled = false, // the Cockpit's real Play: blocked while a run is going, a chain is being started or nothing is approved
+    playBusy = false,
+    playTitle = '',
   } = data;
 
   const tone = state?.tone || 'idle';
   const rawLabel = state?.label || STATUS_LABELS[tone] || tone;
   const isBlocked = String(rawLabel).toLowerCase() === 'blocked';
   const statusLabel = isBlocked ? 'Blocked' : rawLabel;
-  const StatusIcon = isBlocked ? Ban : (STATUS_ICONS[tone] || HelpCircle);
+  const StatusIcon = isBlocked ? Ban : STATUS_ICONS[tone] || HelpCircle;
 
   const isRunning = tone === 'run' || String(rawLabel).toLowerCase() === 'running';
 
@@ -59,7 +62,9 @@ function JobNodeComponent({ data, selected }) {
 
   const targetHost =
     job?.target?.target_name ||
-    (job?.target?.host ? `${job.target.username ? `${job.target.username}@` : ''}${job.target.host}` : null);
+    (job?.target?.host
+      ? `${job.target.username ? `${job.target.username}@` : ''}${job.target.host}`
+      : null);
 
   const commandShort = job?.command
     ? job.command.length > 28
@@ -104,27 +109,28 @@ function JobNodeComponent({ data, selected }) {
 
           {/* Independent Play Button (only where simulated execution is offered) */}
           {onExecuteJob ? (
-          <button
-            type="button"
-            className={`rf-play-btn ${isRunning ? 'is-running' : ''}`}
-            disabled={isRunning}
-            onClick={(e) => {
-              e.stopPropagation();
-              onExecuteJob?.(id, { simulateFailure: e.shiftKey || e.altKey });
-            }}
-            title={
-              isRunning
-                ? `${id} is currently running`
-                : `Execute ${id} and prerequisites (Shift+Click to test failure handling)`
-            }
-            aria-label={`Execute ${id} and prerequisites`}
-          >
-            {isRunning ? (
-              <Loader2 size={11} className="rf-spin" />
-            ) : (
-              <Play size={11} fill="currentColor" />
-            )}
-          </button>
+            <button
+              type="button"
+              className={`rf-play-btn ${isRunning ? 'is-running' : ''}`}
+              disabled={isRunning || playDisabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExecuteJob?.(id, { simulateFailure: e.shiftKey || e.altKey });
+              }}
+              title={
+                playTitle ||
+                (isRunning
+                  ? `${id} is currently running`
+                  : `Execute ${id} and prerequisites (Shift+Click to test failure handling)`)
+              }
+              aria-label={`Execute ${id} and prerequisites`}
+            >
+              {isRunning || playBusy ? (
+                <Loader2 size={11} className="rf-spin" />
+              ) : (
+                <Play size={11} fill="currentColor" />
+              )}
+            </button>
           ) : null}
         </div>
       </div>

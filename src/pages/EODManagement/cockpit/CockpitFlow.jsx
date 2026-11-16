@@ -55,6 +55,9 @@ export function CockpitFlow({
   onClearFolderFilter,
   stats = [],
   errors = [],
+  onPlayJob = null,
+  playBusyId = '',
+  playBlockedReason = '',
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
@@ -260,8 +263,6 @@ export function CockpitFlow({
     );
   }
 
-  const selectedJobData = selectedJob ? jobs.find((j) => j.name === selectedJob) : null;
-
   const chip = (label, icon, value, cls) => (
     <button
       type="button"
@@ -354,11 +355,17 @@ export function CockpitFlow({
           detail={detail}
           states={states}
           selected={selectedJob}
-          onSelect={onSelectJob}
+          onSelect={(name) => {
+            onSelectJob(name);
+            if (name && onOpenDrawer) onOpenDrawer(name);
+          }}
           isAllWorkflows={isAll}
           allowExecute={false}
           dimmed={dimmed}
           followId={followActive ? focalJob?.name : null}
+          onPlayJob={onPlayJob}
+          playBusyId={playBusyId}
+          playBlockedReason={playBlockedReason}
           onOpenDetails={(name) => {
             onSelectJob(name);
             if (onOpenDrawer) onOpenDrawer(name);
@@ -367,41 +374,6 @@ export function CockpitFlow({
       </div>
 
       {/* Selected job */}
-      {selectedJob && (
-        <div className="cr-flow-selection-bar">
-          <div className="cr-fsb-info">
-            <span
-              className={`cr-fsb-dot st-${(selectedJobData?.status || 'idle').toLowerCase().replace(/\s+/g, '-')}`}
-            />
-            <strong>{selectedJob}</strong>
-            <span className="cr-fsb-meta">
-              Workflow: {selectedJobData?.folder || selectedJobData?.group || '—'} ·{' '}
-              {selectedJobData?.predecessors?.length || 0} upstream,{' '}
-              {selectedJobData?.successors?.length || 0} downstream
-            </span>
-          </div>
-          <div className="cr-fsb-actions">
-            {onOpenDrawer && (
-              <button
-                type="button"
-                className="cr-btn sm primary"
-                onClick={() => onOpenDrawer(selectedJob)}
-                title="Open slide-out drawer with run logs and operator actions"
-              >
-                Inspect Details & Logs
-              </button>
-            )}
-            <button
-              type="button"
-              className="cr-btn sm outline"
-              onClick={() => onSelectJob(null)}
-              title="Deselect this job"
-            >
-              Deselect
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

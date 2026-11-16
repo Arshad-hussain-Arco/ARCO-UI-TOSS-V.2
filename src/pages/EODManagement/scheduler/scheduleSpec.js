@@ -25,12 +25,14 @@ const isoDay = (d) =>
 export function defaultForm(today = new Date()) {
   return {
     kind: 'daily',
-    times: ['22:00'],
+    times: [], // no time is pre-chosen: the user picks it
     startDate: isoDay(today),
     endDate: '',
     daysOfWeek: [1, 2, 3, 4, 5],
     dayOfMonth: '1',
     months: [],
+    quarters: [1, 2, 3, 4],
+    quarterMonth: 'first',
     every: 1,
     timezone: '',
   };
@@ -68,6 +70,13 @@ export function formToSpec(form) {
         months: form.months,
       };
     case 'quarterly':
+      return {
+        ...base,
+        frequency: 'quarterly',
+        day_of_month: form.dayOfMonth === 'L' ? 'L' : Number(form.dayOfMonth) || 1,
+        quarters: [...form.quarters].sort((a, b) => a - b),
+        quarter_month: form.quarterMonth,
+      };
     case 'yearly':
       return {
         ...base,
@@ -89,7 +98,7 @@ export function formToSpec(form) {
 
 /** The form for a stored recurrence object (used when editing). */
 export function specToForm(spec, today = new Date()) {
-  const form = { ...defaultForm(today), times: spec.times?.length ? spec.times : ['22:00'] };
+  const form = { ...defaultForm(today), times: spec.times?.length ? [...spec.times] : [] };
   form.startDate = spec.start_date || '';
   form.endDate = spec.end_date || '';
   form.timezone = spec.timezone || '';
@@ -97,6 +106,8 @@ export function specToForm(spec, today = new Date()) {
   if (spec.days_of_week) form.daysOfWeek = spec.days_of_week;
   if (spec.day_of_month !== undefined) form.dayOfMonth = String(spec.day_of_month);
   if (spec.months) form.months = spec.months;
+  if (spec.quarters) form.quarters = spec.quarters;
+  if (spec.quarter_month) form.quarterMonth = spec.quarter_month;
   if (spec.frequency === 'daily') form.kind = (spec.every || 1) > 1 ? 'every-days' : 'daily';
   else if (spec.frequency === 'interval')
     form.kind = spec.unit === 'hours' ? 'every-hours' : 'every-minutes';
@@ -121,6 +132,8 @@ export function validateForm(form, today = new Date()) {
     errs.startDate = 'The date is in the past.';
   if (form.kind === 'weekly' && !form.daysOfWeek.length)
     errs.daysOfWeek = 'Choose at least one day.';
+  if (form.kind === 'quarterly' && !form.quarters.length)
+    errs.quarters = 'Choose at least one quarter.';
   if (
     ['every-days', 'every-hours', 'every-minutes'].includes(form.kind) &&
     !(Number(form.every) >= 1)
@@ -147,4 +160,36 @@ export function runsOnWeekday(schedule, dayIndex) {
     default:
       return schedule?.next_fire_at ? new Date(schedule.next_fire_at).getDay() === dayIndex : false;
   }
+}
+
+export const QUARTERS = [
+  { id: 1, label: 'Q1', span: 'Jan – Mar' },
+  { id: 2, label: 'Q2', span: 'Apr – Jun' },
+  { id: 3, label: 'Q3', span: 'Jul – Sep' },
+  { id: 4, label: 'Q4', span: 'Oct – Dec' },
+];
+export const QUARTER_POSITIONS = [
+  { id: 'first', label: 'First Month' },
+  { id: 'mid', label: 'Middle Month' },
+  { id: 'last', label: 'Last Month' },
+];
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/** The months a quarterly schedule runs in, e.g. Q1 and Q3 in the last month -> ['Mar', 'Sep']. */
+export function quarterMonthNames(quarters, position = 'first') {
+  const offset = { first: 0, mid: 1, last: 2 }[position] ?? 0;
+  return [...quarters].sort((a, b) => a - b).map((q) => MONTH_NAMES[(q - 1) * 3 + offset]);
 }

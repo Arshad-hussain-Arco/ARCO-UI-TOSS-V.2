@@ -216,7 +216,7 @@ export function cockpitNodeStates(jobs) {
         return { label: 'On hold', tone: 'wait' };
       case 'waiting':
       case 'queued':
-        return { label: 'Waiting', tone: 'wait' };
+        return { label: 'Pending', tone: 'wait' };
       case 'skipped':
         return { label: 'Skipped', tone: 'off' };
       default:

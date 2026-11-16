@@ -145,9 +145,89 @@
 /* Schedules list: six columns (On, Name, Frequency, Next start, Last result, Actions). The environment is the tab's own, so it is not repeated per row. */
 .sc-grid.sc-slim .sc-cols,
 .sc-grid.sc-slim .sc-card {
-  grid-template-columns: 46px minmax(240px, 2.6fr) minmax(150px, 1.3fr) minmax(150px, 1.2fr) minmax(
-      130px,
-      1.1fr
-    ) 140px;
+  grid-template-columns:
+    46px minmax(240px, 2.6fr) minmax(150px, 1.3fr) minmax(150px, 1.2fr) minmax(130px, 1.1fr)
+    140px;
   min-width: 780px;
+}
+
+/* Environment shown as a fixed field (it comes from the tab, not from a choice) */
+.schf-static-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-secondary, #d0d5dd);
+  border-radius: 8px;
+  background: var(--surface-secondary, #f8fafc);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+.schf-static-field svg {
+  color: var(--c-primary, #005a36);
+}
+/* One time field with the "Add time" button next to it */
+.schf-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.schf-add-row .eod-modal-input {
+  flex: 0 0 160px;
+  width: 160px;
+}
+.schf-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+.schf-next {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+/* Scope switch: icon and label on one line, whatever the app's global rule for icons is (some reset them to display: block) */
+.eod-segmented-btn.schf-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.eod-segmented-btn.schf-seg svg {
+  display: inline-block;
+  flex: none;
+}
+
+/* Quarterly: the four quarters and the month inside each one, as a row of buttons */
+.schf-quarters {
+  display: flex;
+  gap: 8px;
+}
+.eod-quarter-btn small {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+.schf-quarters .eod-quarter-btn,
+.schf-quarters .eod-quarter-pos-btn {
+  font-family: inherit;
+}
+
+/* "Schedule is on": the on / off switch with its words beside it */
+.schf-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+.schf-switch-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary, #0f172a);
 }
