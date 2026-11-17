@@ -69,42 +69,6 @@ export function CockpitFlow({
   const [statusFilter, setStatusFilter] = useState(null);
   const [followActive, setFollowActive] = useState(false);
 
-  // Sync folder with scope or initialFolder
-  const scopeFolder = scope?.type === 'workflow' ? scope.folder : null;
-  const [selectedFolder, setSelectedFolder] = useState(() => scopeFolder || initialFolder || 'ALL');
-
-  useEffect(() => {
-    if (scope) {
-      if (scope.type === 'workflow' && scope.folder) {
-        setSelectedFolder(scope.folder);
-      } else if (scope.type === 'job') {
-        if (scope.folder) {
-          setSelectedFolder(scope.folder);
-        } else if (scope.job && allJobs.length > 0) {
-          const matched = allJobs.find((j) => j.name === scope.job);
-          if (matched && (matched.folder || matched.group)) {
-            setSelectedFolder(matched.folder || matched.group);
-          }
-        }
-      } else if (scope.type === 'xml') {
-        setSelectedFolder('ALL');
-      }
-    } else if (initialFolder) {
-      setSelectedFolder(initialFolder);
-    }
-  }, [scope?.type, scope?.folder, scope?.job, allJobs, initialFolder]);
-
-  const handleFolderChange = (val) => {
-    setSelectedFolder(val);
-    if (onScopeChange) {
-      if (val === 'ALL') {
-        onScopeChange({ type: 'xml', folder: null, job: null });
-      } else {
-        onScopeChange({ type: 'workflow', folder: val, job: null });
-      }
-    }
-  };
-
   const activeFolders = useMemo(
     () => (folders && folders.length > 0 ? folders : run?.folders) || [],
     [folders, run],
@@ -170,6 +134,42 @@ export function CockpitFlow({
       successors: Array.from(succsMap.get(j.name) || []),
     }));
   }, [definition, run, activeFolders]);
+
+  // Sync folder with scope or initialFolder
+  const scopeFolder = scope?.type === 'workflow' ? scope.folder : null;
+  const [selectedFolder, setSelectedFolder] = useState(() => scopeFolder || initialFolder || 'ALL');
+
+  useEffect(() => {
+    if (scope) {
+      if (scope.type === 'workflow' && scope.folder) {
+        setSelectedFolder(scope.folder);
+      } else if (scope.type === 'job') {
+        if (scope.folder) {
+          setSelectedFolder(scope.folder);
+        } else if (scope.job && allJobs.length > 0) {
+          const matched = allJobs.find((j) => j.name === scope.job);
+          if (matched && (matched.folder || matched.group)) {
+            setSelectedFolder(matched.folder || matched.group);
+          }
+        }
+      } else if (scope.type === 'xml') {
+        setSelectedFolder('ALL');
+      }
+    } else if (initialFolder) {
+      setSelectedFolder(initialFolder);
+    }
+  }, [scope?.type, scope?.folder, scope?.job, allJobs, initialFolder]);
+
+  const handleFolderChange = (val) => {
+    setSelectedFolder(val);
+    if (onScopeChange) {
+      if (val === 'ALL') {
+        onScopeChange({ type: 'xml', folder: null, job: null });
+      } else {
+        onScopeChange({ type: 'workflow', folder: val, job: null });
+      }
+    }
+  };
 
   const folderOptions = useMemo(() => {
     const list = [];
