@@ -52,6 +52,13 @@ export function usePolling(callback, ms, enabled = true) {
     const id = setInterval(() => {
       if (!document.hidden) saved.current();
     }, ms);
-    return () => clearInterval(id);
+    const onVisibility = () => {
+      if (!document.hidden) saved.current();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [ms, enabled]);
 }
