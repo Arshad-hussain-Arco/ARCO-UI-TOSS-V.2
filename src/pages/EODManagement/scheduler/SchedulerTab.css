@@ -587,11 +587,19 @@
 }
 
 /* Environment picker and "New Environment" sit at the right end of the shared .eod-tabs bar */
+.eodsch-topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto;
+  align-self: center;
+  padding-bottom: 6px;
+}
 .eodsch-topbar-right {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   margin-left: auto;
   align-self: center;
   padding-bottom: 6px;

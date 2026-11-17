@@ -199,6 +199,25 @@ export function SchedulerTab() {
               </button>
             ))
           : null}
+        {/* Engine status indicator in the middle of the header bar */}
+        {current ? (
+          <div className="eodsch-topbar-center">
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                backgroundColor: current.engine ? '#10b981' : '#f59e0b',
+                display: 'inline-block',
+                boxShadow: current.engine ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : 'none',
+              }}
+            />
+            <span className="eodsch-muted" style={{ fontSize: '12px', fontWeight: 500 }}>
+              {current.engine ? 'Engine is serving it' : 'No engine is serving it right now'}
+            </span>
+          </div>
+        ) : null}
+
         <div className="eodsch-topbar-right">
           <label className="eodsch-field-inline">
             Environment
@@ -216,6 +235,16 @@ export function SchedulerTab() {
               ))}
             </select>
           </label>
+          {canAdmin && current ? (
+            <div className="eodsch-field-inline">
+              <span>Enabled</span>
+              <Toggle
+                checked={current.enabled}
+                onChange={setEnabled}
+                ariaLabel="Environment enabled"
+              />
+            </div>
+          ) : null}
           {canAdmin ? (
             <Button
               size="sm"
@@ -234,24 +263,6 @@ export function SchedulerTab() {
           {envs.error && envs.data ? (
             <div className="eodsch-notice eodsch-notice-warn" role="status">
               Couldn't refresh environments: {envs.error}
-            </div>
-          ) : null}
-
-          {current ? (
-            <div className="eodsch-statusbar">
-              <span className="eodsch-muted">
-                {current.engine ? 'Engine is serving it' : 'No engine is serving it right now'}
-              </span>
-              {canAdmin ? (
-                <div className="eodsch-field-inline">
-                  <span>Enabled</span>
-                  <Toggle
-                    checked={current.enabled}
-                    onChange={setEnabled}
-                    ariaLabel="Environment enabled"
-                  />
-                </div>
-              ) : null}
             </div>
           ) : null}
 
