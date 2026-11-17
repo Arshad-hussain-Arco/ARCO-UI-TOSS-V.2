@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload, User } from 'lucide-react';
+import { FileText, Play, RefreshCw, Upload, User } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
@@ -18,7 +18,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
-import { approvalState, groupMessages, formatClockTime } from '../scheduler/schedulerModel';
+import { groupMessages, formatClockTime } from '../scheduler/schedulerModel';
 
 import '../scheduler/components/WorkflowPanel.css';
 import './Cockpit.css';
@@ -99,6 +99,7 @@ export function CockpitTab({ env } = {}) {
 
   const canUpload = hasPermission('EOD_SCHEDULER_UPLOAD');
   const canEdit = hasPermission('EOD_SCHEDULER_SETTINGS');
+  const canExecute = hasPermission('EOD_SCHEDULER_EXECUTE');
 
   // Load real resources from backend
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
@@ -163,7 +164,6 @@ export function CockpitTab({ env } = {}) {
   usePolling(() => wf.reload(true), 10000, !busy);
 
   const view = wf.data;
-  const state = approvalState(view, hasPermission);
 
   const files = view?.workflows ?? [];
   const running = (runsList.data ?? []).some(
@@ -425,26 +425,42 @@ export function CockpitTab({ env } = {}) {
     const done = await guarded(() => svc.uploadWorkflow(env, file));
     if (done) {
       if (done.uploaded?.active) {
-        toast.success(`${file.name} uploaded and active. Review it before approving.`);
+        toast.success(`${file.name} uploaded and set as active workflow.`);
         setReviewed(false);
         setSelectedJobName(null);
         setSelectedRunId('current_workflow');
       } else {
-        toast.success(`${file.name} stored. Choose it in "Workflow file" to review and run it.`);
+        toast.success(`${file.name} stored. Choose it in "Workflow file" to view and run it.`);
       }
-      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+      const [updatedWf] = await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+      if (updatedWf?.approval?.digest && (!updatedWf?.errors || updatedWf.errors.length === 0)) {
+        try {
+          await svc.approve(env, updatedWf.approval.digest);
+          await wf.reload(true);
+        } catch {
+          // Ignore auto-approval errors if not ready
+        }
+      }
     }
   };
 
   const activate = async (file) => {
     const done = await guarded(
       () => svc.activateWorkflow(env, file.id),
-      `${file.filename} is now the active workflow. Review it before approving.`,
+      `${file.filename} is now the active workflow.`,
     );
     if (done) {
       setSelectedJobName(null);
       setSelectedRunId('current_workflow');
-      await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+      const [updatedWf] = await Promise.all([wf.reload(true), def.reload(true), runsList.reload(true)]);
+      if (updatedWf?.approval?.digest && (!updatedWf?.errors || updatedWf.errors.length === 0)) {
+        try {
+          await svc.approve(env, updatedWf.approval.digest);
+          await wf.reload(true);
+        } catch {
+          // Ignore
+        }
+      }
     }
   };
 
@@ -517,11 +533,140 @@ export function CockpitTab({ env } = {}) {
     }
   };
 
+  const validateExecutionPreflight = (selectedFolders = null) => {
+    if (!view?.loaded) {
+      toast.error('No workflow uploaded. Please upload a workflow XML file first.');
+      return false;
+    }
+
+    let foldersToCheck = view?.folders ?? [];
+    if (selectedFolders && selectedFolders.length > 0) {
+      foldersToCheck = foldersToCheck.filter((f) => selectedFolders.includes(f.folder));
+    }
+
+    const allJobs = foldersToCheck.flatMap((f) => f.jobs || []);
+    if (!allJobs.length) {
+      toast.error('No jobs found in the active workflow.');
+      return false;
+    }
+
+    // Identify all distinct Node IDs declared in this workflow
+    const allWorkflowNodeIds = [
+      ...new Set(allJobs.map((j) => j.nodeid).filter(Boolean)),
+    ];
+    const isMultiServerWorkflow = allWorkflowNodeIds.length > 1;
+
+    // Helper for clean list formatting (caps at max items with a +N remaining count)
+    const formatList = (items, max = 4) => {
+      if (items.length <= max) return items.join(', ');
+      const visible = items.slice(0, max);
+      const remaining = items.length - max;
+      return `${visible.join(', ')} +${remaining} more`;
+    };
+
+    // 1. Check for unmapped Node IDs
+    const isJobUnmapped = (j) =>
+      !j.target ||
+      j.target.code === 'UNMAPPED_NODEID' ||
+      j.target.code === 'NO_TARGET_FOR_NODEID' ||
+      String(j.target?.target_name || '').toLowerCase() === 'unmapped';
+
+    const unmappedJobs = allJobs.filter(isJobUnmapped);
+
+    if (unmappedJobs.length > 0) {
+      const missingNodeIds = [
+        ...new Set(unmappedJobs.map((j) => j.nodeid || 'unassigned').filter(Boolean)),
+      ];
+
+      // Multi-Server Workflow: All or multiple Node IDs missing
+      if (isMultiServerWorkflow && missingNodeIds.length > 1) {
+        const isAllMissing = missingNodeIds.length === allWorkflowNodeIds.length;
+        if (isAllMissing) {
+          toast.error(
+            `Cannot execute workflow: This workflow requires multiple target servers. ${missingNodeIds.length} Node IDs (${formatList(missingNodeIds)}) are unmapped. Please add the target servers and map each Node ID in Environment Settings.`,
+            { duration: 7000 },
+          );
+        } else {
+          toast.error(
+            `Cannot execute workflow: This workflow requires multiple target servers, but ${missingNodeIds.length} Node IDs (${formatList(missingNodeIds)}) are still unmapped. Please add and map the remaining target servers in Environment Settings.`,
+            { duration: 7000 },
+          );
+        }
+        return false;
+      }
+
+      // Multi-Server Workflow: Exactly one specific Node ID missing (partially mapped)
+      if (isMultiServerWorkflow && missingNodeIds.length === 1) {
+        toast.error(
+          `Cannot execute workflow: Node ID "${missingNodeIds[0]}" is not mapped to any target server. Please add/host its target server and map this Node ID in Environment Settings.`,
+          { duration: 7000 },
+        );
+        return false;
+      }
+
+      // Single-Server Workflow: Node ID unmapped
+      const nodeText = missingNodeIds.length > 0 ? ` "${missingNodeIds[0]}"` : '';
+      toast.error(
+        `Cannot execute workflow: Target server is not mapped for Node ID${nodeText}. Please add/host a target server and map the Node ID in Environment Settings first.`,
+        { duration: 7000 },
+      );
+      return false;
+    }
+
+    // 2. Check for mapped Node IDs whose target servers failed connectivity / auth / secret check
+    const unreachableJobs = allJobs.filter((j) => j.target && j.target.ok === false);
+    if (unreachableJobs.length > 0) {
+      const failedTargets = [
+        ...new Set(
+          unreachableJobs.map(
+            (j) =>
+              `${j.target?.target_name || j.nodeid || j.name} (${j.target?.code || 'UNREACHABLE'})`,
+          ),
+        ),
+      ];
+
+      if (failedTargets.length > 1) {
+        toast.error(
+          `Cannot execute workflow: Target servers for ${failedTargets.length} nodes failed connection checks: ${formatList(failedTargets)}. Please verify host address, port, credentials, and SSH keys in Environment Settings.`,
+          { duration: 7000 },
+        );
+      } else {
+        const singleJob = unreachableJobs[0];
+        toast.error(
+          `Cannot execute workflow: Target server for Node ID "${singleJob.nodeid || singleJob.name}" is not reachable (${singleJob.target?.code || 'UNREACHABLE'}). Please verify host, port, and credentials in Environment Settings.`,
+          { duration: 7000 },
+        );
+      }
+      return false;
+    }
+
+    // 3. Other blocking dispatch/review errors reported by engine/parser
+    if (view?.errors?.length > 0) {
+      const relevantError =
+        (selectedFolders && view.errors.find((err) => selectedFolders.some((f) => err.includes(f)))) ||
+        view.errors[0];
+      toast.error(`Cannot execute workflow: ${relevantError}`, { duration: 7000 });
+      return false;
+    }
+
+    return true;
+  };
+
   // Ask the engine to start a run and follow it: the same path for "Run All Now", "Run Workflow" and the Play button of a job.
   // `okText` is the message shown when the engine accepted it (text, or a function of the engine's answer).
   const submitRun = async (body, okText) => {
     setBusy(true);
     try {
+      // Auto-approve in background if needed
+      if (!view?.approved && view?.approval?.digest && (!view?.errors || view.errors.length === 0)) {
+        try {
+          await svc.approve(env, view.approval.digest);
+          await wf.reload(true);
+        } catch (approveErr) {
+          console.warn('Pre-run auto-approval error:', approveErr);
+        }
+      }
+
       const { command_id: id } = await svc.runNow(env, body);
       let answer = null;
       for (let i = 0; i < 34; i += 1) {
@@ -555,8 +700,11 @@ export function CockpitTab({ env } = {}) {
     return false;
   };
 
-  const handleStartRun = (options = {}) =>
-    submitRun(
+  const handleStartRun = (options = {}) => {
+    if (!validateExecutionPreflight(options.folders)) {
+      return false;
+    }
+    return submitRun(
       {
         allow_overlap: options.allow_overlap ?? false,
         // only these workflows (folders) of the active XML; without it the whole XML runs
@@ -566,6 +714,7 @@ export function CockpitTab({ env } = {}) {
       },
       'The engine accepted and started the batch run.',
     );
+  };
 
   // The run being viewed (a real one, not the staged workflow) is the one whose finished jobs Play may reuse; the engine checks it is from today.
   const reuseRunId =
@@ -575,14 +724,11 @@ export function CockpitTab({ env } = {}) {
   const succeededNames = new Set(
     (run?.jobs || []).filter((j) => j.status === 'Done').map((j) => j.name),
   );
-  const playBlockedReason =
-    state.state !== 'approved'
-      ? 'The workflow must be approved before anything runs'
-      : !state.canRun
-        ? 'You do not have permission to run jobs'
-        : isRunningBatch
-          ? 'A run is in progress. Wait for it to finish or stop it first.'
-          : '';
+  const playBlockedReason = !canExecute
+    ? 'You do not have permission to run jobs'
+    : isRunningBatch
+      ? 'A run is in progress. Wait for it to finish or stop it first.'
+      : '';
 
   // Play on one job: the engine runs it with the prerequisite jobs it needs (its own dependency rules), and nothing else.
   const requestPlay = (name) => {
@@ -591,6 +737,7 @@ export function CockpitTab({ env } = {}) {
   };
   const confirmPlay = async () => {
     if (!playJob || playingJob) return;
+    if (!validateExecutionPreflight([playJob.folder])) return;
     setPlayingJob(playJob.name);
     const ok = await submitRun(
       {
@@ -652,8 +799,7 @@ export function CockpitTab({ env } = {}) {
     }
 
     if (action === 'run' || action === 'rerun') {
-      if (state.state !== 'approved') {
-        toast.error('Workflow must be approved before running jobs.');
+      if (!validateExecutionPreflight()) {
         return;
       }
 
@@ -747,17 +893,7 @@ export function CockpitTab({ env } = {}) {
               <strong className="cr-ufc-filename">
                 {view?.meta?.filename || 'No workflow uploaded'}
               </strong>
-              {view?.loaded ? (
-                state.state === 'approved' ? (
-                  <span className="cr-ufc-badge approved">
-                    <CheckCircle2 size={13} /> Approved
-                  </span>
-                ) : (
-                  <span className="cr-ufc-badge pending">
-                    <ShieldAlert size={13} /> Needs Approval
-                  </span>
-                )
-              ) : (
+              {!view?.loaded && (
                 <span
                   className="cr-ufc-badge"
                   style={{
@@ -775,11 +911,6 @@ export function CockpitTab({ env } = {}) {
                   <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
                   <span className="cr-ufc-sep">|</span>
                   <span>{formatWhen(view.meta?.uploaded_at)}</span>
-                  <span className="cr-ufc-sep">|</span>
-                  <span>
-                    SHA-256:{' '}
-                    <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
-                  </span>
                 </>
               ) : (
                 <span>Upload a Control-M XML file to review jobs and start runs</span>
@@ -853,40 +984,6 @@ export function CockpitTab({ env } = {}) {
           )}
         </div>
       </div>
-
-      {/* Manual approval banner when pending review */}
-      {view?.loaded && state.state === 'pending' && (
-        <div className="eodw-approval" data-state="pending" style={{ margin: '0 16px 10px' }}>
-          <div className="eodw-approval-main">
-            <span className="eodw-approval-icon">
-              <ShieldAlert size={20} />
-            </span>
-            <div>
-              <strong>Needs Approval</strong>
-              <p className="eodw-muted" style={{ margin: 0, fontSize: '12px' }}>
-                Approval covers the commands, target servers and schedule in {view.meta?.filename}.
-              </p>
-            </div>
-          </div>
-          {state.canApprove ? (
-            <div className="eodw-approval-actions">
-              <label className="eodsch-check">
-                <input
-                  type="checkbox"
-                  checked={reviewed}
-                  onChange={(e) => setReviewed(e.target.checked)}
-                />
-                I reviewed the commands, targets and schedule
-              </label>
-              <Button size="sm" disabled={!reviewed} isLoading={busy} onClick={handleApprove}>
-                Approve
-              </Button>
-            </div>
-          ) : (
-            <span className="eodsch-muted">Ask an authorized user to approve this workflow.</span>
-          )}
-        </div>
-      )}
 
       {/* ── Headings Section: Subtabs & Action Controls (Below Upload XML Section) ── */}
       <div className="cr-subtabs-bar">
@@ -969,15 +1066,16 @@ export function CockpitTab({ env } = {}) {
             <button
               type="button"
               className="cr-btn outline sm"
-              disabled={
-                busy || state.state !== 'approved' || !state.canRun || !(view?.folders || []).length
-              }
-              onClick={() => setIsRunPickerOpen(true)}
+              disabled={busy || !canExecute || !(view?.folders || []).length}
+              onClick={() => {
+                if (!validateExecutionPreflight()) return;
+                setIsRunPickerOpen(true);
+              }}
               title={
-                state.state !== 'approved'
-                  ? 'Workflow must be approved before running'
-                  : !state.canRun
-                    ? 'You do not have permission to execute batch runs'
+                !canExecute
+                  ? 'You do not have permission to execute batch runs'
+                  : !(view?.folders || []).length
+                    ? 'No workflows loaded in the active file'
                     : 'Run only the workflows you choose from the active XML'
               }
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
@@ -989,15 +1087,15 @@ export function CockpitTab({ env } = {}) {
             <button
               type="button"
               className="cr-btn primary sm cr-btn-run-all"
-              disabled={busy || isRunningBatch || state.state !== 'approved' || !state.canRun}
+              disabled={busy || isRunningBatch || !canExecute || !view?.loaded}
               onClick={() => handleStartRun()}
               title={
-                state.state !== 'approved'
-                  ? 'Workflow must be approved before running'
-                  : !state.canRun
-                    ? 'You do not have permission to execute batch runs'
-                    : isRunningBatch
-                      ? 'A batch run is currently in progress'
+                !canExecute
+                  ? 'You do not have permission to execute batch runs'
+                  : isRunningBatch
+                    ? 'A batch run is currently in progress'
+                    : !view?.loaded
+                      ? 'Upload a workflow XML file first'
                       : 'Execute batch workflow now'
               }
               style={{
@@ -1011,11 +1109,11 @@ export function CockpitTab({ env } = {}) {
                 borderRadius: '6px',
                 padding: '5px 12px',
                 cursor:
-                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun
+                  busy || isRunningBatch || !canExecute || !view?.loaded
                     ? 'not-allowed'
                     : 'pointer',
                 opacity:
-                  busy || isRunningBatch || state.state !== 'approved' || !state.canRun ? 0.6 : 1,
+                  busy || isRunningBatch || !canExecute || !view?.loaded ? 0.6 : 1,
               }}
             >
               <Play size={13} fill="currentColor" />
@@ -1185,7 +1283,7 @@ export function CockpitTab({ env } = {}) {
                 folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
               })
             }
-            canRun={state.state === 'approved' && state.canRun}
+            canRun={canExecute}
           />
         )}
 
@@ -1314,7 +1412,7 @@ export function CockpitTab({ env } = {}) {
         onClose={() => setFilesOpen(false)}
         files={files}
         canManage={canEdit}
-        canRun={state.canRun}
+        canRun={canExecute}
         busy={busy}
         onActivate={activate}
         onDelete={(file) => {
