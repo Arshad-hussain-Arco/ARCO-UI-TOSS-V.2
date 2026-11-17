@@ -184,10 +184,19 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
     };
   }, [isOpen, env, scope, job, workflowId, folder]);
 
-  // A time that is typed but not yet added counts when no time has been added at all, so Save works without an extra click
+  const isInterval = ['every-hours', 'every-minutes'].includes(rec.kind);
+  // A time that is typed but not yet added counts when saving or calculating preview
+  const effectiveTimes = useMemo(() => {
+    if (isInterval) return rec.times[0] ? [rec.times[0]] : newTime ? [newTime] : [];
+    if (newTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(newTime) && !rec.times.includes(newTime)) {
+      return sortedTimes([...rec.times, newTime]);
+    }
+    return rec.times;
+  }, [rec.times, newTime, isInterval]);
+
   const effectiveRec = useMemo(
-    () => ({ ...rec, times: rec.times.length ? rec.times : newTime ? [newTime] : [] }),
-    [rec, newTime],
+    () => ({ ...rec, times: effectiveTimes }),
+    [rec, effectiveTimes],
   );
   const errors = validateForm(effectiveRec);
   const spec = useMemo(() => formToSpec(effectiveRec), [effectiveRec]);
@@ -199,9 +208,10 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
     setPreview(null);
     if (!isOpen || !specOk) return undefined;
     let live = true;
+    const count = Math.min(Math.max(5, (spec.times?.length || 0)), 20);
     const t = setTimeout(() => {
       svc
-        .previewRecurrence(env, spec, 5)
+        .previewRecurrence(env, spec, count)
         .then((p) => live && setPreview(p))
         .catch((err) => live && setPreview({ error: errorText(err) }));
     }, 300);
@@ -253,6 +263,9 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
         ? await svc.updateSchedule(env, schedule.id, body)
         : await svc.createSchedule(env, body);
       onSaved(saved);
+      try {
+        window.dispatchEvent(new CustomEvent('eod-schedules-updated', { detail: saved }));
+      } catch {}
     } catch (err) {
       setSaveError(errorText(err));
     } finally {
@@ -707,8 +720,8 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                     ? 'Pick the time the cycle starts from.'
                     : 'Pick a time, then click Add time (add more than one to run several times a day).'
                   : intervalKind
-                    ? 'The cycle counts from this time on the start date.'
-                    : 'Add more than one time to run several times a day.'}
+                    ? `The cycle counts from this time on the start date (time zone: ${rec.timezone || 'local'}).`
+                    : `Add more than one time to run several times a day (time zone: ${rec.timezone || 'local'}).`}
               </span>
             </div>
 
@@ -763,7 +776,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                 ))}
               </ul>
             ) : null}
-            <span className="schf-muted">Times use the environment’s time zone setting.</span>
+            <span className="schf-muted">Times are scheduled in your time zone ({rec.timezone || 'local'}).</span>
 
             {/* The same on / off switch as the schedule list */}
             <div className="schf-switch-row">

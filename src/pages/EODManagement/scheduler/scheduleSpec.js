@@ -22,6 +22,14 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isoDay = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
+export const clientTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+};
+
 export function defaultForm(today = new Date()) {
   return {
     kind: 'daily',
@@ -34,7 +42,7 @@ export function defaultForm(today = new Date()) {
     quarters: [1, 2, 3, 4],
     quarterMonth: 'first',
     every: 1,
-    timezone: '',
+    timezone: clientTimezone(),
   };
 }
 
@@ -47,7 +55,7 @@ export function formToSpec(form) {
     times: sortedTimes(form.times),
     start_date: form.startDate || '',
     end_date: form.endDate || '',
-    timezone: form.timezone || '',
+    timezone: form.timezone || clientTimezone(),
   };
   switch (form.kind) {
     case 'once':
@@ -101,7 +109,7 @@ export function specToForm(spec, today = new Date()) {
   const form = { ...defaultForm(today), times: spec.times?.length ? [...spec.times] : [] };
   form.startDate = spec.start_date || '';
   form.endDate = spec.end_date || '';
-  form.timezone = spec.timezone || '';
+  form.timezone = spec.timezone || clientTimezone();
   form.every = spec.every || 1;
   if (spec.days_of_week) form.daysOfWeek = spec.days_of_week;
   if (spec.day_of_month !== undefined) form.dayOfMonth = String(spec.day_of_month);

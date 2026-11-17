@@ -160,7 +160,10 @@ export function WorkflowPanel({ env, onRunStarted }) {
   const folderRuns = isAll
     ? (runs.data ?? [])
     : (runs.data ?? []).filter((r) => r.folder === folderName); // newest first
-  const liveRun = (folderRuns.find((r) => r.status === 'RUNNING') ?? folderRuns[0])?.run_id ?? '';
+  const liveRun =
+    (folderRuns.find((r) =>
+      ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+    ) ?? folderRuns[0])?.run_id ?? '';
   const colourRun = colourChoice === 'auto' ? liveRun : colourChoice === 'none' ? '' : colourChoice;
   const detail = useResource(
     () => (colourRun ? svc.getRun(env, colourRun) : Promise.resolve(null)),
@@ -168,13 +171,19 @@ export function WorkflowPanel({ env, onRunStarted }) {
   );
   // the graph is a live view: new runs appear in the list, and the coloured run refreshes while it is running
   const colourRunning = detail.data?.run?.status === 'RUNNING';
-  // fast while a run is live; when nothing runs, only a scheduled run starting needs noticing (actions here reload at once anyway)
+  // Smart anticipation: fast (2-3s: 2000ms) while a run is live or fresh (started in last 45s); 20s when idle
   const anyRunLive = (runs.data ?? []).some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
-  usePolling(() => runs.reload(true), anyRunLive ? 3000 : 20000);
+  const anyFresh = (runs.data ?? []).some((r) => {
+    const started = r.started_at || r.started;
+    if (!started) return false;
+    const diffMs = Date.now() - new Date(started).getTime();
+    return diffMs >= 0 && diffMs <= 45000;
+  });
+  usePolling(() => runs.reload(true), anyRunLive || anyFresh ? 2000 : 20000);
   usePolling(() => wf.reload(true), 10000, !busy); // uploads, approvals and settings changes made by someone else
-  usePolling(() => detail.reload(true), 2000, colourRunning);
+  usePolling(() => detail.reload(true), 1500, colourRunning);
 
   const state = approvalState(view, hasPermission);
 

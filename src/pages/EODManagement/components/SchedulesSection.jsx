@@ -63,6 +63,7 @@ function formatDateGroup(dateVal) {
 }
 
 export function SchedulesSection() {
+  const toast = useToast();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('EOD_SCHEDULE_CREATE');
   const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
@@ -186,11 +187,16 @@ export function SchedulesSection() {
     try {
       await eodService.deleteEodSchedule(id, groupId);
       setDeleteConfirmSchedule(null);
+      toast.success('Schedule deleted.');
+      try {
+        window.dispatchEvent(new CustomEvent('eod-schedules-updated', { detail: { deleted: id, groupId } }));
+      } catch {}
       await fetchScheduleData();
     } catch (err) {
       console.error('Failed to delete schedule:', err);
-      setScheduleList((prev) => prev.filter((s) => s.id !== id));
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete schedule on server');
       setDeleteConfirmSchedule(null);
+      await fetchScheduleData();
     } finally {
       setIsSaving(false);
     }

@@ -8,6 +8,7 @@ import {
   validateForm,
   runsOnWeekday,
   sortedTimes,
+  clientTimezone,
 } from '../scheduleSpec.js';
 
 const TODAY = new Date(2026, 2, 1);
@@ -22,7 +23,7 @@ test('every kind maps to the API recurrence', () => {
     times: ['06:00', '22:00'],
     start_date: '2026-03-01',
     end_date: '',
-    timezone: '',
+    timezone: clientTimezone(),
     frequency: 'daily',
     every: 1,
   });

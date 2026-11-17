@@ -102,6 +102,12 @@ export function CockpitTab({ env } = {}) {
   const canExecute = hasPermission('EOD_SCHEDULER_EXECUTE');
 
   // Load real resources from backend
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
   const def = useResource(
     () => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)),
@@ -109,6 +115,10 @@ export function CockpitTab({ env } = {}) {
   );
   const runsList = useResource(
     () => (env ? svc.getCockpitRuns(env).catch(() => svc.listRuns(env)) : Promise.resolve([])),
+    [env],
+  );
+  const schedules = useResource(
+    () => (env ? svc.listSchedules(env).catch(() => []) : Promise.resolve([])),
     [env],
   );
 
@@ -121,20 +131,57 @@ export function CockpitTab({ env } = {}) {
     });
   }, [runsList.data, env]);
 
+  // A run that started recently (within 60s), even if it already completed (e.g. short job finished in 2-3s)
+  const freshRun = useMemo(() => {
+    const now = Date.now();
+    return runs.find((r) => {
+      const started = r.started_at || r.started;
+      if (!started) return false;
+      const diffMs = now - new Date(started).getTime();
+      return diffMs >= 0 && diffMs <= 60000;
+    });
+  }, [runs, tick]);
+
   const activeRunningRun = runs.find((r) => {
-    const isRun = r.status === 'RUNNING' || r.status === 'Running';
-    if (!isRun) return false;
-    if (r.started_at || r.started) {
-      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
-      if (ageMs > 30 * 60 * 1000) return false;
-    }
-    return true;
+    const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+    return isRun;
   });
-  const isViewingCurrentWorkflow =
-    selectedRunId === 'current_workflow' || (!selectedRunId && !activeRunningRun);
-  const currentRunId = isViewingCurrentWorkflow
-    ? 'current_workflow'
-    : selectedRunId || activeRunningRun?.id || activeRunningRun?.run_id || '';
+
+  // Whenever any run is actively running, auto-select it immediately
+  useEffect(() => {
+    if (activeRunningRun) {
+      const activeId = activeRunningRun.id || activeRunningRun.run_id || '';
+      if (activeId && selectedRunId !== activeId) {
+        setSelectedRunId(activeId);
+      }
+    }
+  }, [activeRunningRun?.id, activeRunningRun?.run_id, selectedRunId]);
+
+  // If no run is actively running, but a fresh run completed, select it if nothing else or current_workflow is selected
+  useEffect(() => {
+    if (!activeRunningRun && freshRun && (!selectedRunId || selectedRunId === 'current_workflow')) {
+      const freshId = freshRun.id || freshRun.run_id || '';
+      if (freshId) {
+        setSelectedRunId(freshId);
+      }
+    }
+  }, [activeRunningRun, freshRun?.id, freshRun?.run_id, selectedRunId]);
+
+  // Active running run ALWAYS takes top priority for currentRunId
+  const currentRunId = useMemo(() => {
+    if (activeRunningRun) {
+      return activeRunningRun.id || activeRunningRun.run_id || '';
+    }
+    if (selectedRunId && selectedRunId !== 'current_workflow') {
+      return selectedRunId;
+    }
+    if (freshRun) {
+      return freshRun.id || freshRun.run_id || '';
+    }
+    return selectedRunId || 'current_workflow';
+  }, [activeRunningRun, selectedRunId, freshRun]);
+
+  const isViewingCurrentWorkflow = currentRunId === 'current_workflow';
 
   const runDetail = useResource(
     () =>
@@ -157,13 +204,63 @@ export function CockpitTab({ env } = {}) {
     runsList.loading ||
     (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
-  // Polling for live status. The runs list refreshes every 4s while any run is live; when nothing is running it only needs to notice a
-  // scheduled run starting, so every 20s is enough (actions taken here reload it at once anyway).
+  // Smart anticipation: checks if any schedule is:
+  // 1) Actively running (s.run_active or last_status is RUNNING/PAUSED/QUEUED)
+  // 2) Due within the 60s anticipation window (or up to 60s overdue)
+  // 3) Fired recently (within the last 60s)
+  // 4) Created or modified recently (within the last 90s), so when any job was just scheduled,
+  //    Cockpit immediately ramps up to fast 2s polling without any idle lag.
+  const isNearScheduledFire = useMemo(() => {
+    const now = Date.now();
+    const list = schedules.data || [];
+    return list.some((s) => {
+      if (!s.enabled) return false;
+      if (s.run_active) return true;
+      if (s.last_status && ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status).toUpperCase())) return true;
+      if (s.next_fire_at) {
+        const diff = new Date(s.next_fire_at).getTime() - now;
+        if (diff >= -60000 && diff <= 60000) return true;
+      }
+      if (s.last_fire_at) {
+        const since = now - new Date(s.last_fire_at).getTime();
+        if (since >= 0 && since <= 60000) return true;
+      }
+      if (s.updated_at || s.created_at) {
+        const sinceSaved = now - new Date(s.updated_at || s.created_at).getTime();
+        if (sinceSaved >= 0 && sinceSaved <= 90000) return true;
+      }
+      return false;
+    });
+  }, [schedules.data, tick]);
+
+  useEffect(() => {
+    const onWake = () => {
+      schedules.reload(true);
+      runsList.reload(true);
+    };
+    const onVisibilityChange = () => {
+      if (!document.hidden) onWake();
+    };
+    window.addEventListener('eod-schedules-updated', onWake);
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('eod-schedules-updated', onWake);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [schedules, runsList]);
+
+  // Polling for live status (Smart / Anticipation polling):
+  // - Fast (2-3s: 2000ms runs, 2000ms detail) while any run is live, active, fresh (within 45s), near a scheduled fire (within 45s), or recently scheduled (within 60s)
+  // - Idle (20s / 20000ms) when completely idle and no scheduled runs are approaching (minimizes system load)
   const anyRunLive = runs.some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
-  usePolling(() => runsList.reload(true), anyRunLive || isRunActive ? 4000 : 20000);
-  usePolling(() => runDetail.reload(true), 2500, isRunActive);
+  const shouldPollFast = anyRunLive || isRunActive || isNearScheduledFire || Boolean(freshRun);
+  usePolling(() => runsList.reload(true), shouldPollFast ? 2000 : 20000);
+  usePolling(() => runDetail.reload(true), 2000, isRunActive || shouldPollFast);
+  usePolling(() => schedules.reload(true), shouldPollFast ? 2000 : 3000);
   usePolling(() => wf.reload(true), 10000, !busy);
 
   const view = wf.data;
