@@ -568,7 +568,8 @@ function DependencyGraphCanvas({
       if (tone === 'info') strokeColor = '#0284c7';
       else if (tone === 'danger') strokeColor = '#ef4444';
 
-      const isDim = (chainSet && !isHot) || (selected && !touchesSelected);
+      const isDimByFilter = Boolean(dimmed && (dimmed.has(e.source) || dimmed.has(e.target)));
+      const isDim = (chainSet && !isHot) || (selected && !touchesSelected) || isDimByFilter;
       const isFailureBranch = e.branch === 'FAILURE';
 
       return {
@@ -608,7 +609,7 @@ function DependencyGraphCanvas({
         },
       };
     });
-  }, [graph, edgeType, effectiveStates, selected, chainSet]);
+  }, [graph, edgeType, effectiveStates, selected, chainSet, dimmed]);
 
   // Fit view ONLY once when graph signature or direction changes (never during status polling updates)
   const graphSignature = `${graph?.nodes?.length || 0}-${graph?.edges?.length || 0}-${direction}`;

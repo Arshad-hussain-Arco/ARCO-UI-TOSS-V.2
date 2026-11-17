@@ -7,7 +7,7 @@ import { CockpitFlow } from './CockpitFlow';
 import { CockpitTimeline } from './CockpitTimeline';
 import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
-import { LiveOpsBar } from './LiveOpsBar';
+import { ServersQueueTab } from './ServersQueueTab';
 import { ScopeNavigator } from './ScopeNavigator';
 import { JobOverview } from './JobOverview';
 import { WorkflowOverview } from './WorkflowOverview';
@@ -37,6 +37,7 @@ const SUB_TABS = [
   { id: 'flow', label: 'Flow' },
   { id: 'timeline', label: 'Timeline' },
   { id: 'history', label: 'History' },
+  { id: 'servers', label: 'Servers & Queue' },
 ];
 
 function Problems({ title, tone, messages, open }) {
@@ -772,15 +773,6 @@ export function CockpitTab({ env } = {}) {
       {/* ── Internal SVG Icon Sprites ── */}
       <IconSprite />
 
-      {/* ── Real-Time Live Infrastructure & Multi-Tier Queue Monitor ── */}
-      <LiveOpsBar
-        env={env}
-        onSelectScope={(newScope) => {
-          setScope((prev) => ({ ...prev, ...newScope }));
-          setActiveView('overview');
-        }}
-      />
-
       {/* ── Unified File Header Card (Upload XML Section on Top) ── */}
       <div className="cr-unified-file-card">
         <div className="cr-ufc-left">
@@ -1071,13 +1063,15 @@ export function CockpitTab({ env } = {}) {
       </div>
 
       {/* ── 3-Tier Scope Navigator: Whole XML | Workflow (Folder) | Particular Job ── */}
-      <ScopeNavigator
-        scope={scope}
-        onChangeScope={setScope}
-        folders={view?.folders || run?.folders || []}
-        allJobs={allCockpitJobs}
-        xmlFileName={view?.meta?.filename || 'batch_workflow.xml'}
-      />
+      {activeView !== 'servers' && (
+        <ScopeNavigator
+          scope={scope}
+          onChangeScope={setScope}
+          folders={view?.folders || run?.folders || []}
+          allJobs={allCockpitJobs}
+          xmlFileName={view?.meta?.filename || 'batch_workflow.xml'}
+        />
+      )}
 
       {/* ── Run Context Strip: Schedule Name on Left, Triggered By on Right ── */}
       {run ? (
@@ -1362,18 +1356,30 @@ export function CockpitTab({ env } = {}) {
           <CockpitFlow
             definition={enrichedDefinition}
             run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
-            selectedJob={selectedJobName}
-            onSelectJob={setSelectedJobName}
+            selectedJob={scope.type === 'job' ? scope.job : selectedJobName}
+            onSelectJob={(name) => {
+              setSelectedJobName(name);
+              setScope((prev) => ({
+                ...prev,
+                type: 'job',
+                job: name,
+              }));
+            }}
             onOpenDrawer={(name) => {
               setSelectedJobName(name);
+              setScope((prev) => ({
+                ...prev,
+                type: 'job',
+                job: name,
+              }));
               setIsDrawerOpen(true);
             }}
             onCancelRun={handleCancelRun}
             isPaused={isPaused}
             onTogglePause={handleTogglePause}
             folders={run?.folders || view?.folders || []}
-            initialFolder={flowFolder}
-            onClearFolderFilter={() => setFlowFolder(null)}
+            scope={scope}
+            onScopeChange={setScope}
             stats={stats}
             errors={view?.errors}
             onPlayJob={requestPlay}
@@ -1435,6 +1441,23 @@ export function CockpitTab({ env } = {}) {
               }}
             />
           )
+        )}
+
+        {activeView === 'servers' && (
+          <ServersQueueTab
+            env={env}
+            onSelectScope={(newScope) => {
+              setScope((prev) => ({ ...prev, ...newScope }));
+              if (newScope.type === 'job' || newScope.job) {
+                setSelectedJobName(newScope.job);
+                setIsDrawerOpen(true);
+              }
+            }}
+            onSelectJob={(name) => {
+              setSelectedJobName(name);
+              setIsDrawerOpen(true);
+            }}
+          />
         )}
       </main>
 
