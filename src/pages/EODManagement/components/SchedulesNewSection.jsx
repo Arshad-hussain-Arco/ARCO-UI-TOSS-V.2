@@ -301,8 +301,7 @@ export function SchedulesNewSection({ selectedEnv }) {
         <div>
           <p className="eod-section-title">SCHEDULED RUNS · {selectedEnv}</p>
           <span className="eod-section-subtitle">
-            Schedule a whole workflow or a single job (its prerequisites run first) from any
-            uploaded XML
+            Manage automated End-of-Day batch execution schedules
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -462,7 +461,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                         <div className="sc-name-sub">
                           {s.job ? (
                             <span className="sc-scope-badge scope-target">
-                              <Target size={10} /> Single job + prerequisites
+                              <Target size={10} /> Single job
                             </span>
                           ) : (
                             <span className="sc-scope-badge scope-batch">
@@ -473,7 +472,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                             className="sc-warn-line"
                             style={{ marginLeft: 6, color: 'inherit', opacity: 0.7 }}
                           >
-                            {s.filename || `XML #${s.workflow_id}`} · {s.folder}
+                            {s.filename || (s.workflow_id ? `Workflow #${s.workflow_id}` : '')} · {s.folder}
                           </span>
                         </div>
                       </div>

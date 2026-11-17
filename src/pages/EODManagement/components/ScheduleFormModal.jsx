@@ -157,7 +157,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
         group: folder,
         description: j.predecessors.length
           ? `after ${j.predecessors.join(', ')}`
-          : 'no prerequisites',
+          : 'initial job',
       })),
     [jobs, folder],
   );
@@ -294,11 +294,11 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
       <form onSubmit={save} className="eod-schedule-modal-form">
         {loadError ? <div className="schf-error">{loadError}</div> : null}
         {!tree && !loadError ? (
-          <p className="schf-muted">Loading the environment’s XML files…</p>
+          <p className="schf-muted">Loading workflows…</p>
         ) : null}
         {tree && files.length === 0 ? (
           <div className="schf-error">
-            No XML has been uploaded to {env} yet. Upload one in the Control Run Cockpit first.
+            No workflow has been uploaded to {env} yet. Upload one in the Control Run Cockpit first.
           </div>
         ) : null}
 
@@ -340,21 +340,21 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
               </div>
             </div>
 
-            {/* XML file and workflow */}
+            {/* Workflow file and workflow */}
             <div className="eod-modal-field">
               <label className="eod-modal-label" htmlFor="schf-xml">
-                XML FILE <span className="req">*</span>
+                WORKFLOW FILE <span className="req">*</span>
               </label>
               <CustomDropdown
                 id="schf-xml"
                 value={workflowId}
                 options={xmlOptions}
                 onChange={pickXml}
-                placeholder="Select XML file..."
+                placeholder="Select workflow file..."
               />
               {xml && !xml.active ? (
                 <div className="schf-warn" style={{ marginTop: 6 }}>
-                  This XML is not the active one. A schedule only runs while its XML is the active
+                  This file is not the active workflow. A schedule only runs while it is the active
                   workflow.
                 </div>
               ) : null}
@@ -388,19 +388,6 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                   availableJobs={jobChoices}
                 />
                 {closure?.error ? <span className="eod-field-error">{closure.error}</span> : null}
-                {closure && !closure.error ? (
-                  <div className="schf-note">
-                    {closure.prerequisites.length ? (
-                      <>
-                        Its {closure.prerequisites.length} prerequisite job
-                        {closure.prerequisites.length === 1 ? '' : 's'} run first, in dependency
-                        order: <strong>{orderText(closure.waves)}</strong>
-                      </>
-                    ) : (
-                      <>This job has no prerequisites, so only it runs.</>
-                    )}
-                  </div>
-                ) : null}
               </div>
             )}
 
@@ -413,7 +400,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                 className="eod-modal-input"
                 value={name}
                 maxLength={255}
-                placeholder={`${suggested} (suggested, or type your own)`}
+                placeholder={suggested || 'Enter schedule name'}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
@@ -796,9 +783,7 @@ export function ScheduleFormModal({ isOpen, env, schedule, onClose, onSaved }) {
                 <span />
               </label>
               <span className="schf-switch-text">
-                {enabled
-                  ? 'Schedule is on'
-                  : 'Schedule is off: it will not run until you turn it on'}
+                {enabled ? 'Schedule is active' : 'Schedule is paused'}
               </span>
             </div>
           </div>
