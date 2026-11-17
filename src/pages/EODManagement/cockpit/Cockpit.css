@@ -3622,8 +3622,9 @@
 /* ── Scope Navigator ── */
 .cr-scope-navigator {
   background: var(--cr-surface-subtle);
-  border-bottom: 1px solid var(--cr-border);
-  padding: 8px 16px;
+  border-top: 1px solid var(--cr-border);
+  border-bottom: none;
+  padding: 6px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;

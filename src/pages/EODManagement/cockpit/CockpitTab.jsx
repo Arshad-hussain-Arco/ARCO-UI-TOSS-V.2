@@ -1022,6 +1022,15 @@ export function CockpitTab({ env } = {}) {
         </div>
       </div>
 
+      {/* ── 3-Tier Scope Navigator: Whole XML | Workflow (Folder) | Particular Job ── */}
+      <ScopeNavigator
+        scope={scope}
+        onChangeScope={setScope}
+        folders={view?.folders || run?.folders || []}
+        allJobs={allCockpitJobs}
+        xmlFileName={view?.meta?.filename || 'batch_workflow.xml'}
+      />
+
       {/* ── Headings Section: Subtabs & Action Controls (Below Upload XML Section) ── */}
       <div className="cr-subtabs-bar">
         <div className="cr-subtabs-list" role="tablist">
@@ -1159,17 +1168,6 @@ export function CockpitTab({ env } = {}) {
           </div>
         </div>
       </div>
-
-      {/* ── 3-Tier Scope Navigator: Whole XML | Workflow (Folder) | Particular Job ── */}
-      {activeView !== 'servers' && (
-        <ScopeNavigator
-          scope={scope}
-          onChangeScope={setScope}
-          folders={view?.folders || run?.folders || []}
-          allJobs={allCockpitJobs}
-          xmlFileName={view?.meta?.filename || 'batch_workflow.xml'}
-        />
-      )}
 
       {/* ── Run Context Strip: Schedule Name on Left, Triggered By on Right ── */}
       {run ? (
