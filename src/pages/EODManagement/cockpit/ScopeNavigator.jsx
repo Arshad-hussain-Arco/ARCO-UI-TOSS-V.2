@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Layers, Cpu, Activity, Server, User, ChevronRight, RotateCcw } from 'lucide-react';
+import { Layers, Cpu, Activity, Server, User, ChevronRight } from 'lucide-react';
 
 export function ScopeNavigator({
   scope,
@@ -131,18 +131,6 @@ export function ScopeNavigator({
               ))}
             </select>
           </div>
-        )}
-
-        {scope.type !== 'xml' && (
-          <button
-            type="button"
-            className="cr-btn sm outline cr-scope-reset-btn"
-            onClick={() => onChangeScope({ type: 'xml', folder: null, job: null })}
-            title="Reset scope to Whole XML File"
-          >
-            <RotateCcw size={12} />
-            <span>Reset to Whole XML</span>
-          </button>
         )}
 
         {/* Server Slots Pill replacing Target XML */}

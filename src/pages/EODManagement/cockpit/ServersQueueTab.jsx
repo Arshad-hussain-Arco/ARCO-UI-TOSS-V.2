@@ -166,14 +166,6 @@ export function ServersQueueTab({ env, scope = null, onSelectScope, onSelectJob 
               </strong>
             </span>
           </div>
-          <button
-            type="button"
-            className="cr-btn sm outline"
-            onClick={() => onSelectScope?.({ type: 'xml', folder: null, job: null })}
-            title="Switch back to Whole XML scope"
-          >
-            Reset to Whole XML
-          </button>
         </div>
       )}
 
