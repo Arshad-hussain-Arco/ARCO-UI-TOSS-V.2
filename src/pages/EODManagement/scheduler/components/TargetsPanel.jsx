@@ -19,6 +19,7 @@ const EMPTY = {
   fingerprint: '',
   enabled: true,
   secret: '',
+  limit: '',
 };
 
 const CHECK_LABELS = {
@@ -40,7 +41,18 @@ function formOf(t) {
     fingerprint: t.host_key.fingerprint || '',
     enabled: t.enabled,
     secret: '',
+    limit: t.machine?.max_concurrent ?? '',
   };
+}
+
+/** "4 jobs, 3 in use", or "no limit"; who else uses the machine goes in the tooltip. */
+function machineText(m) {
+  if (!m || m.max_concurrent == null) return m?.in_use ? `no limit (${m.in_use} in use)` : 'no limit';
+  return `${m.in_use}/${m.max_concurrent} in use`;
+}
+
+function sharedText(m) {
+  return (m?.shared_with ?? []).map((s) => `${s.environment} (${s.name})`).join(', ');
 }
 
 function bodyOf(f) {
@@ -54,6 +66,7 @@ function bodyOf(f) {
     host_key: f.pin
       ? { policy: 'strict-fingerprint', fingerprint: f.fingerprint.trim() }
       : { policy: 'unconfigured', fingerprint: '' },
+    max_concurrent: String(f.limit).trim() === '' ? null : Number(f.limit),
   };
 }
 
@@ -116,7 +129,10 @@ export function TargetsPanel({ env, onReturnToSchedule }) {
             ? 'The port must be 1 to 65535.'
             : form.pin && !isFingerprint(form.fingerprint)
               ? 'The fingerprint must look like SHA256:… (as printed by ssh-keygen -lf).'
-              : '');
+              : String(form.limit).trim() !== '' &&
+                  !(Number.isInteger(Number(form.limit)) && Number(form.limit) >= 1)
+                ? 'Max jobs at once must be empty (no limit) or a whole number of at least 1.'
+                : '');
 
   const save = () =>
     run(
@@ -192,6 +208,7 @@ export function TargetsPanel({ env, onReturnToSchedule }) {
               <th>Host key</th>
               <th>Secret</th>
               <th>NODEIDs</th>
+              <th>Max jobs at once</th>
               <th>Ready</th>
               <th />
             </tr>
@@ -214,6 +231,20 @@ export function TargetsPanel({ env, onReturnToSchedule }) {
                   </td>
                   <td>{t.secret_configured ? 'saved' : 'missing'}</td>
                   <td>{t.nodeids.join(', ') || '—'}</td>
+                  <td
+                    title={
+                      sharedText(t.machine)
+                        ? `Limit for the whole machine, shared with ${sharedText(t.machine)}`
+                        : 'Limit for the whole machine, across all environments'
+                    }
+                  >
+                    {machineText(t.machine)}
+                    {t.machine?.shared_with?.length ? (
+                      <div className="eodsch-muted">
+                        shared with {[...new Set(t.machine.shared_with.map((s) => s.environment))].join(', ')}
+                      </div>
+                    ) : null}
+                  </td>
                   <td
                     title={
                       r
@@ -267,7 +298,7 @@ export function TargetsPanel({ env, onReturnToSchedule }) {
             })}
             {!targets.length ? (
               <tr>
-                <td colSpan={8} className="eodsch-muted">
+                <td colSpan={9} className="eodsch-muted">
                   No target server yet. Add one, pin its host key, save its secret and map its
                   NODEIDs.
                 </td>
@@ -520,6 +551,29 @@ export function TargetsPanel({ env, onReturnToSchedule }) {
                 </small>
               </label>
             ) : null}
+            <label className="eodsch-field">
+              Max jobs at once on this machine
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="no limit"
+                value={form.limit}
+                onChange={(e) => setForm({ ...form, limit: e.target.value })}
+              />
+              <small className="eodsch-muted">
+                Counts jobs from every environment and workflow that runs on this machine. Leave
+                empty for no limit. Jobs over the limit wait for a free slot.
+              </small>
+              {(() => {
+                const shared = sharedText(targets.find((t) => t.id === form.id)?.machine);
+                return shared ? (
+                  <small className="eodsch-bad">
+                    This machine is also used by {shared}; changing the limit applies to them too.
+                  </small>
+                ) : null;
+              })()}
+            </label>
             <div className="eodsch-field-inline">
               <span>Enabled</span>
               <Toggle
