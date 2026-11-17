@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { FileText, Play, RefreshCw, Upload, User } from 'lucide-react';
+import { Clock, FileText, Play, RefreshCw, Server, Upload, User } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
@@ -149,7 +149,10 @@ export function CockpitTab({ env } = {}) {
   const isBackendPaused =
     runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
-  const isRunActive = isRunningBatch || isPaused;
+  const waitingForSlot = Boolean(
+    runDetail.data?.waiting_for_slot || (runDetail.data?.jobs || []).some((j) => (j.error_message || '').includes('waiting for a free slot'))
+  );
+  const isRunActive = isRunningBatch || isPaused || waitingForSlot;
   const isOverviewLoading =
     runsList.loading ||
     (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
@@ -269,6 +272,11 @@ export function CockpitTab({ env } = {}) {
     }
     return d;
   }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
+
+  // Server capacity and slot waiting info
+  const serverCapacity = run?.server_capacity || runDetail.data?.server_capacity || def.data?.server_capacity;
+  const waitingSlotMessage = run?.waiting_slot_message || runDetail.data?.waiting_slot_message || '';
+  const waitingSlotJobs = run?.waiting_slot_jobs || runDetail.data?.waiting_slot_jobs || [];
 
   // Merged and enriched jobs with full predecessors/successors for cockpit operations
   const allCockpitJobs = useMemo(() => {
@@ -779,10 +787,10 @@ export function CockpitTab({ env } = {}) {
     setIsRunPaused(nextPaused);
     try {
       if (nextPaused) {
-        await svc.pauseRun?.(env, currentRunId).catch(() => {});
+        await svc.pauseRun?.(env, currentRunId).catch(() => { });
         toast.success(`Run #${currentRunId} paused. Dispatch has been halted.`);
       } else {
-        await svc.resumeRun?.(env, currentRunId).catch(() => {});
+        await svc.resumeRun?.(env, currentRunId).catch(() => { });
         toast.success(`Run #${currentRunId} resumed. Continuing batch execution.`);
       }
       await Promise.all([runDetail.reload(true), runsList.reload(true)]);
@@ -821,7 +829,7 @@ export function CockpitTab({ env } = {}) {
       if (isRunningBatch && targetRunId) {
         try {
           for (const p of preds) {
-            await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => {});
+            await svc.cockpitJobAction(env, targetRunId, p, 'rerun').catch(() => { });
           }
           await svc.cockpitJobAction(env, targetRunId, jobName, 'rerun');
           toast.success(
@@ -869,10 +877,10 @@ export function CockpitTab({ env } = {}) {
       status: r.status || '',
       when: started
         ? new Date(started).toLocaleString([], {
-            hour12: false,
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })
+          hour12: false,
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })
         : '',
     };
   }, [runs]);
@@ -1180,6 +1188,69 @@ export function CockpitTab({ env } = {}) {
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
             </span>
+
+            {/* Target Server Slot Pill */}
+            {serverCapacity?.display_label && (
+              <span
+                className="cr-server-capacity-pill"
+                style={{
+                  height: '28px',
+                  boxSizing: 'border-box',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  backgroundColor: waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.1)' : '#f8fafc',
+                  color: waitingForSlot || serverCapacity.any_full ? '#b45309' : '#475569',
+                  border: `1px solid ${waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.35)' : '#cbd5e1'}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  letterSpacing: '0.01em',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                title={
+                  serverCapacity.servers
+                    ?.map(
+                      (s) =>
+                        `${s.target_name}: ${s.in_use}/${s.limit ?? '∞'} in use${s.holders?.length ? ` (by: ${s.holders.join(', ')})` : ''}`
+                    )
+                    .join('\n') || serverCapacity.display_label
+                }
+              >
+                <Server
+                  size={13}
+                  style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+                />
+                <span
+                  className="cr-pill-label"
+                  style={{
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    opacity: 0.75,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  Server Slots:
+                </span>
+                <span
+                  className="cr-pill-value"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                    fontWeight: 600,
+                  }}
+                >
+                  {serverCapacity.display_label}
+                </span>
+              </span>
+            )}
           </div>
 
           <div className="cr-rcs-right">
@@ -1239,6 +1310,38 @@ export function CockpitTab({ env } = {}) {
           </div>
         </div>
       ) : null}
+
+      {/* ── Waiting for Server Slot Banner ── */}
+      {waitingForSlot && (
+        <div
+          className="cr-waiting-slot-banner"
+          style={{
+            margin: '0 16px 12px 16px',
+            padding: '10px 14px',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            color: '#92400e',
+            fontSize: '13px',
+          }}
+        >
+          <Clock size={16} style={{ color: '#d97706', marginTop: '2px', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#b45309', marginBottom: '2px' }}>
+              Waiting for Target Server Slot
+            </div>
+            <div style={{ color: '#78350f', fontSize: '12px' }}>
+              {waitingSlotMessage ||
+                (serverCapacity?.primary_server
+                  ? `${serverCapacity.primary_server.target_name} is currently at capacity (${serverCapacity.primary_server.in_use}/${serverCapacity.primary_server.limit} active jobs). Jobs will start automatically as slots free up.`
+                  : 'Jobs are waiting for an available execution slot on the target server. They will resume automatically as soon as running jobs complete.')}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Active View Body ── */}
       <main className="cr-main-pane">
