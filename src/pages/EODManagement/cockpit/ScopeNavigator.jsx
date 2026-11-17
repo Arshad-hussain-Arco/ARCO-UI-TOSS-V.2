@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
-import { Layers, Cpu, Activity, X, ChevronRight, RotateCcw } from 'lucide-react';
+import { Layers, Cpu, Activity, Server, User, ChevronRight, RotateCcw } from 'lucide-react';
 
 export function ScopeNavigator({
   scope,
   onChangeScope,
   folders = [],
   allJobs = [],
-  xmlFileName = 'batch_workflow.xml',
+  serverCapacity = null,
+  waitingForSlot = false,
+  startedBy = null,
 }) {
   // Unique sorted folder names
   const folderNames = useMemo(() => {
@@ -51,7 +53,6 @@ export function ScopeNavigator({
   return (
     <div className="cr-scope-navigator">
       <div className="cr-scope-left">
-        <span className="cr-scope-label">ANALYTICS & METRICS SCOPE:</span>
         <div className="cr-scope-pill-group">
           {/* 1. Whole XML File */}
           <button
@@ -87,13 +88,6 @@ export function ScopeNavigator({
 
       <div className="cr-scope-right">
         {/* Scope Context Controls */}
-        {scope.type === 'xml' && (
-          <div className="cr-scope-selector-box">
-            <span className="cr-scope-context-label">Target XML:</span>
-            <span className="cr-scope-val-tag mono">{xmlFileName}</span>
-          </div>
-        )}
-
         {scope.type === 'workflow' && (
           <div className="cr-scope-selector-box">
             <span className="cr-scope-context-label">Selected Workflow:</span>
@@ -150,7 +144,127 @@ export function ScopeNavigator({
             <span>Reset to Whole XML</span>
           </button>
         )}
+
+        {/* Server Slots Pill replacing Target XML */}
+        {serverCapacity?.display_label ? (
+          <span
+            className="cr-server-capacity-pill"
+            style={{
+              height: '28px',
+              boxSizing: 'border-box',
+              fontWeight: 600,
+              fontSize: '12px',
+              padding: '0 10px',
+              borderRadius: '6px',
+              backgroundColor: waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.1)' : '#f8fafc',
+              color: waitingForSlot || serverCapacity.any_full ? '#b45309' : '#475569',
+              border: `1px solid ${waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.35)' : '#cbd5e1'}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              letterSpacing: '0.01em',
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+            }}
+            title={
+              serverCapacity.servers
+                ?.map(
+                  (s) =>
+                    `${s.target_name}: ${s.in_use}/${s.limit ?? '∞'} in use${s.holders?.length ? ` (by: ${s.holders.join(', ')})` : ''}`
+                )
+                .join('\n') || serverCapacity.display_label
+            }
+          >
+            <Server
+              size={13}
+              style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+            />
+            <span
+              className="cr-pill-label"
+              style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                opacity: 0.75,
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1,
+              }}
+            >
+              Server Slots:
+            </span>
+            <span
+              className="cr-pill-value"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1,
+                fontWeight: 600,
+              }}
+            >
+              {serverCapacity.display_label}
+            </span>
+          </span>
+        ) : null}
+
+        {/* Triggered by Pill (if run is active) */}
+        {startedBy ? (
+          <span
+            className="cr-started-by-pill"
+            style={{
+              height: '28px',
+              boxSizing: 'border-box',
+              fontSize: '12px',
+              padding: '0 10px',
+              borderRadius: '6px',
+              backgroundColor: '#f1f5f9',
+              color: '#475569',
+              border: '1px solid #cbd5e1',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              letterSpacing: '0.01em',
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+            }}
+            title={`Triggered by: ${startedBy}`}
+          >
+            <User
+              size={13}
+              style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+            />
+            <span
+              className="cr-pill-label"
+              style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                opacity: 0.75,
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1,
+              }}
+            >
+              Triggered by:
+            </span>
+            <span
+              className="cr-pill-value"
+              style={{
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                lineHeight: 1,
+              }}
+            >
+              {startedBy}
+            </span>
+          </span>
+        ) : null}
       </div>
     </div>
   );
 }
+
+export default ScopeNavigator;
