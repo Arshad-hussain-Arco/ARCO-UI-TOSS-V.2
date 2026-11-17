@@ -97,24 +97,14 @@ export function CockpitHistory({ runs = [], onSelectRun, currentRunId, env, isLo
                     </td>
                     <td className="mono">{total}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="cr-btn sm outline"
-                          onClick={() => setViewingRunId(runId)}
-                          title="View complete run info, jobs table, and execution logs"
-                        >
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          className={`cr-btn sm ${isCurrent ? 'cr-btn-outline' : 'primary'}`}
-                          onClick={() => onSelectRun(runId, runEnv)}
-                          title="Open run summary in Cockpit"
-                        >
-                          Summary
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="cr-btn sm outline"
+                        onClick={() => setViewingRunId(runId)}
+                        title="View complete run info, jobs table, and execution logs"
+                      >
+                        View
+                      </button>
                     </td>
                   </tr>
                 );
