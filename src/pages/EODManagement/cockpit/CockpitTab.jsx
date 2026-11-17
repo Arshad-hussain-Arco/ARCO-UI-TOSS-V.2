@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { CheckCircle2, FileText, Play, RefreshCw, ShieldAlert, Upload, User } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Play, RefreshCw, Server, ShieldAlert, Upload, User } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { IconSprite, CockpitIcon } from './IconSprite';
 import { CockpitOverview } from './CockpitOverview';
@@ -163,7 +163,10 @@ export function CockpitTab({ env } = {}) {
   const isBackendPaused =
     runDetail.data?.status === 'Paused' || runDetail.data?.status === 'PAUSED';
   const isPaused = isRunPaused || isBackendPaused;
-  const isRunActive = isRunningBatch || isPaused;
+  const waitingForSlot = Boolean(
+    runDetail.data?.waiting_for_slot || (runDetail.data?.jobs || []).some((j) => (j.error_message || '').includes('waiting for a free slot'))
+  );
+  const isRunActive = isRunningBatch || isPaused || waitingForSlot;
   const isOverviewLoading =
     runsList.loading ||
     (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
@@ -297,6 +300,11 @@ export function CockpitTab({ env } = {}) {
       jobs: folderJobs,
     };
   }, [run, scope.type, scope.folder]);
+
+  // Server capacity and slot waiting info
+  const serverCapacity = run?.server_capacity || runDetail.data?.server_capacity || def.data?.server_capacity;
+  const waitingSlotMessage = run?.waiting_slot_message || runDetail.data?.waiting_slot_message || '';
+  const waitingSlotJobs = run?.waiting_slot_jobs || runDetail.data?.waiting_slot_jobs || [];
 
   // Merged and enriched jobs with full predecessors/successors for cockpit operations
   const allCockpitJobs = useMemo(() => {
@@ -774,18 +782,18 @@ export function CockpitTab({ env } = {}) {
       />
 
       {/* ── Unified File Header Card (Upload XML Section on Top) ── */}
-      {view?.loaded && (
-        <div className="cr-unified-file-card">
-          <div className="cr-ufc-left">
-            <div className="cr-ufc-icon-box">
-              <FileText size={20} className="cr-ufc-icon" />
-            </div>
-            <div className="cr-ufc-info">
-              <div className="cr-ufc-title-row">
-                <strong className="cr-ufc-filename">
-                  {view.meta?.filename || 'batch_workflow.xml'}
-                </strong>
-                {state.state === 'approved' ? (
+      <div className="cr-unified-file-card">
+        <div className="cr-ufc-left">
+          <div className="cr-ufc-icon-box">
+            <FileText size={20} className="cr-ufc-icon" />
+          </div>
+          <div className="cr-ufc-info">
+            <div className="cr-ufc-title-row">
+              <strong className="cr-ufc-filename">
+                {view?.meta?.filename || 'No workflow uploaded'}
+              </strong>
+              {view?.loaded ? (
+                state.state === 'approved' ? (
                   <span className="cr-ufc-badge approved">
                     <CheckCircle2 size={13} /> Approved
                   </span>
@@ -793,87 +801,103 @@ export function CockpitTab({ env } = {}) {
                   <span className="cr-ufc-badge pending">
                     <ShieldAlert size={13} /> Needs Approval
                   </span>
-                )}
-              </div>
-              <div className="cr-ufc-meta">
-                <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
-                <span className="cr-ufc-sep">|</span>
-                <span>{formatWhen(view.meta?.uploaded_at)}</span>
-                <span className="cr-ufc-sep">|</span>
-                <span>
-                  SHA-256:{' '}
-                  <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                )
+              ) : (
+                <span
+                  className="cr-ufc-badge"
+                  style={{
+                    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                    color: 'var(--cr-text-muted, #94a3b8)',
+                  }}
+                >
+                  Empty Environment
                 </span>
-              </div>
+              )}
+            </div>
+            <div className="cr-ufc-meta">
+              {view?.loaded ? (
+                <>
+                  <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
+                  <span className="cr-ufc-sep">|</span>
+                  <span>{formatWhen(view.meta?.uploaded_at)}</span>
+                  <span className="cr-ufc-sep">|</span>
+                  <span>
+                    SHA-256:{' '}
+                    <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                  </span>
+                </>
+              ) : (
+                <span>Upload a Control-M XML file to review jobs and start runs</span>
+              )}
             </div>
           </div>
-
-          <div className="cr-ufc-right">
-            {files.length > 0 && (
-              <label className="cr-ufc-select-label">
-                <span className="cr-ufc-select-title">Workflow File</span>
-                <select
-                  value={files.find((f) => f.active)?.id ?? ''}
-                  disabled={busy || !canEdit || running}
-                  title={editHint}
-                  onChange={(e) => {
-                    const file = files.find((f) => String(f.id) === e.target.value);
-                    if (file && !file.active) activate(file);
-                  }}
-                  className="cr-ufc-dropdown"
-                >
-                  {files.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.filename} {f.active ? '(Active)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              leadingIcon={FileText}
-              onClick={() => setFilesOpen(true)}
-            >
-              Files ({files.length})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              leadingIcon={RefreshCw}
-              onClick={() => {
-                wf.reload(true);
-                def.reload(true);
-                runsList.reload(true);
-                runDetail.reload(true);
-              }}
-              aria-label="Reload"
-            />
-            {canUpload && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xml,text/xml,application/xml"
-                  hidden
-                  onChange={handleUpload}
-                  aria-label="Upload XML file"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon={Upload}
-                  isLoading={busy}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload XML
-                </Button>
-              </>
-            )}
-          </div>
         </div>
-      )}
+
+        <div className="cr-ufc-right">
+          {files.length > 0 && (
+            <label className="cr-ufc-select-label">
+              <span className="cr-ufc-select-title">Workflow File</span>
+              <select
+                value={files.find((f) => f.active)?.id ?? ''}
+                disabled={busy || !canEdit || running}
+                title={editHint}
+                onChange={(e) => {
+                  const file = files.find((f) => String(f.id) === e.target.value);
+                  if (file && !file.active) activate(file);
+                }}
+                className="cr-ufc-dropdown"
+              >
+                {files.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.filename} {f.active ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            leadingIcon={FileText}
+            onClick={() => setFilesOpen(true)}
+          >
+            Files ({files.length})
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={RefreshCw}
+            onClick={() => {
+              wf.reload(true);
+              def.reload(true);
+              runsList.reload(true);
+              runDetail.reload(true);
+            }}
+            aria-label="Reload"
+          />
+          {canUpload && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xml,text/xml,application/xml"
+                hidden
+                onChange={handleUpload}
+                aria-label="Upload XML file"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                leadingIcon={Upload}
+                isLoading={busy}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload XML
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Manual approval banner when pending review */}
       {view?.loaded && state.state === 'pending' && (
@@ -1112,6 +1136,69 @@ export function CockpitTab({ env } = {}) {
                 {run.name || (run.target_job ? `Target: ${run.target_job}` : 'EOD Batch Run')}
               </span>
             </span>
+
+            {/* Target Server Slot Pill */}
+            {serverCapacity?.display_label && (
+              <span
+                className="cr-server-capacity-pill"
+                style={{
+                  height: '28px',
+                  boxSizing: 'border-box',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  backgroundColor: waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.1)' : '#f8fafc',
+                  color: waitingForSlot || serverCapacity.any_full ? '#b45309' : '#475569',
+                  border: `1px solid ${waitingForSlot || serverCapacity.any_full ? 'rgba(217, 119, 6, 0.35)' : '#cbd5e1'}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  letterSpacing: '0.01em',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                title={
+                  serverCapacity.servers
+                    ?.map(
+                      (s) =>
+                        `${s.target_name}: ${s.in_use}/${s.limit ?? '∞'} in use${s.holders?.length ? ` (by: ${s.holders.join(', ')})` : ''}`
+                    )
+                    .join('\n') || serverCapacity.display_label
+                }
+              >
+                <Server
+                  size={13}
+                  style={{ width: '13px', height: '13px', opacity: 0.85, flexShrink: 0 }}
+                />
+                <span
+                  className="cr-pill-label"
+                  style={{
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    opacity: 0.75,
+                    fontWeight: 700,
+                    letterSpacing: '0.02em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  Server Slots:
+                </span>
+                <span
+                  className="cr-pill-value"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                    fontWeight: 600,
+                  }}
+                >
+                  {serverCapacity.display_label}
+                </span>
+              </span>
+            )}
           </div>
 
           <div className="cr-rcs-right">
@@ -1171,6 +1258,38 @@ export function CockpitTab({ env } = {}) {
           </div>
         </div>
       ) : null}
+
+      {/* ── Waiting for Server Slot Banner ── */}
+      {waitingForSlot && (
+        <div
+          className="cr-waiting-slot-banner"
+          style={{
+            margin: '0 16px 12px 16px',
+            padding: '10px 14px',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            color: '#92400e',
+            fontSize: '13px',
+          }}
+        >
+          <Clock size={16} style={{ color: '#d97706', marginTop: '2px', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, color: '#b45309', marginBottom: '2px' }}>
+              Waiting for Target Server Slot
+            </div>
+            <div style={{ color: '#78350f', fontSize: '12px' }}>
+              {waitingSlotMessage ||
+                (serverCapacity?.primary_server
+                  ? `${serverCapacity.primary_server.target_name} is currently at capacity (${serverCapacity.primary_server.in_use}/${serverCapacity.primary_server.limit} active jobs). Jobs will start automatically as slots free up.`
+                  : 'Jobs are waiting for an available execution slot on the target server. They will resume automatically as soon as running jobs complete.')}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Active View Body ── */}
       <main className="cr-main-pane">

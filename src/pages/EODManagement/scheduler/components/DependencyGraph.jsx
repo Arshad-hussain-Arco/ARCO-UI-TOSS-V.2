@@ -610,16 +610,21 @@ function DependencyGraphCanvas({
     });
   }, [graph, edgeType, effectiveStates, selected, chainSet]);
 
-  // Fit view ONLY when graph signature or direction changes
+  // Fit view ONLY once when graph signature or direction changes (never during status polling updates)
   const graphSignature = `${graph?.nodes?.length || 0}-${graph?.edges?.length || 0}-${direction}`;
-  // ... and once every node has been measured (the workflow boxes only get their size after the first paint)
   const nodesInitialized = useNodesInitialized();
+  const lastFittedSignature = useRef('');
+
   useEffect(() => {
+    if (!nodesInitialized || !graph?.nodes?.length) return;
+    if (lastFittedSignature.current === graphSignature) return; // Only fit once per graph structure
+    lastFittedSignature.current = graphSignature;
+
     const timer = setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.15, duration: 250 });
     }, 60);
     return () => clearTimeout(timer);
-  }, [graphSignature, nodesInitialized, reactFlowInstance]);
+  }, [graphSignature, nodesInitialized, reactFlowInstance, graph?.nodes?.length]);
 
   // Node click handler
   const handleNodeClick = useCallback(
@@ -875,9 +880,15 @@ function DependencyGraphCanvas({
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={onOpenDetails ? handleNodeDoubleClick : undefined}
         nodeTypes={nodeTypes}
-        fitView
         minZoom={0.06}
-        maxZoom={2.2}
+        maxZoom={2.5}
+        panOnDrag={true}
+        panOnScroll={false}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        nodesDraggable={false}
+        elementsSelectable={true}
+        preventScrolling={true}
         proOptions={{ hideAttribution: true }}
       >
         <Background variant="dots" gap={16} size={1} color="var(--border-tertiary, #cbd5e1)" />

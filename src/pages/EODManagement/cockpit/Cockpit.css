@@ -1807,6 +1807,7 @@
   color: var(--cr-text);
 }
 .cr-fchip.st-hold { color: var(--cr-st-hold); }
+.cr-fchip.st-skipped { color: var(--cr-st-waiting); }
 .cr-fchip.st-done { color: var(--cr-st-done); }
 .cr-fchip.is-active {
   background-color: var(--cr-surface-active);
