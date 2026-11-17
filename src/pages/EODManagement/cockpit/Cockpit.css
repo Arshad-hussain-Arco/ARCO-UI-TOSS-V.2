@@ -571,6 +571,9 @@
   padding: 3px 8px;
   font-size: 11px;
   cursor: pointer;
+  max-width: 280px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Unified File Header Card (Matching Image 1) ── */
@@ -3629,13 +3632,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .cr-scope-left {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .cr-scope-label {
@@ -4913,5 +4917,65 @@
   text-decoration: underline;
   font-size: 11px;
 }
+
+/* ── Responsive adjustments for laptops & compact viewports ── */
+@media (max-width: 1440px) {
+  .cr-subtab-btn {
+    padding: 0 11px;
+    font-size: 12px;
+  }
+  .cr-run-switch-select {
+    max-width: 240px;
+  }
+  .cr-scope-navigator {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .cr-scope-toggle-btn {
+    padding: 4px 8px;
+    font-size: 11.5px;
+    gap: 5px;
+  }
+  .cr-scope-select {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .cr-subtabs-bar {
+    padding: 0 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cr-subtabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .cr-subtab-btn {
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+  .cr-run-switch-select {
+    max-width: 180px;
+  }
+  .cr-scope-navigator {
+    padding: 5px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cr-scope-navigator::-webkit-scrollbar {
+    display: none;
+  }
+  .cr-scope-toggle-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+    gap: 4px;
+  }
+  .cr-scope-select {
+    max-width: 120px;
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}
+
 
 

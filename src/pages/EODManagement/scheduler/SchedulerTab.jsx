@@ -183,22 +183,25 @@ export function SchedulerTab() {
     <>
       {/* Same tab bar as the EOD Management page; environment controls sit on its right */}
       <div className="eod-tabs" role="tablist">
-        {current
-          ? SECTIONS.map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={section === key}
-                className="eod-tab"
-                data-active={section === key}
-                onClick={() => setSection(key)}
-              >
-                <Icon className="eod-tab-icon" />
-                <span className="eod-tab-label">{label}</span>
-              </button>
-            ))
-          : null}
+        <div className="eod-tabs-nav">
+          {current
+            ? SECTIONS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={section === key}
+                  className="eod-tab"
+                  data-active={section === key}
+                  onClick={() => setSection(key)}
+                >
+                  <Icon className="eod-tab-icon" />
+                  <span className="eod-tab-label">{label}</span>
+                </button>
+              ))
+            : null}
+        </div>
+
         {/* Engine status indicator in the middle of the header bar */}
         {current ? (
           <div className="eodsch-topbar-center">
@@ -210,9 +213,13 @@ export function SchedulerTab() {
                 backgroundColor: current.engine ? '#10b981' : '#f59e0b',
                 display: 'inline-block',
                 boxShadow: current.engine ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : 'none',
+                flexShrink: 0,
               }}
             />
-            <span className="eodsch-muted" style={{ fontSize: '12px', fontWeight: 500 }}>
+            <span
+              className="eodsch-muted"
+              style={{ fontSize: '12px', fontWeight: 500, whiteSpace: 'nowrap' }}
+            >
               {current.engine ? 'Engine is serving it' : 'No engine is serving it right now'}
             </span>
           </div>

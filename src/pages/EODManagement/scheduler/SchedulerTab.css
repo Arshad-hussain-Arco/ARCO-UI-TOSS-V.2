@@ -587,22 +587,88 @@
 }
 
 /* Environment picker and "New Environment" sit at the right end of the shared .eod-tabs bar */
+.eod-tabs-nav {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .eodsch-topbar-center {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  margin: 0 auto;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
   align-self: center;
-  padding-bottom: 6px;
+  padding: 0 16px 6px;
 }
+
 .eodsch-topbar-right {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   gap: 12px;
   margin-left: auto;
   align-self: center;
   padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.eodsch-topbar-right select {
+  max-width: 160px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Responsive adjustments for laptops & compact screens ── */
+@media (max-width: 1440px) {
+  .eod-tab {
+    padding: 8px 12px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+  .eod-tabs-nav {
+    gap: 4px;
+  }
+  .eodsch-topbar-right {
+    gap: 8px;
+  }
+  .eodsch-topbar-right select {
+    max-width: 140px;
+  }
+  .eodsch-topbar-center {
+    padding: 0 10px 6px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .eod-tab {
+    padding: 7px 10px;
+    font-size: 12px;
+    gap: 5px;
+  }
+  .eod-tab-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .eodsch-topbar-right {
+    gap: 6px;
+  }
+  .eodsch-topbar-right select {
+    max-width: 120px;
+  }
+  .eod-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .eod-tabs::-webkit-scrollbar {
+    display: none;
+  }
 }
 .eodsch-statusbar {
   display: flex;
