@@ -212,7 +212,19 @@ export function CockpitFlow({
         String(j.command || '')
           .toLowerCase()
           .includes(q);
-      const matchesStatus = !statusFilter || j.status === statusFilter;
+      const matchesStatus =
+        !statusFilter ||
+        (statusFilter === 'Skipped'
+          ? statusIs(j, 'Skipped', 'SKIPPED', 'Skip', 'off')
+          : statusFilter === 'Done'
+          ? statusIs(j, 'Done')
+          : statusFilter === 'On hold'
+          ? statusIs(j, 'On hold', 'ON HOLD')
+          : statusFilter === 'Running'
+          ? statusIs(j, 'Running', 'RUNNING')
+          : statusFilter === 'Failed'
+          ? statusIs(j, 'Failed', 'FAILED')
+          : j.status === statusFilter);
       if (!(matchesSearch && matchesStatus)) out.add(j.name);
     }
     return out;
@@ -233,6 +245,7 @@ export function CockpitFlow({
 
   const doneCount = jobs.filter((j) => statusIs(j, 'Done')).length;
   const holdCount = jobs.filter((j) => statusIs(j, 'On hold', 'ON HOLD')).length;
+  const skippedCount = jobs.filter((j) => statusIs(j, 'Skipped', 'SKIPPED', 'Skip', 'off')).length;
   const runningCount = jobs.filter((j) => statusIs(j, 'Running', 'RUNNING')).length;
   const failedCount = jobs.filter((j) => statusIs(j, 'Failed', 'FAILED')).length;
 
@@ -335,6 +348,7 @@ export function CockpitFlow({
           {failedCount > 0 && chip('Failed', 'i-failed', failedCount, 'st-failed')}
           {runningCount > 0 && chip('Running', 'i-running', runningCount, 'st-running')}
           {chip('On hold', 'i-hold', holdCount, 'st-hold')}
+          {chip('Skipped', 'i-skipped', skippedCount, 'st-skipped')}
           {chip('Done', 'i-done', doneCount, 'st-done')}
           <button
             type="button"

@@ -737,18 +737,18 @@ export function CockpitTab({ env } = {}) {
       <IconSprite />
 
       {/* ── Unified File Header Card (Upload XML Section on Top) ── */}
-      {view?.loaded && (
-        <div className="cr-unified-file-card">
-          <div className="cr-ufc-left">
-            <div className="cr-ufc-icon-box">
-              <FileText size={20} className="cr-ufc-icon" />
-            </div>
-            <div className="cr-ufc-info">
-              <div className="cr-ufc-title-row">
-                <strong className="cr-ufc-filename">
-                  {view.meta?.filename || 'batch_workflow.xml'}
-                </strong>
-                {state.state === 'approved' ? (
+      <div className="cr-unified-file-card">
+        <div className="cr-ufc-left">
+          <div className="cr-ufc-icon-box">
+            <FileText size={20} className="cr-ufc-icon" />
+          </div>
+          <div className="cr-ufc-info">
+            <div className="cr-ufc-title-row">
+              <strong className="cr-ufc-filename">
+                {view?.meta?.filename || 'No workflow uploaded'}
+              </strong>
+              {view?.loaded ? (
+                state.state === 'approved' ? (
                   <span className="cr-ufc-badge approved">
                     <CheckCircle2 size={13} /> Approved
                   </span>
@@ -756,87 +756,103 @@ export function CockpitTab({ env } = {}) {
                   <span className="cr-ufc-badge pending">
                     <ShieldAlert size={13} /> Needs Approval
                   </span>
-                )}
-              </div>
-              <div className="cr-ufc-meta">
-                <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
-                <span className="cr-ufc-sep">|</span>
-                <span>{formatWhen(view.meta?.uploaded_at)}</span>
-                <span className="cr-ufc-sep">|</span>
-                <span>
-                  SHA-256:{' '}
-                  <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                )
+              ) : (
+                <span
+                  className="cr-ufc-badge"
+                  style={{
+                    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                    color: 'var(--cr-text-muted, #94a3b8)',
+                  }}
+                >
+                  Empty Environment
                 </span>
-              </div>
+              )}
+            </div>
+            <div className="cr-ufc-meta">
+              {view?.loaded ? (
+                <>
+                  <span>Uploaded by {view.meta?.uploaded_by || 'unknown'}</span>
+                  <span className="cr-ufc-sep">|</span>
+                  <span>{formatWhen(view.meta?.uploaded_at)}</span>
+                  <span className="cr-ufc-sep">|</span>
+                  <span>
+                    SHA-256:{' '}
+                    <code>{view.meta?.sha256 ? `${view.meta.sha256.slice(0, 12)}...` : '—'}</code>
+                  </span>
+                </>
+              ) : (
+                <span>Upload a Control-M XML file to review jobs and start runs</span>
+              )}
             </div>
           </div>
-
-          <div className="cr-ufc-right">
-            {files.length > 0 && (
-              <label className="cr-ufc-select-label">
-                <span className="cr-ufc-select-title">Workflow File</span>
-                <select
-                  value={files.find((f) => f.active)?.id ?? ''}
-                  disabled={busy || !canEdit || running}
-                  title={editHint}
-                  onChange={(e) => {
-                    const file = files.find((f) => String(f.id) === e.target.value);
-                    if (file && !file.active) activate(file);
-                  }}
-                  className="cr-ufc-dropdown"
-                >
-                  {files.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.filename} {f.active ? '(Active)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              leadingIcon={FileText}
-              onClick={() => setFilesOpen(true)}
-            >
-              Files ({files.length})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              leadingIcon={RefreshCw}
-              onClick={() => {
-                wf.reload(true);
-                def.reload(true);
-                runsList.reload(true);
-                runDetail.reload(true);
-              }}
-              aria-label="Reload"
-            />
-            {canUpload && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xml,text/xml,application/xml"
-                  hidden
-                  onChange={handleUpload}
-                  aria-label="Upload XML file"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon={Upload}
-                  isLoading={busy}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload XML
-                </Button>
-              </>
-            )}
-          </div>
         </div>
-      )}
+
+        <div className="cr-ufc-right">
+          {files.length > 0 && (
+            <label className="cr-ufc-select-label">
+              <span className="cr-ufc-select-title">Workflow File</span>
+              <select
+                value={files.find((f) => f.active)?.id ?? ''}
+                disabled={busy || !canEdit || running}
+                title={editHint}
+                onChange={(e) => {
+                  const file = files.find((f) => String(f.id) === e.target.value);
+                  if (file && !file.active) activate(file);
+                }}
+                className="cr-ufc-dropdown"
+              >
+                {files.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.filename} {f.active ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            leadingIcon={FileText}
+            onClick={() => setFilesOpen(true)}
+          >
+            Files ({files.length})
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={RefreshCw}
+            onClick={() => {
+              wf.reload(true);
+              def.reload(true);
+              runsList.reload(true);
+              runDetail.reload(true);
+            }}
+            aria-label="Reload"
+          />
+          {canUpload && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xml,text/xml,application/xml"
+                hidden
+                onChange={handleUpload}
+                aria-label="Upload XML file"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                leadingIcon={Upload}
+                isLoading={busy}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload XML
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Manual approval banner when pending review */}
       {view?.loaded && state.state === 'pending' && (
