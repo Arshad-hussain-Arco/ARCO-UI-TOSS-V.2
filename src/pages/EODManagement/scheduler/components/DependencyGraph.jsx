@@ -110,7 +110,7 @@ function DependencyGraphCanvas({
 }) {
   const reactFlowInstance = useReactFlow();
   const [direction, setDirection] = useState('TB'); // 'TB' or 'LR'
-  const [edgeType, setEdgeType] = useState('bezier'); // 'bezier' or 'smoothstep'
+  const [edgeType, setEdgeType] = useState('default'); // 'default' (bezier curve) or 'smoothstep'
   const [searchQuery, setSearchQuery] = useState('');
   const [traceActive, setTraceActive] = useState(false);
 
@@ -674,7 +674,7 @@ function DependencyGraphCanvas({
   };
 
   const toggleEdgeType = () => {
-    setEdgeType((t) => (t === 'bezier' ? 'smoothstep' : 'bezier'));
+    setEdgeType((t) => (t === 'default' ? 'smoothstep' : 'default'));
   };
 
   const nodeColor = useCallback(
@@ -741,13 +741,13 @@ function DependencyGraphCanvas({
             className="rf-btn-toggle"
             onClick={toggleEdgeType}
             title={
-              edgeType === 'bezier'
+              edgeType === 'default'
                 ? 'Switch to orthogonal stepped lines'
                 : 'Switch to smooth curves'
             }
           >
             <Spline size={12} />
-            <span>{edgeType === 'bezier' ? 'Curves' : 'Steps'}</span>
+            <span>{edgeType === 'default' ? 'Curves' : 'Steps'}</span>
           </button>
 
           {/* Orientation Toggle: TB vs LR */}
