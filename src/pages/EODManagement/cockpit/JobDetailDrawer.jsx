@@ -16,6 +16,7 @@ export function JobDetailDrawer({
   runId,
   onClose,
   onJobAction,
+  onFocusScope,
 }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('details'); // 'details' | 'log'
@@ -231,7 +232,21 @@ export function JobDetailDrawer({
               <div className="cr-dh-type">JOB DETAILS</div>
               <h2 className="cr-dh-name">{jobName}</h2>
             </div>
-            <div className="cr-dh-actions">
+            <div className="cr-dh-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {onFocusScope && (
+                <button
+                  type="button"
+                  className="cr-btn sm outline"
+                  style={{ fontSize: '11px', padding: '3px 8px' }}
+                  onClick={() => {
+                    onFocusScope(jobName, group);
+                    onClose();
+                  }}
+                  title="Switch Cockpit Overview, Timeline & History scope to this Job"
+                >
+                  Focus Scope
+                </button>
+              )}
               <button
                 type="button"
                 className="cr-drawer-close"

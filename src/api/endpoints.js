@@ -332,6 +332,11 @@ const endpoints = {
       `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/run-now/`,
     cockpitJobAction: (env, runId, jobName, action) =>
       `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobName)}/${encodeURIComponent(action)}/`,
+    liveTelemetry: (env) => `/eod-scheduler/${encodeURIComponent(env)}/telemetry/live/`,
+    jobMetrics: (env, job) => `/eod-scheduler/${encodeURIComponent(env)}/jobs/${encodeURIComponent(job)}/metrics/`,
+    jobHistory: (env, job) => `/eod-scheduler/${encodeURIComponent(env)}/jobs/${encodeURIComponent(job)}/history/`,
+    workflowMetrics: (env, folder) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${encodeURIComponent(folder)}/metrics/`,
+    workflowHistory: (env, folder) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${encodeURIComponent(folder)}/history/`,
   },
 };
 

@@ -7,6 +7,13 @@ import { CockpitFlow } from './CockpitFlow';
 import { CockpitTimeline } from './CockpitTimeline';
 import { CockpitHistory } from './CockpitHistory';
 import { JobDetailDrawer } from './JobDetailDrawer';
+import { LiveOpsBar } from './LiveOpsBar';
+import { ScopeNavigator } from './ScopeNavigator';
+import { JobOverview } from './JobOverview';
+import { WorkflowOverview } from './WorkflowOverview';
+import { JobHistoryTable } from './JobHistoryTable';
+import { WorkflowHistoryTable } from './WorkflowHistoryTable';
+import { JobDriftTimeline } from './JobDriftTimeline';
 import { StartRunModal } from './StartRunModal';
 import { RunWorkflowsModal } from './RunWorkflowsModal';
 import { PlayJobModal } from './PlayJobModal';
@@ -78,10 +85,18 @@ export function CockpitTab({ env } = {}) {
   const [busy, setBusy] = useState(false);
   const [flowFolder, setFlowFolder] = useState(null);
 
+  // 3-Tier Scope State: 'xml' | 'workflow' | 'job'
+  const [scope, setScope] = useState({
+    type: 'xml',
+    folder: null,
+    job: null,
+  });
+
   // Clear environment-specific state when switching environments so stale run IDs aren't retained
   useEffect(() => {
     setSelectedRunId('');
     setSelectedJobName(null);
+    setScope({ type: 'xml', folder: null, job: null });
   }, [env]);
 
   const handleNavigateView = (view, folder = null) => {
@@ -269,6 +284,19 @@ export function CockpitTab({ env } = {}) {
     }
     return d;
   }, [isViewingCurrentWorkflow, stagedRun, runDetail.data, env]);
+
+  // Folder-filtered run for Workflow-scoped timeline & overview
+  const filteredWorkflowRun = useMemo(() => {
+    if (!run) return null;
+    if (scope.type !== 'workflow' || !scope.folder) return run;
+    const folderJobs = (run.jobs || []).filter(
+      (j) => (j.group || j.folder) === scope.folder,
+    );
+    return {
+      ...run,
+      jobs: folderJobs,
+    };
+  }, [run, scope.type, scope.folder]);
 
   // Merged and enriched jobs with full predecessors/successors for cockpit operations
   const allCockpitJobs = useMemo(() => {
@@ -736,6 +764,15 @@ export function CockpitTab({ env } = {}) {
       {/* ── Internal SVG Icon Sprites ── */}
       <IconSprite />
 
+      {/* ── Real-Time Live Infrastructure & Multi-Tier Queue Monitor ── */}
+      <LiveOpsBar
+        env={env}
+        onSelectScope={(newScope) => {
+          setScope((prev) => ({ ...prev, ...newScope }));
+          setActiveView('overview');
+        }}
+      />
+
       {/* ── Unified File Header Card (Upload XML Section on Top) ── */}
       {view?.loaded && (
         <div className="cr-unified-file-card">
@@ -1009,6 +1046,15 @@ export function CockpitTab({ env } = {}) {
         </div>
       </div>
 
+      {/* ── 3-Tier Scope Navigator: Whole XML | Workflow (Folder) | Particular Job ── */}
+      <ScopeNavigator
+        scope={scope}
+        onChangeScope={setScope}
+        folders={view?.folders || run?.folders || []}
+        allJobs={allCockpitJobs}
+        xmlFileName={view?.meta?.filename || 'batch_workflow.xml'}
+      />
+
       {/* ── Run Context Strip: Schedule Name on Left, Triggered By on Right ── */}
       {run ? (
         <div className="cr-run-context-strip">
@@ -1135,42 +1181,62 @@ export function CockpitTab({ env } = {}) {
         )}
 
         {activeView === 'overview' && (
-          <CockpitOverview
-            isLoading={isOverviewLoading}
-            run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
-            definition={enrichedDefinition}
-            folders={run?.folders || view?.folders || []}
-            onSelectJob={(name) => {
-              setSelectedJobName(name);
-              setIsDrawerOpen(true);
-            }}
-            onNavigateView={handleNavigateView}
-            onStartRun={() => handleStartRun()}
-            onCancelRun={handleCancelRun}
-            onJobAction={handleJobAction}
-            onAddJob={() =>
-              setJobModal({
-                mode: 'add',
-                job: null,
-                folder: view?.folders?.[0]?.folder || 'EOD-CORE',
-              })
-            }
-            onEditJob={(j) =>
-              setJobModal({
-                mode: 'edit',
-                job: j.name,
-                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
-              })
-            }
-            onDeleteJob={(j) =>
-              setDel({
-                kind: 'job',
-                job: j.name,
-                folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
-              })
-            }
-            canRun={state.state === 'approved' && state.canRun}
-          />
+          scope.type === 'job' && scope.job ? (
+            <JobOverview
+              env={env}
+              jobName={scope.job}
+              onOpenLog={(jName) => {
+                setSelectedJobName(jName);
+                setIsDrawerOpen(true);
+              }}
+            />
+          ) : scope.type === 'workflow' && scope.folder ? (
+            <WorkflowOverview
+              env={env}
+              folderName={scope.folder}
+              run={run}
+              onSelectJob={(jName) => {
+                setScope({ type: 'job', folder: scope.folder, job: jName });
+              }}
+            />
+          ) : (
+            <CockpitOverview
+              isLoading={isOverviewLoading}
+              run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
+              definition={enrichedDefinition}
+              folders={run?.folders || view?.folders || []}
+              onSelectJob={(name) => {
+                setSelectedJobName(name);
+                setIsDrawerOpen(true);
+              }}
+              onNavigateView={handleNavigateView}
+              onStartRun={() => handleStartRun()}
+              onCancelRun={handleCancelRun}
+              onJobAction={handleJobAction}
+              onAddJob={() =>
+                setJobModal({
+                  mode: 'add',
+                  job: null,
+                  folder: view?.folders?.[0]?.folder || 'EOD-CORE',
+                })
+              }
+              onEditJob={(j) =>
+                setJobModal({
+                  mode: 'edit',
+                  job: j.name,
+                  folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+                })
+              }
+              onDeleteJob={(j) =>
+                setDel({
+                  kind: 'job',
+                  job: j.name,
+                  folder: j.folder || j.group || view?.folders?.[0]?.folder || 'EOD-CORE',
+                })
+              }
+              canRun={state.state === 'approved' && state.canRun}
+            />
+          )
         )}
 
         {activeView === 'flow' && (
@@ -1198,30 +1264,58 @@ export function CockpitTab({ env } = {}) {
         )}
 
         {activeView === 'timeline' && (
-          <CockpitTimeline
-            run={run ? { ...run, status: isPaused ? 'Paused' : run.status } : null}
-            definition={enrichedDefinition}
-            selectedJob={selectedJobName}
-            onSelectJob={(name) => {
-              setSelectedJobName(name);
-              setIsDrawerOpen(true);
-            }}
-            latestRun={latestRunInfo}
-            onOpenRun={handleSelectRun}
-          />
+          scope.type === 'job' && scope.job ? (
+            <JobDriftTimeline env={env} jobName={scope.job} />
+          ) : (
+            <CockpitTimeline
+              run={
+                scope.type === 'workflow'
+                  ? filteredWorkflowRun
+                  : run ? { ...run, status: isPaused ? 'Paused' : run.status } : null
+              }
+              definition={enrichedDefinition}
+              selectedJob={selectedJobName}
+              onSelectJob={(name) => {
+                setSelectedJobName(name);
+                setIsDrawerOpen(true);
+              }}
+              latestRun={latestRunInfo}
+              onOpenRun={handleSelectRun}
+            />
+          )
         )}
 
         {activeView === 'history' && (
-          <CockpitHistory
-            isLoading={runsList.loading}
-            runs={runs}
-            currentRunId={currentRunId}
-            env={env}
-            onSelectRun={(id) => {
-              handleSelectRun(id);
-              setActiveView('overview');
-            }}
-          />
+          scope.type === 'job' && scope.job ? (
+            <JobHistoryTable
+              env={env}
+              jobName={scope.job}
+              onOpenLog={(jName) => {
+                setSelectedJobName(jName);
+                setIsDrawerOpen(true);
+              }}
+            />
+          ) : scope.type === 'workflow' && scope.folder ? (
+            <WorkflowHistoryTable
+              env={env}
+              folderName={scope.folder}
+              onSelectRun={(id) => {
+                handleSelectRun(id);
+                setActiveView('overview');
+              }}
+            />
+          ) : (
+            <CockpitHistory
+              isLoading={runsList.loading}
+              runs={runs}
+              currentRunId={currentRunId}
+              env={env}
+              onSelectRun={(id) => {
+                handleSelectRun(id);
+                setActiveView('overview');
+              }}
+            />
+          )
         )}
       </main>
 
@@ -1239,6 +1333,10 @@ export function CockpitTab({ env } = {}) {
           }
           onClose={() => setIsDrawerOpen(false)}
           onJobAction={handleJobAction}
+          onFocusScope={(jName, fName) => {
+            setScope({ type: 'job', folder: fName, job: jName });
+            setActiveView('overview');
+          }}
         />
       )}
 
