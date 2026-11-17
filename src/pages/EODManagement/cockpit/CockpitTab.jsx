@@ -119,6 +119,7 @@ export function CockpitTab({ env } = {}) {
 
   // Load real resources from backend
   const wf = useResource(() => (env ? svc.getWorkflow(env) : Promise.resolve(null)), [env]);
+  const view = wf.data;
   const def = useResource(
     () => (env ? svc.getCockpitDefinition(env) : Promise.resolve(null)),
     [env],
@@ -137,7 +138,60 @@ export function CockpitTab({ env } = {}) {
     });
   }, [runsList.data, env]);
 
-  const activeRunningRun = runs.find((r) => {
+  const knownFolderNames = useMemo(() => {
+    const set = new Set();
+    for (const f of view?.folders || []) {
+      if (f.folder) set.add(f.folder.toUpperCase());
+      if (f.name) set.add(f.name.toUpperCase());
+    }
+    return set;
+  }, [view?.folders]);
+
+  const filteredRuns = useMemo(() => {
+    return runs.filter((r) => {
+      if (!r) return false;
+      const rid = String(r.id || r.run_id || '');
+      const rFolder = String(r.folder || '').trim().toUpperCase();
+      const rTargetJob = String(r.target_job || r.scope_job || '').trim().toUpperCase();
+      const rScope = String(r.run_scope || '').toLowerCase();
+
+      if (scope.type === 'xml') {
+        // Must NOT be a targeted single-job run
+        if (rTargetJob) return false;
+        if (rScope === 'job' || rScope === 'workflow') return false;
+        if (rScope === 'batch' || rScope === 'xml') return true;
+        // If folder is one of the specific sub-workflow folders, it was a workflow-specific run!
+        if (rFolder && knownFolderNames.has(rFolder)) return false;
+        // Check if run_id starts with a known sub-workflow folder name
+        for (const kf of knownFolderNames) {
+          if (rid.toUpperCase().startsWith(`${kf}-`)) return false;
+        }
+        return true;
+      }
+
+      if (scope.type === 'workflow') {
+        if (!scope.folder) return true;
+        const targetF = scope.folder.trim().toUpperCase();
+        if (rFolder === targetF) return true;
+        if (rid.toUpperCase().startsWith(`${targetF}-`)) return true;
+        if (String(r.name || '').toUpperCase().includes(targetF)) return true;
+        return false;
+      }
+
+      if (scope.type === 'job') {
+        if (!scope.job) return true;
+        const targetJ = scope.job.trim().toUpperCase();
+        if (rTargetJob === targetJ) return true;
+        if (String(r.name || '').toUpperCase().includes(targetJ)) return true;
+        if (rid.toUpperCase().includes(targetJ)) return true;
+        return false;
+      }
+
+      return true;
+    });
+  }, [runs, scope.type, scope.folder, scope.job, knownFolderNames]);
+
+  const activeRunningRun = filteredRuns.find((r) => {
     const isRun = r.status === 'RUNNING' || r.status === 'Running';
     if (!isRun) return false;
     if (r.started_at || r.started) {
@@ -151,6 +205,18 @@ export function CockpitTab({ env } = {}) {
   const currentRunId = isViewingCurrentWorkflow
     ? 'current_workflow'
     : selectedRunId || activeRunningRun?.id || activeRunningRun?.run_id || '';
+
+  // Synchronize selected run when scope changes
+  useEffect(() => {
+    if (selectedRunId && selectedRunId !== 'current_workflow') {
+      const matches = filteredRuns.some(
+        (r) => String(r.id || r.run_id) === String(selectedRunId),
+      );
+      if (!matches) {
+        setSelectedRunId('current_workflow');
+      }
+    }
+  }, [scope.type, scope.folder, scope.job, filteredRuns, selectedRunId]);
 
   const runDetail = useResource(
     () =>
@@ -181,8 +247,6 @@ export function CockpitTab({ env } = {}) {
   usePolling(() => runsList.reload(true), anyRunLive || isRunActive ? 4000 : 20000);
   usePolling(() => runDetail.reload(true), 2500, isRunActive);
   usePolling(() => wf.reload(true), 10000, !busy);
-
-  const view = wf.data;
 
   const files = view?.workflows ?? [];
   const running = (runsList.data ?? []).some(
@@ -1069,7 +1133,7 @@ export function CockpitTab({ env } = {}) {
                   ★ Current Workflow · {view?.meta?.filename || 'batch.xml'}{' '}
                   {run.isReadyState ? '(Active)' : ''}
                 </option>
-                {runs.map((r) => {
+                {filteredRuns.map((r) => {
                   const rid = r.id || r.run_id;
                   const rstat = r.status || 'Unknown';
                   const rstart = r.started_at || r.started;
@@ -1111,26 +1175,28 @@ export function CockpitTab({ env } = {}) {
               </>
             )}
 
-            <button
-              type="button"
-              className="cr-btn outline sm"
-              disabled={busy || !canExecute || !(view?.folders || []).length}
-              onClick={() => {
-                if (!validateExecutionPreflight()) return;
-                setIsRunPickerOpen(true);
-              }}
-              title={
-                !canExecute
-                  ? 'You do not have permission to execute batch runs'
-                  : !(view?.folders || []).length
-                    ? 'No workflows loaded in the active file'
-                    : 'Run only the workflows you choose from the active XML'
-              }
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
-            >
-              <Play size={13} />
-              <span>Run Workflow…</span>
-            </button>
+            {scope.type !== 'xml' && (
+              <button
+                type="button"
+                className="cr-btn outline sm"
+                disabled={busy || !canExecute || !(view?.folders || []).length}
+                onClick={() => {
+                  if (!validateExecutionPreflight()) return;
+                  setIsRunPickerOpen(true);
+                }}
+                title={
+                  !canExecute
+                    ? 'You do not have permission to execute batch runs'
+                    : !(view?.folders || []).length
+                      ? 'No workflows loaded in the active file'
+                      : 'Run only the workflows you choose from the active XML'
+                }
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+              >
+                <Play size={13} />
+                <span>Run Workflow…</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1350,7 +1416,7 @@ export function CockpitTab({ env } = {}) {
           ) : (
             <CockpitHistory
               isLoading={runsList.loading}
-              runs={runs}
+              runs={filteredRuns}
               currentRunId={currentRunId}
               env={env}
               onSelectRun={(id) => {
@@ -1364,6 +1430,7 @@ export function CockpitTab({ env } = {}) {
         {activeView === 'servers' && (
           <ServersQueueTab
             env={env}
+            scope={scope}
             onSelectScope={(newScope) => {
               setScope((prev) => ({ ...prev, ...newScope }));
               if (newScope.type === 'job' || newScope.job) {

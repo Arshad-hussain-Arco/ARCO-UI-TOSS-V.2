@@ -77,13 +77,22 @@ export function CockpitFlow({
     if (scope) {
       if (scope.type === 'workflow' && scope.folder) {
         setSelectedFolder(scope.folder);
+      } else if (scope.type === 'job') {
+        if (scope.folder) {
+          setSelectedFolder(scope.folder);
+        } else if (scope.job && allJobs.length > 0) {
+          const matched = allJobs.find((j) => j.name === scope.job);
+          if (matched && (matched.folder || matched.group)) {
+            setSelectedFolder(matched.folder || matched.group);
+          }
+        }
       } else if (scope.type === 'xml') {
         setSelectedFolder('ALL');
       }
     } else if (initialFolder) {
       setSelectedFolder(initialFolder);
     }
-  }, [scope?.type, scope?.folder, initialFolder]);
+  }, [scope?.type, scope?.folder, scope?.job, allJobs, initialFolder]);
 
   const handleFolderChange = (val) => {
     setSelectedFolder(val);

@@ -17,7 +17,7 @@ import {
 import { usePolling } from '../scheduler/useResource';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
 
-export function ServersQueueTab({ env, onSelectScope, onSelectJob }) {
+export function ServersQueueTab({ env, scope = null, onSelectScope, onSelectJob }) {
   const [telemetry, setTelemetry] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,7 +63,36 @@ export function ServersQueueTab({ env, onSelectScope, onSelectJob }) {
   const aggregateLoadPct =
     totalSlotsLimit > 0 ? Math.min(100, Math.round((totalSlotsInUse / totalSlotsLimit) * 100)) : 0;
 
-  // Filter servers
+  // Filter queues
+  const allQueueItems = [
+    ...(queues.active_jobs_list || []).map((j) => ({ ...j, kind: 'RUNNING' })),
+    ...(queues.queued_jobs_list || []).map((j) => ({
+      ...j,
+      kind: j.is_slot_wait ? 'SLOT_WAIT' : 'DEP_WAIT',
+    })),
+  ];
+
+  // Scoped queue items
+  const scopedQueueItems = allQueueItems.filter((item) => {
+    if (scope?.type === 'workflow' && scope.folder) {
+      const normF = scope.folder.trim().toUpperCase();
+      const itemF = String(item.folder || '').trim().toUpperCase();
+      const itemRid = String(item.run_id || '').toUpperCase();
+      return itemF === normF || itemRid.startsWith(`${normF}-`) || itemRid.includes(normF);
+    }
+    if (scope?.type === 'job' && scope.job) {
+      const normJ = scope.job.trim().toUpperCase();
+      return String(item.job || '').trim().toUpperCase() === normJ;
+    }
+    return true;
+  });
+
+  // Dedicated single-job telemetry lookup
+  const jobFocusItem = scope?.type === 'job' && scope.job
+    ? allQueueItems.find((j) => String(j.job || '').trim().toUpperCase() === scope.job.trim().toUpperCase())
+    : null;
+
+  // Filter servers with search and scope relevance
   const filteredServers = servers.filter((s) => {
     if (!serverSearch.trim()) return true;
     const q = serverSearch.toLowerCase();
@@ -74,16 +103,7 @@ export function ServersQueueTab({ env, onSelectScope, onSelectJob }) {
     );
   });
 
-  // Filter queues
-  const allQueueItems = [
-    ...(queues.active_jobs_list || []).map((j) => ({ ...j, kind: 'RUNNING' })),
-    ...(queues.queued_jobs_list || []).map((j) => ({
-      ...j,
-      kind: j.is_slot_wait ? 'SLOT_WAIT' : 'DEP_WAIT',
-    })),
-  ];
-
-  const filteredQueueItems = allQueueItems.filter((item) => {
+  const filteredQueueItems = scopedQueueItems.filter((item) => {
     if (queueFilter === 'RUNNING' && item.kind !== 'RUNNING') return false;
     if (queueFilter === 'SLOT_WAIT' && item.kind !== 'SLOT_WAIT') return false;
     if (queueFilter === 'DEP_WAIT' && item.kind !== 'DEP_WAIT') return false;
@@ -131,6 +151,69 @@ export function ServersQueueTab({ env, onSelectScope, onSelectJob }) {
           </button>
         </div>
       </div>
+
+      {/* ── Active Scope Indicator & Controls ── */}
+      {scope?.type && scope.type !== 'xml' && (
+        <div className="cr-sq-scope-banner">
+          <div className="cr-sq-scope-banner-text">
+            {scope.type === 'workflow' ? <Cpu size={14} /> : <Activity size={14} />}
+            <span>
+              Telemetry Scope:{' '}
+              <strong>
+                {scope.type === 'workflow'
+                  ? `Workflow (Folder) — ${scope.folder || 'ALL'}`
+                  : `Job — ${scope.job}`}
+              </strong>
+            </span>
+          </div>
+          <button
+            type="button"
+            className="cr-btn sm outline"
+            onClick={() => onSelectScope?.({ type: 'xml', folder: null, job: null })}
+            title="Switch back to Whole XML scope"
+          >
+            Reset to Whole XML
+          </button>
+        </div>
+      )}
+
+      {/* ── Single Job Execution Status Banner ── */}
+      {scope?.type === 'job' && scope.job && (
+        <div className="cr-sq-job-focus-card">
+          <div className="cr-sq-jfc-header">
+            <div className="cr-sq-jfc-title">
+              <Activity size={15} />
+              <span>Job Runtime & Queue Status: {scope.job}</span>
+            </div>
+            <span
+              className={`cr-sq-jfc-status ${
+                jobFocusItem?.kind === 'RUNNING'
+                  ? 'is-running'
+                  : jobFocusItem?.kind === 'SLOT_WAIT'
+                  ? 'is-queued'
+                  : 'is-waiting'
+              }`}
+            >
+              {jobFocusItem?.kind === 'RUNNING'
+                ? 'Running on Host'
+                : jobFocusItem?.kind === 'SLOT_WAIT'
+                ? 'Queued for Server Slot'
+                : jobFocusItem?.kind === 'DEP_WAIT'
+                ? 'Waiting for Prerequisites'
+                : 'Not in Active Queue / Idle'}
+            </span>
+          </div>
+          <div className="cr-sq-jfc-body">
+            {jobFocusItem?.kind === 'RUNNING'
+              ? `Currently executing on target server ${jobFocusItem.target || 'host'} (Run #${jobFocusItem.run_id}). Elapsed time: ${jobFocusItem.elapsed_seconds != null ? `${jobFocusItem.elapsed_seconds}s` : 'active'}.`
+              : jobFocusItem?.kind === 'SLOT_WAIT'
+              ? `Job is ready to execute but waiting for an available concurrency slot on target server ${jobFocusItem.target || 'host'}. Reason: ${jobFocusItem.reason || 'Server at maximum concurrency capacity'}.`
+              : jobFocusItem?.kind === 'DEP_WAIT'
+              ? `Job is waiting for predecessor jobs in workflow DAG to complete. Reason: ${jobFocusItem.reason || 'Prerequisite conditions not met'}.`
+              : `Job ${scope.job} is currently idle and not queued in any active batch run.`}
+          </div>
+        </div>
+      )}
 
       {/* ── KPI Metrics Cards Row ── */}
       <div className="cr-sq-metrics-grid">
@@ -264,15 +347,40 @@ export function ServersQueueTab({ env, onSelectScope, onSelectJob }) {
               const activeJobs = srv.active_jobs || [];
               const queuedJobs = srv.queued_jobs || [];
 
+              const isScopeRelevant =
+                scope?.type === 'workflow' && scope.folder
+                  ? runningWfs.some((w) => w.toUpperCase() === scope.folder.toUpperCase()) ||
+                    activeJobs.some((j) => (j.folder || '').toUpperCase() === scope.folder.toUpperCase()) ||
+                    queuedJobs.some((j) => (j.folder || '').toUpperCase() === scope.folder.toUpperCase())
+                  : scope?.type === 'job' && scope.job
+                  ? activeJobs.some((j) => (j.job || '').toUpperCase() === scope.job.toUpperCase()) ||
+                    queuedJobs.some((j) => (j.job || '').toUpperCase() === scope.job.toUpperCase()) ||
+                    srv.name === jobFocusItem?.target ||
+                    srv.host === jobFocusItem?.target
+                  : false;
+
               return (
                 <div
                   key={srv.id || srv.name}
-                  className={`cr-sq-server-card ${isFull ? 'is-full' : isBusy ? 'is-busy' : used > 0 ? 'is-active' : ''}`}
+                  className={`cr-sq-server-card ${isScopeRelevant ? 'is-highlighted-scope' : ''} ${isFull ? 'is-full' : isBusy ? 'is-busy' : used > 0 ? 'is-active' : ''}`}
                 >
                   {/* Server Head */}
                   <div className="cr-sq-sc-head">
                     <div className="cr-sq-sc-name-row">
                       <span className="cr-sq-sc-name">{srv.name}</span>
+                      {isScopeRelevant && (
+                        <span
+                          className="cr-sq-status-pill"
+                          style={{
+                            background: 'var(--cr-accent-tint, #e6f4ed)',
+                            color: 'var(--c-primary, #005a36)',
+                            borderColor: 'var(--c-primary, #005a36)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          MATCHES SCOPE
+                        </span>
+                      )}
                       <span
                         className={`cr-sq-status-pill ${
                           isFull
