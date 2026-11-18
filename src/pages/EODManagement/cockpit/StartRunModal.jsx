@@ -21,8 +21,8 @@ export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
   };
 
   return (
-    <div className="cr-modal-backdrop" onClick={onClose}>
-      <div className="cr-modal-card" onClick={(e) => e.stopPropagation()}>
+    <div className="cr-modal-backdrop" onClick={onClose} role="presentation">
+      <div className="cr-modal-card" onClick={(e) => e.stopPropagation()} role="presentation">
         <header className="cr-modal-header">
           <h3>Start New Batch Run</h3>
           <button type="button" className="cr-modal-close" onClick={onClose}>
@@ -40,8 +40,9 @@ export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
           </div>
 
           <div className="cr-form-field">
-            <label className="cr-form-label">Run / Schedule Name</label>
+            <label className="cr-form-label" htmlFor="start-run-name">Run / Schedule Name</label>
             <input
+              id="start-run-name"
               type="text"
               className="cr-input"
               value={runName}
@@ -51,8 +52,9 @@ export function StartRunModal({ isOpen, onClose, onStart, currentEnv = '' }) {
           </div>
 
           <div className="cr-form-field">
-            <label className="cr-form-label">Max Parallel Jobs</label>
+            <label className="cr-form-label" htmlFor="start-run-parallel">Max Parallel Jobs</label>
             <input
+              id="start-run-parallel"
               type="number"
               className="cr-input"
               value={maxParallel}

@@ -223,8 +223,16 @@ export function CockpitTimeline({
             return (
               <div
                 key={b.name}
+                role="button"
+                tabIndex={0}
                 className={`cr-tl-row ${isSelected ? 'is-sel' : ''} ${isDim ? 'is-dim' : ''}`}
                 onClick={() => onSelectJob(b.name)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectJob(b.name);
+                  }
+                }}
                 onMouseEnter={() => setHoveredJob(b)}
                 onMouseLeave={() => setHoveredJob(null)}
               >

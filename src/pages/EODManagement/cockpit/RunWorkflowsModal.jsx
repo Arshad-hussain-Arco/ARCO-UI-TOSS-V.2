@@ -5,16 +5,20 @@ import { CockpitIcon } from './IconSprite';
  * "Run Workflow": choose which workflows (folders) of the active XML to run now. Choosing every workflow is the same as Run All Now.
  * `workflows` is [{ name, jobs }].
  */
-export function RunWorkflowsModal({ isOpen, onClose, onRun, workflows = [], filename = '' }) {
+export function RunWorkflowsModal({ isOpen, onClose, onRun, workflows = [], filename = '', defaultFolder = null }) {
   const [chosen, setChosen] = useState(() => new Set());
   const [allowOverlap, setAllowOverlap] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setChosen(new Set());
+      if (defaultFolder && workflows.some((w) => w.name === defaultFolder)) {
+        setChosen(new Set([defaultFolder]));
+      } else {
+        setChosen(new Set());
+      }
       setAllowOverlap(false);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultFolder, workflows]);
 
   if (!isOpen) return null;
 

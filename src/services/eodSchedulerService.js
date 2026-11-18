@@ -131,6 +131,14 @@ export const eodSchedulerService = {
   getCockpitDefinition: (env) => get(E.cockpitDefinition(env)),
   cockpitJobAction: (env, runId, jobName, action) =>
     send('post', E.cockpitJobAction(env, runId, jobName, action), {}),
+
+  // Live Telemetry & Scoped Metrics
+  getLiveTelemetry: (env) => get(E.liveTelemetry(env)),
+  getGlobalTelemetry: () => get(E.globalTelemetry),
+  getJobMetrics: (env, job) => get(E.jobMetrics(env, job)),
+  getJobHistory: (env, job, limit = 50) => get(E.jobHistory(env, job), { params: { limit } }),
+  getWorkflowMetrics: (env, folder) => get(E.workflowMetrics(env, folder)),
+  getWorkflowHistory: (env, folder, limit = 50) => get(E.workflowHistory(env, folder), { params: { limit } }),
 };
 
 export default eodSchedulerService;

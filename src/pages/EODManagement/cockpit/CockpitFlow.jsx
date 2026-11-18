@@ -37,7 +37,11 @@ function Problems({ title, tone, messages, open }) {
   );
 }
 
-const statusIs = (job, ...names) => names.includes(job.status);
+const statusIs = (job, ...names) => {
+  const normNames = names.map((n) => n.toUpperCase());
+  const s = String(job.status || '').toUpperCase();
+  return normNames.includes(s);
+};
 
 /**
  * The Flow tab of the Control Run Cockpit. The graph is the SAME component as the Workflow tab (DependencyGraph), coloured by the status
@@ -58,18 +62,12 @@ export function CockpitFlow({
   onPlayJob = null,
   playBusyId = '',
   playBlockedReason = '',
+  scope = null,
+  onScopeChange = null,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
-  const [selectedFolder, setSelectedFolder] = useState(() => initialFolder || 'ALL');
   const [followActive, setFollowActive] = useState(false);
-
-  useEffect(() => {
-    if (initialFolder) {
-      setSelectedFolder(initialFolder);
-      if (onClearFolderFilter) onClearFolderFilter();
-    }
-  }, [initialFolder, onClearFolderFilter]);
 
   const activeFolders = useMemo(
     () => (folders && folders.length > 0 ? folders : run?.folders) || [],
@@ -137,6 +135,33 @@ export function CockpitFlow({
     }));
   }, [definition, run, activeFolders]);
 
+  // Sync folder with scope or initialFolder
+  const scopeFolder = scope?.type === 'workflow' ? scope.folder : null;
+  const [selectedFolder, setSelectedFolder] = useState(() => scopeFolder || initialFolder || 'ALL');
+
+  useEffect(() => {
+    if (scope) {
+      if (scope.type === 'workflow' && scope.folder) {
+        setSelectedFolder(scope.folder);
+      } else if (scope.type === 'xml') {
+        setSelectedFolder('ALL');
+      }
+    } else if (initialFolder) {
+      setSelectedFolder(initialFolder);
+    }
+  }, [scope?.type, scope?.folder, initialFolder]);
+
+  const handleFolderChange = (val) => {
+    setSelectedFolder(val);
+    if (onScopeChange) {
+      if (val === 'ALL') {
+        onScopeChange({ type: 'xml', folder: null, job: null });
+      } else {
+        onScopeChange({ type: 'workflow', folder: val, job: null });
+      }
+    }
+  };
+
   const folderOptions = useMemo(() => {
     const list = [];
     const seen = new Set();
@@ -160,18 +185,28 @@ export function CockpitFlow({
   const isAll = !selectedFolder || selectedFolder === 'ALL';
   const jobs = useMemo(() => {
     if (isAll) return allJobs;
-    const filtered = allJobs.filter((j) => (j.folder || j.group) === selectedFolder);
-    return filtered.length > 0 ? filtered : allJobs;
+    const norm = String(selectedFolder).trim().toLowerCase();
+    const filtered = allJobs.filter((j) => {
+      const jf = String(j.folder || j.group || '').trim().toLowerCase();
+      return jf === norm;
+    });
+    return filtered.length > 0 ? filtered : allJobs.filter((j) => (j.folder || j.group) === selectedFolder);
   }, [allJobs, selectedFolder, isAll]);
 
   // The graph of the Workflow tab: the review's own dependency graph per workflow; jobs that only the run knows are added from their predecessors.
   const graph = useMemo(() => {
+    const norm = isAll ? '' : String(selectedFolder).trim().toLowerCase();
     const scoped = isAll
       ? activeFolders
-      : activeFolders.filter((f) => (f.folder || f.name) === selectedFolder);
+      : activeFolders.filter((f) => {
+          const fn = String(f.folder || f.name || '').trim().toLowerCase();
+          return fn === norm || (f.folder || f.name) === selectedFolder;
+        });
     let g;
     if (scoped.length === 1 && scoped[0].graph?.nodes?.length) g = scoped[0].graph;
-    else g = mergeFolderGraphs(scoped);
+    else if (scoped.length > 1) g = mergeFolderGraphs(scoped);
+    else g = { nodes: [], edges: [] };
+
     if (!g.nodes.length) return graphFromJobs(jobs);
     const have = new Set(g.nodes.map((n) => n.id));
     const extra = jobs.filter((j) => !have.has(j.name));
@@ -217,33 +252,35 @@ export function CockpitFlow({
         (statusFilter === 'Skipped'
           ? statusIs(j, 'Skipped', 'SKIPPED', 'Skip', 'off')
           : statusFilter === 'Done'
-          ? statusIs(j, 'Done')
+          ? statusIs(j, 'Done', 'DONE', 'Success', 'SUCCESS', 'OK')
           : statusFilter === 'On hold'
-          ? statusIs(j, 'On hold', 'ON HOLD')
+          ? statusIs(j, 'On hold', 'ON HOLD', 'Hold', 'HOLD')
           : statusFilter === 'Running'
-          ? statusIs(j, 'Running', 'RUNNING')
+          ? statusIs(j, 'Running', 'RUNNING', 'Active', 'ACTIVE')
           : statusFilter === 'Failed'
-          ? statusIs(j, 'Failed', 'FAILED')
+          ? statusIs(j, 'Failed', 'FAILED', 'Error', 'ERROR', 'NOTOK')
           : j.status === statusFilter);
       if (!(matchesSearch && matchesStatus)) out.add(j.name);
     }
     return out;
   }, [jobs, searchQuery, statusFilter]);
 
-  // Follow mode: the running job, else a failed one, else one on hold, else the selected one
+  const effectiveSelectedJob = selectedJob;
+
+  // Follow mode: the selected job, else running job, else failed, else hold, else done
   const focalJob = useMemo(() => {
     if (!jobs.length) return null;
     return (
+      (effectiveSelectedJob ? jobs.find((j) => j.name === effectiveSelectedJob) : null) ||
       jobs.find((j) => statusIs(j, 'Running', 'RUNNING')) ||
       jobs.find((j) => statusIs(j, 'Failed', 'FAILED')) ||
       jobs.find((j) => statusIs(j, 'On hold', 'ON HOLD')) ||
-      (selectedJob ? jobs.find((j) => j.name === selectedJob) : null) ||
-      jobs.find((j) => statusIs(j, 'Done')) ||
+      jobs.find((j) => statusIs(j, 'Done', 'DONE', 'Success', 'SUCCESS', 'OK', 'FINISHED')) ||
       jobs[0]
     );
-  }, [jobs, selectedJob]);
+  }, [jobs, effectiveSelectedJob]);
 
-  const doneCount = jobs.filter((j) => statusIs(j, 'Done')).length;
+  const doneCount = jobs.filter((j) => statusIs(j, 'Done', 'DONE', 'Success', 'SUCCESS', 'OK', 'FINISHED')).length;
   const holdCount = jobs.filter((j) => statusIs(j, 'On hold', 'ON HOLD')).length;
   const skippedCount = jobs.filter((j) => statusIs(j, 'Skipped', 'SKIPPED', 'Skip', 'off')).length;
   const runningCount = jobs.filter((j) => statusIs(j, 'Running', 'RUNNING')).length;
@@ -322,7 +359,7 @@ export function CockpitFlow({
           />
         </div>
 
-        {folderOptions.length > 0 && (
+        {scope?.type !== 'workflow' && scope?.type !== 'job' && folderOptions.length > 0 && (
           <div className="cr-flow-folder-select-wrap">
             <label className="cr-field-inline">
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>
@@ -331,7 +368,7 @@ export function CockpitFlow({
               <select
                 className="cr-select sm"
                 value={selectedFolder || 'ALL'}
-                onChange={(e) => setSelectedFolder(e.target.value)}
+                onChange={(e) => handleFolderChange(e.target.value)}
               >
                 <option value="ALL">All Workflows ({allJobs.length})</option>
                 {folderOptions.map((fName) => (
@@ -359,6 +396,24 @@ export function CockpitFlow({
             <CockpitIcon name="i-target" className="xs" /> Follow
           </button>
         </div>
+
+        {(searchQuery.trim() || statusFilter) && (
+          <div className="cr-flow-filter-indicator">
+            <span className="cr-flow-filter-count">
+              Showing {jobs.length - (dimmed ? dimmed.size : 0)} of {jobs.length} jobs
+            </span>
+            <button
+              type="button"
+              className="cr-flow-clear-btn"
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter(null);
+              }}
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
       </div>
 
       {/* The graph of the Workflow tab */}
@@ -368,9 +423,9 @@ export function CockpitFlow({
           jobs={jobs}
           detail={detail}
           states={states}
-          selected={selectedJob}
+          selected={effectiveSelectedJob}
           onSelect={(name) => {
-            onSelectJob(name);
+            onSelectJob?.(name);
             if (name && onOpenDrawer) onOpenDrawer(name);
           }}
           isAllWorkflows={isAll}
@@ -381,9 +436,11 @@ export function CockpitFlow({
           playBusyId={playBusyId}
           playBlockedReason={playBlockedReason}
           onOpenDetails={(name) => {
-            onSelectJob(name);
+            onSelectJob?.(name);
             if (onOpenDrawer) onOpenDrawer(name);
           }}
+          runId={run?.run_id || run?.id || run?.name || ''}
+          folder={selectedFolder}
         />
       </div>
 

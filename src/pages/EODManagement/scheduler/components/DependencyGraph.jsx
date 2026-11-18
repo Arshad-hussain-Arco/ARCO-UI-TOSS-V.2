@@ -97,6 +97,7 @@ function DependencyGraphCanvas({
   isAllWorkflows = false,
   env,
   folder,
+  runId = '',
   onRunRecorded,
   onViewLogs,
   allowExecute = true, // false: no per-job play button (the Cockpit shows real runs only, never simulated ones)
@@ -580,7 +581,8 @@ function DependencyGraphCanvas({
       else if (tone === 'info') strokeColor = '#0284c7';
       else if (tone === 'danger') strokeColor = '#ef4444';
 
-      const isDim = untakenFailureBranch || isSkippedEdge || (chainSet && !isHot) || (selected && !touchesSelected);
+      const isDimByFilter = Boolean(dimmed && (dimmed.has(e.source) || dimmed.has(e.target)));
+      const isDim = untakenFailureBranch || isSkippedEdge || (chainSet && !isHot) || (selected && !touchesSelected) || isDimByFilter;
       const showFailureLabel = isFailureBranch && (!hasRunStates || sourceState === 'bad');
 
       return {
@@ -620,23 +622,27 @@ function DependencyGraphCanvas({
         },
       };
     });
-  }, [graph, edgeType, effectiveStates, selected, chainSet]);
+  }, [graph, edgeType, effectiveStates, selected, chainSet, dimmed]);
 
-  // Fit view ONLY once when graph signature or direction changes (never during status polling updates)
-  const graphSignature = `${graph?.nodes?.length || 0}-${graph?.edges?.length || 0}-${direction}`;
+  // Fit view whenever graph structure, run, workflow/folder or direction changes (never during polling updates)
+  const nodeIdsStr = useMemo(
+    () => (graph?.nodes || []).map((n) => n.id).sort().join(','),
+    [graph?.nodes],
+  );
+  const fitSignature = `${runId || ''}:${folder || ''}:${isAllWorkflows ? 'all' : 'single'}:${direction}:${nodeIdsStr}`;
   const nodesInitialized = useNodesInitialized();
   const lastFittedSignature = useRef('');
 
   useEffect(() => {
     if (!nodesInitialized || !graph?.nodes?.length) return;
-    if (lastFittedSignature.current === graphSignature) return; // Only fit once per graph structure
-    lastFittedSignature.current = graphSignature;
+    if (lastFittedSignature.current === fitSignature) return; // Only fit once per graph/run/direction change
+    lastFittedSignature.current = fitSignature;
 
     const timer = setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.15, duration: 250 });
     }, 60);
     return () => clearTimeout(timer);
-  }, [graphSignature, nodesInitialized, reactFlowInstance, graph?.nodes?.length]);
+  }, [fitSignature, nodesInitialized, reactFlowInstance, graph?.nodes?.length]);
 
   // Node click handler
   const handleNodeClick = useCallback(
@@ -652,9 +658,10 @@ function DependencyGraphCanvas({
     if (!followId) return;
     const pos = layoutPositions.get(followId);
     if (!pos) return;
+    const currentZoom = reactFlowInstance.getZoom?.() || 1.0;
     reactFlowInstance.setCenter(pos.x + NODE_WIDTH / 2, pos.y + NODE_HEIGHT / 2, {
-      zoom: 1.0,
-      duration: 400,
+      zoom: currentZoom > 0.05 ? currentZoom : 0.85,
+      duration: 350,
     });
   }, [followId, layoutPositions, reactFlowInstance]);
 
@@ -874,6 +881,8 @@ function DependencyGraphCanvas({
       <ReactFlow
         nodes={allNodes}
         edges={edges}
+        fitView
+        fitViewOptions={{ padding: 0.15, includeHiddenNodes: false }}
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={onOpenDetails ? handleNodeDoubleClick : undefined}
         nodeTypes={nodeTypes}

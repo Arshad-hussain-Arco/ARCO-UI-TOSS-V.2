@@ -1,5 +1,5 @@
 import { Component, useEffect, useMemo, useState } from 'react';
-import { Calendar, Network, PlayCircle, Gauge, Plus, Server, Settings } from 'lucide-react';
+import { Calendar, Gauge, Plus, Server, Settings, Layers } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { Toggle } from '@components/ui/Toggle/Toggle';
@@ -12,6 +12,7 @@ import { RunsPanel } from './components/RunsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TargetsPanel } from './components/TargetsPanel';
 import { CockpitTab } from '../cockpit/CockpitTab';
+import { ServersQueueTab } from '../cockpit/ServersQueueTab';
 import { WorkflowPanel } from './components/WorkflowPanel';
 import { SchedulesNewSection } from '../components/SchedulesNewSection';
 
@@ -25,6 +26,7 @@ const SECTIONS = [
   { key: 'schedule', label: 'Schedule', Icon: Calendar },
   { key: 'targets', label: 'Target Server', Icon: Server },
   { key: 'settings', label: 'Settings', Icon: Settings },
+  { key: 'serversQueue', label: 'Servers & Queue', Icon: Layers },
 ];
 const STORAGE_KEY = 'toss.eodScheduler.environment';
 const SECTION_STORAGE_KEY = 'toss.eodScheduler.section';
@@ -55,7 +57,9 @@ const rememberedSection = () => {
 const rememberSection = (sec) => {
   try {
     window.localStorage.setItem(SECTION_STORAGE_KEY, sec);
-  } catch {}
+  } catch {
+    /* ignore storage errors */
+  }
 };
 
 class TabBoundary extends Component {
@@ -183,75 +187,73 @@ export function SchedulerTab() {
     <>
       {/* Same tab bar as the EOD Management page; environment controls sit on its right */}
       <div className="eod-tabs" role="tablist">
-        {current
-          ? SECTIONS.map(({ key, label, Icon }) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={section === key}
-                className="eod-tab"
-                data-active={section === key}
-                onClick={() => setSection(key)}
-              >
-                <Icon className="eod-tab-icon" />
-                <span className="eod-tab-label">{label}</span>
-              </button>
-            ))
-          : null}
-        <div className="eodsch-topbar-right">
-          <label className="eodsch-field-inline">
-            Environment
-            <select
-              value={env}
-              onChange={(e) => choose(e.target.value)}
-              disabled={!list.length}
-              aria-label="Environment"
-            >
-              {list.map((e) => (
-                <option key={e.code} value={e.code}>
-                  {e.code} — {e.name}
-                  {e.enabled ? '' : ' (disabled)'}
-                </option>
-              ))}
-            </select>
-          </label>
-          {canAdmin ? (
-            <Button
-              size="sm"
-              variant="outline"
-              leadingIcon={Plus}
-              onClick={() => setCreating({ code: '', name: '' })}
-            >
-              New Environment
-            </Button>
-          ) : null}
+        <div className="eod-tabs-nav">
+          {current
+            ? SECTIONS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={section === key}
+                  className="eod-tab"
+                  data-active={section === key}
+                  onClick={() => setSection(key)}
+                >
+                  <Icon className="eod-tab-icon" />
+                  <span className="eod-tab-label">{label}</span>
+                </button>
+              ))
+            : null}
         </div>
+
+        {/* Environment controls (hidden on global Servers & Queue tab) */}
+        {section !== 'serversQueue' ? (
+          <div className="eodsch-topbar-right">
+            <label className="eodsch-field-inline">
+              Environment
+              <select
+                value={env}
+                onChange={(e) => choose(e.target.value)}
+                disabled={!list.length}
+                aria-label="Environment"
+              >
+                {list.map((e) => (
+                  <option key={e.code} value={e.code}>
+                    {e.code} — {e.name}
+                    {e.enabled ? '' : ' (disabled)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {canAdmin && current ? (
+              <div className="eodsch-field-inline">
+                <span>Enabled</span>
+                <Toggle
+                  checked={current.enabled}
+                  onChange={setEnabled}
+                  ariaLabel="Environment enabled"
+                />
+              </div>
+            ) : null}
+            {canAdmin ? (
+              <Button
+                size="sm"
+                variant="outline"
+                leadingIcon={Plus}
+                onClick={() => setCreating({ code: '', name: '' })}
+              >
+                New Environment
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="eod-body">
         <div className="eodsch">
           {envs.error && envs.data ? (
             <div className="eodsch-notice eodsch-notice-warn" role="status">
-              Couldn't refresh environments: {envs.error}
-            </div>
-          ) : null}
-
-          {current ? (
-            <div className="eodsch-statusbar">
-              <span className="eodsch-muted">
-                {current.engine ? 'Engine is serving it' : 'No engine is serving it right now'}
-              </span>
-              {canAdmin ? (
-                <div className="eodsch-field-inline">
-                  <span>Enabled</span>
-                  <Toggle
-                    checked={current.enabled}
-                    onChange={setEnabled}
-                    ariaLabel="Environment enabled"
-                  />
-                </div>
-              ) : null}
+              Couldn&apos;t refresh environments: {envs.error}
             </div>
           ) : null}
 
@@ -283,10 +285,19 @@ export function SchedulerTab() {
                   />
                 ) : null}
                 {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
-                {section === 'cockpit' ? <CockpitTab key={env} env={env} /> : null}
+                {section === 'cockpit' ? <CockpitTab key={env} env={env} onNavigateSection={setSection} /> : null}
                 {section === 'schedule' ? <SchedulesNewSection selectedEnv={env} /> : null}
                 {section === 'targets' ? (
                   <TargetsPanel env={env} onReturnToSchedule={() => setSection('schedule')} />
+                ) : null}
+                {section === 'serversQueue' ? (
+                  <ServersQueueTab
+                    env={env}
+                    onNavigateEnv={(envCode) => {
+                      choose(envCode);
+                      setSection('cockpit');
+                    }}
+                  />
                 ) : null}
                 {section === 'settings' ? <SettingsPanel env={env} /> : null}
               </div>

@@ -22,12 +22,13 @@ export function RunDetailModal({ isOpen, runId, env, onClose }) {
   return (
     <div
       className="cr-modal-backdrop"
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       role="presentation"
     >
       <div
         className="cr-run-detail-modal"
-        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="cr-run-detail-modal-title"
