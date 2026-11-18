@@ -3995,7 +3995,7 @@
 .sc-cols,
 .sc-card {
   display: grid;
-  grid-template-columns: 46px minmax(200px, 2fr) minmax(80px, 0.7fr) minmax(130px, 1.1fr) minmax(140px, 1.2fr) minmax(130px, 1.1fr) 140px;
+  grid-template-columns: 46px minmax(180px, 1.4fr) minmax(220px, 2.2fr) minmax(140px, 1.1fr) minmax(130px, 1fr) 120px;
   column-gap: 16px;
   align-items: center;
   padding: 10px 16px;
@@ -4221,17 +4221,18 @@
   color: var(--text-secondary, #334155);
   background: var(--surface-secondary, #f8fafc);
   border: 1px solid var(--border-secondary, #e2e8f0);
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
   max-width: 100%;
 }
 
 .sc-freq-icon {
   color: var(--text-tertiary, #64748b);
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* Next start, Frequency, Last result */

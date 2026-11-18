@@ -137,12 +137,61 @@ export function SchedulesNewSection({ selectedEnv }) {
       /* the next refresh tries again */
     }
   }, [selectedEnv]);
-  const anyActive = schedules.some((s) => s.run_active);
+  const anyActive = schedules.some(
+    (s) =>
+      s.run_active ||
+      ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status || '').toUpperCase()),
+  );
+  const now = Date.now();
+  const isNearFire = schedules.some((s) => {
+    if (!s.enabled) return false;
+    if (s.run_active) return true;
+    if (
+      s.last_status &&
+      ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status).toUpperCase())
+    )
+      return true;
+    if (s.next_fire_at) {
+      const diff = new Date(s.next_fire_at).getTime() - now;
+      if (diff >= -60000 && diff <= 60000) return true;
+    }
+    if (s.last_fire_at) {
+      const since = now - new Date(s.last_fire_at).getTime();
+      if (since >= 0 && since <= 60000) return true;
+    }
+    if (s.updated_at || s.created_at) {
+      const sinceSaved = now - new Date(s.updated_at || s.created_at).getTime();
+      if (sinceSaved >= 0 && sinceSaved <= 90000) return true;
+    }
+    return false;
+  });
+
+  const shouldPollFast = anyActive || isNearFire;
+
   useEffect(() => {
-    if (!anyActive) return undefined;
-    const timer = setInterval(refresh, 5000);
+    const onWake = () => refresh();
+    const onVisibilityChange = () => {
+      if (!document.hidden) onWake();
+    };
+    window.addEventListener('eod-schedules-updated', onWake);
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('eod-schedules-updated', onWake);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    // Smart anticipation polling:
+    // Fast (2-3s: 2000ms) when a run is active or a schedule is due in <= 30s (or fired <= 30s ago).
+    // Idle (20s) when no run is active and no schedule is due soon, keeping system load minimal.
+    const interval = shouldPollFast ? 2000 : 20000;
+    refresh();
+    const timer = setInterval(refresh, interval);
     return () => clearInterval(timer);
-  }, [anyActive, refresh]);
+  }, [shouldPollFast, refresh]);
 
   const today = new Date().getDay();
 
@@ -176,10 +225,16 @@ export function SchedulesNewSection({ selectedEnv }) {
 
   const remove = async () => {
     setIsSaving(true);
+    const targetId = deleting?.id;
     try {
-      await svc.deleteSchedule(selectedEnv, deleting.id);
+      await svc.deleteSchedule(selectedEnv, targetId);
       setDeleting(null);
       toast.success('Schedule deleted.');
+      try {
+        window.dispatchEvent(
+          new CustomEvent('eod-schedules-updated', { detail: { deleted: targetId, env: selectedEnv } })
+        );
+      } catch {}
       await load();
     } catch (err) {
       toast.error(errorText(err));
@@ -246,8 +301,7 @@ export function SchedulesNewSection({ selectedEnv }) {
         <div>
           <p className="eod-section-title">SCHEDULED RUNS · {selectedEnv}</p>
           <span className="eod-section-subtitle">
-            Schedule a whole workflow or a single job (its prerequisites run first) from any
-            uploaded XML
+            Manage automated End-of-Day batch execution schedules
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -407,7 +461,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                         <div className="sc-name-sub">
                           {s.job ? (
                             <span className="sc-scope-badge scope-target">
-                              <Target size={10} /> Single job + prerequisites
+                              <Target size={10} /> Single job
                             </span>
                           ) : (
                             <span className="sc-scope-badge scope-batch">
@@ -418,7 +472,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                             className="sc-warn-line"
                             style={{ marginLeft: 6, color: 'inherit', opacity: 0.7 }}
                           >
-                            {s.filename || `XML #${s.workflow_id}`} · {s.folder}
+                            {s.filename || (s.workflow_id ? `Workflow #${s.workflow_id}` : '')} · {s.folder}
                           </span>
                         </div>
                       </div>

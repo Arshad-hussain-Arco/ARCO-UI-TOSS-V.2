@@ -62,7 +62,7 @@ export function LogViewer({ env, runId, jobs = [], running, job: jobProp, onJobC
       throw err;
     }
   }, [env, runId, job]);
-  usePolling(() => log.reload(true), 4000, running);
+  usePolling(() => log.reload(true), 1500, running);
 
   // keep the newest lines in view while the run is live
   useEffect(() => {
@@ -288,7 +288,7 @@ export function RunDetail({ env, runId, onChanged }) {
   const [jobFilter, setJobFilter] = useState('all');
   const [logJob, setLogJob] = useState('');
   const running = detail.data?.run?.status === 'RUNNING';
-  usePolling(() => detail.reload(true), 4000, running);
+  usePolling(() => detail.reload(true), 1500, running);
 
   useEffect(() => {
     if (detail.data && !running) onChanged?.();
@@ -539,11 +539,26 @@ export function RunsPanel({ env, focusRun }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const anyRunning = (runs.data ?? []).some((r) => r.status === 'RUNNING');
-  // fast while a run is live; every 20s otherwise (only a scheduled run starting needs noticing then)
+  // Smart anticipation: fast (2-3s: 2000ms) while a run is live or started within 45s; 20s when idle
   const anyRunLive = (runs.data ?? []).some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
-  usePolling(() => runs.reload(true), anyRunLive ? 5000 : 20000, true);
+  const anyFresh = (runs.data ?? []).some((r) => {
+    const started = r.started_at || r.started;
+    if (!started) return false;
+    const diffMs = Date.now() - new Date(started).getTime();
+    return diffMs >= 0 && diffMs <= 45000;
+  });
+  usePolling(() => runs.reload(true), anyRunLive || anyFresh ? 2000 : 20000, true);
+
+  const activeRun = (runs.data ?? []).find((r) =>
+    ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+  );
+  useEffect(() => {
+    if (activeRun?.run_id && selected !== activeRun.run_id) {
+      setSelected(activeRun.run_id);
+    }
+  }, [activeRun?.run_id]);
 
   useEffect(() => {
     if (focusRun) setSelected(focusRun);

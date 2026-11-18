@@ -823,8 +823,16 @@ export const eodService = {
     deleteScheduleMeta(id, groupId);
     invalidateSchedulesCache();
     if (groupId) {
-      const response = await httpClient.delete(endpoints.eodSchedules.groupDelete(groupId));
-      return response.data;
+      try {
+        const response = await httpClient.delete(endpoints.eodSchedules.groupDelete(groupId));
+        return response.data;
+      } catch (err) {
+        if (id) {
+          const response = await httpClient.delete(endpoints.eodSchedules.delete(id));
+          return response.data;
+        }
+        throw err;
+      }
     }
     const response = await httpClient.delete(endpoints.eodSchedules.delete(id));
     return response.data;

@@ -49,6 +49,7 @@ export function usePolling(callback, ms, enabled = true) {
   }, [callback]);
   useEffect(() => {
     if (!enabled) return undefined;
+    if (!document.hidden) saved.current();
     const id = setInterval(() => {
       if (!document.hidden) saved.current();
     }, ms);

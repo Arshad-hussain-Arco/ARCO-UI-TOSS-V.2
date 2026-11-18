@@ -12,7 +12,6 @@ import {
 import { layout as dagreLayout, graphlib } from '@dagrejs/dagre';
 import {
   Search,
-  Maximize2,
   GitFork,
   ArrowRight,
   ArrowDown,
@@ -677,10 +676,6 @@ function DependencyGraphCanvas({
     }
   };
 
-  const handleFitView = () => {
-    reactFlowInstance.fitView({ padding: 0.15, duration: 400 });
-  };
-
   const toggleDirection = () => {
     setDirection((d) => (d === 'LR' ? 'TB' : 'LR'));
   };
@@ -771,17 +766,6 @@ function DependencyGraphCanvas({
           >
             {direction === 'LR' ? <ArrowRight size={12} /> : <ArrowDown size={12} />}
             <span>{direction}</span>
-          </button>
-
-          {/* Fit View */}
-          <button
-            type="button"
-            className="rf-btn-toggle"
-            onClick={handleFitView}
-            title="Fit canvas to view"
-          >
-            <Maximize2 size={12} />
-            <span>Fit</span>
           </button>
         </div>
 
