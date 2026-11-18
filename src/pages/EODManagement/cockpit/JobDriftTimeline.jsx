@@ -1,26 +1,27 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Clock, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Clock, RefreshCw } from 'lucide-react';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
 
 export function JobDriftTimeline({ env, jobName }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!env || !jobName) return;
     setLoading(true);
     try {
       const data = await svc.getJobHistory(env, jobName, 30);
       setHistory(data || []);
-    } catch (_) {
+    } catch (err) {
+      console.warn('Failed to fetch job drift timeline', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [env, jobName]);
 
   useEffect(() => {
     fetchHistory();
-  }, [env, jobName]);
+  }, [fetchHistory]);
 
   const items = useMemo(() => {
     return [...history].reverse().filter((h) => h.started);

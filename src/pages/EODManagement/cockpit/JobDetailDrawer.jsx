@@ -68,7 +68,9 @@ export function JobDetailDrawer({
       setDrawerWidth((finalWidth) => {
         try {
           localStorage.setItem('toss.cockpit.drawerWidth', String(finalWidth));
-        } catch (_) {}
+        } catch (e) {
+          /* ignore storage quota error */
+        }
         return finalWidth;
       });
     };
@@ -211,13 +213,15 @@ export function JobDetailDrawer({
 
   return (
     <>
-      <div className="cr-drawer-backdrop" onClick={onClose}>
+      <div className="cr-drawer-backdrop" onClick={onClose} role="presentation">
         <div
           className={`cr-drawer ${isResizing ? 'is-resizing' : ''} ${isWide ? 'is-wide' : ''}`}
           style={{ width: `${drawerWidth}px` }}
           onClick={(e) => e.stopPropagation()}
+          role="presentation"
         >
           {/* Left edge drag handle to resize drawer */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
           <div
             className="cr-drawer-resizer"
             onMouseDown={handleStartResize}
@@ -242,9 +246,9 @@ export function JobDetailDrawer({
                     onFocusScope(jobName, group);
                     onClose();
                   }}
-                  title="Switch Cockpit Overview, Timeline & History scope to this Job"
+                  title="Switch Cockpit scope to this workflow folder"
                 >
-                  Focus Scope
+                  View Workflow
                 </button>
               )}
               <button
@@ -509,7 +513,7 @@ export function JobDetailDrawer({
           </div>
 
           <p className="cr-pred-help-text">
-            To ensure data integrity and workflow continuity, choose <strong>"Rerun Predecessors in Sequence First"</strong> to
+            To ensure data integrity and workflow continuity, choose <strong>&quot;Rerun Predecessors in Sequence First&quot;</strong> to
             automatically trigger the pending predecessors in order followed by {jobName}.
           </p>
         </div>

@@ -21,7 +21,7 @@ import { getGroupColor } from './cockpitData';
 import { formatClockTime, formatFullDateTime } from '../scheduler/schedulerModel';
 
 export function formatJobTarget(target, nodeid) {
-  if (!target) return nodeid || 'arco@192.168.0.120:22';
+  if (!target) return nodeid || '—';
   if (typeof target === 'string') return target;
   if (typeof target === 'object') {
     if (target.username && target.host) {
@@ -30,7 +30,7 @@ export function formatJobTarget(target, nodeid) {
     if (target.target_name) return target.target_name;
     if (!target.ok) return target.message || target.code || 'Unmapped';
   }
-  return nodeid || 'arco@192.168.0.120:22';
+  return nodeid || '—';
 }
 
 export function CockpitOverview({
@@ -42,6 +42,7 @@ export function CockpitOverview({
   onStartRun,
   onCancelRun,
   onJobAction,
+  onPlayJob,
   onAddJob,
   onEditJob,
   onDeleteJob,
@@ -97,22 +98,9 @@ export function CockpitOverview({
   const iw = W - P.l - P.r;
   const ih = H - P.t - P.b;
 
-  const buckets = tr.buckets && tr.buckets.length > 0 ? tr.buckets : (run?.isReadyState ? [] : [
-    { from: 1, success: 18, failed: 0, running: 0 },
-    { from: 2, success: 25, failed: 0, running: 0 },
-    { from: 3, success: 28, failed: 0, running: 0 },
-    { from: 4, success: 22, failed: 0, running: 0 },
-    { from: 5, success: 15, failed: 0, running: 0 },
-    { from: 6, success: 30, failed: 0, running: 0 },
-    { from: 7, success: 30, failed: 0, running: 0 },
-    { from: 8, success: 24, failed: 0, running: 0 },
-    { from: 9, success: 26, failed: 0, running: 0 },
-    { from: 10, success: 19, failed: 0, running: 0 },
-    { from: 11, success: 32, failed: 0, running: 0 },
-    { from: 12, success: 35, failed: 0, running: 0 },
-    { from: 13, success: 20, failed: 0, running: 0 },
-    { from: 14, success: 2, failed: 0, running: 0 },
-  ]);
+  const buckets = useMemo(() => {
+    return tr.buckets && tr.buckets.length > 0 ? tr.buckets : [];
+  }, [tr.buckets]);
 
   const totals = buckets.map((b) => (b.success || 0) + (b.failed || 0) + (b.running || 0));
   const maxInBuckets = Math.max(1, ...totals);
@@ -319,7 +307,7 @@ export function CockpitOverview({
             </div>
           </header>
           <div className="cr-trend-chart-body">
-            {run.isReadyState ? (
+            {run.isReadyState || buckets.length === 0 ? (
               <div style={{ height: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--cr-text-muted)', gap: '8px' }}>
                 <CockpitIcon name="i-waiting" className="md" />
                 <span style={{ fontSize: '12.5px' }}>Workflow ready to run. Start execution to display real-time progress trend.</span>
@@ -582,7 +570,7 @@ export function CockpitOverview({
                       {j.schedule || 'No planned time, days ALL'}
                     </td>
                     <td className="cr-job-waits-cell">
-                      {j.waits_for?.length ?? j.predecessors?.length ?? (j.waits ?? 1)}
+                      {j.waits_for?.length ?? j.predecessors?.length ?? (j.waits ?? 0)}
                     </td>
                     <td className="cr-job-target-cell">
                       <span className="cr-target-pill">
@@ -602,7 +590,7 @@ export function CockpitOverview({
                         type="button"
                         className="cr-action-icon-btn"
                         title={`Run ${j.name}`}
-                        onClick={() => onJobAction?.(j.name, 'run', j)}
+                        onClick={() => (onPlayJob ? onPlayJob(j.name) : onJobAction?.(j.name, 'run', j))}
                       >
                         <Play size={13} />
                       </button>

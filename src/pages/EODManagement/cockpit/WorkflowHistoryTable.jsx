@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Cpu, RefreshCw, FileText } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
 import { formatFullDateTime } from '../scheduler/schedulerModel';
 
@@ -7,21 +7,22 @@ export function WorkflowHistoryTable({ env, folderName, onSelectRun }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!env || !folderName) return;
     setLoading(true);
     try {
       const data = await svc.getWorkflowHistory(env, folderName, 50);
       setHistory(data || []);
-    } catch (_) {
+    } catch (err) {
+      console.warn('Failed to load workflow history', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [env, folderName]);
 
   useEffect(() => {
     fetchHistory();
-  }, [env, folderName]);
+  }, [fetchHistory]);
 
   return (
     <div className="cr-history-container">

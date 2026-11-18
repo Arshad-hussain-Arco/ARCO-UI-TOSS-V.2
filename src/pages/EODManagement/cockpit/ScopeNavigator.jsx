@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Layers, Cpu, Activity, Server, User, ChevronRight } from 'lucide-react';
+import { Layers, Cpu, Server, User } from 'lucide-react';
 
 export function ScopeNavigator({
   scope,
@@ -9,6 +9,7 @@ export function ScopeNavigator({
   serverCapacity = null,
   waitingForSlot = false,
   startedBy = null,
+  onOpenServersQueue = null,
 }) {
   // Unique sorted folder names
   const folderNames = useMemo(() => {
@@ -24,29 +25,12 @@ export function ScopeNavigator({
     return Array.from(set).sort();
   }, [folders, allJobs]);
 
-  // Jobs filtered by selected folder (if any) or all jobs
-  const availableJobs = useMemo(() => {
-    let list = allJobs;
-    if (scope.type === 'workflow' && scope.folder) {
-      list = list.filter((j) => (j.group || j.folder) === scope.folder);
-    }
-    const names = new Set(list.map((j) => j.name || j.job).filter(Boolean));
-    return Array.from(names).sort();
-  }, [allJobs, scope.type, scope.folder]);
-
   const handleTypeChange = (newType) => {
     if (newType === 'xml') {
       onChangeScope({ type: 'xml', folder: null, job: null });
     } else if (newType === 'workflow') {
       const defaultFolder = scope.folder || folderNames[0] || 'EOD-CORE';
       onChangeScope({ type: 'workflow', folder: defaultFolder, job: null });
-    } else if (newType === 'job') {
-      const defaultJob = scope.job || availableJobs[0] || '';
-      onChangeScope({
-        type: 'job',
-        folder: scope.folder || null,
-        job: defaultJob,
-      });
     }
   };
 
@@ -73,16 +57,6 @@ export function ScopeNavigator({
             <Cpu size={13} />
             <span>Workflow (Folder)</span>
           </button>
-
-          {/* 3. Particular Job */}
-          <button
-            type="button"
-            className={`cr-scope-toggle-btn ${scope.type === 'job' ? 'is-active' : ''}`}
-            onClick={() => handleTypeChange('job')}
-          >
-            <Activity size={13} />
-            <span>Particular Job</span>
-          </button>
         </div>
       </div>
 
@@ -107,35 +81,18 @@ export function ScopeNavigator({
           </div>
         )}
 
-        {scope.type === 'job' && (
-          <div className="cr-scope-selector-box">
-            {scope.folder && (
-              <>
-                <span className="cr-scope-context-label">Folder:</span>
-                <span className="cr-scope-val-tag">{scope.folder}</span>
-                <ChevronRight size={13} style={{ opacity: 0.5 }} />
-              </>
-            )}
-            <span className="cr-scope-context-label">Selected Job:</span>
-            <select
-              value={scope.job || ''}
-              onChange={(e) =>
-                onChangeScope({ ...scope, job: e.target.value })
-              }
-              className="cr-scope-select"
-            >
-              {availableJobs.map((jn) => (
-                <option key={jn} value={jn}>
-                  {jn}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* Server Slots Pill replacing Target XML */}
         {serverCapacity?.display_label ? (
           <span
+            role={onOpenServersQueue ? 'button' : undefined}
+            tabIndex={onOpenServersQueue ? 0 : undefined}
+            onClick={onOpenServersQueue || undefined}
+            onKeyDown={(e) => {
+              if (onOpenServersQueue && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onOpenServersQueue();
+              }
+            }}
             className="cr-server-capacity-pill"
             style={{
               height: '28px',
@@ -153,14 +110,16 @@ export function ScopeNavigator({
               letterSpacing: '0.01em',
               lineHeight: 1,
               whiteSpace: 'nowrap',
+              cursor: onOpenServersQueue ? 'pointer' : 'default',
             }}
             title={
-              serverCapacity.servers
+              (serverCapacity.servers
                 ?.map(
                   (s) =>
                     `${s.target_name}: ${s.in_use}/${s.limit ?? '∞'} in use${s.holders?.length ? ` (by: ${s.holders.join(', ')})` : ''}`
                 )
-                .join('\n') || serverCapacity.display_label
+                .join('\n') || serverCapacity.display_label) +
+              (onOpenServersQueue ? '\n\nClick to open Global Servers & Queue' : '')
             }
           >
             <Server

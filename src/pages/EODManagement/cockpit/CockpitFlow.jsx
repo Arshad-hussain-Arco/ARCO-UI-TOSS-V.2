@@ -143,22 +143,13 @@ export function CockpitFlow({
     if (scope) {
       if (scope.type === 'workflow' && scope.folder) {
         setSelectedFolder(scope.folder);
-      } else if (scope.type === 'job') {
-        if (scope.folder) {
-          setSelectedFolder(scope.folder);
-        } else if (scope.job && allJobs.length > 0) {
-          const matched = allJobs.find((j) => j.name === scope.job);
-          if (matched && (matched.folder || matched.group)) {
-            setSelectedFolder(matched.folder || matched.group);
-          }
-        }
       } else if (scope.type === 'xml') {
         setSelectedFolder('ALL');
       }
     } else if (initialFolder) {
       setSelectedFolder(initialFolder);
     }
-  }, [scope?.type, scope?.folder, scope?.job, allJobs, initialFolder]);
+  }, [scope?.type, scope?.folder, initialFolder]);
 
   const handleFolderChange = (val) => {
     setSelectedFolder(val);
@@ -274,7 +265,7 @@ export function CockpitFlow({
     return out;
   }, [jobs, searchQuery, statusFilter]);
 
-  const effectiveSelectedJob = (scope?.type === 'job' && scope?.job) ? scope.job : selectedJob;
+  const effectiveSelectedJob = selectedJob;
 
   // Follow mode: the selected job, else running job, else failed, else hold, else done
   const focalJob = useMemo(() => {
@@ -284,12 +275,12 @@ export function CockpitFlow({
       jobs.find((j) => statusIs(j, 'Running', 'RUNNING')) ||
       jobs.find((j) => statusIs(j, 'Failed', 'FAILED')) ||
       jobs.find((j) => statusIs(j, 'On hold', 'ON HOLD')) ||
-      jobs.find((j) => statusIs(j, 'Done')) ||
+      jobs.find((j) => statusIs(j, 'Done', 'DONE', 'Success', 'SUCCESS', 'OK', 'FINISHED')) ||
       jobs[0]
     );
   }, [jobs, effectiveSelectedJob]);
 
-  const doneCount = jobs.filter((j) => statusIs(j, 'Done')).length;
+  const doneCount = jobs.filter((j) => statusIs(j, 'Done', 'DONE', 'Success', 'SUCCESS', 'OK', 'FINISHED')).length;
   const holdCount = jobs.filter((j) => statusIs(j, 'On hold', 'ON HOLD')).length;
   const skippedCount = jobs.filter((j) => statusIs(j, 'Skipped', 'SKIPPED', 'Skip', 'off')).length;
   const runningCount = jobs.filter((j) => statusIs(j, 'Running', 'RUNNING')).length;
@@ -368,7 +359,7 @@ export function CockpitFlow({
           />
         </div>
 
-        {folderOptions.length > 0 && (
+        {scope?.type !== 'workflow' && scope?.type !== 'job' && folderOptions.length > 0 && (
           <div className="cr-flow-folder-select-wrap">
             <label className="cr-field-inline">
               <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>
@@ -435,29 +426,21 @@ export function CockpitFlow({
           selected={effectiveSelectedJob}
           onSelect={(name) => {
             onSelectJob?.(name);
-            onScopeChange?.({
-              type: 'job',
-              job: name,
-              folder: selectedFolder !== 'ALL' ? selectedFolder : null,
-            });
             if (name && onOpenDrawer) onOpenDrawer(name);
           }}
           isAllWorkflows={isAll}
           allowExecute={false}
           dimmed={dimmed}
-          followId={(effectiveSelectedJob || followActive) ? focalJob?.name : null}
+          followId={followActive ? focalJob?.name : null}
           onPlayJob={onPlayJob}
           playBusyId={playBusyId}
           playBlockedReason={playBlockedReason}
           onOpenDetails={(name) => {
             onSelectJob?.(name);
-            onScopeChange?.({
-              type: 'job',
-              job: name,
-              folder: selectedFolder !== 'ALL' ? selectedFolder : null,
-            });
             if (onOpenDrawer) onOpenDrawer(name);
           }}
+          runId={run?.run_id || run?.id || run?.name || ''}
+          folder={selectedFolder}
         />
       </div>
 

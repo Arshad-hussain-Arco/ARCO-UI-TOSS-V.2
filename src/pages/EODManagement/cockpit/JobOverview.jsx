@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Activity,
   CheckCircle2,
-  AlertTriangle,
   Clock,
   Server,
   FileText,
@@ -16,21 +15,22 @@ export function JobOverview({ env, jobName, onOpenLog }) {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     if (!env || !jobName) return;
     setLoading(true);
     try {
       const data = await svc.getJobMetrics(env, jobName);
       setMetrics(data);
-    } catch (_) {
+    } catch (err) {
+      console.warn('Failed to fetch job metrics', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [env, jobName]);
 
   useEffect(() => {
     fetchMetrics();
-  }, [env, jobName]);
+  }, [fetchMetrics]);
 
   if (loading) {
     return (

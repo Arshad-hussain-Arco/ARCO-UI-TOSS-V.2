@@ -790,6 +790,35 @@
   align-items: center;
   gap: 8px;
 }
+.cr-pill-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--cr-bg);
+  border: 1px solid var(--cr-border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.cr-toggle-pill-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cr-text-muted);
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+.cr-toggle-pill-btn:hover {
+  color: var(--cr-text);
+}
+.cr-toggle-pill-btn.is-active {
+  background-color: var(--cr-surface);
+  color: var(--cr-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
 .cr-run-status-body {
   display: flex;
   align-items: center;
@@ -4827,6 +4856,326 @@
 .cr-sq-server-card.is-highlighted-scope {
   border-color: var(--c-primary, #005a36);
   box-shadow: 0 0 0 1px var(--c-primary, #005a36), 0 2px 8px rgba(0, 90, 54, 0.08);
+}
+
+/* Global Servers & Queue: Server IP Primary Header */
+.cr-sq-sc-ip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cr-sq-sc-ip {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cr-text, #0f172a);
+  font-family: var(--font-mono, monospace);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cr-sq-sc-alias {
+  font-size: 11px;
+  color: var(--cr-text-muted, #64748b);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+/* Global Servers & Queue: Associated Environments Section */
+.cr-sq-envs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.cr-sq-envs-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cr-text-muted, #475569);
+  letter-spacing: 0.03em;
+}
+
+.cr-sq-envs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cr-sq-env-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.cr-sq-env-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cr-sq-env-card.is-running {
+  border-left: 3px solid #0284c7;
+}
+
+.cr-sq-env-card.is-queued {
+  border-left: 3px solid #f59e0b;
+}
+
+.cr-sq-env-card.is-idle {
+  border-left: 3px solid #cbd5e1;
+}
+
+.cr-sq-env-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cr-sq-env-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cr-sq-env-code-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 90, 54, 0.08);
+  color: var(--c-primary, #005a36);
+  font-family: var(--font-mono, monospace);
+  border: 1px solid rgba(0, 90, 54, 0.2);
+}
+
+.cr-sq-env-name-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cr-text, #1e293b);
+}
+
+.cr-sq-env-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cr-sq-env-status-badge.status-running {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.cr-sq-env-status-badge.status-queued {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.cr-sq-env-status-badge.status-idle {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.cr-sq-env-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--cr-text-muted, #64748b);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cr-sq-env-wf-count {
+  font-weight: 600;
+  color: var(--cr-text, #0f172a);
+}
+
+.cr-sq-env-wf-count.is-running {
+  color: #0284c7;
+}
+
+.cr-btn-sq-open-cockpit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: var(--c-primary, #005a36);
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cr-btn-sq-open-cockpit:hover {
+  background: var(--cr-accent-tint, #f0fdf4);
+  border-color: var(--c-primary, #005a36);
+}
+
+.cr-sq-env-wf-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.cr-sq-env-wf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 3px;
+  border: 1px solid #e2e8f0;
+}
+
+.cr-sq-env-wf-chip.active-wf {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #bae6fd;
+}
+
+.cr-sq-env-select {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--cr-border, #cbd5e1);
+  background: #ffffff;
+  color: var(--cr-text, #0f172a);
+}
+
+/* Engine & Worker Operational Status Banner */
+.cr-sq-engine-worker-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.cr-sq-ew-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--cr-surface, #ffffff);
+  border: 1px solid var(--cr-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.cr-sq-ew-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cr-sq-ew-icon-wrap.is-engine {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.cr-sq-ew-icon-wrap.is-worker {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+}
+
+.cr-sq-ew-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.cr-sq-ew-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cr-sq-ew-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--cr-text-muted, #64748b);
+}
+
+.cr-sq-ew-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.cr-sq-ew-badge.is-active {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.cr-sq-ew-badge.is-inactive {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.cr-sq-ew-badge.is-idle {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.cr-sq-ew-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.cr-sq-ew-badge.is-active .cr-sq-ew-pulse {
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.25);
+  animation: pulse-ring 2s infinite;
+}
+
+.cr-sq-ew-subtext {
+  font-size: 11px;
+  color: var(--cr-text-muted, #64748b);
 }
 
 .cr-sq-job-focus-card {

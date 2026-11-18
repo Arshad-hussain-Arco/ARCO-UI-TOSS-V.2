@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Activity, FileText, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { FileText, RefreshCw } from 'lucide-react';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
 import { formatFullDateTime } from '../scheduler/schedulerModel';
 
@@ -7,21 +7,22 @@ export function JobHistoryTable({ env, jobName, onOpenLog }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!env || !jobName) return;
     setLoading(true);
     try {
       const data = await svc.getJobHistory(env, jobName, 50);
       setHistory(data || []);
-    } catch (_) {
+    } catch (err) {
+      console.warn('Failed to fetch job history', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [env, jobName]);
 
   useEffect(() => {
     fetchHistory();
-  }, [env, jobName]);
+  }, [fetchHistory]);
 
   return (
     <div className="cr-history-container">

@@ -129,6 +129,7 @@ export const eodSchedulerService = {
 
   // Live Telemetry & Scoped Metrics
   getLiveTelemetry: (env) => get(E.liveTelemetry(env)),
+  getGlobalTelemetry: () => get(E.globalTelemetry),
   getJobMetrics: (env, job) => get(E.jobMetrics(env, job)),
   getJobHistory: (env, job, limit = 50) => get(E.jobHistory(env, job), { params: { limit } }),
   getWorkflowMetrics: (env, folder) => get(E.workflowMetrics(env, folder)),
