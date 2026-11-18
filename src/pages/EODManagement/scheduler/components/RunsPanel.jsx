@@ -6,6 +6,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { formatDuration, jobTone, runTone, secondsBetween, formatFullDateTime } from '../schedulerModel';
+import { findFreshRun, getSmartPollInterval } from '../scheduleSpec';
 import { usePolling, useResource } from '../useResource';
 
 import './RunsPanel.css';
@@ -535,21 +536,53 @@ export function RunDetail({ env, runId, onChanged }) {
 /** Run history of one environment with per-job results, attempts and logs. Refreshes while a run is active. */
 export function RunsPanel({ env, focusRun }) {
   const runs = useResource(() => svc.listRuns(env), [env]);
+  const schedules = useResource(() => svc.listSchedules(env).catch(() => []), [env]);
   const [selected, setSelected] = useState(focusRun || '');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const anyRunning = (runs.data ?? []).some((r) => r.status === 'RUNNING');
-  // Smart anticipation: fast (2-3s: 2000ms) while a run is live or started within 45s; 20s when idle
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const reloadRuns = runs.reload;
+  const reloadSchedules = schedules.reload;
+  useEffect(() => {
+    const onWake = () => {
+      reloadSchedules(true);
+      reloadRuns(true);
+    };
+    const onVisibility = () => {
+      if (!document.hidden) onWake();
+    };
+    window.addEventListener('eod-schedules-updated', onWake);
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('eod-schedules-updated', onWake);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [reloadRuns, reloadSchedules]);
+
+  // Smart / Anticipation Polling: 20s idle; ramps to 2s when any run is live/fresh or any schedule is near its trigger
   const anyRunLive = (runs.data ?? []).some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
-  const anyFresh = (runs.data ?? []).some((r) => {
-    const started = r.started_at || r.started;
-    if (!started) return false;
-    const diffMs = Date.now() - new Date(started).getTime();
-    return diffMs >= 0 && diffMs <= 45000;
-  });
-  usePolling(() => runs.reload(true), anyRunLive || anyFresh ? 2000 : 20000, true);
+  const anyFresh = useMemo(() => Boolean(findFreshRun(runs.data ?? [], Date.now())), [runs.data, tick]);
+  const smartPollMs = useMemo(
+    () =>
+      getSmartPollInterval({
+        schedules: schedules.data ?? [],
+        anyRunActive: anyRunLive || anyFresh,
+        nowMs: Date.now(),
+      }),
+    [schedules.data, anyRunLive, anyFresh, tick],
+  );
+  usePolling(() => runs.reload(true), smartPollMs, true);
+  usePolling(() => schedules.reload(true), smartPollMs, true);
 
   const activeRun = (runs.data ?? []).find((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),

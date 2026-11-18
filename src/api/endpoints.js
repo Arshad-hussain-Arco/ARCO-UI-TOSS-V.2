@@ -330,6 +330,9 @@ const endpoints = {
     scheduleItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/`,
     scheduleRunNow: (env, id) =>
       `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/run-now/`,
+    profiles: (env) => `/eod-scheduler/${encodeURIComponent(env)}/profiles/`,
+    profileItem: (env, id) =>
+      `/eod-scheduler/${encodeURIComponent(env)}/profiles/${encodeURIComponent(id)}/`,
     cockpitJobAction: (env, runId, jobName, action) =>
       `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobName)}/${encodeURIComponent(action)}/`,
   },

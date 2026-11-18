@@ -553,38 +553,51 @@ function DependencyGraphCanvas({
   const edges = useMemo(() => {
     if (!graph?.edges?.length) return [];
 
+    // True when displaying a live/completed run (at least one node has an executed/skipped state rather than pure blueprint)
+    const hasRunStates = Boolean(
+      effectiveStates &&
+        Object.values(effectiveStates).some((st) => st?.tone && !['idle', 'wait'].includes(st.tone)),
+    );
+
     return graph.edges.map((e) => {
       const { tone, dashed } = edgeStyle(e);
       const edgeId = e.id || `${e.source}->${e.target}`;
       const isHot = chainSet ? chainSet.has(e.source) && chainSet.has(e.target) : false;
       const touchesSelected = selected && (e.source === selected || e.target === selected);
-      const activeHighlight = touchesSelected || isHot;
 
       const sourceState = effectiveStates?.[e.source]?.tone;
+      const targetState = effectiveStates?.[e.target]?.tone;
       const isRunning = sourceState === 'run';
+      const isFailureBranch = e.branch === 'FAILURE';
+      // During a run, an `on failure` branch was only taken if its source job actually failed (`bad`).
+      // If the source job succeeded or was skipped, keep that untaken failure branch subtle and hide the red "on failure" badge.
+      const untakenFailureBranch = hasRunStates && isFailureBranch && sourceState !== 'bad';
+      const isSkippedEdge = hasRunStates && (sourceState === 'off' || targetState === 'off');
+      const activeHighlight = !untakenFailureBranch && !isSkippedEdge && (touchesSelected || isHot);
 
       let strokeColor = '#64748b'; // clear slate for dependencies
-      if (tone === 'info') strokeColor = '#0284c7';
+      if (untakenFailureBranch) strokeColor = '#cbd5e1';
+      else if (tone === 'info') strokeColor = '#0284c7';
       else if (tone === 'danger') strokeColor = '#ef4444';
 
-      const isDim = (chainSet && !isHot) || (selected && !touchesSelected);
-      const isFailureBranch = e.branch === 'FAILURE';
+      const isDim = untakenFailureBranch || isSkippedEdge || (chainSet && !isHot) || (selected && !touchesSelected);
+      const showFailureLabel = isFailureBranch && (!hasRunStates || sourceState === 'bad');
 
       return {
         id: edgeId,
         source: e.source,
         target: e.target,
         type: edgeType,
-        animated: isRunning,
+        animated: isRunning && !untakenFailureBranch,
         zIndex: activeHighlight ? 10 : 1,
         className: `${activeHighlight ? 'is-connected' : ''} ${isDim ? 'is-dim' : ''}`,
         style: {
           stroke: activeHighlight ? (tone === 'danger' ? '#ef4444' : '#0284c7') : strokeColor,
-          strokeWidth: activeHighlight ? 3.0 : 1.7,
+          strokeWidth: activeHighlight ? 3.0 : untakenFailureBranch ? 1.2 : 1.7,
           strokeDasharray: dashed ? '6 4' : undefined,
           opacity: isDim ? 0.18 : 1,
         },
-        label: isFailureBranch ? 'on failure' : undefined,
+        label: showFailureLabel ? 'on failure' : undefined,
         labelStyle: {
           fill: '#ef4444',
           fontWeight: 700,

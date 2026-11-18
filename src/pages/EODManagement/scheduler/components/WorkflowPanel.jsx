@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   FileText,
@@ -23,6 +23,7 @@ import {
   nodeStates,
   targetLabel,
 } from '../schedulerModel';
+import { findFreshRun, getSmartPollInterval } from '../scheduleSpec';
 import { usePolling, useResource } from '../useResource';
 import { DependencyGraph } from './DependencyGraph';
 import { DeleteDialog } from './DeleteDialog';
@@ -169,20 +170,52 @@ export function WorkflowPanel({ env, onRunStarted }) {
     () => (colourRun ? svc.getRun(env, colourRun) : Promise.resolve(null)),
     [env, colourRun],
   );
+  const schedules = useResource(() => svc.listSchedules(env).catch(() => []), [env]);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const reloadRuns = runs.reload;
+  const reloadSchedules = schedules.reload;
+  useEffect(() => {
+    const onWake = () => {
+      reloadSchedules(true);
+      reloadRuns(true);
+    };
+    const onVisibility = () => {
+      if (!document.hidden) onWake();
+    };
+    window.addEventListener('eod-schedules-updated', onWake);
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('eod-schedules-updated', onWake);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [reloadRuns, reloadSchedules]);
+
   // the graph is a live view: new runs appear in the list, and the coloured run refreshes while it is running
   const colourRunning = detail.data?.run?.status === 'RUNNING';
-  // Smart anticipation: fast (2-3s: 2000ms) while a run is live or fresh (started in last 45s); 20s when idle
+  // Smart / Anticipation Polling: 20s idle; ramps to 2s when any run is live/fresh or any schedule is near its trigger
   const anyRunLive = (runs.data ?? []).some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
-  const anyFresh = (runs.data ?? []).some((r) => {
-    const started = r.started_at || r.started;
-    if (!started) return false;
-    const diffMs = Date.now() - new Date(started).getTime();
-    return diffMs >= 0 && diffMs <= 45000;
-  });
-  usePolling(() => runs.reload(true), anyRunLive || anyFresh ? 2000 : 20000);
-  usePolling(() => wf.reload(true), 10000, !busy); // uploads, approvals and settings changes made by someone else
+  const anyFresh = useMemo(() => Boolean(findFreshRun(runs.data ?? [], Date.now())), [runs.data, tick]);
+  const smartPollMs = useMemo(
+    () =>
+      getSmartPollInterval({
+        schedules: schedules.data ?? [],
+        anyRunActive: anyRunLive || anyFresh,
+        nowMs: Date.now(),
+      }),
+    [schedules.data, anyRunLive, anyFresh, tick],
+  );
+  usePolling(() => runs.reload(true), smartPollMs);
+  usePolling(() => schedules.reload(true), smartPollMs);
+  usePolling(() => wf.reload(true), 20000, !busy); // uploads, approvals and settings changes made by someone else
   usePolling(() => detail.reload(true), 1500, colourRunning);
 
   const state = approvalState(view, hasPermission);

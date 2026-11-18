@@ -19,6 +19,12 @@ import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
 import { groupMessages, formatClockTime } from '../scheduler/schedulerModel';
+import {
+  FAST_POLL_MS,
+  IDLE_POLL_MS,
+  findFreshRun,
+  isNearScheduledFire as checkNearScheduledFire,
+} from '../scheduler/scheduleSpec';
 
 import '../scheduler/components/WorkflowPanel.css';
 import './Cockpit.css';
@@ -132,15 +138,7 @@ export function CockpitTab({ env } = {}) {
   }, [runsList.data, env]);
 
   // A run that started recently (within 60s), even if it already completed (e.g. short job finished in 2-3s)
-  const freshRun = useMemo(() => {
-    const now = Date.now();
-    return runs.find((r) => {
-      const started = r.started_at || r.started;
-      if (!started) return false;
-      const diffMs = now - new Date(started).getTime();
-      return diffMs >= 0 && diffMs <= 60000;
-    });
-  }, [runs, tick]);
+  const freshRun = useMemo(() => findFreshRun(runs, Date.now()), [runs, tick]);
 
   const activeRunningRun = runs.find((r) => {
     const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
@@ -204,39 +202,21 @@ export function CockpitTab({ env } = {}) {
     runsList.loading ||
     (Boolean(currentRunId) && currentRunId !== 'current_workflow' && !runDetail.data);
 
-  // Smart anticipation: checks if any schedule is:
-  // 1) Actively running (s.run_active or last_status is RUNNING/PAUSED/QUEUED)
-  // 2) Due within the 60s anticipation window (or up to 60s overdue)
-  // 3) Fired recently (within the last 60s)
-  // 4) Created or modified recently (within the last 90s), so when any job was just scheduled,
-  //    Cockpit immediately ramps up to fast 2s polling without any idle lag.
-  const isNearScheduledFire = useMemo(() => {
-    const now = Date.now();
-    const list = schedules.data || [];
-    return list.some((s) => {
-      if (!s.enabled) return false;
-      if (s.run_active) return true;
-      if (s.last_status && ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status).toUpperCase())) return true;
-      if (s.next_fire_at) {
-        const diff = new Date(s.next_fire_at).getTime() - now;
-        if (diff >= -60000 && diff <= 60000) return true;
-      }
-      if (s.last_fire_at) {
-        const since = now - new Date(s.last_fire_at).getTime();
-        if (since >= 0 && since <= 60000) return true;
-      }
-      if (s.updated_at || s.created_at) {
-        const sinceSaved = now - new Date(s.updated_at || s.created_at).getTime();
-        if (sinceSaved >= 0 && sinceSaved <= 90000) return true;
-      }
-      return false;
-    });
-  }, [schedules.data, tick]);
+  // Smart / Anticipation Polling (Expanded ±60s window + 90s post-save window):
+  // Keep 20s idle poll by default. If any schedule is due within ±60s, fired within 60s,
+  // created/updated within 90s, or a run is active/fresh (<=60s), ramp polling to 2s. Drop back to 20s once idle.
+  const isNearScheduledFire = useMemo(
+    () => checkNearScheduledFire(schedules.data || [], Date.now()),
+    [schedules.data, tick],
+  );
+
+  const reloadSchedules = schedules.reload;
+  const reloadRunsList = runsList.reload;
 
   useEffect(() => {
     const onWake = () => {
-      schedules.reload(true);
-      runsList.reload(true);
+      reloadSchedules(true);
+      reloadRunsList(true);
     };
     const onVisibilityChange = () => {
       if (!document.hidden) onWake();
@@ -249,19 +229,17 @@ export function CockpitTab({ env } = {}) {
       window.removeEventListener('focus', onWake);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [schedules, runsList]);
+  }, [reloadSchedules, reloadRunsList]);
 
-  // Polling for live status (Smart / Anticipation polling):
-  // - Fast (2-3s: 2000ms runs, 2000ms detail) while any run is live, active, fresh (within 45s), near a scheduled fire (within 45s), or recently scheduled (within 60s)
-  // - Idle (20s / 20000ms) when completely idle and no scheduled runs are approaching (minimizes system load)
   const anyRunLive = runs.some((r) =>
     ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
   );
   const shouldPollFast = anyRunLive || isRunActive || isNearScheduledFire || Boolean(freshRun);
-  usePolling(() => runsList.reload(true), shouldPollFast ? 2000 : 20000);
-  usePolling(() => runDetail.reload(true), 2000, isRunActive || shouldPollFast);
-  usePolling(() => schedules.reload(true), shouldPollFast ? 2000 : 3000);
-  usePolling(() => wf.reload(true), 10000, !busy);
+  const smartPollMs = shouldPollFast ? FAST_POLL_MS : IDLE_POLL_MS;
+  usePolling(() => runsList.reload(true), smartPollMs);
+  usePolling(() => runDetail.reload(true), FAST_POLL_MS, !isViewingCurrentWorkflow && (isRunActive || shouldPollFast));
+  usePolling(() => schedules.reload(true), smartPollMs);
+  usePolling(() => wf.reload(true), IDLE_POLL_MS, !busy);
 
   const view = wf.data;
 

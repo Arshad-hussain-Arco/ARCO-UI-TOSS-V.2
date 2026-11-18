@@ -89,6 +89,11 @@ export const eodSchedulerService = {
     send('post', E.schedulePreview(env), { recurrence, count }),
   runScheduleNow: (env, id) => send('post', E.scheduleRunNow(env, id)),
 
+  // Custom EOD profiles
+  listProfiles: (env) => get(E.profiles(env)),
+  createProfile: (env, body) => send('post', E.profiles(env), body),
+  deleteProfile: (env, id) => send('delete', E.profileItem(env, id)),
+
   // settings and schedule
   getSettings: (env) => get(E.settings(env)),
   updateSettings: (env, body) => send('patch', E.settings(env), body),

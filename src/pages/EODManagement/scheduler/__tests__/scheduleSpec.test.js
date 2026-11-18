@@ -9,6 +9,13 @@ import {
   runsOnWeekday,
   sortedTimes,
   clientTimezone,
+  EOD_PROFILES,
+  getScheduleProfile,
+  IDLE_POLL_MS,
+  FAST_POLL_MS,
+  findFreshRun,
+  isNearScheduledFire,
+  getSmartPollInterval,
 } from '../scheduleSpec.js';
 
 const TODAY = new Date(2026, 2, 1);
@@ -112,4 +119,106 @@ test('quarterly carries the chosen quarters and the month of each quarter', () =
   assert.deepEqual(quarterMonthNames([1, 2, 3, 4], 'first'), ['Jan', 'Apr', 'Jul', 'Oct']);
   assert.deepEqual(quarterMonthNames([1, 3], 'last'), ['Mar', 'Sep']);
   assert.deepEqual(quarterMonthNames([2, 4], 'mid'), ['May', 'Nov']);
+});
+
+test('EOD profiles map directly to real schedule recurrences', () => {
+  assert.equal(EOD_PROFILES.length, 7);
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'daily', every: 1 } }), 'daily');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'daily', every: 3 } }), 'custom');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'weekly' } }), 'weekly');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'monthly' } }), 'monthly');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'quarterly' } }), 'quarterly');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'yearly' } }), 'yearly');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'once' } }), 'once');
+  assert.equal(getScheduleProfile({ recurrence: { frequency: 'interval' } }), 'custom');
+  assert.equal(getScheduleProfile({ eod_profile: 'monthly', recurrence: { frequency: 'daily' } }), 'monthly');
+});
+
+test('past once date, past end date, and narrow date-range weekday filtering', () => {
+  const f = { ...defaultForm(TODAY), times: ['22:00'] };
+  // Once with past date AND time is now caught in frontend validation
+  assert.ok(validateForm({ ...f, kind: 'once', startDate: '2026-02-20' }, TODAY).startDate);
+  // Empty startDate + past endDate is caught in frontend validation
+  assert.ok(validateForm({ ...f, kind: 'daily', startDate: '', endDate: '2026-02-20' }, TODAY).endDate);
+  // Daily restricted to 2026-12-01 (Tue=2) .. 2026-12-02 (Wed=3) only matches Tue & Wed
+  const narrow = { recurrence: { frequency: 'daily', start_date: '2026-12-01', end_date: '2026-12-02' } };
+  assert.equal(runsOnWeekday(narrow, 2), true);
+  assert.equal(runsOnWeekday(narrow, 3), true);
+  assert.equal(runsOnWeekday(narrow, 4), false);
+  // Paused yearly schedule falls back to start_date weekday when next_fire_at is null
+  const pausedYearly = { recurrence: { frequency: 'yearly', start_date: '2026-11-18' }, next_fire_at: null };
+  assert.equal(runsOnWeekday(pausedYearly, 3), true); // 2026-11-18 is Wednesday (3)
+});
+
+test('Smart / Anticipation Polling: 20s idle, 2s within ±60s of trigger, 90s post-save, or active run; drops back to 20s', () => {
+  const now = Date.parse('2026-11-18T15:00:00Z');
+  assert.equal(FAST_POLL_MS, 2000);
+  assert.equal(IDLE_POLL_MS, 20000);
+
+  // 1. Far schedule (5 min away, saved > 90s ago) -> 20s idle
+  const far = [{
+    enabled: true,
+    next_fire_at: '2026-11-18T15:05:00Z',
+    last_fire_at: null,
+    updated_at: '2026-11-18T14:55:00Z',
+  }];
+  assert.equal(isNearScheduledFire(far, now), false);
+  assert.equal(getSmartPollInterval({ schedules: far, nowMs: now }), IDLE_POLL_MS);
+
+  // 2. Schedule due in 55s (inside ±60s window) -> ramps to 2s
+  const soon = [{ enabled: true, next_fire_at: '2026-11-18T15:00:55Z', last_fire_at: null }];
+  assert.equal(isNearScheduledFire(soon, now), true);
+  assert.equal(getSmartPollInterval({ schedules: soon, nowMs: now }), FAST_POLL_MS);
+
+  // 3. Schedule overdue by 45s (inside ±60s window) -> stays fast at 2s
+  const overdue = [{ enabled: true, next_fire_at: '2026-11-18T14:59:15Z', last_fire_at: null }];
+  assert.equal(isNearScheduledFire(overdue, now), true);
+  assert.equal(getSmartPollInterval({ schedules: overdue, nowMs: now }), FAST_POLL_MS);
+
+  // 4. Schedule fired 50s ago (<= 60s) -> stays fast at 2s
+  const justFired = [{ enabled: true, next_fire_at: '2026-11-19T15:00:00Z', last_fire_at: '2026-11-18T14:59:10Z' }];
+  assert.equal(isNearScheduledFire(justFired, now), true);
+  assert.equal(getSmartPollInterval({ schedules: justFired, nowMs: now }), FAST_POLL_MS);
+
+  // 5. Schedule created/updated 75s ago (<= 90s) -> holds fast 2s polling
+  const recentlySaved = [{
+    enabled: true,
+    next_fire_at: '2026-11-19T15:00:00Z',
+    last_fire_at: null,
+    updated_at: '2026-11-18T14:58:45Z',
+  }];
+  assert.equal(isNearScheduledFire(recentlySaved, now), true);
+  assert.equal(getSmartPollInterval({ schedules: recentlySaved, nowMs: now }), FAST_POLL_MS);
+
+  // 6. Schedule fired 75s ago (> 60s) & saved > 90s ago & run finished -> drops back to 20s idle
+  const settled = [{
+    enabled: true,
+    next_fire_at: '2026-11-19T15:00:00Z',
+    last_fire_at: '2026-11-18T14:58:45Z',
+    updated_at: '2026-11-18T14:55:00Z',
+    last_status: 'SUCCESS',
+  }];
+  assert.equal(isNearScheduledFire(settled, now), false);
+  assert.equal(getSmartPollInterval({ schedules: settled, anyRunActive: false, nowMs: now }), IDLE_POLL_MS);
+
+  // 7. Active run overrides idle -> 2s
+  assert.equal(getSmartPollInterval({ schedules: settled, anyRunActive: true, nowMs: now }), FAST_POLL_MS);
+
+  // 8. Schedule created with < 30s remaining (e.g. 12s away) -> immediately 2s
+  const under30s = [{
+    enabled: true,
+    next_fire_at: '2026-11-18T15:00:12Z',
+    created_at: '2026-11-18T15:00:00Z',
+  }];
+  assert.equal(getSmartPollInterval({ schedules: under30s, nowMs: now }), FAST_POLL_MS);
+
+  // 9. Slight server clock ahead (+5s skew) on fresh run & last_fire_at -> still 2s
+  const clockSkew = [{
+    enabled: true,
+    next_fire_at: '2026-11-19T15:00:00Z',
+    last_fire_at: '2026-11-18T15:00:05Z',
+  }];
+  assert.equal(isNearScheduledFire(clockSkew, now), true);
+  assert.ok(findFreshRun([{ run_id: 'R1', started_at: '2026-11-18T15:00:05Z' }], now));
+  assert.equal(findFreshRun([{ run_id: 'R2', started_at: '2026-11-18T14:58:00Z' }], now), undefined);
 });

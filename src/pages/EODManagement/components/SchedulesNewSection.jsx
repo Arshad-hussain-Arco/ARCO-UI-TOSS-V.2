@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Calendar,
   Clock,
@@ -13,6 +13,11 @@ import {
   Target,
   Layers,
   Repeat,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Search,
+  X,
 } from 'lucide-react';
 import { useToast } from '@hooks/useToast';
 import { ErrorState } from '@components/feedback/ErrorState/ErrorState';
@@ -20,7 +25,13 @@ import { EmptyState } from '@components/feedback/EmptyState/EmptyState';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
 import { useAuth } from '@hooks/useAuth';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
-import { runsOnWeekday } from '../scheduler/scheduleSpec';
+import {
+  EOD_PROFILES,
+  KINDS,
+  getScheduleProfile,
+  getSmartPollInterval,
+  runsOnWeekday,
+} from '../scheduler/scheduleSpec';
 import { ScheduleFormModal } from './ScheduleFormModal';
 import Skeleton from '@/components/feedback/Skeleton/Skeleton';
 
@@ -97,12 +108,21 @@ export function SchedulesNewSection({ selectedEnv }) {
   const canRun = hasPermission('EOD_SCHEDULER_EXECUTE');
 
   const [schedules, setSchedules] = useState([]);
+  const [customProfiles, setCustomProfiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [, setTick] = useState(0);
+  const [selectedProfile, setSelectedProfile] = useState('all');
+  const [collapsedGroups, setCollapsedGroups] = useState({});
   const [dayIndex, setDayIndex] = useState(null);
+  const [dayMenuOpen, setDayMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const dayMenuRef = useRef(null);
   const [scope, setScope] = useState('all'); // all | workflow | job
   const [form, setForm] = useState({ open: false, schedule: null });
+  const [addProfileOpen, setAddProfileOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({ label: '', description: '', default_kind: 'daily' });
+  const [profileSaving, setProfileSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [stopping, setStopping] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -113,17 +133,45 @@ export function SchedulesNewSection({ selectedEnv }) {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!dayMenuOpen) return undefined;
+    const onDown = (e) => {
+      if (dayMenuRef.current && !dayMenuRef.current.contains(e.target)) {
+        setDayMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDayMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [dayMenuOpen]);
+
+  const loadCustomProfiles = useCallback(async () => {
+    try {
+      const list = await svc.listProfiles(selectedEnv);
+      setCustomProfiles(Array.isArray(list) ? list : []);
+    } catch {
+      /* keep current profiles if backend hasn't restarted yet */
+    }
+  }, [selectedEnv]);
+
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      setSchedules(await svc.listSchedules(selectedEnv));
+      const [rows] = await Promise.all([svc.listSchedules(selectedEnv), loadCustomProfiles()]);
+      setSchedules(rows);
     } catch (err) {
       setError(errorText(err));
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEnv]);
+  }, [selectedEnv, loadCustomProfiles]);
 
   useEffect(() => {
     load();
@@ -137,36 +185,9 @@ export function SchedulesNewSection({ selectedEnv }) {
       /* the next refresh tries again */
     }
   }, [selectedEnv]);
-  const anyActive = schedules.some(
-    (s) =>
-      s.run_active ||
-      ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status || '').toUpperCase()),
-  );
-  const now = Date.now();
-  const isNearFire = schedules.some((s) => {
-    if (!s.enabled) return false;
-    if (s.run_active) return true;
-    if (
-      s.last_status &&
-      ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(s.last_status).toUpperCase())
-    )
-      return true;
-    if (s.next_fire_at) {
-      const diff = new Date(s.next_fire_at).getTime() - now;
-      if (diff >= -60000 && diff <= 60000) return true;
-    }
-    if (s.last_fire_at) {
-      const since = now - new Date(s.last_fire_at).getTime();
-      if (since >= 0 && since <= 60000) return true;
-    }
-    if (s.updated_at || s.created_at) {
-      const sinceSaved = now - new Date(s.updated_at || s.created_at).getTime();
-      if (sinceSaved >= 0 && sinceSaved <= 90000) return true;
-    }
-    return false;
-  });
-
-  const shouldPollFast = anyActive || isNearFire;
+  // Smart / Anticipation Polling (Expanded ±60s window + 90s post-save window):
+  // Default 20s idle poll; ramps to 2s when any schedule is active, due within ±60s, fired within 60s, or saved within 90s.
+  const pollIntervalMs = getSmartPollInterval({ schedules, nowMs: Date.now() });
 
   useEffect(() => {
     const onWake = () => refresh();
@@ -184,14 +205,10 @@ export function SchedulesNewSection({ selectedEnv }) {
   }, [refresh]);
 
   useEffect(() => {
-    // Smart anticipation polling:
-    // Fast (2-3s: 2000ms) when a run is active or a schedule is due in <= 30s (or fired <= 30s ago).
-    // Idle (20s) when no run is active and no schedule is due soon, keeping system load minimal.
-    const interval = shouldPollFast ? 2000 : 20000;
     refresh();
-    const timer = setInterval(refresh, interval);
+    const timer = setInterval(refresh, pollIntervalMs);
     return () => clearInterval(timer);
-  }, [shouldPollFast, refresh]);
+  }, [pollIntervalMs, refresh]);
 
   const today = new Date().getDay();
 
@@ -215,6 +232,9 @@ export function SchedulesNewSection({ selectedEnv }) {
     try {
       const saved = await svc.updateSchedule(selectedEnv, s.id, { enabled });
       setSchedules((list) => list.map((x) => (x.id === s.id ? saved : x)));
+      try {
+        window.dispatchEvent(new CustomEvent('eod-schedules-updated', { detail: saved }));
+      } catch {}
       toast.success(enabled ? 'Schedule turned on.' : 'Schedule turned off.');
     } catch (err) {
       toast.error(errorText(err));
@@ -250,9 +270,90 @@ export function SchedulesNewSection({ selectedEnv }) {
     await load();
   };
 
+  const allProfiles = useMemo(
+    () => [
+      ...EOD_PROFILES,
+      ...customProfiles.map((p) => ({
+        ...p,
+        defaultKind: p.defaultKind || p.default_kind || 'daily',
+        custom: true,
+      })),
+    ],
+    [customProfiles],
+  );
+
+  const schedulesByProfile = useMemo(() => {
+    const map = {};
+    schedules.forEach((s) => {
+      const pid = getScheduleProfile(s);
+      if (!map[pid]) map[pid] = [];
+      map[pid].push(s);
+    });
+    return map;
+  }, [schedules]);
+
+  const handleCreateProfile = async (e) => {
+    e.preventDefault();
+    const labelTxt = profileDraft.label.trim();
+    if (!labelTxt) return;
+    setProfileSaving(true);
+    try {
+      const created = await svc.createProfile(selectedEnv, {
+        label: labelTxt,
+        description: profileDraft.description.trim(),
+        default_kind: profileDraft.default_kind,
+      });
+      setCustomProfiles((prev) => [...prev, created]);
+      setAddProfileOpen(false);
+      setProfileDraft({ label: '', description: '', default_kind: 'daily' });
+      setSelectedProfile(created.id);
+      setDayIndex(null);
+      toast.success(`Profile "${created.label}" added.`);
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleDeleteProfile = async (e, prof) => {
+    e.stopPropagation();
+    try {
+      await svc.deleteProfile(selectedEnv, prof.id);
+      setCustomProfiles((prev) => prev.filter((p) => p.id !== prof.id));
+      if (selectedProfile === prof.id) setSelectedProfile('all');
+      toast.success(`Profile "${prof.label}" removed.`);
+      await load();
+    } catch (err) {
+      toast.error(errorText(err));
+    }
+  };
+
+  const toggleGroup = (title) =>
+    setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+
+  const byProfile = useMemo(
+    () =>
+      selectedProfile === 'all'
+        ? schedules
+        : schedules.filter((s) => getScheduleProfile(s) === selectedProfile),
+    [schedules, selectedProfile],
+  );
+  const bySearch = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return byProfile;
+    return byProfile.filter(
+      (s) =>
+        displayName(s).toLowerCase().includes(q) ||
+        (s.folder || '').toLowerCase().includes(q) ||
+        (s.job || '').toLowerCase().includes(q) ||
+        (s.filename || '').toLowerCase().includes(q) ||
+        (s.summary || '').toLowerCase().includes(q),
+    );
+  }, [byProfile, searchQuery]);
   const byDay = useMemo(
-    () => (dayIndex === null ? schedules : schedules.filter((s) => runsOnWeekday(s, dayIndex))),
-    [schedules, dayIndex],
+    () => (dayIndex === null ? bySearch : bySearch.filter((s) => runsOnWeekday(s, dayIndex))),
+    [bySearch, dayIndex],
   );
   const visible = useMemo(
     () => byDay.filter((s) => scope === 'all' || s.scope === scope),
@@ -266,20 +367,28 @@ export function SchedulesNewSection({ selectedEnv }) {
     }),
     [byDay],
   );
-  // one card per kind of repetition (Once, Daily, Weekly ...); inside a card the soonest run comes first
+  // one card per kind of repetition (or custom profile title when viewing a custom profile); soonest run first
   const groups = useMemo(() => {
+    const soonest = (s) => (s.next_fire_at ? Date.parse(s.next_fire_at) : Infinity);
+    const activeCustom =
+      selectedProfile !== 'all'
+        ? customProfiles.find((p) => p.id === selectedProfile)
+        : null;
+    if (activeCustom) {
+      if (visible.length === 0) return [];
+      return [[activeCustom.label, [...visible].sort((a, b) => soonest(a) - soonest(b) || a.id - b.id)]];
+    }
     const map = new Map();
     visible.forEach((s) => {
       const key = repeatKind(s);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     });
-    const soonest = (s) => (s.next_fire_at ? Date.parse(s.next_fire_at) : Infinity);
     return REPEAT_ORDER.filter((k) => map.has(k)).map((k) => [
       k,
       map.get(k).sort((a, b) => soonest(a) - soonest(b) || a.id - b.id),
     ]);
-  }, [visible]);
+  }, [visible, selectedProfile, customProfiles]);
 
   if (error) {
     return <ErrorState title="Schedules could not be loaded" description={error} onRetry={load} />;
@@ -321,106 +430,261 @@ export function SchedulesNewSection({ selectedEnv }) {
         </div>
       </div>
 
-      <div className="eod-day-nav-bar" role="tablist" aria-label="Filter schedules by day">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={dayIndex === null}
-          className={`eod-day-nav-btn ${dayIndex === null ? 'active' : ''}`}
-          onClick={() => setDayIndex(null)}
-        >
-          <span>All Days</span>
-          <span className="eod-day-nav-count">{schedules.length}</span>
-        </button>
-        {DAYS_OF_WEEK.map((d) => {
-          const selected = dayIndex === d.dayIndex;
-          return (
+      <div className="eodp-workspace">
+        <aside className="eodp-sidebar" aria-label="EOD Profiles">
+          <div className="eodp-sidebar-head">
+            <span className="eodp-sidebar-title">EOD PROFILES</span>
+            {canCreate && (
+              <button
+                type="button"
+                className="eodp-add-profile-btn"
+                onClick={() => {
+                  setProfileDraft({ label: '', description: '', default_kind: 'daily' });
+                  setAddProfileOpen(true);
+                }}
+              >
+                <Plus size={12} /> Add Profile
+              </button>
+            )}
+          </div>
+          <div className="eodp-list" role="tablist" aria-label="Filter schedules by EOD profile">
             <button
-              key={d.id}
               type="button"
               role="tab"
-              aria-selected={selected}
-              className={`eod-day-nav-btn ${selected ? 'active' : ''}`}
-              onClick={() => setDayIndex(selected ? null : d.dayIndex)}
+              aria-selected={selectedProfile === 'all'}
+              className={`eodp-all-btn ${selectedProfile === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedProfile('all');
+                setDayIndex(null);
+              }}
             >
-              <span>{d.name}</span>
-              {today === d.dayIndex && <span className="eod-day-today-indicator">TODAY</span>}
-              <span className="eod-day-nav-count">
-                {schedules.filter((s) => runsOnWeekday(s, d.dayIndex)).length}
-              </span>
+              <span>All Profiles</span>
+              <span className="eodp-count-pill">{schedules.length}</span>
             </button>
-          );
-        })}
-      </div>
 
-      <div className="eod-sch-controls-row">
-        <div className="eod-scope-filter-bar" role="tablist" aria-label="Filter schedules by scope">
-          {[
-            ['all', `All schedules (${counts.all})`, null],
-            ['workflow', `Workflow runs (${counts.workflow})`, Layers],
-            ['job', `Single job runs (${counts.job})`, Target],
-          ].map(([key, text, Icon]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={scope === key}
-              className={`eod-scope-filter-btn ${scope === key ? 'active' : ''}`}
-              onClick={() => setScope(key)}
-            >
-              {Icon ? (
-                <Icon size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }} />
-              ) : null}
-              {text}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {!isLoading && schedules.length === 0 ? (
-        <EmptyState
-          icon={Calendar}
-          title="No schedules yet"
-          description={`Nothing is scheduled in ${selectedEnv}. Add a schedule for a workflow or a job.`}
-          action={addButton}
-        />
-      ) : (
-        <div className="eod-schedules-container">
-          {isLoading && schedules.length === 0 ? (
-            Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="eod-schedule-card" style={{ padding: 20 }}>
-                <Skeleton height={20} width={180} />
-                <Skeleton height={44} width="100%" style={{ marginTop: 12 }} />
-              </div>
-            ))
-          ) : groups.length === 0 ? (
-            <div className="eod-schedule-card">
-              <div className="eod-schedule-empty">
-                <Clock size={18} className="eod-empty-clock" />
-                <span>No schedules match this filter.</span>
-                <button
-                  type="button"
-                  className="eod-week-clear-btn"
-                  style={{ marginTop: 8 }}
+            {allProfiles.map((p) => {
+              const isSelected = selectedProfile === p.id;
+              const cnt = (schedulesByProfile[p.id] || []).length;
+              return (
+                <div
+                  key={p.id}
+                  role="tab"
+                  tabIndex={0}
+                  aria-selected={isSelected}
+                  className={`eodp-item ${isSelected ? 'active' : ''}`}
                   onClick={() => {
+                    setSelectedProfile(p.id);
                     setDayIndex(null);
-                    setScope('all');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedProfile(p.id);
+                      setDayIndex(null);
+                    }
                   }}
                 >
-                  Show all schedules
+                  <span className="eodp-item-icon">
+                    <Calendar size={14} />
+                  </span>
+                  <span className="eodp-item-body">
+                    <span className="eodp-item-name">{p.label}</span>
+                    <span className="eodp-item-sub">{p.description}</span>
+                  </span>
+                  {p.custom && canDelete && (
+                    <button
+                      type="button"
+                      className="eodp-del-btn"
+                      title={`Delete ${p.label}`}
+                      aria-label={`Delete ${p.label}`}
+                      onClick={(e) => handleDeleteProfile(e, p)}
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                  <span className={`eodp-count-pill ${isSelected ? 'active' : ''}`}>{cnt}</span>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        <div className="eodp-main">
+          {/* Option 1: Single Compact Unified Filter Toolbar */}
+          <div className="eodp-toolbar">
+            <div className="eodp-search-wrap">
+              <Search size={14} className="eodp-search-icon" aria-hidden="true" />
+              <input
+                type="text"
+                className="eodp-search-input"
+                value={searchQuery}
+                placeholder="Search schedules..."
+                aria-label="Search schedules"
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  className="eodp-search-clear"
+                  aria-label="Clear search"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X size={12} />
                 </button>
-              </div>
+              ) : null}
             </div>
+
+            <div className="eodp-day-dropdown-wrap" ref={dayMenuRef}>
+              <button
+                type="button"
+                className={`eodp-day-trigger ${dayIndex !== null ? 'filtered' : ''}`}
+                aria-haspopup="listbox"
+                aria-expanded={dayMenuOpen}
+                onClick={() => setDayMenuOpen((o) => !o)}
+              >
+                <Calendar size={13} />
+                <span>
+                  Day:{' '}
+                  <strong>
+                    {dayIndex === null
+                      ? 'All Days'
+                      : DAYS_OF_WEEK.find((d) => d.dayIndex === dayIndex)?.name}
+                  </strong>
+                </span>
+                <ChevronDown size={13} />
+              </button>
+
+              {dayMenuOpen && (
+                <div className="eodp-day-menu" role="listbox" aria-label="Filter by day of week">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={dayIndex === null}
+                    className={`eodp-day-option ${dayIndex === null ? 'active' : ''}`}
+                    onClick={() => {
+                      setDayIndex(null);
+                      setDayMenuOpen(false);
+                    }}
+                  >
+                    <span>All Days</span>
+                    <span className="eodp-day-opt-count">{bySearch.length}</span>
+                  </button>
+                  {DAYS_OF_WEEK.map((d) => {
+                    const selected = dayIndex === d.dayIndex;
+                    const dCount = bySearch.filter((s) => runsOnWeekday(s, d.dayIndex)).length;
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={`eodp-day-option ${selected ? 'active' : ''}`}
+                        onClick={() => {
+                          setDayIndex(selected ? null : d.dayIndex);
+                          setDayMenuOpen(false);
+                        }}
+                      >
+                        <span className="eodp-day-opt-name">
+                          {d.name}
+                          {today === d.dayIndex && (
+                            <span className="eodp-today-chip">TODAY</span>
+                          )}
+                        </span>
+                        <span className="eodp-day-opt-count">{dCount}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="eodp-scope-seg" role="tablist" aria-label="Filter schedules by scope">
+              {[
+                ['all', `All (${counts.all})`],
+                ['workflow', `Workflows (${counts.workflow})`],
+                ['job', `Jobs (${counts.job})`],
+              ].map(([key, text]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={scope === key}
+                  className={`eodp-scope-btn ${scope === key ? 'active' : ''}`}
+                  onClick={() => setScope(key)}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!isLoading && byProfile.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title={
+                selectedProfile === 'all'
+                  ? 'No schedules yet'
+                  : `No ${allProfiles.find((p) => p.id === selectedProfile)?.label || ''} schedules yet`
+              }
+              description={
+                selectedProfile === 'all'
+                  ? `Nothing is scheduled in ${selectedEnv}. Add a schedule for a workflow or a job.`
+                  : `There are no schedules in this profile for ${selectedEnv}.`
+              }
+              action={addButton}
+            />
           ) : (
-            groups.map(([title, rows]) => (
+            <div className="eod-schedules-container">
+              {isLoading && schedules.length === 0 ? (
+                Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="eod-schedule-card" style={{ padding: 20 }}>
+                    <Skeleton height={20} width={180} />
+                    <Skeleton height={44} width="100%" style={{ marginTop: 12 }} />
+                  </div>
+                ))
+              ) : groups.length === 0 ? (
+                <div className="eod-schedule-card">
+                  <div className="eod-schedule-empty">
+                    <Clock size={18} className="eod-empty-clock" />
+                    <span>No schedules match this filter.</span>
+                    <button
+                      type="button"
+                      className="eod-week-clear-btn"
+                      style={{ marginTop: 8 }}
+                      onClick={() => {
+                        setSelectedProfile('all');
+                        setSearchQuery('');
+                        setDayIndex(null);
+                        setScope('all');
+                      }}
+                    >
+                      Show all schedules
+                    </button>
+                  </div>
+                </div>
+              ) : (
+            groups.map(([title, rows]) => {
+              const isCollapsed = Boolean(collapsedGroups[title]);
+              return (
               <div key={title} className="eod-schedule-card">
-                <div className="eod-schedule-header">
+                <button
+                  type="button"
+                  className="eod-schedule-header eodp-group-toggle"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleGroup(title)}
+                >
                   <div className="eod-schedule-header-title">
+                    {isCollapsed ? (
+                      <ChevronRight size={15} className="eod-cal-icon" />
+                    ) : (
+                      <ChevronDown size={15} className="eod-cal-icon" />
+                    )}
                     <Calendar size={14} className="eod-cal-icon" />
                     <span>{title}</span>
                   </div>
                   <span className="eod-schedule-count-pill">{rows.length} scheduled</span>
-                </div>
+                </button>
+                {!isCollapsed && (
                 <div className="sc-grid sc-slim" role="list">
                   <div className="sc-cols" aria-hidden="true">
                     <span className="sc-col-on">On</span>
@@ -433,6 +697,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                   {rows.map((s) => (
                     <article
                       key={s.id}
+                      id={`sch-row-${s.id}`}
                       className={`sc-card ${!s.enabled ? 'sched-off' : ''}`}
                       role="listitem"
                     >
@@ -578,19 +843,106 @@ export function SchedulesNewSection({ selectedEnv }) {
                     </article>
                   ))}
                 </div>
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
+        </div>
+      </div>
 
       <ScheduleFormModal
         isOpen={form.open}
         env={selectedEnv}
         schedule={form.schedule}
+        profiles={allProfiles}
+        defaultProfileId={selectedProfile}
+        defaultKind={
+          selectedProfile === 'all'
+            ? null
+            : allProfiles.find((p) => p.id === selectedProfile)?.defaultKind || null
+        }
         onClose={() => setForm({ open: false, schedule: null })}
         onSaved={saved}
       />
+
+      {addProfileOpen && (
+        <AdminModal
+          isOpen
+          onClose={() => !profileSaving && setAddProfileOpen(false)}
+          title="Add EOD Profile"
+          size="sm"
+        >
+          <form onSubmit={handleCreateProfile} className="eod-schedule-modal-form">
+            <div className="eod-modal-field-group">
+              <div className="eod-modal-field">
+                <label className="eod-modal-label" htmlFor="eodp-new-label">
+                  PROFILE NAME <span className="req">*</span>
+                </label>
+                <input
+                  id="eodp-new-label"
+                  className="eod-modal-input"
+                  value={profileDraft.label}
+                  maxLength={64}
+                  placeholder="e.g. Mid-Month EOD"
+                  autoFocus
+                  required
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, label: e.target.value }))}
+                />
+              </div>
+              <div className="eod-modal-field">
+                <label className="eod-modal-label" htmlFor="eodp-new-desc">
+                  DESCRIPTION (optional)
+                </label>
+                <input
+                  id="eodp-new-desc"
+                  className="eod-modal-input"
+                  value={profileDraft.description}
+                  maxLength={140}
+                  placeholder="e.g. Mid-month reconciliation schedules"
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, description: e.target.value }))}
+                />
+              </div>
+              <div className="eod-modal-field">
+                <label className="eod-modal-label" htmlFor="eodp-new-kind">
+                  DEFAULT RECURRENCE
+                </label>
+                <select
+                  id="eodp-new-kind"
+                  className="eod-modal-input"
+                  value={profileDraft.default_kind}
+                  onChange={(e) => setProfileDraft((d) => ({ ...d, default_kind: e.target.value }))}
+                >
+                  {KINDS.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="eod-modal-footer">
+              <button
+                type="button"
+                className="eod-modal-btn cancel"
+                onClick={() => setAddProfileOpen(false)}
+                disabled={profileSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="eod-modal-btn primary-green"
+                disabled={profileSaving || !profileDraft.label.trim()}
+              >
+                {profileSaving ? 'Adding…' : 'Add Profile'}
+              </button>
+            </div>
+          </form>
+        </AdminModal>
+      )}
 
       {stopping && (
         <AdminModal isOpen onClose={() => setStopping(null)} title="Stop the run" size="sm">

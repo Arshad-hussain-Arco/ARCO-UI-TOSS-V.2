@@ -131,13 +131,9 @@ export function validateForm(form, today = new Date()) {
     errs.startDate =
       form.kind === 'once' ? 'Choose the date.' : 'Choose the date the cycle starts from.';
   }
-  if (
-    form.kind === 'once' &&
-    form.startDate &&
-    form.startDate < isoDay(today) &&
-    !(form.times || []).length
-  )
+  if (form.kind === 'once' && form.startDate && form.startDate < isoDay(today)) {
     errs.startDate = 'The date is in the past.';
+  }
   if (form.kind === 'weekly' && !form.daysOfWeek.length)
     errs.daysOfWeek = 'Choose at least one day.';
   if (form.kind === 'quarterly' && !form.quarters.length)
@@ -147,18 +143,37 @@ export function validateForm(form, today = new Date()) {
     !(Number(form.every) >= 1)
   )
     errs.every = 'Enter a number of 1 or more.';
-  if (form.endDate && form.startDate && form.endDate < form.startDate)
+  if (form.endDate && form.endDate < isoDay(today)) {
+    errs.endDate = 'The end date is in the past.';
+  } else if (form.endDate && form.startDate && form.endDate < form.startDate) {
     errs.endDate = 'The end date is before the start date.';
+  }
   return errs;
 }
 
-/** Does this stored schedule fire on this weekday (0 = Sunday)? Month / quarter / year schedules answer through their next run. */
+/** Does this stored schedule fire on this weekday (0 = Sunday)? Respects narrow start..end ranges and paused fallbacks. */
 export function runsOnWeekday(schedule, dayIndex) {
   const spec = schedule?.recurrence || {};
   switch (spec.frequency) {
     case 'daily':
-    case 'interval':
+    case 'interval': {
+      if (spec.start_date && spec.end_date) {
+        const s = new Date(`${spec.start_date}T12:00:00`);
+        const e = new Date(`${spec.end_date}T12:00:00`);
+        if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime()) && e >= s) {
+          const spanDays = Math.round((e - s) / 86400000);
+          if (spanDays < 7) {
+            for (let i = 0; i <= spanDays; i++) {
+              const d = new Date(s);
+              d.setDate(s.getDate() + i);
+              if (d.getDay() === dayIndex) return true;
+            }
+            return false;
+          }
+        }
+      }
       return true;
+    }
     case 'weekly':
       return (spec.days_of_week || []).includes(dayIndex);
     case 'once':
@@ -166,7 +181,12 @@ export function runsOnWeekday(schedule, dayIndex) {
         ? new Date(`${spec.start_date}T12:00:00`).getDay() === dayIndex
         : false;
     default:
-      return schedule?.next_fire_at ? new Date(schedule.next_fire_at).getDay() === dayIndex : false;
+      if (schedule?.next_fire_at) {
+        return new Date(schedule.next_fire_at).getDay() === dayIndex;
+      }
+      return spec.start_date
+        ? new Date(`${spec.start_date}T12:00:00`).getDay() === dayIndex
+        : false;
   }
 }
 
@@ -200,4 +220,86 @@ const MONTH_NAMES = [
 export function quarterMonthNames(quarters, position = 'first') {
   const offset = { first: 0, mid: 1, last: 2 }[position] ?? 0;
   return [...quarters].sort((a, b) => a - b).map((q) => MONTH_NAMES[(q - 1) * 3 + offset]);
+}
+
+export const EOD_PROFILES = [
+  { id: 'daily', label: 'Daily EOD', description: 'Every day schedules', defaultKind: 'daily' },
+  { id: 'weekly', label: 'Weekly EOD', description: 'Weekly day schedules', defaultKind: 'weekly' },
+  { id: 'monthly', label: 'Monthly EOD', description: 'Monthly date schedules', defaultKind: 'monthly' },
+  { id: 'quarterly', label: 'Quarterly EOD', description: 'Quarterly cycle schedules', defaultKind: 'quarterly' },
+  { id: 'yearly', label: 'Yearly EOD', description: 'Annual closing schedules', defaultKind: 'yearly' },
+  { id: 'once', label: 'Once', description: 'One-time scheduled runs', defaultKind: 'once' },
+  { id: 'custom', label: 'Custom Interval', description: 'Every N days, hours, or mins', defaultKind: 'every-days' },
+];
+
+/** Map a schedule row to its EOD Profile id (explicit custom/selected profile or real recurrence). */
+export function getScheduleProfile(schedule) {
+  const explicit = String(schedule?.eod_profile || schedule?.recurrence?.eod_profile || '').trim();
+  if (explicit && explicit !== 'all') return explicit;
+  const r = schedule?.recurrence || {};
+  const freq = String(r.frequency || '').toLowerCase();
+  if (freq === 'daily') return (r.every || 1) > 1 ? 'custom' : 'daily';
+  if (freq === 'interval') return 'custom';
+  if (['once', 'weekly', 'monthly', 'quarterly', 'yearly'].includes(freq)) return freq;
+  return 'custom';
+}
+
+export const IDLE_POLL_MS = 20000;
+export const FAST_POLL_MS = 2000;
+export const ANTICIPATION_WINDOW_MS = 60000;
+export const RECENT_SAVE_WINDOW_MS = 90000;
+const CLOCK_SKEW_MS = 15000;
+
+/**
+ * Smart / Anticipation Polling check (Expanded ±60s window + 90s post-save window):
+ * True if any schedule is:
+ * 1) Actively running (run_active or RUNNING/PAUSED/QUEUED)
+ * 2) Due in the next 60s (covers <30s & 30-60s) or up to 60s overdue (-60000 <= diff <= 60000)
+ * 3) Fired within the last 60s (tolerates slight server/client clock skew up to 15s)
+ * 4) Created or updated within the last 90s (tolerates slight server/client clock skew up to 15s)
+ */
+export function isNearScheduledFire(
+  schedules,
+  nowMs = Date.now(),
+  windowMs = ANTICIPATION_WINDOW_MS,
+  recentSaveMs = RECENT_SAVE_WINDOW_MS,
+) {
+  return (schedules || []).some((s) => {
+    if (!s) return false;
+    const status = String(s.last_status || '').toUpperCase();
+    if (s.run_active || status === 'RUNNING' || status === 'PAUSED' || status === 'QUEUED') {
+      return true;
+    }
+    if (s.last_fire_at) {
+      const since = nowMs - Date.parse(s.last_fire_at);
+      if (!Number.isNaN(since) && since >= -CLOCK_SKEW_MS && since <= windowMs) return true;
+    }
+    if (s.enabled && s.next_fire_at) {
+      const diff = Date.parse(s.next_fire_at) - nowMs;
+      if (!Number.isNaN(diff) && diff >= -windowMs && diff <= windowMs) return true;
+    }
+    const savedIso = s.updated_at || s.created_at;
+    if (s.enabled && savedIso) {
+      const sinceSaved = nowMs - Date.parse(savedIso);
+      if (!Number.isNaN(sinceSaved) && sinceSaved >= -CLOCK_SKEW_MS && sinceSaved <= recentSaveMs) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+/** Find a run that started within the last `windowMs` (default 60s), tolerating minor server/client clock skew. */
+export function findFreshRun(runs, nowMs = Date.now(), windowMs = ANTICIPATION_WINDOW_MS) {
+  return (runs || []).find((r) => {
+    const started = r?.started_at || r?.started;
+    if (!started) return false;
+    const diffMs = nowMs - Date.parse(started);
+    return !Number.isNaN(diffMs) && diffMs >= -CLOCK_SKEW_MS && diffMs <= windowMs;
+  });
+}
+
+/** 2s fast poll when active, within ±60s of a scheduled fire, or saved within 90s; 20s idle poll otherwise. */
+export function getSmartPollInterval({ schedules = [], anyRunActive = false, nowMs = Date.now() } = {}) {
+  return anyRunActive || isNearScheduledFire(schedules, nowMs) ? FAST_POLL_MS : IDLE_POLL_MS;
 }
