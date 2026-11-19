@@ -428,7 +428,16 @@ export function WorkflowPanel({ env, onRunStarted }) {
         toast.success('The engine accepted the run.');
         setColourChoice('auto'); // stay on this tab and show the new run in the graph
         runs.reload(true);
-        onRunStarted?.(answer.result?.runs?.[0]?.run_id);
+        const newRunId = answer.result?.runs?.[0]?.run_id;
+        const newRunFolder = answer.result?.runs?.[0]?.folder;
+        onRunStarted?.(newRunId);
+        if (newRunId) {
+          window.dispatchEvent(
+            new CustomEvent('eod-run-triggered', {
+              detail: { runId: newRunId, folder: newRunFolder, env },
+            }),
+          );
+        }
       } else if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
         toast.error(answer.result?.message || `The engine answered ${answer.status}.`);
       } else {

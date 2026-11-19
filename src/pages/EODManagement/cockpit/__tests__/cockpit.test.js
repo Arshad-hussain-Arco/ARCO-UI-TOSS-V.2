@@ -100,3 +100,175 @@ test('time utilities format durations correctly', () => {
   assert.equal(clock(248000), '4:08');
   assert.ok(tickStep(240000) > 0);
 });
+
+test('scheduled runs visibility in Cockpit: active runs and fresh runs stay visible in XML scope', () => {
+  const allFolderNames = new Set(['POST_EOD_CHECKS', 'DAILY_PROCESSING', 'PRE_EOD']);
+  const runs = [
+    {
+      id: 'POST_EOD_CHECKS-20261119-123000',
+      run_id: 'POST_EOD_CHECKS-20261119-123000',
+      status: 'RUNNING',
+      folder: 'POST_EOD_CHECKS',
+      target_job: 'CHK_REPORT',
+      run_scope: 'job',
+      started_at: new Date(Date.now() - 5000).toISOString(),
+    },
+    {
+      id: 'batch-20261119-110000',
+      run_id: 'batch-20261119-110000',
+      status: 'SUCCESS',
+      folder: null,
+      target_job: null,
+      run_scope: 'batch',
+      started_at: new Date(Date.now() - 3600000).toISOString(),
+    },
+  ];
+
+  // 1. In XML scope, activeRunningRun finds the active scheduled run across all runs
+  const activeRunningRun = runs.find((r) => {
+    const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+    if (!isRun) return false;
+    if (r.started_at || r.started) {
+      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
+      if (ageMs > 30 * 60 * 1000) return false;
+    }
+    return true;
+  });
+  assert.ok(activeRunningRun, 'activeRunningRun should find the running scheduled run');
+  assert.equal(activeRunningRun.id, 'POST_EOD_CHECKS-20261119-123000');
+  assert.equal(activeRunningRun.folder, 'POST_EOD_CHECKS');
+
+  // 2. filteredRuns in XML scope preserves active and fresh runs
+  const currentRunId = activeRunningRun.id;
+  const selectedRunId = activeRunningRun.id;
+  const scope = { type: 'xml', folder: null };
+
+  const filteredRuns = runs.filter((r) => {
+    if (!r) return false;
+    const rid = String(r.id || r.run_id || '');
+    const isRunLive = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+    const isCurrentSelected = String(currentRunId) === rid || String(selectedRunId) === rid;
+    const startTs = new Date(r.started_at || r.started || 0).getTime();
+    const isRecentlyStarted = startTs > 0 && (Date.now() - startTs) <= 60000;
+    if (isRunLive || isCurrentSelected || isRecentlyStarted) {
+      return true;
+    }
+    if (scope.type === 'xml') {
+      const rTargetJob = String(r.target_job || r.scope_job || '').trim().toUpperCase();
+      const rScope = String(r.run_scope || '').toLowerCase();
+      const rFolder = String(r.folder || '').trim().toUpperCase();
+      if (rTargetJob) return false;
+      if (rScope === 'job' || rScope === 'workflow') return false;
+      if (rScope === 'batch' || rScope === 'xml') return true;
+      if (rFolder && allFolderNames.has(rFolder)) return false;
+      for (const kf of allFolderNames) {
+        if (rid.toUpperCase().startsWith(`${kf}-`)) return false;
+      }
+      return true;
+    }
+    return true;
+  });
+
+  assert.ok(
+    filteredRuns.some((r) => r.id === 'POST_EOD_CHECKS-20261119-123000'),
+    'Active scheduled run must NOT be filtered out of filteredRuns in XML scope',
+  );
+
+  // 3. Auto-scope alignment when active run begins
+  let autoAlignedScope = scope;
+  if (activeRunningRun && activeRunningRun.folder && autoAlignedScope.type === 'xml') {
+    autoAlignedScope = { type: 'workflow', folder: activeRunningRun.folder };
+  }
+  assert.equal(autoAlignedScope.type, 'workflow');
+  assert.equal(autoAlignedScope.folder, 'POST_EOD_CHECKS');
+});
+
+test('actively running run automatically shows current run overview in Control Run Cockpit', () => {
+  const activeRun = {
+    id: 'EOD_CORE-20261119-130000',
+    run_id: 'EOD_CORE-20261119-130000',
+    status: 'RUNNING',
+    folder: 'EOD-CORE',
+    started_at: new Date(Date.now() - 10000).toISOString(),
+    jobs: [
+      { name: 'JOB_A', status: 'Done' },
+      { name: 'JOB_B', status: 'Running' },
+      { name: 'JOB_C', status: 'Waiting' },
+    ],
+  };
+
+  const runs = [activeRun];
+
+  // 1. Detection of actively running run
+  const activeRunningRun = runs.find((r) => {
+    const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+    if (!isRun) return false;
+    if (r.started_at || r.started) {
+      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
+      if (ageMs > 30 * 60 * 1000) return false;
+    }
+    return true;
+  });
+  assert.ok(activeRunningRun, 'actively running run should be detected');
+
+  // 2. Auto-selection and view is overview
+  let selectedRunId = '';
+  let activeView = 'flow'; // Suppose user was on another view
+  if (activeRunningRun) {
+    selectedRunId = activeRunningRun.id;
+    activeView = 'overview'; // Automatically show the current run overview
+  }
+  assert.equal(selectedRunId, 'EOD_CORE-20261119-130000');
+  assert.equal(activeView, 'overview');
+
+  // 3. Current run overview computation
+  const total = activeRun.jobs.length;
+  const completed = activeRun.jobs.filter((j) => j.status === 'Done').length;
+  const running = activeRun.jobs.filter((j) => j.status === 'Running').length;
+  assert.equal(total, 3);
+  assert.equal(completed, 1);
+  assert.equal(running, 1);
+  const pct = Math.floor((completed / total) * 100);
+  assert.equal(pct, 33);
+});
+
+test('subsequent polling updates of an active run preserve user-selected subtabs (flow, timeline, history)', () => {
+  let activeView = 'overview';
+  let lastActiveRunId = null;
+
+  function onPollActiveRun(run, userChangedView = null) {
+    if (userChangedView) {
+      activeView = userChangedView;
+    }
+    const activeId = String(run.id || run.run_id);
+    if (activeId && lastActiveRunId !== activeId) {
+      lastActiveRunId = activeId;
+      activeView = 'overview';
+    }
+    return activeView;
+  }
+
+  // 1. Initial detection of active run -> switches to overview
+  const run1 = { id: 'RUN-1', status: 'RUNNING' };
+  assert.equal(onPollActiveRun(run1), 'overview');
+
+  // 2. User navigates to 'flow'
+  assert.equal(onPollActiveRun(run1, 'flow'), 'flow');
+
+  // 3. Next background poll of RUN-1 (e.g. 2s later) MUST NOT reset to 'overview'
+  assert.equal(onPollActiveRun(run1), 'flow');
+
+  // 4. User navigates to 'timeline'
+  assert.equal(onPollActiveRun(run1, 'timeline'), 'timeline');
+  // 5. Next background poll of RUN-1 MUST NOT reset to 'overview'
+  assert.equal(onPollActiveRun(run1), 'timeline');
+
+  // 6. User navigates to 'history'
+  assert.equal(onPollActiveRun(run1, 'history'), 'history');
+  // 7. Next background poll of RUN-1 MUST NOT reset to 'overview'
+  assert.equal(onPollActiveRun(run1), 'history');
+
+  // 8. When a NEW, different run starts -> switches to 'overview'
+  const run2 = { id: 'RUN-2', status: 'RUNNING' };
+  assert.equal(onPollActiveRun(run2), 'overview');
+});

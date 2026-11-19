@@ -1,4 +1,4 @@
-import { Component, useEffect, useMemo, useState } from 'react';
+import { Component, useEffect, useMemo, useState, useRef } from 'react';
 import { Calendar, Gauge, Plus, Server, Settings, Layers } from 'lucide-react';
 import { Button } from '@components/ui/Button/Button';
 import { AdminModal } from '@components/ui/AdminModal/AdminModal';
@@ -113,6 +113,82 @@ export function SchedulerTab() {
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
   const canAdmin = hasPermission('EOD_SCHEDULER_SETTINGS');
+
+  const knownRunIdsRef = useRef(new Set());
+  const initialRunsLoadedRef = useRef(false);
+
+  // Monitor environment runs to auto-switch to Control Run Cockpit whenever any run triggers
+  const envRuns = useResource(
+    () => (env ? svc.getCockpitRuns(env).catch(() => svc.listRuns(env)) : Promise.resolve([])),
+    [env],
+  );
+
+  const hasLiveRun = (envRuns.data || []).some((r) =>
+    ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+  );
+  usePolling(() => envRuns.reload(true), hasLiveRun ? 2000 : 15000);
+
+  // Listen for explicit run trigger events across any subcomponent
+  useEffect(() => {
+    const onRunTriggered = (e) => {
+      const { runId } = e.detail || {};
+      if (runId) {
+        knownRunIdsRef.current.add(String(runId));
+        setFocusRun(String(runId));
+        setSection('cockpit');
+      }
+    };
+    window.addEventListener('eod-run-triggered', onRunTriggered);
+    return () => window.removeEventListener('eod-run-triggered', onRunTriggered);
+  }, []);
+
+  // When env changes, reset run tracking
+  useEffect(() => {
+    knownRunIdsRef.current.clear();
+    initialRunsLoadedRef.current = false;
+    setFocusRun('');
+  }, [env]);
+
+  // Automatically switch to Control Run Cockpit when any new run is triggered
+  useEffect(() => {
+    const runs = envRuns.data || [];
+    if (!runs.length) return;
+
+    if (!initialRunsLoadedRef.current) {
+      runs.forEach((r) => {
+        const id = r.id || r.run_id;
+        if (id) knownRunIdsRef.current.add(String(id));
+      });
+      initialRunsLoadedRef.current = true;
+      // If any run is actively running right now on initial load, auto-show it in Control Run Cockpit
+      const currentlyActiveRun = runs.find((r) =>
+        ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase()),
+      );
+      if (currentlyActiveRun) {
+        const activeId = String(currentlyActiveRun.id || currentlyActiveRun.run_id);
+        setFocusRun(activeId);
+        setSection('cockpit');
+      }
+      return;
+    }
+
+    const newlyTriggeredRun = runs.find((r) => {
+      const id = String(r.id || r.run_id || '');
+      if (!id || knownRunIdsRef.current.has(id)) return false;
+      const st = String(r.status || '').toUpperCase();
+      const isLive = ['RUNNING', 'PAUSED', 'QUEUED'].includes(st);
+      const startTs = new Date(r.started_at || r.started || 0).getTime();
+      const isRecent = startTs > 0 && (Date.now() - startTs) < 45000;
+      return isLive || isRecent;
+    });
+
+    if (newlyTriggeredRun) {
+      const newId = String(newlyTriggeredRun.id || newlyTriggeredRun.run_id);
+      knownRunIdsRef.current.add(newId);
+      setFocusRun(newId);
+      setSection('cockpit');
+    }
+  }, [envRuns.data]);
 
   const list = useMemo(() => envs.data ?? [], [envs.data]);
   const current = list.find((e) => e.code === env) ?? null;
@@ -280,12 +356,19 @@ export function SchedulerTab() {
                     env={env}
                     onRunStarted={(id) => {
                       setFocusRun(id || '');
-                      setSection('runs'); // RunsPanel is the consumer of focusRun
+                      setSection('cockpit');
                     }}
                   />
                 ) : null}
                 {section === 'runs' ? <RunsPanel env={env} focusRun={focusRun} /> : null}
-                {section === 'cockpit' ? <CockpitTab key={env} env={env} onNavigateSection={setSection} /> : null}
+                {section === 'cockpit' ? (
+                  <CockpitTab
+                    key={env}
+                    env={env}
+                    focusRunId={focusRun}
+                    onNavigateSection={setSection}
+                  />
+                ) : null}
                 {section === 'schedule' ? <SchedulesNewSection selectedEnv={env} /> : null}
                 {section === 'targets' ? (
                   <TargetsPanel env={env} onReturnToSchedule={() => setSection('schedule')} />

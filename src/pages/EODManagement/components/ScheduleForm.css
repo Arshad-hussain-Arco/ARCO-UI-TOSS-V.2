@@ -142,13 +142,15 @@
   background: #fef2f2;
 }
 
-/* Schedules list: six columns (On, Name, Frequency, Next start, Last result, Actions). The environment is the tab's own, so it is not repeated per row. */
+/* Schedules list: six columns (On, Name, Frequency, Next start, Last result, Actions). Screen-fit layout with no horizontal scrolling. */
 .sc-grid.sc-slim .sc-cols,
 .sc-grid.sc-slim .sc-card {
-  grid-template-columns:
-    46px minmax(240px, 2.6fr) minmax(150px, 1.3fr) minmax(150px, 1.2fr) minmax(130px, 1.1fr)
-    140px;
-  min-width: 780px;
+  grid-template-columns: 44px minmax(140px, 1.8fr) minmax(130px, 1.3fr) minmax(110px, 1.1fr) minmax(110px, 1.1fr) 96px;
+  column-gap: 10px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
 }
 
 /* Environment shown as a fixed field (it comes from the tab, not from a choice) */
@@ -566,8 +568,10 @@
 }
 
 .eodp-main .sc-grid.sc-slim {
-  max-height: 440px;
-  overflow: auto;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
   scrollbar-width: thin;
 }
 

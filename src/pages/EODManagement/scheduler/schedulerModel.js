@@ -251,6 +251,24 @@ export const formatClockTime = (iso, fallback = '—') => {
   return d ? d.toLocaleTimeString([], { hour12: false }) : fallback;
 };
 
+export const formatRunOptionTime = (iso, fallback = '—') => {
+  if (!iso) return fallback;
+  const d = parseIsoDate(iso);
+  if (!d) return fallback;
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  if (isToday) {
+    return timeStr;
+  }
+  const monthStr = d.toLocaleDateString([], { month: 'short' });
+  const dayStr = d.getDate();
+  return `${monthStr} ${dayStr} · ${timeStr}`;
+};
+
 export const formatFullDateTime = (iso, fallback = '—') => {
   const d = parseIsoDate(iso);
   if (!d) return fallback;

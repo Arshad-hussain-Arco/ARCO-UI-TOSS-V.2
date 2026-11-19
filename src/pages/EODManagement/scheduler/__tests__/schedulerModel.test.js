@@ -8,6 +8,7 @@ import {
   edgeStyle,
   filterJobs,
   formatDuration,
+  formatRunOptionTime,
   graphBounds,
   groupMessages,
   isEnvironmentCode,
@@ -131,6 +132,19 @@ test('durations', () => {
   assert.equal(secondsBetween('2026-01-01 10:00:00.000', '2026-01-01 10:01:30.500'), 90.5);
   assert.equal(secondsBetween(null, '2026-01-01 10:00:00'), null);
   assert.equal(secondsBetween('nonsense', 'nonsense'), null);
+});
+
+test('formatRunOptionTime handles today, previous days, and invalid inputs', () => {
+  assert.equal(formatRunOptionTime(null), '—');
+  assert.equal(formatRunOptionTime(''), '—');
+  const now = new Date();
+  const todayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 55, 17).toISOString();
+  const timeStr = formatRunOptionTime(todayIso);
+  assert.ok(timeStr.includes(':'), 'today displays clock time');
+
+  const pastIso = '2025-11-18T16:52:30+03:00';
+  const pastStr = formatRunOptionTime(pastIso);
+  assert.ok(pastStr.includes('Nov 18') || pastStr.includes('·'), 'past date displays month and day');
 });
 
 test('the same problem on many jobs is shown once, with a count and a few examples', () => {

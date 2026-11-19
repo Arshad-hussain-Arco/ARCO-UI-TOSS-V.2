@@ -21,7 +21,7 @@ import { useAuth } from '@hooks/useAuth';
 import { useToast } from '@hooks/useToast';
 import { eodSchedulerService as svc, errorText } from '@services/eodSchedulerService';
 import { usePolling, useResource } from '../scheduler/useResource';
-import { groupMessages, formatClockTime } from '../scheduler/schedulerModel';
+import { groupMessages, formatClockTime, formatRunOptionTime } from '../scheduler/schedulerModel';
 import {
   FAST_POLL_MS,
   IDLE_POLL_MS,
@@ -69,10 +69,12 @@ function Problems({ title, tone, messages, open }) {
   );
 }
 
-export function CockpitTab({ env, onNavigateSection } = {}) {
+export function CockpitTab({ env, onNavigateSection, focusRunId } = {}) {
   const { hasPermission } = useAuth();
   const toast = useToast();
   const fileInputRef = useRef(null);
+  const lastActiveRunIdRef = useRef(null);
+  const lastFocusedRunIdRef = useRef(null);
 
   const [activeView, setActiveView] = useState('overview');
   const [selectedJobName, setSelectedJobName] = useState(null);
@@ -98,6 +100,8 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
     setSelectedRunId('');
     setSelectedJobName(null);
     setScope({ type: 'xml', folder: null });
+    lastActiveRunIdRef.current = null;
+    lastFocusedRunIdRef.current = null;
   }, [env]);
 
   const handleNavigateView = (view, folder = null) => {
@@ -148,6 +152,27 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
     });
   }, [runsList.data, env]);
 
+  // When focusRunId changes from parent (e.g. run triggered from any other tab), select it and switch to overview ONCE per focusRunId
+  useEffect(() => {
+    const fid = focusRunId && focusRunId !== 'current_workflow' ? String(focusRunId) : '';
+    if (fid && String(lastFocusedRunIdRef.current) !== fid) {
+      lastFocusedRunIdRef.current = fid;
+      setSelectedRunId(fid);
+      setActiveView('overview');
+    }
+  }, [focusRunId]);
+
+  // Align workflow folder scope once the focused run is loaded in runsList (without re-forcing activeView)
+  useEffect(() => {
+    const fid = focusRunId && focusRunId !== 'current_workflow' ? String(focusRunId) : '';
+    if (fid) {
+      const matchingRun = runs.find((r) => String(r.id || r.run_id) === fid);
+      if (matchingRun?.folder) {
+        setScope((prev) => (prev.folder ? prev : { type: 'workflow', folder: matchingRun.folder }));
+      }
+    }
+  }, [focusRunId, runs]);
+
   const allFolderNames = useMemo(() => {
     const set = new Set();
     for (const f of view?.folders || []) {
@@ -177,6 +202,34 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
     return map;
   }, [view?.folders, def.data?.jobs]);
 
+  // Look across ALL environment runs for any actively running execution
+  const activeRunningRun = runs.find((r) => {
+    const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+    if (!isRun) return false;
+    if (r.started_at || r.started) {
+      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
+      if (ageMs > 30 * 60 * 1000) return false;
+    }
+    return true;
+  });
+
+  // A run that started recently (within 60s), even if it already completed (e.g. short job finished in 2-3s)
+  const freshRun = useMemo(() => findFreshRun(runs, Date.now()), [runs, tick]);
+
+  // Active running run ALWAYS takes top priority for currentRunId
+  const currentRunId = useMemo(() => {
+    if (activeRunningRun) {
+      return activeRunningRun.id || activeRunningRun.run_id || '';
+    }
+    if (selectedRunId && selectedRunId !== 'current_workflow') {
+      return selectedRunId;
+    }
+    if (freshRun) {
+      return freshRun.id || freshRun.run_id || '';
+    }
+    return selectedRunId || 'current_workflow';
+  }, [activeRunningRun, selectedRunId, freshRun]);
+
   const filteredRuns = useMemo(() => {
     return runs.filter((r) => {
       if (!r) return false;
@@ -185,16 +238,24 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
       const rTargetJob = String(r.target_job || r.scope_job || '').trim().toUpperCase();
       const rScope = String(r.run_scope || '').toLowerCase();
 
+      // If this run is actively running, fresh (started within 60s), or is currently selected/viewed,
+      // keep it visible in filteredRuns so Cockpit can show it and the run picker keeps it
+      const isRunLive = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
+      const isCurrentSelected = String(currentRunId) === rid || String(selectedRunId) === rid;
+      const startTs = new Date(r.started_at || r.started || 0).getTime();
+      const isRecentlyStarted = startTs > 0 && (Date.now() - startTs) <= 60000;
+      if (isRunLive || isCurrentSelected || isRecentlyStarted) {
+        return true;
+      }
+
       if (scope.type === 'xml') {
-        // Must NOT be a targeted single-job run
-        if (rTargetJob) return false;
-        if (rScope === 'job' || rScope === 'workflow') return false;
-        if (rScope === 'batch' || rScope === 'xml') return true;
-        // If folder is one of the specific sub-workflow folders, it was a workflow-specific run!
-        if (rFolder && allFolderNames.has(rFolder)) return false;
-        // Check if run_id starts with a known sub-workflow folder name
+        // Must NOT be a targeted single-job run of a different XML
+        if (rTargetJob && jobToFolderMap.has(rTargetJob) && !allFolderNames.has(jobToFolderMap.get(rTargetJob))) return false;
+        // Keep all XML batch runs and all runs belonging to this XML's sub-workflows
+        if (rScope === 'batch' || rScope === 'xml' || (!rFolder && !rTargetJob)) return true;
+        if (rFolder && allFolderNames.has(rFolder)) return true;
         for (const kf of allFolderNames) {
-          if (rid.toUpperCase().startsWith(`${kf}-`)) return false;
+          if (rid.toUpperCase().startsWith(`${kf}-`)) return true;
         }
         return true;
       }
@@ -221,54 +282,46 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
 
       return true;
     });
-  }, [runs, scope.type, scope.folder, allFolderNames, jobToFolderMap]);
+  }, [runs, scope.type, scope.folder, allFolderNames, jobToFolderMap, currentRunId, selectedRunId, tick]);
 
-  // A run that started recently (within 60s), even if it already completed (e.g. short job finished in 2-3s)
-  const freshRun = useMemo(() => findFreshRun(filteredRuns, Date.now()), [filteredRuns, tick]);
-
-  const activeRunningRun = filteredRuns.find((r) => {
-    const isRun = ['RUNNING', 'PAUSED', 'QUEUED'].includes(String(r.status || '').toUpperCase());
-    if (!isRun) return false;
-    if (r.started_at || r.started) {
-      const ageMs = Date.now() - new Date(r.started_at || r.started).getTime();
-      if (ageMs > 30 * 60 * 1000) return false;
-    }
-    return true;
-  });
-
-  // Whenever any run is actively running, auto-select it immediately
+  // Whenever any run is actively running, auto-select it immediately and automatically show current run overview ONCE when it becomes active
   useEffect(() => {
     if (activeRunningRun) {
-      const activeId = activeRunningRun.id || activeRunningRun.run_id || '';
-      if (activeId && selectedRunId !== activeId) {
+      const activeId = String(activeRunningRun.id || activeRunningRun.run_id || '');
+      if (activeId && String(lastActiveRunIdRef.current) !== activeId) {
+        lastActiveRunIdRef.current = activeId;
         setSelectedRunId(activeId);
+        setActiveView('overview');
+        if (activeRunningRun.folder) {
+          setScope((prev) => {
+            if (prev.type === 'xml') {
+              return { type: 'workflow', folder: activeRunningRun.folder };
+            }
+            return prev;
+          });
+        }
       }
     }
-  }, [activeRunningRun?.id, activeRunningRun?.run_id, selectedRunId]);
+  }, [activeRunningRun]);
 
   // If no run is actively running, but a fresh run completed, select it if nothing else or current_workflow is selected
   useEffect(() => {
     if (!activeRunningRun && freshRun && (!selectedRunId || selectedRunId === 'current_workflow')) {
-      const freshId = freshRun.id || freshRun.run_id || '';
+      const freshId = String(freshRun.id || freshRun.run_id || '');
       if (freshId) {
         setSelectedRunId(freshId);
+        if (freshRun.folder && String(lastActiveRunIdRef.current) !== freshId) {
+          lastActiveRunIdRef.current = freshId;
+          setScope((prev) => {
+            if (prev.type === 'xml') {
+              return { type: 'workflow', folder: freshRun.folder };
+            }
+            return prev;
+          });
+        }
       }
     }
-  }, [activeRunningRun, freshRun?.id, freshRun?.run_id, selectedRunId]);
-
-  // Active running run ALWAYS takes top priority for currentRunId
-  const currentRunId = useMemo(() => {
-    if (activeRunningRun) {
-      return activeRunningRun.id || activeRunningRun.run_id || '';
-    }
-    if (selectedRunId && selectedRunId !== 'current_workflow') {
-      return selectedRunId;
-    }
-    if (freshRun) {
-      return freshRun.id || freshRun.run_id || '';
-    }
-    return selectedRunId || 'current_workflow';
-  }, [activeRunningRun, selectedRunId, freshRun]);
+  }, [activeRunningRun, freshRun, selectedRunId]);
 
   const isViewingCurrentWorkflow = currentRunId === 'current_workflow';
 
@@ -934,11 +987,22 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
         toast.success(typeof okText === 'function' ? okText(answer) : okText);
         await runsList.reload(true);
         const newRunId = answer.result?.runs?.[0]?.run_id;
+        const newRunFolder = answer.result?.runs?.[0]?.folder;
         if (newRunId) {
           setSelectedRunId(newRunId);
         }
+        if (newRunFolder) {
+          setScope({ type: 'workflow', folder: newRunFolder });
+        }
         await runDetail.reload(true);
-        setActiveView('flow');
+        setActiveView('overview');
+        if (newRunId) {
+          window.dispatchEvent(
+            new CustomEvent('eod-run-triggered', {
+              detail: { runId: newRunId, folder: newRunFolder, env },
+            }),
+          );
+        }
         return true;
       }
       if (answer && !['PENDING', 'CLAIMED'].includes(answer.status)) {
@@ -1114,6 +1178,12 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
   const handleSelectRun = (runId) => {
     setSelectedRunId(runId);
     setSelectedJobName(null);
+    if (runId && runId !== 'current_workflow') {
+      const matchingRun = runs.find((r) => String(r.id || r.run_id) === String(runId));
+      if (matchingRun?.folder && allFolderNames.has(matchingRun.folder.toUpperCase())) {
+        setScope((prev) => (prev.type === 'workflow' && prev.folder === matchingRun.folder ? prev : { type: 'workflow', folder: matchingRun.folder }));
+      }
+    }
   };
 
   // The newest run of this environment, offered by the Timeline when the current workflow has not run yet
@@ -1294,9 +1364,10 @@ export function CockpitTab({ env, onNavigateSection } = {}) {
                   const rid = r.id || r.run_id;
                   const rstat = r.status || 'Unknown';
                   const rstart = r.started_at || r.started;
+                  const labelPrefix = r.name && r.name !== 'EOD Batch Run' ? `${r.name} · ` : '';
                   return (
                     <option key={rid} value={rid}>
-                      #{rid} · {rstat} · {formatClockTime(rstart)}
+                      {labelPrefix}#{rid} · {rstat} · {formatRunOptionTime(rstart)}
                       {String(currentRunId) === String(rid) ? ' (viewing)' : ''}
                     </option>
                   );

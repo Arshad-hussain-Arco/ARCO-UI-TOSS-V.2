@@ -210,6 +210,36 @@ export function SchedulesNewSection({ selectedEnv }) {
     return () => clearInterval(timer);
   }, [pollIntervalMs, refresh]);
 
+  const knownRunIdsRef = useRef(new Set());
+  const initialSchedulesRef = useRef(false);
+
+  // When any schedule triggers a new run, dispatch eod-run-triggered so CockpitTab opens and displays it
+  useEffect(() => {
+    if (!schedules.length) return;
+    if (!initialSchedulesRef.current) {
+      schedules.forEach((s) => {
+        if (s.last_run_id) knownRunIdsRef.current.add(String(s.last_run_id));
+      });
+      initialSchedulesRef.current = true;
+      return;
+    }
+    for (const s of schedules) {
+      if (
+        s.last_run_id &&
+        s.last_status === 'RUNNING' &&
+        !knownRunIdsRef.current.has(String(s.last_run_id))
+      ) {
+        knownRunIdsRef.current.add(String(s.last_run_id));
+        window.dispatchEvent(
+          new CustomEvent('eod-run-triggered', {
+            detail: { runId: s.last_run_id, folder: s.folder, env: selectedEnv },
+          }),
+        );
+        break;
+      }
+    }
+  }, [schedules, selectedEnv]);
+
   const today = new Date().getDay();
 
   // Pause / resume / stop act on the run the schedule last started (the same run controls as the Runs tab).
@@ -248,6 +278,7 @@ export function SchedulesNewSection({ selectedEnv }) {
     const targetId = deleting?.id;
     try {
       await svc.deleteSchedule(selectedEnv, targetId);
+      setSchedules((prev) => (Array.isArray(prev) ? prev.filter((s) => s.id !== targetId) : []));
       setDeleting(null);
       toast.success('Schedule deleted.');
       try {
@@ -764,7 +795,21 @@ export function SchedulesNewSection({ selectedEnv }) {
                       </div>
                       <div
                         className="sc-last-result-col"
-                        title={s.last_fire_at ? `Last run: ${fmtDateTime(s.last_fire_at)}` : ''}
+                        title={
+                          s.last_fire_at
+                            ? `Last run: ${fmtDateTime(s.last_fire_at)}${s.last_run_id ? ' (Click to view in Control Run Cockpit)' : ''}`
+                            : ''
+                        }
+                        style={s.last_run_id ? { cursor: 'pointer' } : {}}
+                        onClick={() => {
+                          if (s.last_run_id) {
+                            window.dispatchEvent(
+                              new CustomEvent('eod-run-triggered', {
+                                detail: { runId: s.last_run_id, folder: s.folder, env: selectedEnv },
+                              }),
+                            );
+                          }
+                        }}
                       >
                         <span className="sc-fact-text">
                           {s.last_status
