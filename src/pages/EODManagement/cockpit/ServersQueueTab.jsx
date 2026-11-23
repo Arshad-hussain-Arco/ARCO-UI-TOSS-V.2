@@ -9,9 +9,13 @@ import {
   Search,
   ArrowRight,
   Globe,
+  Maximize2,
+  CheckCircle2,
 } from 'lucide-react';
 import { usePolling } from '../scheduler/useResource';
 import { eodSchedulerService as svc } from '@services/eodSchedulerService';
+import { AdminModal } from '@components/ui/AdminModal/AdminModal';
+import { Button } from '@components/ui/Button/Button';
 
 export function ServersQueueTab({
   env = null,
@@ -23,6 +27,7 @@ export function ServersQueueTab({
   const [serverSearch, setServerSearch] = useState('');
   const [queueFilter, setQueueFilter] = useState('ALL'); // 'ALL' | 'RUNNING' | 'SLOT_WAIT' | 'DEP_WAIT'
   const [queueSearch, setQueueSearch] = useState('');
+  const [inspectIp, setInspectIp] = useState(null);
 
   const fetchTelemetry = async () => {
     try {
@@ -142,6 +147,11 @@ export function ServersQueueTab({
       };
     });
   }, [rawServers, telemetry?.environment, env]);
+
+  const inspectServer = useMemo(
+    () => normalizedServers.find((s) => s.display_ip === inspectIp) || null,
+    [normalizedServers, inspectIp],
+  );
 
   // Distinct environments across all servers for filter dropdown
   const allEnvironmentCodes = useMemo(() => {
@@ -474,6 +484,17 @@ export function ServersQueueTab({
               const activeJobs = srv.active_jobs || [];
               const queuedJobs = srv.queued_jobs || [];
 
+              const activeEnvs = envs.filter(
+                (e) =>
+                  e.status === 'RUNNING' ||
+                  e.status === 'QUEUED' ||
+                  (e.running_workflows_count || 0) > 0 ||
+                  (e.running_jobs_count || 0) > 0,
+              );
+              const idleEnvs = envs.filter(
+                (e) => !activeEnvs.some((ae) => ae.code === e.code),
+              );
+
               // Collect target alias names for secondary display
               const aliases = Array.from(
                 new Set(envs.map((e) => e.target_name).filter(Boolean)),
@@ -486,26 +507,37 @@ export function ServersQueueTab({
                     isFull ? 'is-full' : isBusy ? 'is-busy' : used > 0 ? 'is-active' : ''
                   }`}
                 >
-                  {/* Server Header: IP Address Prominently Shown */}
+                  {/* Server Header: IP Address Prominently Shown + Pop-out button */}
                   <div className="cr-sq-sc-head">
                     <div className="cr-sq-sc-ip-row">
                       <div className="cr-sq-sc-ip">
                         <Server size={16} />
                         <span>{srv.display_ip}</span>
                       </div>
-                      <span
-                        className={`cr-sq-status-pill ${
-                          isFull
-                            ? 'pill-full'
-                            : isBusy
-                            ? 'pill-busy'
-                            : used > 0
-                            ? 'pill-active'
-                            : 'pill-idle'
-                        }`}
-                      >
-                        {isFull ? 'AT CAPACITY' : isBusy ? 'BUSY' : used > 0 ? 'ACTIVE' : 'IDLE'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          className={`cr-sq-status-pill ${
+                            isFull
+                              ? 'pill-full'
+                              : isBusy
+                              ? 'pill-busy'
+                              : used > 0
+                              ? 'pill-active'
+                              : 'pill-idle'
+                          }`}
+                        >
+                          {isFull ? 'AT CAPACITY' : isBusy ? 'BUSY' : used > 0 ? 'ACTIVE' : 'IDLE'}
+                        </span>
+                        <button
+                          type="button"
+                          className="cr-btn-sq-popout"
+                          onClick={() => setInspectIp(srv.display_ip)}
+                          title={`Open full pop-out view for ${srv.display_ip}`}
+                        >
+                          <Maximize2 size={11} />
+                          <span>Pop-out View</span>
+                        </button>
+                      </div>
                     </div>
                     {aliases && (
                       <div className="cr-sq-sc-alias">
@@ -532,20 +564,112 @@ export function ServersQueueTab({
                     </div>
                   </div>
 
-                  {/* ── Associated Environments Breakdown ── */}
+                  {/* ── Active Executing Jobs on this Server (Active-First) ── */}
+                  <div className="cr-sq-jobs-block">
+                    <div className="cr-sq-block-title">
+                      <Activity size={12} />
+                      <span>Currently Executing Jobs ({activeJobs.length})</span>
+                    </div>
+                    {activeJobs.length === 0 ? (
+                      <div className="cr-sq-idle-exec-strip">
+                        <CheckCircle2 size={13} className="cr-sq-idle-icon" />
+                        <span>
+                          No jobs currently executing · {max !== null ? max - used : '∞'} free slots
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="cr-sq-jobs-table-wrap">
+                        <table className="cr-sq-table">
+                          <thead>
+                            <tr>
+                              <th>Env</th>
+                              <th>Job Name</th>
+                              <th>Workflow</th>
+                              <th>Duration</th>
+                              <th>Run ID</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeJobs.map((j) => (
+                              <tr key={`${j.run_id}-${j.job}`}>
+                                <td>
+                                  <span className="cr-sq-folder-badge">{j.partition || '—'}</span>
+                                </td>
+                                <td className="mono font-semibold">
+                                  <span className="cr-sq-job-link">{j.job}</span>
+                                </td>
+                                <td>
+                                  <span className="cr-sq-folder-badge">{j.folder}</span>
+                                </td>
+                                <td>
+                                  {j.elapsed_seconds != null ? `${j.elapsed_seconds}s` : '—'}
+                                </td>
+                                <td className="mono text-muted text-xs">#{j.run_id}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Queued Jobs for this Server */}
+                  {queuedJobs.length > 0 && (
+                    <div className="cr-sq-queued-block">
+                      <div className="cr-sq-block-title warning">
+                        <Clock size={12} />
+                        <span>Queued for this Server ({queuedJobs.length})</span>
+                      </div>
+                      <div className="cr-sq-queued-list">
+                        {queuedJobs.slice(0, 3).map((qj) => (
+                          <div key={`${qj.run_id}-${qj.job}`} className="cr-sq-queued-item">
+                            <div className="cr-sq-qi-top">
+                              <span className="cr-sq-qi-job mono">
+                                {qj.partition ? `[${qj.partition}] ` : ''}
+                                {qj.job}
+                              </span>
+                              <span
+                                className={`cr-sq-qi-tag ${
+                                  qj.is_slot_wait ? 'tag-slot' : 'tag-dep'
+                                }`}
+                              >
+                                {qj.is_slot_wait ? 'Slot Wait' : 'Prereq Wait'}
+                              </span>
+                            </div>
+                            {qj.reason && <div className="cr-sq-qi-reason">{qj.reason}</div>}
+                          </div>
+                        ))}
+                        {queuedJobs.length > 3 && (
+                          <button
+                            type="button"
+                            className="cr-sq-more-btn"
+                            onClick={() => setInspectIp(srv.display_ip)}
+                          >
+                            + {queuedJobs.length - 3} more queued jobs (open pop-out ↗)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Associated Environments (Compact Summary) ── */}
                   <div className="cr-sq-envs-section">
                     <div className="cr-sq-envs-section-head">
                       <span>Associated Environments ({envs.length})</span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--cr-text-muted)' }}>
-                        Status & Workflows
-                      </span>
+                      <button
+                        type="button"
+                        className="cr-sq-view-all-link"
+                        onClick={() => setInspectIp(srv.display_ip)}
+                        title="View all environments with full details in pop-out"
+                      >
+                        Full Details ({envs.length}) ↗
+                      </button>
                     </div>
 
-                    <div className="cr-sq-envs-list">
-                      {envs.length === 0 ? (
-                        <div className="cr-sq-muted-text">No environments mapped to this server.</div>
-                      ) : (
-                        envs.map((envItem) => {
+                    {/* Active Environments: Displayed Prominently */}
+                    {activeEnvs.length > 0 && (
+                      <div className="cr-sq-envs-list">
+                        {activeEnvs.map((envItem) => {
                           const isEnvRunning = envItem.status === 'RUNNING';
                           const isEnvQueued = envItem.status === 'QUEUED';
                           const wfCount = envItem.running_workflows_count || 0;
@@ -599,14 +723,10 @@ export function ServersQueueTab({
                               </div>
 
                               <div className="cr-sq-env-stats-row">
-                                <span
-                                  className={`cr-sq-env-wf-count ${
-                                    wfCount > 0 ? 'is-running' : ''
-                                  }`}
-                                >
+                                <span className="cr-sq-env-wf-count is-running">
                                   {wfCount > 0
                                     ? `${wfCount} Workflow${wfCount === 1 ? '' : 's'} Running`
-                                    : '0 Workflows Running'}
+                                    : 'Active Workloads'}
                                 </span>
                                 <span>
                                   {envItem.running_jobs_count || 0} active job{envItem.running_jobs_count === 1 ? '' : 's'} · {envItem.queued_jobs_count || 0} queued
@@ -624,88 +744,42 @@ export function ServersQueueTab({
                               )}
                             </div>
                           );
-                        })
-                      )}
-                    </div>
-                  </div>
+                        })}
+                      </div>
+                    )}
 
-                  {/* Active Executing Jobs on this Server */}
-                  <div className="cr-sq-jobs-block">
-                    <div className="cr-sq-block-title">
-                      <span>Currently Executing Jobs ({activeJobs.length})</span>
-                    </div>
-                    {activeJobs.length === 0 ? (
-                      <div className="cr-sq-empty-jobs">No jobs actively running on this host.</div>
-                    ) : (
-                      <div className="cr-sq-jobs-table-wrap">
-                        <table className="cr-sq-table">
-                          <thead>
-                            <tr>
-                              <th>Env</th>
-                              <th>Job Name</th>
-                              <th>Workflow</th>
-                              <th>Duration</th>
-                              <th>Run ID</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {activeJobs.map((j) => (
-                              <tr key={`${j.run_id}-${j.job}`}>
-                                <td>
-                                  <span className="cr-sq-folder-badge">{j.partition || '—'}</span>
-                                </td>
-                                <td className="mono font-semibold">
-                                  <span className="cr-sq-job-link">{j.job}</span>
-                                </td>
-                                <td>
-                                  <span className="cr-sq-folder-badge">{j.folder}</span>
-                                </td>
-                                <td>
-                                  {j.elapsed_seconds != null ? `${j.elapsed_seconds}s` : '—'}
-                                </td>
-                                <td className="mono text-muted text-xs">#{j.run_id}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    {/* Idle Environments: Displayed as a neat, space-saving 2-column chip grid */}
+                    {idleEnvs.length > 0 && (
+                      <div className="cr-sq-idle-envs-grid">
+                        {idleEnvs.map((envItem) => (
+                          <div key={envItem.code} className="cr-sq-env-compact-chip">
+                            <div className="cr-sq-chip-info">
+                              <span className="cr-sq-compact-badge">{envItem.code}</span>
+                              <span
+                                className="cr-sq-compact-name"
+                                title={envItem.name && envItem.name !== envItem.code ? `${envItem.name} (${envItem.code})` : envItem.code}
+                              >
+                                {envItem.name && envItem.name !== envItem.code
+                                  ? envItem.name
+                                  : envItem.code}
+                              </span>
+                            </div>
+                            {onNavigateEnv && (
+                              <button
+                                type="button"
+                                className="cr-btn-compact-cockpit"
+                                onClick={() => onNavigateEnv(envItem.code)}
+                                title={`Open Cockpit for ${envItem.code}`}
+                              >
+                                <span>Cockpit</span>
+                                <ArrowRight size={9} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-
-                  {/* Queued Jobs for this Server */}
-                  {queuedJobs.length > 0 && (
-                    <div className="cr-sq-queued-block">
-                      <div className="cr-sq-block-title warning">
-                        <Clock size={12} />
-                        <span>Queued for this Server ({queuedJobs.length})</span>
-                      </div>
-                      <div className="cr-sq-queued-list">
-                        {queuedJobs.slice(0, 5).map((qj) => (
-                          <div key={`${qj.run_id}-${qj.job}`} className="cr-sq-queued-item">
-                            <div className="cr-sq-qi-top">
-                              <span className="cr-sq-qi-job mono">
-                                {qj.partition ? `[${qj.partition}] ` : ''}
-                                {qj.job}
-                              </span>
-                              <span
-                                className={`cr-sq-qi-tag ${
-                                  qj.is_slot_wait ? 'tag-slot' : 'tag-dep'
-                                }`}
-                              >
-                                {qj.is_slot_wait ? 'Slot Wait' : 'Prereq Wait'}
-                              </span>
-                            </div>
-                            {qj.reason && <div className="cr-sq-qi-reason">{qj.reason}</div>}
-                          </div>
-                        ))}
-                        {queuedJobs.length > 5 && (
-                          <div className="cr-sq-more-text">
-                            + {queuedJobs.length - 5} more queued jobs
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })
@@ -831,6 +905,279 @@ export function ServersQueueTab({
           )}
         </div>
       </div>
+
+      {/* ── Pop-out Inspect Modal for Server & Environments ── */}
+      <AdminModal
+        isOpen={Boolean(inspectServer)}
+        onClose={() => setInspectIp(null)}
+        title={`Server Host: ${inspectServer?.display_ip || ''}`}
+        size="xl"
+        footer={
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
+            <span style={{ fontSize: '12px', color: 'var(--cr-text-muted, #64748b)' }}>
+              Target Port: {inspectServer?.port || 22} · Host ID: #{inspectServer?.host_id || '—'}
+            </span>
+            <Button variant="secondary" onClick={() => setInspectIp(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {inspectServer && (
+          <div className="cr-sq-modal-content">
+            {/* Modal Hero Metric Bar */}
+            <div className="cr-sq-modal-hero">
+              <div className="cr-sq-modal-hero-left">
+                <div className="cr-sq-modal-ip">
+                  <Server size={18} />
+                  <span>{inspectServer.display_ip}</span>
+                  <span
+                    className={`cr-sq-status-pill ${
+                      inspectServer.is_busy
+                        ? 'pill-full'
+                        : inspectServer.load_percent >= 70
+                        ? 'pill-busy'
+                        : inspectServer.in_use > 0
+                        ? 'pill-active'
+                        : 'pill-idle'
+                    }`}
+                  >
+                    {inspectServer.is_busy
+                      ? 'AT CAPACITY'
+                      : inspectServer.load_percent >= 70
+                      ? 'BUSY'
+                      : inspectServer.in_use > 0
+                      ? 'ACTIVE'
+                      : 'IDLE'}
+                  </span>
+                </div>
+                {inspectServer.environments?.length > 0 && (
+                  <div className="cr-sq-modal-aliases">
+                    Target Aliases:{' '}
+                    <strong>
+                      {Array.from(
+                        new Set(
+                          inspectServer.environments.map((e) => e.target_name).filter(Boolean),
+                        ),
+                      ).join(', ') || 'Default'}
+                    </strong>{' '}
+                    (Port {inspectServer.port})
+                  </div>
+                )}
+              </div>
+
+              <div className="cr-sq-modal-hero-right">
+                <div className="cr-sq-modal-metric">
+                  <span className="cr-sq-modal-metric-num">
+                    {inspectServer.in_use} / {inspectServer.max_concurrent ?? '∞'}
+                  </span>
+                  <span className="cr-sq-modal-metric-lbl">
+                    Slots In Use ({inspectServer.load_percent}%)
+                  </span>
+                </div>
+                <div className="cr-sq-modal-metric">
+                  <span className="cr-sq-modal-metric-num">
+                    {inspectServer.environments?.length || 0}
+                  </span>
+                  <span className="cr-sq-modal-metric-lbl">Mapped Environments</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Section: Currently Executing Jobs */}
+            <div className="cr-sq-modal-section">
+              <div className="cr-sq-modal-section-title">
+                <Activity size={14} />
+                <span>Currently Executing Jobs ({inspectServer.active_jobs?.length || 0})</span>
+              </div>
+              {!inspectServer.active_jobs?.length ? (
+                <div
+                  className="cr-sq-empty-jobs"
+                  style={{
+                    padding: '12px 14px',
+                    background: '#f8fafc',
+                    borderRadius: '6px',
+                    border: '1px dashed #cbd5e1',
+                    fontSize: '12px',
+                  }}
+                >
+                  <CheckCircle2
+                    size={14}
+                    style={{ color: '#16a34a', display: 'inline', marginRight: '6px' }}
+                  />
+                  No jobs actively executing on this host right now. All{' '}
+                  {inspectServer.max_concurrent ?? '∞'} slots are free.
+                </div>
+              ) : (
+                <div className="cr-sq-jobs-table-wrap">
+                  <table className="cr-sq-table">
+                    <thead>
+                      <tr>
+                        <th>Env</th>
+                        <th>Job Name</th>
+                        <th>Workflow</th>
+                        <th>Duration</th>
+                        <th>Run ID</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inspectServer.active_jobs.map((j) => (
+                        <tr key={`${j.run_id}-${j.job}`}>
+                          <td>
+                            <span className="cr-sq-folder-badge">{j.partition || '—'}</span>
+                          </td>
+                          <td className="mono font-semibold">{j.job}</td>
+                          <td>
+                            <span className="cr-sq-folder-badge">{j.folder}</span>
+                          </td>
+                          <td>{j.elapsed_seconds != null ? `${j.elapsed_seconds}s` : '—'}</td>
+                          <td className="mono text-muted text-xs">#{j.run_id}</td>
+                          <td>
+                            {onNavigateEnv && (
+                              <button
+                                type="button"
+                                className="cr-btn-sq-open-cockpit"
+                                onClick={() => {
+                                  setInspectIp(null);
+                                  onNavigateEnv(j.partition);
+                                }}
+                              >
+                                View in Cockpit →
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Section: Queued Jobs (if any) */}
+            {inspectServer.queued_jobs?.length > 0 && (
+              <div className="cr-sq-modal-section">
+                <div className="cr-sq-modal-section-title warning" style={{ color: '#b45309' }}>
+                  <Clock size={14} />
+                  <span>Queued Jobs for this Server ({inspectServer.queued_jobs.length})</span>
+                </div>
+                <div className="cr-sq-queued-list">
+                  {inspectServer.queued_jobs.map((qj) => (
+                    <div key={`${qj.run_id}-${qj.job}`} className="cr-sq-queued-item">
+                      <div className="cr-sq-qi-top">
+                        <span className="cr-sq-qi-job mono">
+                          {qj.partition ? `[${qj.partition}] ` : ''}
+                          {qj.job}
+                        </span>
+                        <span
+                          className={`cr-sq-qi-tag ${
+                            qj.is_slot_wait ? 'tag-slot' : 'tag-dep'
+                          }`}
+                        >
+                          {qj.is_slot_wait ? 'Slot Wait' : 'Prereq Wait'}
+                        </span>
+                      </div>
+                      {qj.reason && <div className="cr-sq-qi-reason">{qj.reason}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Section: All Associated Environments (Full 2-Column Cards Grid) */}
+            <div className="cr-sq-modal-section">
+              <div className="cr-sq-modal-section-title">
+                <Layers size={14} />
+                <span>All Associated Environments ({inspectServer.environments?.length || 0})</span>
+              </div>
+              <div className="cr-sq-modal-envs-grid">
+                {(inspectServer.environments || []).map((envItem) => {
+                  const isEnvRunning = envItem.status === 'RUNNING';
+                  const isEnvQueued = envItem.status === 'QUEUED';
+                  const wfCount = envItem.running_workflows_count || 0;
+                  const wfNames = envItem.running_workflows || [];
+
+                  return (
+                    <div
+                      key={envItem.code}
+                      className={`cr-sq-env-card ${
+                        isEnvRunning ? 'is-running' : isEnvQueued ? 'is-queued' : 'is-idle'
+                      }`}
+                    >
+                      <div className="cr-sq-env-card-top">
+                        <div className="cr-sq-env-title-group">
+                          <span className="cr-sq-env-code-badge">{envItem.code}</span>
+                          <span className="cr-sq-env-name-text">
+                            {envItem.name && envItem.name !== envItem.code
+                              ? envItem.name
+                              : envItem.code}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span
+                            className={`cr-sq-env-status-badge ${
+                              isEnvRunning
+                                ? 'status-running'
+                                : isEnvQueued
+                                ? 'status-queued'
+                                : 'status-idle'
+                            }`}
+                          >
+                            {isEnvRunning ? 'Running' : isEnvQueued ? 'Queued' : 'Idle'}
+                          </span>
+                          {onNavigateEnv && (
+                            <button
+                              type="button"
+                              className="cr-btn-sq-open-cockpit"
+                              onClick={() => {
+                                setInspectIp(null);
+                                onNavigateEnv(envItem.code);
+                              }}
+                              title={`Switch to ${envItem.code} in Cockpit`}
+                            >
+                              Cockpit <ArrowRight size={10} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="cr-sq-env-stats-row">
+                        <span className={`cr-sq-env-wf-count ${wfCount > 0 ? 'is-running' : ''}`}>
+                          {wfCount > 0
+                            ? `${wfCount} Workflow${wfCount === 1 ? '' : 's'} Running`
+                            : '0 Workflows Running'}
+                        </span>
+                        <span>
+                          {envItem.running_jobs_count || 0} active jobs ·{' '}
+                          {envItem.queued_jobs_count || 0} queued
+                        </span>
+                      </div>
+
+                      {wfNames.length > 0 && (
+                        <div className="cr-sq-env-wf-names">
+                          {wfNames.map((wName) => (
+                            <span key={wName} className="cr-sq-env-wf-chip active-wf">
+                              <Cpu size={10} /> {wName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </AdminModal>
     </div>
   );
 }
