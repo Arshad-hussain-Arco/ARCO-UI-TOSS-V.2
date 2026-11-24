@@ -1,0 +1,18 @@
+/* Control Run Cockpit, Flow tab: hosts the Workflow tab's graph (DependencyGraph). */
+.cr-flow-container {
+  min-height: 700px;
+}
+
+.cr-rf-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 480px;
+  padding: 10px 12px 12px;
+  box-sizing: border-box;
+}
+
+.cr-rf-wrap .rf-graph-container {
+  flex: 1;
+  height: auto;
+  min-height: 480px;
+}
