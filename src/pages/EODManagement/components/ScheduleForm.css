@@ -785,3 +785,65 @@
   background: var(--c-primary, #005a36);
   color: #ffffff;
 }
+
+/* Add the same schedule to several profiles at once */
+.schf-multi-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #d7e3dc);
+  border-radius: 8px;
+  background: #f4f9f6;
+}
+.schf-multi-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.schf-multi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 12px;
+}
+.schf-multi-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.schf-multi-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Keep the Scheduled Runs header in view while the list scrolls (.eod-body is the scroller, padding 12px 16px) */
+.eodp-sticky-bar {
+  position: sticky;
+  top: -12px;
+  z-index: 20;
+  margin: -12px -16px 0;
+  padding: 12px 16px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary, #e2e8f0);
+}
+.eodp-sidebar {
+  top: 76px;
+  max-height: calc(100vh - 210px);
+}
+
+/* The search / filter toolbar stays in view just below the sticky header */
+.eodp-main > .eodp-toolbar {
+  position: sticky;
+  top: calc(var(--eodp-bar-h, 56px) - 12px + 8px);
+  z-index: 15;
+}
+.eodp-sidebar {
+  top: calc(var(--eodp-bar-h, 56px) - 12px + 8px);
+}
+
+/* Paint the gap above the pinned toolbar so scrolled rows do not show through between it and the header */
+.eodp-main > .eodp-toolbar {
+  box-shadow: 0 -10px 0 0 var(--bg-secondary), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
