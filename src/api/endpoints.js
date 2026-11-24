@@ -286,62 +286,6 @@ const endpoints = {
     groupUpdate: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/update/`,
     groupDelete: (groupId) => `/eod-schedules/eod-schedules/group/${groupId}/delete/`,
   },
-  // Control-M style EOD scheduler (backend app eod_scheduler). Everything except the environment list is scoped to one environment code.
-  eodScheduler: {
-    environments: '/eod-scheduler/environments/',
-    environment: (env) => `/eod-scheduler/environments/${encodeURIComponent(env)}/`,
-    workflow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/`,
-    upload: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/upload/`,
-    approve: (env) => `/eod-scheduler/${encodeURIComponent(env)}/workflow/approve/`,
-    settings: (env) => `/eod-scheduler/${encodeURIComponent(env)}/settings/`,
-    schedule: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedule/`,
-    scheduler: (env) => `/eod-scheduler/${encodeURIComponent(env)}/scheduler/`,
-    runs: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/`,
-    run: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/`,
-    runLog: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/log/`,
-    runCancel: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/cancel/`,
-    runPause: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/pause/`,
-    runResume: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/runs/${encodeURIComponent(id)}/resume/`,
-    runNow: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/run-now/`,
-    recordExecution: (env) => `/eod-scheduler/${encodeURIComponent(env)}/runs/record-execution/`,
-    command: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/commands/${id}/`,
-    workflowItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/`,
-    workflowActivate: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/activate/`,
-    workflowFolders: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/`,
-    workflowFolder: (env, id, folder) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/`,
-    workflowJobs: (env, id, folder) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/jobs/`,
-    workflowJob: (env, id, folder, job) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/workflows/${id}/folders/${encodeURIComponent(folder)}/jobs/${encodeURIComponent(job)}/`,
-    targets: (env) => `/eod-scheduler/${encodeURIComponent(env)}/targets/`,
-    target: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/`,
-    targetSecret: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/targets/${encodeURIComponent(id)}/secret/`,
-    nodeMappings: (env) => `/eod-scheduler/${encodeURIComponent(env)}/node-mappings/`,
-    readiness: (env) => `/eod-scheduler/${encodeURIComponent(env)}/ssh-readiness/`,
-    // Control Run Cockpit
-    cockpitRuns: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/`,
-    cockpitRun: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/run/${id ? `${encodeURIComponent(id)}/` : ''}`,
-    cockpitDefinition: (env) => `/eod-scheduler/${encodeURIComponent(env)}/cockpit/definition/`,
-    xmlTree: (env) => `/eod-scheduler/${encodeURIComponent(env)}/xml-tree/`,
-    jobClosure: (env) => `/eod-scheduler/${encodeURIComponent(env)}/job-closure/`,
-    schedules: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/`,
-    schedulePreview: (env) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/preview/`,
-    scheduleItem: (env, id) => `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/`,
-    scheduleRunNow: (env, id) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/schedules/${encodeURIComponent(id)}/run-now/`,
-    profiles: (env) => `/eod-scheduler/${encodeURIComponent(env)}/profiles/`,
-    profileItem: (env, id) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/profiles/${encodeURIComponent(id)}/`,
-    cockpitJobAction: (env, runId, jobName, action) =>
-      `/eod-scheduler/${encodeURIComponent(env)}/cockpit/runs/${encodeURIComponent(runId)}/jobs/${encodeURIComponent(jobName)}/${encodeURIComponent(action)}/`,
-    liveTelemetry: (env) => `/eod-scheduler/${encodeURIComponent(env)}/telemetry/live/`,
-    globalTelemetry: '/eod-scheduler/telemetry/global/',
-    jobMetrics: (env, job) => `/eod-scheduler/${encodeURIComponent(env)}/jobs/${encodeURIComponent(job)}/metrics/`,
-    jobHistory: (env, job) => `/eod-scheduler/${encodeURIComponent(env)}/jobs/${encodeURIComponent(job)}/history/`,
-    workflowMetrics: (env, folder) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${encodeURIComponent(folder)}/metrics/`,
-    workflowHistory: (env, folder) => `/eod-scheduler/${encodeURIComponent(env)}/workflows/${encodeURIComponent(folder)}/history/`,
-  },
 };
 
 export default endpoints;

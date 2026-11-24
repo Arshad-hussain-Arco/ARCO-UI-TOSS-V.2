@@ -155,11 +155,7 @@ export function formToCron(form) {
     return `${min} ${hour} ${dom} ${mon} *`;
   }
 
-  if (
-    form.recurrence === 'Specific Date & Time' ||
-    form.recurrence === 'Specific Date & Time (Calendar)' ||
-    form.recurrence === 'Custom / One-time'
-  ) {
+  if (form.recurrence === 'Custom / One-time') {
     const dateObj = form.selectedDate ? new Date(form.selectedDate) : new Date();
     const dom = dateObj.getDate();
     const mon = dateObj.getMonth() + 1;
@@ -302,7 +298,7 @@ export function cronToHuman(cronStr, defaultTime = '22:00') {
       ? `Last Day of ${monthNames[monthNum - 1]}`
       : `${dayNames[dateObj.getDay()]} ${dateObj.getDate()} ${monthNames[dateObj.getMonth()]}`;
     return {
-      recurrence: 'Specific Date & Time',
+      recurrence: 'Annually',
       time,
       dateGroup: formatted,
       selectedDays: ['Monday'],

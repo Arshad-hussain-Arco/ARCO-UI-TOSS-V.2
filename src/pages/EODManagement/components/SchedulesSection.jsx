@@ -63,16 +63,14 @@ function formatDateGroup(dateVal) {
 }
 
 export function SchedulesSection() {
-  const toast = useToast();
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('EOD_SCHEDULE_CREATE');
   const canEdit = hasPermission('EOD_SCHEDULE_EDIT');
   const canDelete = hasPermission('EOD_SCHEDULE_DELETE');
 
-  const cachedSchedules = eodService.getCachedEodSchedules?.() || null;
-  const [scheduleList, setScheduleList] = useState(() => cachedSchedules || []);
-  const [environments, setEnvironments] = useState(() => eodService.getCachedEnvironments?.() || []);
-  const [isLoading, setIsLoading] = useState(() => !cachedSchedules || cachedSchedules.length === 0);
+  const [scheduleList, setScheduleList] = useState([]);
+  const [environments, setEnvironments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -80,11 +78,9 @@ export function SchedulesSection() {
   const [deleteConfirmSchedule, setDeleteConfirmSchedule] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  /** Fetch schedule records with instant stale-while-revalidate */
-  const fetchScheduleData = useCallback(async (isSilent = false) => {
-    if (!isSilent) {
-      setIsLoading(true);
-    }
+  /** Fetch schedule records only on page load */
+  const fetchScheduleData = useCallback(async () => {
+    setIsLoading(true);
     setError(null);
     try {
       const schedulesData = await eodService.getEodSchedules();
@@ -98,8 +94,7 @@ export function SchedulesSection() {
   }, []);
 
   useEffect(() => {
-    const hasCached = cachedSchedules && cachedSchedules.length > 0;
-    fetchScheduleData(hasCached);
+    fetchScheduleData();
   }, [fetchScheduleData]);
 
   /** Lazily load environments only when opening Add/Edit modal (uses lightweight API without SFTP overhead) */
@@ -187,16 +182,11 @@ export function SchedulesSection() {
     try {
       await eodService.deleteEodSchedule(id, groupId);
       setDeleteConfirmSchedule(null);
-      toast.success('Schedule deleted.');
-      try {
-        window.dispatchEvent(new CustomEvent('eod-schedules-updated', { detail: { deleted: id, groupId } }));
-      } catch {}
       await fetchScheduleData();
     } catch (err) {
       console.error('Failed to delete schedule:', err);
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to delete schedule on server');
+      setScheduleList((prev) => prev.filter((s) => s.id !== id));
       setDeleteConfirmSchedule(null);
-      await fetchScheduleData();
     } finally {
       setIsSaving(false);
     }
