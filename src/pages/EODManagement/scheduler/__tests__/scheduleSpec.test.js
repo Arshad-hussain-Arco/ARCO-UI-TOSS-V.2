@@ -145,9 +145,11 @@ test('past once date, past end date, and narrow date-range weekday filtering', (
   assert.equal(runsOnWeekday(narrow, 2), true);
   assert.equal(runsOnWeekday(narrow, 3), true);
   assert.equal(runsOnWeekday(narrow, 4), false);
-  // Paused yearly schedule falls back to start_date weekday when next_fire_at is null
-  const pausedYearly = { recurrence: { frequency: 'yearly', start_date: '2026-11-18' }, next_fire_at: null };
-  assert.equal(runsOnWeekday(pausedYearly, 3), true); // 2026-11-18 is Wednesday (3)
+  // Paused yearly schedule (next_fire_at null): its next run is worked out from the spec itself, not guessed
+  const pausedYearly = { recurrence: { frequency: 'yearly', day_of_month: 18, start_date: '2026-11-18', times: ['09:00'] }, next_fire_at: null };
+  assert.equal(runsOnWeekday(pausedYearly, 3, new Date(2026, 10, 10)), true); // 2026-11-18 is Wednesday (3)
+  assert.equal(runsOnWeekday(pausedYearly, 3, new Date(2026, 10, 20)), false); // next is 2027-11-18, a Thursday (4)
+  assert.equal(runsOnWeekday(pausedYearly, 4, new Date(2026, 10, 20)), true);
 });
 
 test('Smart / Anticipation Polling: 20s idle, 2s within ±60s of trigger, 90s post-save, or active run; drops back to 20s', () => {

@@ -102,6 +102,8 @@ export function ScheduleFormModal({
   const [preview, setPreview] = useState(null);
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [multiOpen, setMultiOpen] = useState(false);
+  const [multiSel, setMultiSel] = useState([]);
 
   const customProfiles = useMemo(() => profiles.filter((p) => p.custom), [profiles]);
 
@@ -346,6 +348,69 @@ export function ScheduleFormModal({
       } catch {}
     } catch (err) {
       setSaveError(errorText(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleMulti = (value) =>
+    setMultiSel((sel) => (sel.includes(value) ? sel.filter((v) => v !== value) : [...sel, value]));
+
+  // Create the same schedule once per ticked profile, each with that profile's own repeat kind.
+  const saveMulti = async () => {
+    if (!multiSel.length || saving || !(workflowId && folder) || (scope === 'job' && !job)) return;
+    setSaving(true);
+    setSaveError('');
+    const created = [];
+    const warnings = [];
+    try {
+      for (const value of multiSel) {
+        const opt = eodProfileOptions.find((o) => o.value === value);
+        let kind;
+        let profileId;
+        if (value.startsWith('custom:')) {
+          profileId = value.slice('custom:'.length);
+          const prof = customProfiles.find((p) => p.id === profileId);
+          kind = prof?.defaultKind || prof?.default_kind || 'daily';
+        } else {
+          kind = value.slice('kind:'.length);
+          profileId = STANDARD_PROFILE_CHOICES.find((c) => c.value === value)?.profileId || 'daily';
+        }
+        const kindRec = {
+          ...effectiveRec,
+          kind,
+          ...(kind === 'yearly' && dayFromIso(rec.startDate) ? { dayOfMonth: dayFromIso(rec.startDate) } : {}),
+        };
+        if (Object.keys(validateForm(kindRec)).length) {
+          throw new Error(`"${opt?.label || value}" needs more details; add it on its own.`);
+        }
+        try {
+          const saved = await svc.createSchedule(env, {
+            workflow_id: Number(workflowId),
+            folder,
+            job: scope === 'job' ? job : '',
+            name: name.trim(),
+            eod_profile: profileId,
+            enabled,
+            recurrence: formToSpec(kindRec),
+          });
+          created.push(saved);
+          (saved.warnings || []).forEach((w) => warnings.push(w));
+        } catch (err) {
+          throw new Error(
+            `${opt?.label || value}: ${errorText(err)}${created.length ? ` (${created.length} already added)` : ''}`,
+          );
+        }
+      }
+      onSaved({ count: created.length, warnings });
+      try {
+        window.dispatchEvent(new CustomEvent('eod-schedules-updated', { detail: created }));
+      } catch {
+        /* the event is only a refresh hint */
+      }
+    } catch (err) {
+      setSaveError(err.message || errorText(err));
+      if (created.length) onSaved({ count: created.length, warnings });
     } finally {
       setSaving(false);
     }
@@ -878,6 +943,46 @@ export function ScheduleFormModal({
           </div>
         )}
 
+        {multiOpen && (
+          <div className="schf-multi-panel" role="group" aria-label="Add to multiple profiles">
+            <div className="schf-multi-title">
+              {isEdit
+                ? 'Copy this schedule to more profiles (the original stays as it is)'
+                : 'Add this schedule to these profiles'}
+            </div>
+            <div className="schf-multi-grid">
+              {eodProfileOptions.map((o) => (
+                <label key={o.value} className="schf-multi-opt">
+                  <input
+                    type="checkbox"
+                    checked={multiSel.includes(o.value)}
+                    onChange={() => toggleMulti(o.value)}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="schf-multi-actions">
+              <button
+                type="button"
+                className="eod-modal-btn cancel"
+                onClick={() => setMultiOpen(false)}
+                disabled={saving}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="eod-modal-btn primary-green"
+                onClick={saveMulti}
+                disabled={saving || !multiSel.length || !(workflowId && folder) || (scope === 'job' && !job) || !specOk}
+              >
+                {saving ? 'Saving…' : `Add to ${multiSel.length || ''} profile${multiSel.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="eod-modal-footer schf-footer-split">
           <div className="schf-switch-row">
             <label
@@ -906,6 +1011,19 @@ export function ScheduleFormModal({
               disabled={saving}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              className="eod-modal-btn cancel"
+              onClick={() => {
+                // New schedule: start with the chosen profile ticked. Editing: copies go to other profiles, so none is pre-ticked.
+                if (!isEdit) setMultiSel((sel) => (sel.length ? sel : [selectedChoice]));
+                setMultiOpen((o) => !o);
+              }}
+              disabled={saving}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Layers size={13} /> Add to multiple profiles
             </button>
             <button
               type="submit"

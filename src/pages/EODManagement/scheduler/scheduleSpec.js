@@ -152,7 +152,7 @@ export function validateForm(form, today = new Date()) {
 }
 
 /** Does this stored schedule fire on this weekday (0 = Sunday)? Respects narrow start..end ranges and paused fallbacks. */
-export function runsOnWeekday(schedule, dayIndex) {
+export function runsOnWeekday(schedule, dayIndex, now = new Date()) {
   const spec = schedule?.recurrence || {};
   switch (spec.frequency) {
     case 'daily':
@@ -180,6 +180,15 @@ export function runsOnWeekday(schedule, dayIndex) {
       return spec.start_date
         ? new Date(`${spec.start_date}T12:00:00`).getDay() === dayIndex
         : false;
+    case 'monthly':
+    case 'quarterly':
+    case 'yearly': {
+      // These fire on a different weekday every cycle, so "runs on <day>" means its NEXT run lands on that weekday.
+      // The server's next_fire_at is exact while the schedule is on; otherwise (paused / ended) work it out from the spec.
+      if (schedule?.next_fire_at) return new Date(schedule.next_fire_at).getDay() === dayIndex;
+      const next = nextRunDate(spec, now);
+      return next ? next.getDay() === dayIndex : false;
+    }
     default:
       if (schedule?.next_fire_at) {
         return new Date(schedule.next_fire_at).getDay() === dayIndex;
@@ -188,6 +197,50 @@ export function runsOnWeekday(schedule, dayIndex) {
         ? new Date(`${spec.start_date}T12:00:00`).getDay() === dayIndex
         : false;
   }
+}
+
+const parseDay = (iso) => {
+  const d = iso ? new Date(`${iso}T00:00:00`) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+};
+
+/**
+ * The date (local midnight) of the next run of a monthly / quarterly / yearly recurrence, worked out from the spec itself the way the
+ * server does (day_of_month, 'L' = last day, months, quarters + position, yearly = month of start_date), or null when it has ended.
+ */
+export function nextRunDate(spec, now = new Date()) {
+  const freq = spec?.frequency;
+  if (!['monthly', 'quarterly', 'yearly'].includes(freq)) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const start = parseDay(spec.start_date);
+  const end = parseDay(spec.end_date);
+  const from = start && start > today ? start : today;
+  const anchorMonth = start ? start.getMonth() + 1 : 1;
+  const offset = { first: 0, mid: 1, last: 2 }[spec.quarter_month] ?? 0;
+  const quarterMonths = (spec.quarters || []).length
+    ? new Set(spec.quarters.map((q) => (q - 1) * 3 + offset + 1))
+    : null;
+  const times = (spec.times || []).slice().sort();
+  const nowHm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  for (let i = 0; i < 40; i++) {
+    const first = new Date(from.getFullYear(), from.getMonth() + i, 1);
+    const month = first.getMonth() + 1;
+    let ok = true;
+    if (freq === 'monthly') ok = !(spec.months || []).length || spec.months.includes(month);
+    else if (freq === 'quarterly')
+      ok = quarterMonths ? quarterMonths.has(month) : (month - anchorMonth + 12) % 3 === 0;
+    else ok = month === anchorMonth;
+    if (!ok) continue;
+    const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    const wanted = spec.day_of_month ?? (start ? start.getDate() : 1);
+    const dom = wanted === 'L' ? last : Math.min(Number(wanted) || 1, last);
+    const d = new Date(first.getFullYear(), first.getMonth(), dom);
+    if (d < from) continue;
+    if (end && d > end) return null;
+    if (d.getTime() === today.getTime() && times.length && times[times.length - 1] <= nowHm) continue; // today's runs are over
+    return d;
+  }
+  return null;
 }
 
 export const QUARTERS = [

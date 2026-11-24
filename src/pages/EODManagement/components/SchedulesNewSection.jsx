@@ -75,16 +75,31 @@ const fmtDateTime = (iso) =>
     ? new Date(iso).toLocaleString([], { hour12: false, dateStyle: 'medium', timeStyle: 'short' })
     : '–';
 
-const displayName = (s) => s.name || (s.job ? `Job: ${s.job}` : `Workflow: ${s.folder}`);
+// Schedules made by an earlier build of "Add to multiple profiles" were saved as "<name> (Monthly EOD)"; hide that profile suffix.
+const LEGACY_PROFILE_SUFFIX =
+  /\s*\((?:Daily EOD|Weekly EOD|Monthly EOD|Quarterly EOD|Yearly EOD|Once|Custom Interval|Every N (?:days|hours|minutes))\)$/i;
+// "Weekly on Tue at 15:12" under a "Weekly" heading says Weekly twice: drop the leading word that the heading already shows.
+const withoutLead = (summary, heading) => {
+  const text = String(summary || '');
+  const word = String(heading || '').split(' ')[0];
+  if (!word || !text.toLowerCase().startsWith(`${word.toLowerCase()} `)) return text;
+  const rest = text.slice(word.length + 1).trim();
+  return rest ? rest[0].toUpperCase() + rest.slice(1) : text;
+};
+const displayName = (s) => {
+  const base = (s.name || '').replace(LEGACY_PROFILE_SUFFIX, '').trim();
+  return base || (s.job ? `Job: ${s.job}` : `Workflow: ${s.folder}`);
+};
 
 // The list is grouped by how a schedule repeats. "Custom interval" holds every-N-days/hours/minutes.
+// Same order as the EOD Profiles sidebar (Daily, Weekly, Monthly, Quarterly, Yearly, Once, Custom).
 const REPEAT_ORDER = [
-  'Once',
   'Daily',
   'Weekly',
   'Monthly',
   'Quarterly',
   'Yearly',
+  'Once',
   'Custom interval',
 ];
 const repeatKind = (s) => {
@@ -273,30 +288,61 @@ export function SchedulesNewSection({ selectedEnv }) {
     }
   };
 
+  // Copies made with "Add to multiple profiles": same workflow/job, start date and times, but another EOD profile.
+  const deleteSiblings = useMemo(() => {
+    if (!deleting || !Array.isArray(schedules)) return [];
+    const sig = (x) => {
+      const r = x.recurrence || {};
+      return [x.workflow_id ?? x.workflow ?? '', x.folder || '', x.job || '', r.start_date || '', [...(r.times || [])].sort().join(',')].join('|');
+    };
+    const mine = sig(deleting);
+    return schedules.filter((x) => x.id !== deleting.id && sig(x) === mine);
+  }, [deleting, schedules]);
+  const [alsoDelete, setAlsoDelete] = useState([]);
+  useEffect(() => setAlsoDelete([]), [deleting]);
+  const profileLabelOf = (x) => {
+    const pid = getScheduleProfile(x);
+    return allProfiles.find((p) => p.id === pid)?.label || pid;
+  };
+
   const remove = async () => {
     setIsSaving(true);
-    const targetId = deleting?.id;
+    const ids = [deleting?.id, ...alsoDelete].filter((v) => v != null);
+    const done = [];
     try {
-      await svc.deleteSchedule(selectedEnv, targetId);
-      setSchedules((prev) => (Array.isArray(prev) ? prev.filter((s) => s.id !== targetId) : []));
+      for (const id of ids) {
+        await svc.deleteSchedule(selectedEnv, id);
+        done.push(id);
+      }
       setDeleting(null);
-      toast.success('Schedule deleted.');
-      try {
-        window.dispatchEvent(
-          new CustomEvent('eod-schedules-updated', { detail: { deleted: targetId, env: selectedEnv } })
-        );
-      } catch {}
-      await load();
+      toast.success(done.length > 1 ? `${done.length} schedules deleted.` : 'Schedule deleted.');
     } catch (err) {
       toast.error(errorText(err));
     } finally {
+      if (done.length) {
+        setSchedules((prev) => (Array.isArray(prev) ? prev.filter((s) => !done.includes(s.id)) : []));
+        try {
+          window.dispatchEvent(
+            new CustomEvent('eod-schedules-updated', { detail: { deleted: done, env: selectedEnv } })
+          );
+        } catch {
+          /* refresh hint only */
+        }
+        await load();
+      }
       setIsSaving(false);
     }
   };
 
   const saved = async (result) => {
     setForm({ open: false, schedule: null });
-    toast.success(form.schedule ? 'Schedule updated.' : 'Schedule added.');
+    toast.success(
+      result.count > 1
+        ? `Schedule added to ${result.count} profiles.`
+        : form.schedule && !result.count
+          ? 'Schedule updated.'
+          : 'Schedule added.',
+    );
     (result.warnings || []).forEach((w) => toast.warning(w));
     await load();
   };
@@ -421,6 +467,18 @@ export function SchedulesNewSection({ selectedEnv }) {
     ]);
   }, [visible, selectedProfile, customProfiles]);
 
+  // The header is sticky; the search toolbar sticks right below it, so publish the header's height as --eodp-bar-h.
+  const barObserver = useRef(null);
+  const barRef = useCallback((node) => {
+    barObserver.current?.disconnect();
+    barObserver.current = null;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const publish = () => node.parentElement?.style.setProperty('--eodp-bar-h', `${node.offsetHeight}px`);
+    publish();
+    barObserver.current = new ResizeObserver(publish);
+    barObserver.current.observe(node);
+  }, []);
+
   if (error) {
     return <ErrorState title="Schedules could not be loaded" description={error} onRetry={load} />;
   }
@@ -437,7 +495,7 @@ export function SchedulesNewSection({ selectedEnv }) {
 
   return (
     <div className="eod-section">
-      <div className="eod-section-bar">
+      <div className="eod-section-bar eodp-sticky-bar" ref={barRef}>
         <div>
           <p className="eod-section-title">SCHEDULED RUNS · {selectedEnv}</p>
           <span className="eod-section-subtitle">
@@ -775,7 +833,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                       <div className="sc-freq-col">
                         <span className="sc-freq-pill" title={s.summary}>
                           <Repeat size={11} className="sc-freq-icon" />
-                          <span>{s.summary}</span>
+                          <span>{withoutLead(s.summary, title)}</span>
                         </span>
                       </div>
                       <div
@@ -1028,6 +1086,46 @@ export function SchedulesNewSection({ selectedEnv }) {
               Delete <strong>{displayName(deleting)}</strong> ({deleting.summary})? Runs already
               started are not affected.
             </p>
+            {deleteSiblings.length > 0 && (
+              <div className="schf-multi-panel" style={{ marginTop: 10, textAlign: 'left' }}>
+                <div className="schf-multi-title">
+                  This schedule also exists in other profiles. Delete from these too?
+                </div>
+                <div className="schf-multi-grid">
+                  {deleteSiblings.map((x) => (
+                    <label key={x.id} className="schf-multi-opt">
+                      <input
+                        type="checkbox"
+                        checked={alsoDelete.includes(x.id)}
+                        onChange={() =>
+                          setAlsoDelete((sel) =>
+                            sel.includes(x.id) ? sel.filter((v) => v !== x.id) : [...sel, x.id],
+                          )
+                        }
+                      />
+                      <span>
+                        {profileLabelOf(x)}
+                        {x.summary ? (
+                          <span className="eodsch-muted"> · {withoutLead(x.summary, profileLabelOf(x))}</span>
+                        ) : null}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="eod-modal-btn cancel"
+                  style={{ marginTop: 8 }}
+                  onClick={() =>
+                    setAlsoDelete((sel) =>
+                      sel.length === deleteSiblings.length ? [] : deleteSiblings.map((x) => x.id),
+                    )
+                  }
+                >
+                  {alsoDelete.length === deleteSiblings.length ? 'Clear selection' : 'Select all'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="eod-modal-footer">
             <button
@@ -1050,7 +1148,7 @@ export function SchedulesNewSection({ selectedEnv }) {
                   <Loader2 size={16} className="spin-animation" /> Deleting...
                 </>
               ) : (
-                'Delete Schedule'
+                alsoDelete.length ? `Delete ${alsoDelete.length + 1} schedules` : 'Delete Schedule'
               )}
             </button>
           </div>
