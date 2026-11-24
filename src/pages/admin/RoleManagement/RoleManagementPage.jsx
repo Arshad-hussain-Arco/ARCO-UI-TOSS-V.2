@@ -46,6 +46,7 @@ const MODULE_LABELS = {
   EOD_CONFIG: 'EOD Management — Configuration',
   EOD_SCHEDULE: 'EOD Management — Schedules',
   EOD_CONTROL: 'EOD Management — Control',
+  EOD_SCHEDULER: 'EOD Management — Scheduler',
   // Sidebar label is "Consultants" — matched here so admins can find it.
   EMPLOYEE: 'Consultants',
   TEAMS: 'Consultants — Teams',

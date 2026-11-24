@@ -1,0 +1,577 @@
+/* Workflow tab. Every class uses the eodw- prefix so SchedulerTab.css is left alone. */
+
+.eodw-root {
+  /* Theme-neutral: surfaces and borders are tints of the current text colour,
+     so they work on light and dark themes without knowing your tokens. */
+  --eodw-border: color-mix(in srgb, currentColor 18%, transparent);
+  --eodw-muted: color-mix(in srgb, currentColor 62%, transparent);
+  --eodw-soft: color-mix(in srgb, currentColor 6%, transparent);
+  --eodw-accent: var(--color-primary, #22a35a);
+  --eodw-accent-soft: color-mix(in srgb, var(--eodw-accent) 16%, transparent);
+  --eodw-ok: #2fb86a;
+  --eodw-bad: #ef5350;
+  --eodw-warn: #e0a526;
+  --eodw-live: #5b8def;
+  --eodw-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.eodw-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.eodw-muted {
+  color: var(--eodw-muted);
+}
+
+.eodw-nowrap {
+  white-space: nowrap;
+}
+
+/* ---------- file header ---------- */
+
+.eodw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  flex-wrap: wrap;
+}
+
+.eodw-header-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eodw-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.eodw-file svg {
+  color: var(--eodw-ok);
+  flex: none;
+}
+
+.eodw-file strong {
+  word-break: break-all;
+}
+
+.eodw-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 12px;
+  color: var(--eodw-muted);
+}
+
+.eodw-meta code {
+  font-family: var(--eodw-mono);
+}
+
+.eodw-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eodw-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--eodw-muted);
+}
+
+.eodw-empty p {
+  margin: 0;
+}
+
+/* ---------- stats ---------- */
+
+.eodw-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.eodw-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--eodw-border);
+  border-radius: 10px;
+}
+
+.eodw-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.eodw-stat-label {
+  font-size: 12px;
+  color: var(--eodw-muted);
+}
+
+.eodw-stat[data-tone='warn'] {
+  border-color: rgba(201, 138, 10, 0.45);
+  background: rgba(224, 165, 38, 0.08);
+}
+.eodw-stat[data-tone='warn'] .eodw-stat-value {
+  color: var(--eodw-warn);
+}
+.eodw-stat[data-tone='bad'] {
+  border-color: rgba(220, 59, 59, 0.45);
+  background: rgba(220, 59, 59, 0.07);
+}
+.eodw-stat[data-tone='bad'] .eodw-stat-value {
+  color: var(--eodw-bad);
+}
+
+/* ---------- problems ---------- */
+
+.eodw-problems {
+  border: 1px solid var(--eodw-border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 0 16px;
+}
+
+.eodw-problems-bad {
+  border-left-color: var(--eodw-bad);
+  background: rgba(220, 59, 59, 0.05);
+}
+.eodw-problems-warn {
+  border-left-color: var(--eodw-warn);
+  background: rgba(224, 165, 38, 0.06);
+}
+
+.eodw-problems summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.eodw-problems-count {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.eodw-problems ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+/* ---------- approval ---------- */
+
+.eodw-approval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border: 1px solid var(--eodw-border);
+  border-left-width: 4px;
+  border-radius: 10px;
+}
+
+.eodw-approval[data-state='approved'] {
+  border-left-color: var(--eodw-ok);
+  background: rgba(34, 163, 90, 0.07);
+}
+.eodw-approval:not([data-state='approved']) {
+  border-left-color: var(--eodw-warn);
+  background: rgba(224, 165, 38, 0.07);
+}
+
+.eodw-approval-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 360px;
+}
+
+.eodw-approval-main p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.eodw-approval-icon {
+  display: inline-flex;
+  margin-top: 1px;
+}
+.eodw-approval[data-state='approved'] .eodw-approval-icon {
+  color: var(--eodw-ok);
+}
+.eodw-approval:not([data-state='approved']) .eodw-approval-icon {
+  color: var(--eodw-warn);
+}
+
+.eodw-approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- graph card ---------- */
+
+.eodw-graph {
+  padding: 0;
+  overflow: hidden;
+}
+
+.eodw-graph-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--eodw-border);
+}
+
+.eodw-graph-controls,
+.eodw-graph-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.eodw-folder-name {
+  font-size: 14px;
+}
+
+.eodw-graph-body {
+  padding: 8px;
+  overflow: auto;
+}
+
+.eodw-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--eodw-live);
+}
+
+.eodw-live::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--eodw-live);
+  animation: eodw-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes eodw-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ---------- jobs + details ---------- */
+
+.eodw-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .eodw-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.eodw-jobs {
+  padding: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.eodw-jobs-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--eodw-border);
+  flex-wrap: wrap;
+}
+
+.eodw-jobs-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.eodw-count {
+  font-size: 12px;
+  color: var(--eodw-muted);
+  background: var(--eodw-soft);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.eodw-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 220px;
+  padding: 0 10px;
+  border: 1px solid var(--eodw-border);
+  border-radius: 8px;
+  color: var(--eodw-muted);
+}
+
+.eodw-search:focus-within {
+  border-color: var(--eodw-accent);
+}
+
+.eodw-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 6px 0;
+  font: inherit;
+  color: inherit;
+}
+
+.eodw-table-scroll {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.eodw-table {
+  width: 100%;
+}
+
+.eodw-table thead th {
+  background: var(--eodw-soft);
+}
+
+.eodw-table tbody tr {
+  cursor: pointer;
+}
+
+.eodw-table tbody tr:hover {
+  background: var(--eodw-soft);
+}
+
+.eodw-table tbody tr[data-selected='true'] {
+  background: var(--eodw-accent-soft);
+  box-shadow: inset 3px 0 0 var(--eodw-accent);
+}
+
+.eodw-table td {
+  vertical-align: middle;
+}
+
+.eodw-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.eodw-job-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.eodw-cmd {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--eodw-mono);
+  font-size: 12px;
+}
+
+.eodw-target-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+  background: rgba(47, 184, 106, 0.16);
+  color: var(--eodw-ok);
+}
+
+.eodw-target-chip[data-ok='false'] {
+  background: rgba(239, 83, 80, 0.16);
+  color: var(--eodw-bad);
+}
+
+.eodw-row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.eodw-none {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.eodw-more {
+  padding: 10px 16px;
+  font-size: 13px;
+  border-top: 1px solid var(--eodw-border);
+  color: var(--eodw-muted);
+}
+
+/* ---------- job details ---------- */
+
+.eodw-details {
+  position: sticky;
+  top: 8px;
+  padding: 16px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.eodw-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eodw-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eodw-side-title {
+  font-size: 15px;
+  word-break: break-all;
+}
+
+.eodw-side h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--eodw-muted);
+}
+
+.eodw-side section h4:not(:first-child) {
+  margin-top: 12px;
+}
+
+.eodw-side-empty {
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.eodw-side-empty p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.eodw-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(239, 83, 80, 0.16);
+  color: var(--eodw-bad);
+}
+
+.eodw-pill[data-ok='true'] {
+  background: rgba(47, 184, 106, 0.16);
+  color: var(--eodw-ok);
+}
+
+.eodw-code {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--eodw-soft);
+  border: 1px solid var(--eodw-border);
+  font-family: var(--eodw-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.eodw-issue {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(220, 59, 59, 0.08);
+  color: var(--eodw-bad);
+  font-size: 13px;
+}
+
+.eodw-target {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(34, 163, 90, 0.08);
+  border: 1px solid rgba(34, 163, 90, 0.3);
+}
+
+.eodw-target[data-ok='false'] {
+  background: rgba(220, 59, 59, 0.08);
+  border-color: rgba(220, 59, 59, 0.3);
+  color: var(--eodw-bad);
+}
+
+.eodw-kv {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eodw-kv dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--eodw-muted);
+  margin-bottom: 1px;
+}
+
+.eodw-kv dd {
+  margin: 0;
+  font-size: 13px;
+  word-break: break-word;
+}

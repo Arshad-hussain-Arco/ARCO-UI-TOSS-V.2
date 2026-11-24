@@ -38,6 +38,10 @@ const MurexRuntimeTrendsPage = lazyPage(
   () => import('@pages/MurexRuntimeTrends/MurexRuntimeTrendsPage'),
   'MurexRuntimeTrendsPage',
 );
+const EODManagement2Page = lazyPage(
+  () => import('@pages/EODManagement/EODManagement2Page'),
+  'EODManagement2Page',
+);
 const EODManagementPage = lazyPage(
   () => import('@pages/EODManagement/EODManagementPage'),
   'EODManagementPage',
@@ -201,6 +205,14 @@ export const routes = [
                     ]}
                   >
                     <EODManagementPage />
+                  </RequirePermission>
+                ),
+              },
+              {
+                path: ROUTES.EOD_MANAGEMENT_2,
+                element: (
+                  <RequirePermission codes={['EOD_SCHEDULER_VIEW', 'EOD_CONTROL_VIEW']}>
+                    <EODManagement2Page />
                   </RequirePermission>
                 ),
               },
